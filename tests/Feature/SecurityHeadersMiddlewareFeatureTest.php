@@ -16,12 +16,21 @@ class SecurityHeadersMiddlewareFeatureTest extends TestCase
 {
     private ?string $previousAppEnv = null;
     private ?string $previousHttpsServerValue = null;
+    private ?string $previousTrustedProxies = null;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->previousAppEnv = $_ENV['APP_ENV'] ?? null;
         $this->previousHttpsServerValue = isset($_SERVER['HTTPS']) ? (string) $_SERVER['HTTPS'] : null;
+        $this->previousTrustedProxies = isset($_ENV['TRUSTED_PROXIES'])
+            ? (string) $_ENV['TRUSTED_PROXIES']
+            : null;
+
+        // Keine vertrauten Proxies, solange ein Test nichts anderes sagt. Der Wert ist
+        // prozessweit, und ein paralleler Lauf setzt die Reihenfolge der Testklassen
+        // nicht fest - geerbt wird hier nichts.
+        unset($_ENV['TRUSTED_PROXIES'], $_SERVER['TRUSTED_PROXIES']);
     }
 
     protected function tearDown(): void
@@ -37,6 +46,13 @@ class SecurityHeadersMiddlewareFeatureTest extends TestCase
         } else {
             $_SERVER['HTTPS'] = $this->previousHttpsServerValue;
         }
+
+        if ($this->previousTrustedProxies === null) {
+            unset($_ENV['TRUSTED_PROXIES']);
+        } else {
+            $_ENV['TRUSTED_PROXIES'] = $this->previousTrustedProxies;
+        }
+        unset($_SERVER['TRUSTED_PROXIES']);
 
         parent::tearDown();
     }
@@ -186,6 +202,7 @@ class SecurityHeadersMiddlewareFeatureTest extends TestCase
 
     /**
      * @param array<string, string> $serverParams
+     * @param array<string, string> $headers
      */
     private function hstsFor(string $uri, array $serverParams = [], array $headers = []): string
     {
@@ -240,5 +257,82 @@ class SecurityHeadersMiddlewareFeatureTest extends TestCase
         $_ENV['APP_ENV'] = 'development';
 
         $this->assertSame('', $this->hstsFor('https://localhost/dashboard'));
+    }
+
+    /**
+     * `X-Forwarded-Proto` zählt nur hinter einem vertrauten Proxy.
+     *
+     * Die Kopfzeile darf jeder Absender selbst setzen. Hinter einem TLS-beendenden
+     * Proxy ist sie die einzige Quelle für das Protokoll der ursprünglichen Anfrage,
+     * von einem beliebigen Absender ist sie eine Behauptung - und dieselbe Regel
+     * wenden `SessionConfig::shouldUseSecureCookie()` und `AppUrlResolver` seit
+     * längerem an. Hier fehlte sie als einzige Stelle.
+     */
+    public function testForwardedProtocolCountsOnlyBehindATrustedProxy(): void
+    {
+        $_ENV['APP_ENV'] = 'production';
+
+        $this->assertSame(
+            '',
+            $this->hstsFor(
+                'http://localhost/dashboard',
+                ['REMOTE_ADDR' => '10.0.0.10'],
+                ['X-Forwarded-Proto' => 'https']
+            )
+        );
+
+        $_ENV['TRUSTED_PROXIES'] = '10.0.0.10';
+
+        $this->assertStringContainsString(
+            'max-age=31536000',
+            $this->hstsFor(
+                'http://localhost/dashboard',
+                ['REMOTE_ADDR' => '10.0.0.10'],
+                ['X-Forwarded-Proto' => 'https']
+            )
+        );
+    }
+
+    /**
+     * Von der Kette zählt der erste Eintrag - er stammt von der Gegenstelle, die den
+     * Proxy angesprochen hat. Dieselbe Richtung wie in `SessionConfig` und
+     * `AppUrlResolver`.
+     */
+    public function testForwardedProtocolChainIsReadFromItsFirstEntry(): void
+    {
+        $_ENV['APP_ENV'] = 'production';
+        $_ENV['TRUSTED_PROXIES'] = '10.0.0.0/24';
+
+        $this->assertStringContainsString(
+            'max-age=31536000',
+            $this->hstsFor(
+                'http://localhost/dashboard',
+                ['REMOTE_ADDR' => '10.0.0.7'],
+                ['X-Forwarded-Proto' => 'https, http']
+            )
+        );
+
+        $this->assertSame(
+            '',
+            $this->hstsFor(
+                'http://localhost/dashboard',
+                ['REMOTE_ADDR' => '10.0.0.7'],
+                ['X-Forwarded-Proto' => 'http, https']
+            )
+        );
+    }
+
+    /**
+     * Der Serverwert `HTTPS` bleibt ohne Proxy-Prüfung gültig: Ihn setzt der
+     * Webserver selbst, kein Absender von außen.
+     */
+    public function testServerSideHttpsValueStaysValidWithoutATrustedProxy(): void
+    {
+        $_ENV['APP_ENV'] = 'production';
+
+        $this->assertStringContainsString(
+            'max-age=31536000',
+            $this->hstsFor('http://localhost/dashboard', ['HTTPS' => 'on', 'REMOTE_ADDR' => '10.0.0.10'])
+        );
     }
 }

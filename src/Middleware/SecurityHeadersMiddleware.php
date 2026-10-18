@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Util\ClientIpResolver;
 use App\Util\EnvHelper;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -122,6 +123,20 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
      * Anfrage überhaupt nicht prüfbar, weil der Wert nicht am Request hing. Die
      * Serverwerte des Requests tragen dieselbe Angabe, nur eben die dieser einen
      * Anfrage; Slim füllt sie beim Einstieg aus `$_SERVER`.
+     *
+     * Drei Quellen, und nur die mittlere braucht eine Vertrauensprüfung:
+     *
+     * - Das Schema der Anfrage ist die Anfrage selbst.
+     * - `X-Forwarded-Proto` darf jeder Absender setzen. Hinter einem TLS-beendenden
+     *   Proxy ist die Kopfzeile die einzige Quelle für das ursprüngliche Protokoll,
+     *   von einem beliebigen Absender ist sie eine Behauptung - sie zählt deshalb
+     *   nur, wenn die Gegenstelle als vertrauter Proxy eingetragen ist. Dieselbe
+     *   Regel wenden `SessionConfig::shouldUseSecureCookie()` und `AppUrlResolver`
+     *   seit längerem an; hier fehlte sie als einzige Stelle. Gelesen wird der
+     *   erste Eintrag der Kette - er stammt von der Gegenstelle, die den Proxy
+     *   angesprochen hat.
+     * - Der Serverwert `HTTPS` kommt vom eigenen Webserver, nicht von außen, und
+     *   bleibt deshalb ohne Prüfung gültig.
      */
     private function isHttpsRequest(Request $request): bool
     {
@@ -129,12 +144,18 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
             return true;
         }
 
-        $forwardedProto = strtolower(trim($request->getHeaderLine('X-Forwarded-Proto')));
-        if ($forwardedProto === 'https') {
-            return true;
+        $serverParams = $request->getServerParams();
+
+        $remoteAddress = trim((string) ($serverParams['REMOTE_ADDR'] ?? ''));
+        if ($remoteAddress !== '' && ClientIpResolver::isTrustedProxy($remoteAddress)) {
+            $forwardedProto = $request->getHeaderLine('X-Forwarded-Proto');
+            $firstProto = strtolower(trim((string) explode(',', $forwardedProto)[0]));
+            if ($firstProto === 'https') {
+                return true;
+            }
         }
 
-        $httpsServerValue = strtolower(trim((string) ($request->getServerParams()['HTTPS'] ?? '')));
+        $httpsServerValue = strtolower(trim((string) ($serverParams['HTTPS'] ?? '')));
         return $httpsServerValue !== '' && $httpsServerValue !== 'off';
     }
 }

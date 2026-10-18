@@ -60,6 +60,7 @@ docker compose --env-file .env -f docker-compose.prod.yml up -d
 | `WEBMAIL_SSO_SECRET`      | Shared secret app ⇄ Tachyon plugin (`openssl rand -base64 32`)       | -               | **Yes**  |
 | `APP_URL`                 | Public HTTPS URL, used for the webmail SSO redirect                  | -               | **Yes**  |
 | `MAIL_ALLOW_PRIVATE_HOSTS`| Allow IMAP hosts on private/loopback networks (SSRF guard opt-out)   | `0`             | No       |
+| `TRUSTED_PROXIES`         | Reverse proxies whose `X-Forwarded-*` headers are believed, IP or CIDR, comma-separated. Set it to `172.16.0.0/12` (or the subnet of `portainer_network`): SWAG and the stack's own `web` container sit in front, so without it the client address the application sees is a container IP for every request - one shared login rate-limit bucket for all members and a useless `ip` field in every log line. The stack starts without it, which is why it has to be set deliberately. | - | **Yes** |
 | `WEBMAIL_UPLOAD_MAX_SIZE` | Upload limit inside the webmail container                            | `25M`           | No       |
 | `WEBMAIL_MEMORY_LIMIT`    | PHP memory limit inside the webmail container                        | `128M`          | No       |
 | `BACKUP_DIR`              | In-app backup directory; must be inside the `backup_data` volume     | `/var/backups/chormanager` | No |
