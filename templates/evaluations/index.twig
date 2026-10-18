@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {#
     Quote mit Zustand: Farbe allein trägt keine Bedeutung, deshalb kommen Form (Icon) und
     für Screenreader ein Wort dazu. Ohne geltenden Termin gibt es keine Quote, nur einen Strich.
@@ -59,9 +61,7 @@
                 <a href="/evaluations/project-members?project_id={{ selected_project.id }}"
                    class="btn btn-outline-secondary">Besetzung</a>
             {% endif %}
-            <a href="/help/evaluations" class="btn btn-outline-secondary">
-                <i class="bi bi-question-circle" aria-hidden="true"></i> Hilfe
-            </a>
+            {{ help.button("evaluations", "Anwesenheitsquoten") }}
         </div>
     </section>
 {% endblock page_header %}

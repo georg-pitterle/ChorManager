@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     {{ song.title }} - Repertoire - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
@@ -27,6 +29,7 @@
             {% endif %}
         </div>
         <div class="page-actions">
+            {{ help.button("repertoire-songs", "Lied bearbeiten") }}
             <a href="/song-library" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1"></i>Zurück
             </a>

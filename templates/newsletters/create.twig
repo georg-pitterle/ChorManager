@@ -1,4 +1,7 @@
 {% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}
+
+{% import "macros/help.twig" as help %}
+
 {% block editor_scripts %}
     <script src="/vendor/tinymce/tinymce/tinymce.min.js"></script>
 {% endblock editor_scripts %}
@@ -16,6 +19,7 @@
             </p>
         </div>
         <div class="page-actions">
+            {{ help.button("newsletter-compose", "Newsletter schreiben und versenden") }}
             <a href="/newsletters?status=draft"
                class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left"></i> Zurück zur Übersicht

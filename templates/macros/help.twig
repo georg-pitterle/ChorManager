@@ -1,0 +1,13 @@
+{# Hilfe-Knopf für den Seitenkopf: steht als erste Aktion in .page-actions jeder Seite, #}
+{# zu der es ein Hilfethema gibt. Am Telefon nur das Symbol, ab sm mit "Hilfe". #}
+{# `topic` ergänzt den Tooltip ("Hilfe zu ..."), `classes` etwa "btn-sm" für Köpfe mit #}
+{# kleinen Knöpfen. #}
+{% macro button(slug, topic=null, classes="") %}
+    {% set _label = topic ? "Hilfe zu " ~ topic : "Hilfe" %}
+    <a href="/help/{{ slug }}"
+       class="btn btn-outline-secondary help-button{{ classes ? " " ~ classes }}"
+       title="{{ _label }}"
+       aria-label="{{ _label }}">
+        <i class="bi bi-question-circle" aria-hidden="true"></i><span class="d-none d-sm-inline"> Hilfe</span>
+    </a>
+{% endmacro %}

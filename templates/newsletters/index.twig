@@ -1,4 +1,7 @@
 {% extends "layout.twig" %}
+
+{% import "macros/help.twig" as help %}
+
 {% block editor_scripts %}
     <script src="/vendor/tinymce/tinymce/tinymce.min.js"></script>
 {% endblock editor_scripts %}
@@ -18,6 +21,7 @@
             {% endif %}
         </div>
         <div class="page-actions d-flex gap-2">
+            {{ help.button("newsletter", "Newsletter") }}
             {% if status != "sent" %}
                 <button type="button"
                         class="btn btn-primary"

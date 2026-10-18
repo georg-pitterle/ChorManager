@@ -1,5 +1,7 @@
 {% extends is_modal|default(false) ? "layout_modal.twig" : "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     Newsletter-Einstellungen ({{ newsletter.title }}) - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
@@ -11,6 +13,7 @@
             <p class="text-muted mb-0">{{ newsletter.title }}</p>
         </div>
         <div class="page-actions">
+            {{ help.button("newsletter", "Newsletter") }}
             {% set _status_filter = newsletter.status == "sent" ? "sent" : "draft" %}
             <a href="/newsletters?project_id={{ newsletter.project_id }}&status={{ _status_filter }}"
                class="btn btn-outline-secondary">

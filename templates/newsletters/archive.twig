@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     Newsletter-Archiv - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
@@ -11,9 +13,7 @@
             <p class="text-muted mb-0">Alle Newsletter, die an dich versendet wurden – auch wenn die Mail längst gelöscht ist.</p>
         </div>
         <div class="page-actions">
-            <a href="/help/newsletter" class="btn btn-outline-secondary">
-                <i class="bi bi-question-circle" aria-hidden="true"></i> Hilfe
-            </a>
+            {{ help.button("newsletter", "Newsletter") }}
         </div>
     </section>
 {% endblock page_header %}

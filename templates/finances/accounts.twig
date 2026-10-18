@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% set can_write_finances = session.can_manage_finances %}
 
 {% block title %}
@@ -15,6 +17,7 @@
             </p>
         </div>
         <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
+            {{ help.button("finance", "Finanzen (Kassabuch & Auswertung)") }}
             <a href="/finances" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left"></i> Zum Kassabuch
             </a>

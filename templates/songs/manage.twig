@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     Repertoire - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
@@ -11,6 +13,7 @@
             <p class="text-muted mb-0">Alle Lieder zentral verwalten und Projekten zuweisen.</p>
         </div>
         <div class="page-actions">
+            {{ help.button("repertoire", "Repertoire") }}
             <button type="button"
                     class="btn btn-outline-secondary"
                     data-bs-toggle="modal"

@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     Start - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
@@ -9,6 +11,9 @@
         <div>
             <h1 class="h2 mb-1">Willkommen, {{ session.user_name|default("Mitglied") }}</h1>
             <p class="text-muted mb-0">Dein Arbeitsbereich für Termine, Aufgaben und Schnellzugriffe.</p>
+        </div>
+        <div class="page-actions">
+            {{ help.button("navigation", "Start und Navigation") }}
         </div>
     </section>
 {% endblock page_header %}

@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     Anmelde-Auswertung - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock %}
@@ -11,6 +13,7 @@
             <p class="text-muted mb-0">Besetzung je Stimmgruppe und Rücklaufquote der Anmeldungen.</p>
         </div>
         <div class="page-actions">
+            {{ help.button("evaluations-registrations", "Anmelde-Auswertung") }}
             {% if include_past %}
                 <a class="btn btn-outline-secondary" href="/evaluations/registrations">Nur kommende</a>
             {% else %}

@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     Probenmaterial - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
@@ -12,6 +14,9 @@
                 Noten, Übe-Audio und Links zu den Projekten, in denen du mitsingst.
                 Öffne ein Projekt, um die Dateien zu sehen.
             </p>
+        </div>
+        <div class="page-actions">
+            {{ help.button("repertoire-downloads", "Probenmaterial") }}
         </div>
     </section>
 {% endblock page_header %}

@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     Sponsoren - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
@@ -13,6 +15,7 @@
             <p class="text-muted mb-0">Vor einer Anfrage nachsehen, ob schon jemand an der Firma dran ist.</p>
         </div>
         <div class="page-actions">
+            {{ help.button("sponsoring-sponsors", "Sponsoren verwalten") }}
             <button class="btn btn-primary"
                     data-bs-toggle="modal"
                     data-bs-target="#createSponsorModal">

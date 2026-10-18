@@ -1,5 +1,6 @@
 {% extends "layout.twig" %}
 {% import "files/partials/macros.twig" as files_ui %}
+{% import "macros/help.twig" as help %}
 
 {% block title %}
     Dateien - {{ app_settings.app_name|default("Chor-Manager") }}
@@ -12,6 +13,7 @@
             <p class="text-muted mb-0">Teamordner mit Noten, Aufnahmen und Unterlagen.</p>
         </div>
         <div class="page-actions">
+            {{ help.button("files", "Dateien") }}
             {{ include("files/partials/search_form.twig", {term: ""}, false) }}
             <a class="btn btn-outline-secondary" href="/files/trash">
                 <i class="bi bi-trash3 me-1" aria-hidden="true"></i> Papierkorb

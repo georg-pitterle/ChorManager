@@ -179,6 +179,12 @@ body.app-shell {
         flex: 1 1 auto;
         white-space: nowrap;
     }
+
+    /* Der Hilfe-Knopf zeigt am Telefon nur sein Symbol - als gestreckte Kachel wäre er
+       ein breiter leerer Knopf. */
+    .page-header .page-actions > .help-button {
+        flex: 0 0 auto;
+    }
 }
 
 .surface-card {

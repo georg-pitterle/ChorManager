@@ -1,5 +1,6 @@
 {% extends "layout.twig" %}
 {% import "files/partials/macros.twig" as files_ui %}
+{% import "macros/help.twig" as help %}
 
 {% block title %}
     {{ file.name }} - Dateien - {{ app_settings.app_name|default("Chor-Manager") }}
@@ -29,6 +30,7 @@
             </p>
         </div>
         <div class="page-actions">
+            {{ help.button("files", "Dateien") }}
             {% if attachment_previewable(file.mime_type) %}
                 <button type="button"
                         class="btn btn-outline-secondary"

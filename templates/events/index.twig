@@ -1,6 +1,7 @@
 {% extends "layout.twig" %}
 
 {% import "macros/modal_form.twig" as modal %}
+{% import "macros/help.twig" as help %}
 
 {% block title %}
     Termine - {{ app_settings.app_name|default("Chor-Manager") }}
@@ -23,6 +24,7 @@
             <h1 class="h2 mb-0">Termine</h1>
         </div>
         <div class="page-actions">
+            {{ help.button("events", "Termine") }}
             <div class="btn-group me-2" role="group" aria-label="Ansicht wählen">
                 {% for _view in _views %}
                     {% set _active = view_mode == _view.key %}

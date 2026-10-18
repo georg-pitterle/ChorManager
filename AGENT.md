@@ -61,6 +61,9 @@ You are a professional software engineer.
   frei konfigurierbar. Stattdessen das tatsächliche Recht mit seinem Label aus
   `templates/roles/index.twig` nennen, und bei fehlenden Rechten generisch auf den
   Administrator verweisen. Vollständiger Ablauf: `/create-help-topic`.
+- Jede Seite mit Hilfethema zeigt im Seitenkopf als erste Aktion den Knopf aus
+  `templates/macros/help.twig` (`help.button(slug, titel)`), nie einen eigenen Link.
+  Zuordnung und Wächter: `tests/Feature/HelpButtonFeatureTest.php`.
 
 ## Skills / Commands
 Invoke with `/command-name`:

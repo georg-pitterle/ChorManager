@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     Neues Lied - Repertoire - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
@@ -21,6 +23,7 @@
             <p class="text-muted mb-0">Alle Felder direkt beim Anlegen befüllen.</p>
         </div>
         <div class="page-actions">
+            {{ help.button("repertoire", "Repertoire") }}
             <a href="/song-library" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1"></i>Zurück
             </a>

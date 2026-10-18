@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     Kontoauszug importieren - {{ app_settings.app_name|default('Chor-Manager') }}
 {% endblock title %}
@@ -13,6 +15,7 @@
             </p>
         </div>
         <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
+            {{ help.button("finance", "Finanzen (Kassabuch & Auswertung)") }}
             <form action="/finances/import/cancel" method="post">
                 <button type="submit" class="btn btn-outline-secondary w-100">
                     <i class="bi bi-x-circle"></i> Abbrechen

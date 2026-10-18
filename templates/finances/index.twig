@@ -1,6 +1,7 @@
 {% extends "layout.twig" %}
 
 {% import _self as cashbook %}
+{% import "macros/help.twig" as help %}
 
 {% set can_write_finances = session.can_manage_finances %}
 
@@ -95,6 +96,7 @@
             </p>
         </div>
         <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
+            {{ help.button("finance", "Finanzen (Kassabuch & Auswertung)") }}
             {% if available_years|length >= 1 %}
                 <form method="get"
                       action="/finances"

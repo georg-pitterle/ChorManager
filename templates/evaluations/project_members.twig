@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     Besetzung - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
@@ -11,6 +13,7 @@
             <p class="text-muted mb-0">Wer im Projekt singt, nach Stimmgruppen und Teilstimmen.</p>
         </div>
         <div class="page-actions d-flex gap-2">
+            {{ help.button("evaluations-project-members", "Besetzung") }}
             <form class="d-flex gap-2" method="get" action="/evaluations/project-members">
                 <select class="form-select select-min-220 onchange-submit" name="project_id"
                         aria-label="Projekt wählen">

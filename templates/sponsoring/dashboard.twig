@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     Sponsoring - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
@@ -22,6 +24,7 @@
             </p>
         </div>
         <div class="page-actions">
+            {{ help.button("sponsoring", "Sponsoring") }}
             <a href="/sponsoring/sponsors" class="btn btn-primary">Sponsor suchen oder anlegen</a>
         </div>
     </section>

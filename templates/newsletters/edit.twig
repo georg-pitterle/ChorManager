@@ -1,4 +1,7 @@
 {% extends is_modal|default(false) ? 'layout_modal.twig' : 'layout.twig' %}
+
+{% import "macros/help.twig" as help %}
+
 {% block editor_scripts %}
     <script src="/vendor/tinymce/tinymce/tinymce.min.js"></script>
 {% endblock editor_scripts %}
@@ -14,6 +17,9 @@
             <p class="text-muted mb-0">
                 Projekt: <strong>{{ project.name|default("kein Projekt") }}</strong>
             </p>
+        </div>
+        <div class="page-actions">
+            {{ help.button("newsletter-compose", "Newsletter schreiben und versenden") }}
         </div>
     </section>
 {% endblock page_header %}

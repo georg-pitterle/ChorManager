@@ -1,5 +1,6 @@
 {% extends "layout.twig" %}
 {% import "files/partials/macros.twig" as files_ui %}
+{% import "macros/help.twig" as help %}
 
 {% set can_upload = level >= 2 %}
 {% set can_edit = level >= 3 %}
@@ -34,6 +35,7 @@
             <p class="text-muted mb-0 small">Deine Stufe: {{ level_labels[level] }}</p>
         </div>
         <div class="page-actions">
+            {{ help.button("files", "Dateien") }}
             {{ include("files/partials/search_form.twig", {term: ""}, false) }}
             {% if can_upload %}
                 <button type="button" class="btn btn-primary" data-files-pick>

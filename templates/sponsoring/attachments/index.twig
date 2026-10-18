@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     Anhänge - Sponsoring - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
@@ -19,6 +21,9 @@
                 Anhänge
             </h1>
             <p class="text-muted mb-0">Verträge, Logos und Unterlagen aus allen Vereinbarungen an einem Ort.</p>
+        </div>
+        <div class="page-actions">
+            {{ help.button("sponsoring", "Sponsoring") }}
         </div>
     </section>
 {% endblock page_header %}

@@ -20,6 +20,7 @@ Vollständiger Workflow zum Erstellen eines neuen Hilfe-Themas inkl. Screenshots
 3. **Screenshots aufnehmen**
 4. **Markdown-Datei** schreiben
 5. **Ergebnis prüfen** unter `/help/{slug}`
+6. **Hilfe-Knopf** auf jeder Seite, die das Thema erklärt (siehe Schritt 6)
 
 ---
 
@@ -352,6 +353,29 @@ Checkliste:
 - [ ] Berechtigungshinweis vorhanden und korrekt formuliert
 - [ ] Jeder genannte Menüpunkt mit eingeschränkter Sichtbarkeit hat seine Bedingung dabei (siehe Regeln)
 - [ ] Kein übergroßer Screenshot (lange Listen mit `shotCapped` beschnitten, Faustregel ~2000px)
+
+---
+
+## Schritt 6 – Hilfe-Knopf auf den Seiten
+
+Jede Seite, zu der es ein Hilfethema gibt, trägt im Seitenkopf den Hilfe-Knopf aus
+`templates/macros/help.twig` - als **erste** Aktion in `.page-actions`, nie als eigenes `<a>`:
+
+```twig
+{% import "macros/help.twig" as help %}
+...
+<div class="page-actions">
+    {{ help.button("{slug}", "{Titel des Themas}") }}
+    ...
+</div>
+```
+
+- Hat die Seite keinen `.page-actions`-Bereich, wird einer angelegt; steht er in einer
+  Bedingung (`{% if can_... %}`), kommt der Knopf **vor** die Bedingung - Hilfe sieht jede
+  Person, die die Seite sieht.
+- Unterthemen gehören auf ihre Unterseiten (Detailseite → `repertoire-songs`, nicht `repertoire`).
+- Die Zuordnung Seite → Thema steht in `tests/Feature/HelpButtonFeatureTest.php` (`PAGES`);
+  die neue Seite dort eintragen. Der Test weist auch selbstgebaute Hilfe-Links mit `btn`-Klasse ab.
 
 ---
 

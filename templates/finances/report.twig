@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     Finanzauswertung - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
@@ -13,6 +15,7 @@
             </p>
         </div>
         <div class="page-actions d-flex align-items-center gap-2">
+            {{ help.button("finance", "Finanzen (Kassabuch & Auswertung)") }}
             {% if available_years|length >= 1 %}
                 <form method="get"
                       action="/finances/report"

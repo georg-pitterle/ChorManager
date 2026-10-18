@@ -1,6 +1,7 @@
 {% extends "layout.twig" %}
 
 {% import 'macros/modal_form.twig' as modal %}
+{% import "macros/help.twig" as help %}
 
 {% block title %}
     Termin-Typen - {{ app_settings.app_name|default('Chor-Manager') }}
@@ -13,6 +14,7 @@
             <p class="text-muted mb-0">Termin-Typen und Farbcodierung zentral definieren.</p>
         </div>
         <div class="page-actions">
+            {{ help.button("events-event-types", "Termin-Typen") }}
             <button class="btn btn-primary"
                     data-bs-toggle="modal"
                     data-bs-target="#createTypeModal">

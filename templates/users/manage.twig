@@ -2,6 +2,7 @@
 
 {% import 'macros/modal_form.twig' as modal %}
 {% import "macros/person.twig" as person %}
+{% import "macros/help.twig" as help %}
 
 {% block title %}
     Mitglieder - {% if show_archived %}Archiv - {% endif %}{{ app_settings.app_name|default("Chor-Manager") }}
@@ -27,9 +28,7 @@
             {% endif %}
         </div>
         <div class="page-actions d-flex gap-2 align-items-center">
-            <a href="/help/members" class="btn btn-outline-secondary" title="Hilfe zur Mitgliederverwaltung">
-                <i class="bi bi-question-circle" aria-hidden="true"></i><span class="d-none d-sm-inline"> Hilfe</span>
-            </a>
+            {{ help.button("members", "Mitgliederverwaltung") }}
             {% if show_archived %}
                 <a href="/users" class="btn btn-outline-secondary">Zurück zu den Mitgliedern</a>
             {% else %}

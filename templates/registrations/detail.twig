@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     {{ event.title }} – Anmeldung - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock %}
@@ -17,6 +19,7 @@
             <p class="text-muted small mb-0">{{ include("registrations/partials/deadline.twig") }}</p>
         </div>
         <div class="page-actions">
+            {{ help.button("events-registrations", "Anmeldungen (Zu-/Absagen)") }}
             <a href="/registrations" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left" aria-hidden="true"></i> Zurück
             </a>

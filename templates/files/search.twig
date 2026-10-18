@@ -1,5 +1,6 @@
 {% extends "layout.twig" %}
 {% import "files/partials/macros.twig" as files_ui %}
+{% import "macros/help.twig" as help %}
 
 {% block title %}
     Suche - Dateien - {{ app_settings.app_name|default("Chor-Manager") }}
@@ -16,6 +17,7 @@
             <h1 class="h2 mb-1">Suche</h1>
         </div>
         <div class="page-actions">
+            {{ help.button("files", "Dateien") }}
             {{ include("files/partials/search_form.twig", {term: term}, false) }}
         </div>
     </section>

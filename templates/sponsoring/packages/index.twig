@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     Sponsoring-Pakete - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
@@ -12,16 +14,17 @@
                 Was ein Sponsor ab welchem Betrag bekommt. Neue Vereinbarungen übernehmen die Gegenleistungen ihres Pakets.
             </p>
         </div>
-        {% if can_manage_all %}
-            <div class="page-actions">
+        <div class="page-actions">
+            {{ help.button("sponsoring-packages", "Sponsoring-Pakete verwalten") }}
+            {% if can_manage_all %}
                 <button type="button"
                         class="btn btn-primary"
                         data-bs-toggle="modal"
                         data-bs-target="#newPackageModal">
                     Neues Paket
                 </button>
-            </div>
-        {% endif %}
+            {% endif %}
+        </div>
     </section>
 {% endblock page_header %}
 

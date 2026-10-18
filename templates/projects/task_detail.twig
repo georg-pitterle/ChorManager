@@ -1,4 +1,7 @@
 {% extends "layout.twig" %}
+
+{% import "macros/help.twig" as help %}
+
 {% block editor_scripts %}
     <script src="/vendor/tinymce/tinymce/tinymce.min.js"></script>
 {% endblock editor_scripts %}
@@ -23,6 +26,7 @@
             </p>
         </div>
         <div class="page-actions">
+            {{ help.button("projects-planning", "Projektplanung (Aufgaben)") }}
             {# Häufigste Handlung zuerst: ein Tipp setzt den Status, ohne das Bearbeiten-Fenster #}
             {% if task.status == "Abgeschlossen" %}
                 <form action="/tasks/{{ task.id }}/status" method="post">
