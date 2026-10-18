@@ -27,6 +27,11 @@ export async function createMember(page, member) {
         .locator('.form-check', { hasText: member.role ?? DEFAULT_ROLE })
         .locator('input[name="roles[]"]')
         .first();
+    // Nur die Grundrolle steht offen; alle weiteren Rollen (auch "Admin" und "Vorstand") liegen
+    // zugeklappt hinter "Weitere Rollen" und sind erst nach dem Aufklappen anklickbar.
+    if (!(await roleCheckbox.isVisible())) {
+        await modal.locator('details.further-roles > summary').click();
+    }
     await roleCheckbox.check();
 
     // Gruppen-Checkbox anhand des Gruppennamens finden und deren value (=group.id) lesen.
