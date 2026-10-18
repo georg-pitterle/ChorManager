@@ -350,6 +350,11 @@ final class RoleMiddlewareFeatureTest extends TestCase
         $this->assertStringContainsString('application/json', $response->getHeaderLine('Content-Type'));
     }
 
+    /**
+     * Mit dem gewünschten Ziel - genau wie die erste Reihe. Dass beide Reihen hier
+     * dasselbe antworten, prüft UnauthenticatedRejectionConsistencyFeatureTest
+     * Seite an Seite.
+     */
     public function testUnauthenticatedBrowserCallerIsStillRedirectedToLogin(): void
     {
         unset($_SESSION['user_id']);
@@ -361,7 +366,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         );
 
         $this->assertSame(302, $response->getStatusCode());
-        $this->assertSame('/login', $response->getHeaderLine('Location'));
+        $this->assertSame('/login?redirect=%2Fusers', $response->getHeaderLine('Location'));
     }
 
     private function passthroughHandler(): RequestHandlerInterface

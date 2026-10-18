@@ -41,6 +41,13 @@ x-app-environment: &app-environment
   MAIL_CREDENTIAL_KEY: ${MAIL_CREDENTIAL_KEY:?set in Portainer}
   WEBMAIL_SSO_SECRET: ${WEBMAIL_SSO_SECRET:?set in Portainer}
   APP_URL: ${APP_URL:?set in Portainer}
+  # Comma-separated list of trusted reverse proxies (IP or CIDR). Only then are
+  # Forwarded/X-Forwarded-* headers evaluated, and only then does the client IP
+  # that reaches the application belong to the member rather than to the proxy
+  # container in front of it. The variable was documented in .env.example but
+  # never passed into the container here, so it could not be set at all; empty
+  # keeps the previous behaviour until a value is configured in Portainer.
+  TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
   MAIL_ALLOW_PRIVATE_HOSTS: ${MAIL_ALLOW_PRIVATE_HOSTS:-0}
   # Must point into the backup_data volume mounted on the app service. The
   # application default lives inside the container's writable layer, where every

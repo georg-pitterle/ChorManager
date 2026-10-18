@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Util\LoginRedirect;
 use App\Util\RequestFormat;
-use App\Util\SessionExpiredSignal;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
@@ -271,8 +271,17 @@ class RoleMiddleware implements MiddlewareInterface
 
     public function process(Request $request, RequestHandler $handler): Response
     {
+        // Die Abweisung ohne Sitzung - die zweite Reihe hinter der AuthMiddleware.
+        //
+        // Erreicht wird sie im Regelbetrieb nicht: In Routes.php hängt die
+        // AuthMiddleware an der ganzen Gruppe und läuft vor jeder RoleMiddleware.
+        // Genau deshalb gibt sie dieselbe Antwort, aus derselben Stelle - eine
+        // zweite Reihe, die anders antwortet als die erste, fällt erst auf, wenn
+        // sie einmal greift. Hier stand eine eigene Abschrift, und die ließ das
+        // gewünschte Ziel weg: Wer dort landete, stand nach der Anmeldung auf dem
+        // Dashboard statt auf der Seite, die er aufgerufen hatte.
         if (!isset($_SESSION['user_id'])) {
-            return $this->denyUnauthenticated($request);
+            return LoginRedirect::respond($request);
         }
 
         // Jedes Gate wird eigenständig geprüft: früher hat allowVoiceGroupReps die
@@ -287,30 +296,6 @@ class RoleMiddleware implements MiddlewareInterface
         }
 
         return $handler->handle($request);
-    }
-
-    /**
-     * Die Abweisung ohne Sitzung - die zweite Reihe hinter der AuthMiddleware.
-     *
-     * Erreicht wird sie im Regelbetrieb nicht: In Routes.php hängt die
-     * AuthMiddleware an der ganzen Gruppe und läuft vor jeder RoleMiddleware. Genau
-     * deshalb muss sie dasselbe tun wie die erste Reihe - eine zweite Reihe, die
-     * anders antwortet als die erste, fällt erst auf, wenn sie einmal greift.
-     *
-     * Für einen `fetch`-Aufruf heißt das 401 statt Weiterleitung: Er folgte ihr
-     * selbst, bekäme die Anmeldeseite als HTML mit Status 200 und scheiterte erst
-     * beim Auswerten - mit einer Meldung, die mit der abgelaufenen Sitzung nichts
-     * mehr zu tun hat.
-     */
-    private function denyUnauthenticated(Request $request): Response
-    {
-        if (RequestFormat::expectsJson($request)) {
-            return SessionExpiredSignal::fill(new SlimResponse(401));
-        }
-
-        return (new SlimResponse())
-            ->withHeader('Location', '/login')
-            ->withStatus(302);
     }
 
     /**

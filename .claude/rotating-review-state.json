@@ -1,9 +1,9 @@
 {
-    "runNumber": 47,
+    "runNumber": 48,
     "lastRun": {
-        "runNumber": 46,
-        "sectionIndex": 4,
-        "section": "src/Queries"
+        "runNumber": 47,
+        "sectionIndex": 5,
+        "section": "src/Middleware"
     },
     "sections": [
         "src/Controllers",

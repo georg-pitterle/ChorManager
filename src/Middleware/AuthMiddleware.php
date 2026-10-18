@@ -9,14 +9,12 @@ use App\Queries\UserQuery;
 use App\Services\RememberLoginRestoreService;
 use App\Services\RememberLoginService;
 use App\Services\SessionAuthService;
-use App\Util\RequestFormat;
+use App\Util\LoginRedirect;
 use App\Util\SessionConfig;
-use App\Util\SessionExpiredSignal;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
-use Slim\Psr7\Response as SlimResponse;
 
 class AuthMiddleware implements MiddlewareInterface
 {
@@ -64,7 +62,7 @@ class AuthMiddleware implements MiddlewareInterface
         }
 
         if (!isset($_SESSION['user_id'])) {
-            return $this->redirectToLogin($request);
+            return LoginRedirect::respond($request);
         }
 
         $sessionValidAfter = (int) (AppSetting::query()
@@ -75,7 +73,7 @@ class AuthMiddleware implements MiddlewareInterface
         if ($sessionValidAfter > 0 && $authEpoch < $sessionValidAfter) {
             $this->sessionAuthService->clearSession();
 
-            return $this->redirectToLogin($request);
+            return LoginRedirect::respond($request);
         }
 
         $currentUser = $this->userQuery->findForSession((int) $_SESSION['user_id']);
@@ -88,7 +86,7 @@ class AuthMiddleware implements MiddlewareInterface
 
             $this->sessionAuthService->clearSession();
 
-            return $this->redirectToLogin($request);
+            return LoginRedirect::respond($request);
         }
 
         // Refresh rights snapshot on every protected request.
@@ -99,45 +97,5 @@ class AuthMiddleware implements MiddlewareInterface
         // we can also do it there.
 
         return $handler->handle($request);
-    }
-
-    /**
-     * Die Abweisung einer nicht (mehr) angemeldeten Anfrage.
-     *
-     * Für den Browser eine Weiterleitung mit Ziel, für einen `fetch`-Aufruf ein
-     * 401 mit JSON: Der folgt einer Weiterleitung selbst, bekommt die
-     * Anmeldeseite als HTML mit Status 200 und scheitert erst beim Auswerten -
-     * die Oberfläche meldete dann "Speichern fehlgeschlagen", was mit der
-     * abgelaufenen Sitzung nichts zu tun hat. Die CsrfMiddleware unterscheidet
-     * an derselben Stelle seit jeher so; hier fehlte es.
-     *
-     * Das Ziel trägt die 401-Antwort nicht: Zu einem Aufrufziel wie
-     * `/users/42/roles` gehört keine Seite. Wohin es geht, weiß die Oberfläche
-     * besser - sie kennt die Seite, auf der die Person gerade steht.
-     */
-    private function redirectToLogin(Request $request): Response
-    {
-        if (RequestFormat::expectsJson($request)) {
-            return SessionExpiredSignal::fill(new SlimResponse(401));
-        }
-
-        $target = $request->getUri()->getPath();
-        $query = $request->getUri()->getQuery();
-        if ($query !== '') {
-            $target .= '?' . $query;
-        }
-
-        // `/dashboard` ist ohnehin das Ziel nach der Anmeldung, und ein `redirect`
-        // auf das Anmeldeformular selbst schickte die Person nach erfolgreicher
-        // Anmeldung dorthin zurück. Beide Ziele tragen deshalb keinen Parameter.
-        $isOwnTarget = $target === '/dashboard' || $target === '/login';
-
-        $location = '/login';
-        if (strtoupper($request->getMethod()) === 'GET' && $target !== '' && !$isOwnTarget) {
-            $location = '/login?redirect=' . rawurlencode($target);
-        }
-
-        $response = new SlimResponse();
-        return $response->withHeader('Location', $location)->withStatus(302);
     }
 }
