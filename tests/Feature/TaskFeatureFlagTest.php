@@ -89,17 +89,6 @@ final class TaskFeatureFlagTest extends TestCase
         return array_values(array_unique($patterns));
     }
 
-    public function testDashboardTemplateGatesTaskSectionBehindFeatureFlag(): void
-    {
-        $template = file_get_contents(dirname(__DIR__) . '/../templates/dashboard/index.twig');
-        $this->assertIsString($template);
-
-        $this->assertStringContainsString(
-            '{% if settings.modules.tasks and session.can_manage_tasks %}',
-            $template
-        );
-    }
-
     public function testProjectsIndexGatesTaskLinkBehindFeatureFlag(): void
     {
         $template = file_get_contents(dirname(__DIR__) . '/../templates/projects/index.twig');

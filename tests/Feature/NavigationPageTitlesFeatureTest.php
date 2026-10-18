@@ -57,7 +57,6 @@ class NavigationPageTitlesFeatureTest extends TestCase
 
         $this->assertMatchesRegularExpression('/\{% block title %\}\s*Start - /', $source);
         $this->assertStringNotContainsString('>Dashboard</p>', $source);
-        $this->assertStringContainsString('>Anwesenheit erfassen</a>', $source);
         $this->assertStringNotContainsString('Mitgliederverwaltung', $source);
     }
 }

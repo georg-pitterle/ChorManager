@@ -221,17 +221,17 @@ final class FinanceFeatureFlagTest extends TestCase
         return substr($content, $start, $nextLabelPos - $start);
     }
 
-    public function testDashboardTemplateGatesFinancePanel(): void
+    /**
+     * Die Startseite führt nicht mehr zur Kassa: Eine Kachel ohne eigenen Stand wiederholte nur
+     * den Menüpunkt. Damit gibt es dort keine Kassa-Sichtbarkeit mehr, die am Feature-Flag hängen
+     * könnte - der Menüpunkt in der Seitenleiste bleibt über das Flag gesteuert.
+     */
+    public function testDashboardTemplateHasNoFinanceEntryThatCouldIgnoreTheFlag(): void
     {
         $template = file_get_contents(dirname(__DIR__) . '/../templates/dashboard/index.twig');
         $this->assertIsString($template);
 
-        // Kassa-Panel und Empty-State teilen sich die Sichtbarkeitsbedingung.
-        $this->assertStringContainsString('settings.modules.finance', $template);
-        $this->assertStringNotContainsString(
-            '{% if session.can_read_finances or session.can_manage_users %}',
-            $template
-        );
+        $this->assertStringNotContainsString('href="/finances"', $template);
     }
 
     public function testRolesTemplateGatesFinancePermissionUi(): void

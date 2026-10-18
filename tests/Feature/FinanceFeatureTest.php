@@ -105,10 +105,8 @@ class FinanceFeatureTest extends TestCase
     public function testFinanceNavigationAndDashboardUseFinanceReadPermission(): void
     {
         $navBuilder = file_get_contents(dirname(__DIR__) . '/../src/Navigation/NavigationBuilder.php');
-        $dashboard = file_get_contents(dirname(__DIR__) . '/../templates/dashboard/index.twig');
 
         $this->assertIsString($navBuilder);
-        $this->assertIsString($dashboard);
         // Slice out the Kassa entry itself (up to the next nav entry's 'label' =>) so the
         // assertion below can only pass on Kassa's own visible closure, not the Budget entry
         // that follows it and reuses the same permission-flag tokens.
@@ -118,10 +116,6 @@ class FinanceFeatureTest extends TestCase
             "/'url' => '\/finances'.*?"
                 . "\\\$c->can\\('can_read_finances'\\).*?\\\$c->can\\('can_manage_finances'\\)/s",
             $kassaBlock
-        );
-        $this->assertStringContainsString(
-            'session.can_read_finances or session.can_manage_finances',
-            $dashboard
         );
     }
 

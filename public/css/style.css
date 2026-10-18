@@ -307,6 +307,7 @@ body.app-shell {
    Kacheln, wird er zur rahmenlosen Gruppe aus Überschrift und Inhalt - sonst stünden
    zwei Ränder, zwei Schatten und zwei Akzentlinien ineinander. Ein Abschnitt mit
    reinem Inhalt bleibt selbst der Rahmen. */
+.dashboard-section.dashboard-section--flat,
 .dashboard-section:has(.surface-card, .card, .table-shell, .dashboard-panel, .dashboard-section) {
     border: 0;
     border-radius: 0;
@@ -331,7 +332,7 @@ body.app-shell {
     font-size: clamp(1.05rem, 1.45vw, 1.35rem);
     letter-spacing: 0.02em;
     font-weight: 700;
-    color: #1d2633;
+    color: var(--theme-text);
 }
 
 .dashboard-section-lead {
@@ -341,12 +342,69 @@ body.app-shell {
     font-size: 0.95rem;
 }
 
-.dashboard-action-grid,
-.dashboard-context-grid,
-.dashboard-communication-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 0.9rem;
+/* Handlungsbedarf: eine kurze Liste, kein Kachelgitter. Die Farbe trägt Bedeutung
+   (Gelb wartet, Rot ist ein Fehler), die Knöpfe daneben bleiben grau. */
+.dashboard-todo,
+.dashboard-areas {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    border: 1px solid var(--surface-border);
+    border-radius: var(--app-radius-lg);
+    background: var(--surface-fill);
+    overflow: hidden;
+}
+
+.dashboard-todo__item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    padding: 0.75rem 1rem;
+}
+
+.dashboard-todo__item + .dashboard-todo__item,
+.dashboard-areas > li + li {
+    border-top: 1px solid var(--surface-border);
+}
+
+.dashboard-todo__item[hidden] {
+    display: none;
+}
+
+.dashboard-todo__item--warning {
+    background: var(--bs-warning-bg-subtle);
+    color: var(--bs-warning-text-emphasis);
+}
+
+.dashboard-todo__item--danger {
+    background: var(--bs-danger-bg-subtle);
+    color: var(--bs-danger-text-emphasis);
+}
+
+/* Dein Bereich: Einstiege, die ihren Stand gleich mitbringen. Eine Zeile je Bereich. */
+.dashboard-area {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.15rem 1rem;
+    min-height: 3.25rem;
+    padding: 0.8rem 1rem;
+    color: var(--theme-text);
+    text-decoration: none;
+}
+
+.dashboard-area:hover,
+.dashboard-area:focus-visible {
+    background: var(--theme-surface-muted);
+}
+
+.dashboard-area__status {
+    color: var(--theme-text-muted);
+    font-size: 0.875rem;
+    font-variant-numeric: tabular-nums;
 }
 
 .dashboard-panel {
@@ -359,6 +417,13 @@ body.app-shell {
     border: 1px solid var(--surface-border);
     background: var(--surface-fill);
     box-shadow: var(--surface-shadow);
+}
+
+/* Steht die Karte allein im Abschnitt statt in einem Gitter, ist "100 %" die Höhe des
+   Abschnitts, der sich seinerseits nach der Karte richtet: Sie liefe über ihn hinaus
+   und läge über der nächsten Überschrift. */
+.dashboard-section > .dashboard-panel {
+    min-height: 0;
 }
 
 .dashboard-panel__body {
@@ -382,6 +447,7 @@ body.app-shell {
 
 .card-title,
 .dashboard-panel__title,
+.dashboard-area__title,
 .card > .card-header :is(h1, h2, h3, h4, h5, h6) {
     font-size: 1.1rem;
     font-weight: 600;
@@ -438,7 +504,7 @@ body.app-shell {
 
 .dashboard-panel__text {
     margin: 0;
-    color: #4a5565;
+    color: var(--theme-text-muted);
     line-height: 1.5;
 }
 
@@ -462,23 +528,6 @@ body.app-shell {
 .song-attachment-item form {
     margin: 0;
     flex: 0 0 auto;
-}
-
-.dashboard-panel--critical {
-    background: linear-gradient(180deg, #dc3545 0%, #c52d3d 100%);
-    border-color: rgba(197, 45, 61, 0.78);
-}
-
-.dashboard-panel--critical .dashboard-panel__title,
-.dashboard-panel--critical .dashboard-panel__text {
-    color: #ffffff;
-}
-
-.dashboard-panel--empty {
-    border-style: dashed;
-    border-color: rgba(102, 112, 133, 0.4);
-    background: transparent;
-    box-shadow: none;
 }
 
 .form-surface,
@@ -815,10 +864,8 @@ body.app-shell {
         align-items: stretch;
     }
 
-    .dashboard-action-grid,
-    .dashboard-context-grid,
-    .dashboard-communication-grid {
-        grid-template-columns: 1fr;
+    .dashboard-todo__item .btn {
+        width: 100%;
     }
 
     .dashboard-panel .btn {
@@ -2767,10 +2814,18 @@ a:hover {
     padding: 0.5rem 0.75rem;
 }
 
+/* Hinweis- und Zitatblock: getönte Fläche mit Haarlinie, kein seitlicher Farbbalken. */
 .markdown-content blockquote {
-    border-left: 3px solid var(--theme-primary, #E8A817);
-    padding-left: 1rem;
-    color: var(--bs-secondary-color);
+    margin: 1rem 0;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--surface-border);
+    border-radius: var(--app-radius);
+    background: var(--theme-surface-muted);
+    color: var(--theme-text);
+}
+
+.markdown-content blockquote > :last-child {
+    margin-bottom: 0;
 }
 
 .markdown-content pre {
@@ -3666,7 +3721,7 @@ a:hover {
     margin-bottom: 1.5rem;
     padding: 1rem 1.25rem;
     border: 1px solid var(--surface-border);
-    border-left: 4px solid var(--theme-primary);
+    border-top: var(--surface-accent);
     border-radius: var(--app-radius-lg);
     background: var(--surface-fill);
     color: var(--theme-text);

@@ -40,7 +40,6 @@ class AttendanceFeatureTest extends TestCase
         $dashboardTemplate = file_get_contents(dirname(__DIR__) . '/../templates/dashboard/index.twig');
         $this->assertIsString($dashboardTemplate);
         $this->assertStringContainsString('can_manage_attendance', $dashboardTemplate);
-        $this->assertStringContainsString('href="/attendance"', $dashboardTemplate);
 
         $eventsTemplate = file_get_contents(dirname(__DIR__) . '/../templates/events/index.twig');
         $this->assertIsString($eventsTemplate);

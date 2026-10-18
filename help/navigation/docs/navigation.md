@@ -2,31 +2,41 @@
 
 Nach der Anmeldung landest du auf der **Startseite**. Von dort aus erreichst du alles über die **Seitenleiste** links oder über die **Schnellsuche** oben – du tippst einfach den Namen der Seite, die du suchst.
 
-> **Berechtigung:** Startseite, Seitenleiste und Schnellsuche hat jedes Mitglied. Was darin auftaucht, richtet sich nach den Rechten deiner Rolle: Du siehst nur Seiten und Kacheln, die du auch benutzen darfst. Fehlt dir etwas, frag den Administrator.
+> **Berechtigung:** Startseite, Seitenleiste und Schnellsuche hat jedes Mitglied. Was darin auftaucht, richtet sich nach den Rechten deiner Rolle: Du siehst nur Seiten und Abschnitte, die du auch benutzen darfst. Fehlt dir etwas, frag den Administrator.
 
 ## 1. Die Startseite
 
 Klickpfad: **Start** ganz oben in der Seitenleiste, oder ein Klick auf Logo und Chornamen in der Kopfzeile.
 
-Die Startseite sammelt Abkürzungen zu dem, was du häufig brauchst. Sie ist in drei Abschnitte geteilt: **Schnellzugriff**, **Projektkontext** und **Kommunikation**.
+Die Startseite zeigt, was als Nächstes ansteht und wo du etwas tun musst. Sie besteht aus bis zu vier Abschnitten. Ein Abschnitt, für den bei dir nichts vorliegt, fehlt ganz.
 
-![Die Startseite mit Schnellzugriff und Projektkontext](images/navigation/01-dashboard.png)
+![Die Startseite mit Als Nächstes, Dein Bereich und Newsletter](images/navigation/01-dashboard.png)
 
-Welche Kacheln du siehst, hängt an deinen Rechten:
+| Abschnitt | Was du siehst | Wer ihn sieht |
+| --- | --- | --- |
+| **Handlungsbedarf** | **"N Termine warten auf deine Antwort"** und **"N E-Mails nicht zugestellt"** | Die Terminzeile: alle, solange Termine mit offener Anmeldung auf deine Antwort warten, bei eingeschaltetem Anmelde-Modul. Die E-Mail-Zeile: Recht **"Mailversand verwalten"** |
+| **Als Nächstes** | Die nächsten drei Termine, die für dich gelten, mit Datum, Uhrzeit und Ort | alle |
+| **Dein Bereich** | Einstiege mit aktuellem Stand (siehe unten) | je nach Recht, ohne Recht fehlt der ganze Abschnitt |
+| **Newsletter** | Der neueste Newsletter, den du erhalten hast | alle, bei eingeschaltetem Newsletter-Modul – mit dem Recht **"Newsletter verwalten"** zeigt er stattdessen den neuesten versendeten Newsletter und die Zahl der Entwürfe |
 
-| Kachel | Wer sie sieht |
-| --- | --- |
-| **Anwesenheiten** | Recht **"Eigene Stimmgruppe verwalten"** oder **"Anwesenheit/Anmeldung verwalten (alle Mitglieder)"** |
-| **Kassa** | Recht **"Finanzen nur lesen"** oder **"Finanzen lesen und schreiben"**, bei eingeschaltetem Finanz-Modul |
-| **Mitglieder verwalten** | Recht **"Mitgliederverwaltung erlauben"** |
-| **Auswertungen** | alle |
-| **Ausstehende Anmeldungen** | alle, solange für dich Termine mit offener Anmeldung anstehen |
-| **Speicherplatz** | Recht **"Speicherplatz-Verwaltung"** |
-| **Aufgaben** zum laufenden und kommenden Projekt | Recht **"Projektplanung (Aufgaben)"**, bei eingeschaltetem Aufgaben-Modul |
-| **Zuletzt versendeter Newsletter** | Recht **"Newsletter verwalten"**, bei eingeschaltetem Newsletter-Modul |
-| **Mail-Queue** | Recht **"Mailversand verwalten"** |
+**Handlungsbedarf** steht ganz oben und nur dann, wenn etwas ansteht. Antwortest du unter **Als Nächstes** auf einen Termin, zählt die Zeile sofort mit und verschwindet, sobald nichts mehr offen ist. Der Knopf **E-Mail-Versand öffnen** führt zur Verwaltung der Mailwarteschlange.
 
-Die Kachel **Ausstehende Anmeldungen** zeigt, bei wie vielen offenen Terminen du dich noch nicht eingetragen hast. Ein gelbes Warnzeichen heißt: Da fehlt noch eine Antwort von dir. Die Kachel **Mail-Queue** wird rot, wenn Mails nicht zugestellt werden konnten.
+### Direkt antworten
+
+Steht bei einem Termin **Zusage**, **Vielleicht** und **Absage**, tippst du einfach auf deine Antwort – sie wird sofort gespeichert. **Antwort zurücknehmen** macht sie wieder offen, **Mit Begründung antworten** öffnet die Anmeldeseite des Termins. Die Knöpfe fehlen, wenn für den Termin keine Anmeldung vorgesehen ist oder der Anmeldeschluss vorbei ist; dann siehst du nur deine bisherige Antwort. Alle Termine mit ihrer Anmeldung findest du unter **Termine → Anmeldungen** (nur sichtbar, wenn das Anmelde-Modul eingeschaltet ist), den ganzen Plan über **Alle Termine**.
+
+### Dein Bereich
+
+Jede Zeile bringt ihren Stand gleich mit:
+
+| Zeile | Stand | Wer sie sieht |
+| --- | --- | --- |
+| **Anwesenheit erfassen** | Der heutige oder der nächste Termin | Recht **"Eigene Stimmgruppe verwalten"** oder **"Anwesenheit/Anmeldung verwalten (alle Mitglieder)"**. Mit dem zweiten Recht führt die Zeile an einem Probentag direkt zur Anwesenheitsliste dieses Termins |
+| **Mitglieder** | Anzahl der aktiven Mitglieder | Recht **"Mitgliederverwaltung erlauben"** |
+| **Aufgaben** | Laufendes oder kommendes Projekt | Recht **"Projektplanung (Aufgaben)"**, bei eingeschaltetem Aufgaben-Modul und wenn es ein laufendes oder kommendes Projekt gibt |
+| **Speicherplatz** | Belegter Speicher und Stand der Messung | Recht **"Speicherplatz-Verwaltung"** |
+
+Die Kassa und die Auswertungen haben keine Zeile auf der Startseite. Du erreichst sie über die Seitenleiste (siehe Abschnitt 3).
 
 ## 2. Die Kopfzeile
 

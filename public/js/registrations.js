@@ -98,6 +98,32 @@
     summary.replaceChildren(icon, text);
   }
 
+  // Startseite: "Handlungsbedarf" zählt alle offenen Termine, die Liste darunter zeigt nur die
+  // nächsten. Der Stand der sichtbaren Karten beim Laden (data-pending-cards) wird deshalb vom
+  // Gesamtwert abgezogen und durch den aktuellen ersetzt.
+  function refreshDashboardTodo() {
+    var item = document.querySelector("[data-pending-total]");
+    if (!item) {
+      return;
+    }
+    var total = parseInt(item.getAttribute("data-pending-total"), 10) || 0;
+    var atLoad = parseInt(item.getAttribute("data-pending-cards"), 10) || 0;
+    var now = document.querySelectorAll('[data-registration-card][data-unanswered="1"]').length;
+    var pending = Math.max(0, total - atLoad + now);
+
+    var text = item.querySelector("[data-pending-text]");
+    if (text && pending > 0) {
+      text.textContent = pending + (pending === 1 ? " Termin wartet" : " Termine warten") + " auf deine Antwort.";
+    }
+    item.hidden = pending === 0;
+
+    var list = item.closest(".dashboard-todo");
+    var section = item.closest("section");
+    if (list && section) {
+      section.hidden = !list.querySelector(".dashboard-todo__item:not([hidden])");
+    }
+  }
+
   function applyCounts(card, counts) {
     if (!counts) {
       return;
@@ -160,6 +186,7 @@
         applyUnanswered(card, ownStatus);
       }
       refreshSummary();
+      refreshDashboardTodo();
     } catch (_error) {
       setStatusText(form, FALLBACK_ERROR, true);
     } finally {

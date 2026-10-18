@@ -10,7 +10,6 @@
     <section class="page-header">
         <div>
             <h1 class="h2 mb-1">Willkommen, {{ session.user_name|default("Mitglied") }}</h1>
-            <p class="text-muted mb-0">Dein Arbeitsbereich für Termine, Aufgaben und Schnellzugriffe.</p>
         </div>
         <div class="page-actions">
             {{ help.button("navigation", "Start und Navigation") }}
@@ -19,250 +18,253 @@
 {% endblock page_header %}
 
 {% block content %}
+    {% set answer_labels = {yes: "Zusage", maybe: "Vielleicht", no: "Absage"} %}
+    {% set _pending = registration_summary ? registration_summary.pending : 0 %}
+    {% set _dead = dead_mail_count is not null and dead_mail_count > 0 %}
+    {% set _first_event = upcoming_events|first %}
+    {% set _cards_unanswered = upcoming_events|filter(row => row.open and not row.own_status)|length %}
+    {% set _pending_label = _pending == 1 ? "Termin wartet" : "Termine warten" %}
+    {% set _dead_label = dead_mail_count == 1 ? "E-Mail" : "E-Mails" %}
+    {% set _attendance_visible = session.can_manage_own_voice_group or session.can_manage_attendance_all %}
+    {% set _task_project = current_project ?: upcoming_project %}
+    {% set _tasks_visible = settings.modules.tasks and session.can_manage_tasks and _task_project %}
+    {% set _areas_visible = _attendance_visible or member_count is not null or _tasks_visible or storage_tile %}
+
     <div class="dashboard-shell">
-        <section class="dashboard-section dashboard-section--actions"
-                 aria-labelledby="dashboard-actions-title">
-            <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="dashboard-actions-title">Schnellzugriff</h2>
-                <p class="dashboard-section-lead mb-0">
-                    Die wichtigsten Bereiche für deinen Tagesablauf, direkt aus dem Dashboard heraus.
-                </p>
-            </div>
-
-            <div class="dashboard-action-grid">
-                {% if session.can_manage_own_voice_group or session.can_manage_attendance_all %}
-                    <article class="surface-card dashboard-panel dashboard-panel--action">
-                        <div class="dashboard-panel__body">
-                            <h3 class="dashboard-panel__title">
-                                <i class="bi bi-person-check-fill"></i>
-                                Anwesenheiten
-                            </h3>
-                            <p class="dashboard-panel__text">Erfasse die Anwesenheit der Mitglieder für geplante Termine.</p>
-                        </div>
-                        <a href="/attendance" class="btn btn-outline-primary">Anwesenheit erfassen</a>
-                    </article>
-                {% endif %}
-
-                {% set _finance_perm = session.can_read_finances or session.can_manage_finances %}
-                {% set _finance_panel_visible = settings.modules.finance and _finance_perm %}
-                {% if _finance_panel_visible %}
-                    <article class="surface-card dashboard-panel dashboard-panel--action">
-                        <div class="dashboard-panel__body">
-                            <h3 class="dashboard-panel__title">
-                                <i class="bi bi-bank"></i>
-                                Kassa
-                            </h3>
-                            <p class="dashboard-panel__text">Gehe direkt zur Kassa und prüfe aktuelle Buchungen.</p>
-                        </div>
-                        <a href="/finances" class="btn btn-outline-warning">Zur Kassa</a>
-                    </article>
-                {% endif %}
-
-                {% if session.can_manage_users %}
-                    <article class="surface-card dashboard-panel dashboard-panel--action">
-                        <div class="dashboard-panel__body">
-                            <h3 class="dashboard-panel__title">
-                                <i class="bi bi-people-fill"></i>
-                                Mitglieder verwalten
-                            </h3>
-                            <p class="dashboard-panel__text">Füge neue Mitglieder hinzu oder bearbeite Rollen und Stimmgruppen.</p>
-                        </div>
-                        <a href="/users" class="btn btn-outline-success">Mitglieder verwalten</a>
-                    </article>
-                {% endif %}
-
-                <article class="surface-card dashboard-panel dashboard-panel--action">
-                    <div class="dashboard-panel__body">
-                        <h3 class="dashboard-panel__title">
-                            <i class="bi bi-bar-chart-fill"></i>
-                            Auswertungen
-                        </h3>
-                        <p class="dashboard-panel__text">Überprüfe die Anwesenheitsstatistiken des gesamten Chors pro Projekt.</p>
-                    </div>
-                    <a href="/evaluations" class="btn btn-outline-dark">Statistiken ansehen</a>
-                </article>
-
-                {% if registration_summary %}
-                    {% set _has_pending = registration_summary.pending > 0 %}
-                    <article class="surface-card dashboard-panel dashboard-panel--action">
-                        <div class="dashboard-panel__body">
-                            <h3 class="dashboard-panel__title">
-                                <i class="bi bi-calendar-check"></i>
-                                Ausstehende Anmeldungen
-                                {% if _has_pending %}
-                                    <i class="bi bi-exclamation-triangle-fill text-warning"
-                                       title="Es gibt offene Anmeldungen"
-                                       aria-label="Es gibt offene Anmeldungen"></i>
-                                {% endif %}
-                            </h3>
-                            <p class="dashboard-panel__text">
-                                <span class="badge {% if _has_pending %}text-bg-warning{% else %}text-bg-success{% endif %}">
-                                    Noch nicht eingetragen: {{ registration_summary.pending }} von {{ registration_summary.total }}
-                                </span>
-                            </p>
-                            <p class="dashboard-panel__text mb-0">
-                                <span class="badge text-bg-success">Zusagen: {{ registration_summary.yes }} von {{ registration_summary.total }}</span>
-                                <span class="badge text-bg-danger">Absagen: {{ registration_summary.no }} von {{ registration_summary.total }}</span>
-                                <span class="badge text-bg-warning">Vielleicht: {{ registration_summary.maybe }} von {{ registration_summary.total }}</span>
-                            </p>
-                        </div>
-                        <a href="/registrations" class="btn btn-outline-primary">Zu den Anmeldungen</a>
-                    </article>
-                {% endif %}
-
-                {% if storage_tile %}
-                    {% set _storage = storage_tile.summary %}
-                    <article class="surface-card dashboard-panel dashboard-panel--action">
-                        <div class="dashboard-panel__body">
-                            <h3 class="dashboard-panel__title">
-                                <i class="bi bi-hdd"></i>
-                                Speicherplatz
-                            </h3>
-                            {% if _storage is null %}
-                                <p class="dashboard-panel__text mb-0">Speicherplatz nicht ermittelbar.</p>
-                            {% else %}
-                                <p class="dashboard-panel__text mb-1">
-                                    <strong>{{ _storage.totalBytes|format_bytes }}</strong> belegt
-                                </p>
-                                <div class="usage-bar" role="img" aria-label="Aufteilung des Speicherplatzes">
-                                    {% set _storage_total = _storage.totalBytes %}
-                                    {% for area in _storage.areas %}
-                                        {% set _area_share = _storage_total > 0 ? area.bytes / _storage_total * 100 : 0 %}
-                                        <span class="usage-bar__fill usage-bar__fill--{{ loop.index }}"
-                                              style="--usage-share: {{ _area_share|round(1) }}%"></span>
-                                    {% endfor %}
-                                </div>
-                                <ul class="usage-legend">
-                                    {% for area in _storage.areas %}
-                                        <li>
-                                            {% set _swatch = "usage-bar__fill usage-bar__fill--" ~ loop.index %}
-                                            <span class="usage-legend__swatch {{ _swatch }}"></span>
-                                            {{ area.label }}:
-                                            {{ area.failed ? "nicht ermittelbar" : area.bytes|format_bytes }}
-                                        </li>
-                                    {% endfor %}
-                                </ul>
-                                <p class="dashboard-panel__text small text-muted mb-0 mt-2">
-                                    Stand: {{ _storage.generatedAt|date("d.m.Y H:i") }}
-                                </p>
-                            {% endif %}
-                        </div>
-                        <a href="/storage" class="btn btn-outline-secondary">Details</a>
-                    </article>
-                {% endif %}
-            </div>
-        </section>
-
-        {% if settings.modules.tasks and session.can_manage_tasks %}
-            <section class="dashboard-section dashboard-section--context"
-                     aria-labelledby="dashboard-context-title">
+        {% if _pending > 0 or _dead %}
+            <section class="dashboard-section dashboard-section--flat" aria-labelledby="dashboard-todo-title">
                 <div class="dashboard-section-head">
-                    <h2 class="dashboard-section-title" id="dashboard-context-title">Projektkontext</h2>
-                    <p class="dashboard-section-lead mb-0">Aktuelle und kommende Projekte mit direktem Einstieg in die Aufgabenplanung.</p>
+                    <h2 class="dashboard-section-title" id="dashboard-todo-title">Handlungsbedarf</h2>
                 </div>
 
-                <div class="dashboard-context-grid">
-                    {% if session.can_manage_tasks and current_project %}
-                        <article class="surface-card dashboard-panel dashboard-panel--context">
-                            <div class="dashboard-panel__body">
-                                <h3 class="dashboard-panel__title">
-                                    <i class="bi bi-list-check"></i>
-                                    Laufendes Projekt: {{ current_project.name }}
-                                </h3>
-                                <p class="dashboard-panel__text">Sieh dir die Aufgaben und Planungsübersicht für das aktuelle Projekt an.</p>
-                            </div>
-                            <a href="/projects/{{ current_project.id }}/tasks"
-                               class="btn btn-outline-info">Zur Aufgabenübersicht</a>
-                        </article>
+                <ul class="dashboard-todo">
+                    {% if _pending > 0 %}
+                        <li class="dashboard-todo__item dashboard-todo__item--warning"
+                            data-pending-total="{{ _pending }}"
+                            data-pending-cards="{{ _cards_unanswered }}">
+                            <strong data-pending-text>{{ _pending }} {{ _pending_label }} auf deine Antwort.</strong>
+                            <a href="/registrations" class="btn btn-outline-secondary">Zu den Anmeldungen</a>
+                        </li>
                     {% endif %}
-
-                    {% if session.can_manage_tasks and upcoming_project %}
-                        <article class="surface-card dashboard-panel dashboard-panel--context">
-                            <div class="dashboard-panel__body">
-                                <h3 class="dashboard-panel__title">
-                                    <i class="bi bi-calendar2-week"></i>
-                                    Kommendes Projekt: {{ upcoming_project.name }}
-                                </h3>
-                                <p class="dashboard-panel__text">Bereite das nächste Projekt frühzeitig vor und plane Aufgaben im Team.</p>
-                            </div>
-                            <a href="/projects/{{ upcoming_project.id }}/tasks"
-                               class="btn btn-outline-secondary">Zur Aufgabenübersicht</a>
-                        </article>
+                    {% if _dead %}
+                        <li class="dashboard-todo__item dashboard-todo__item--danger">
+                            <strong>{{ dead_mail_count }} {{ _dead_label }} nicht zugestellt.</strong>
+                            <a href="/admin/mail-queue" class="btn btn-outline-secondary">E-Mail-Versand öffnen</a>
+                        </li>
                     {% endif %}
-
-                    {% if session.can_manage_tasks and not current_project and not upcoming_project %}
-                        <article class="surface-card dashboard-panel dashboard-panel--empty">
-                            <div class="dashboard-panel__body">
-                                <h3 class="dashboard-panel__title">Keine projektbezogenen Aufgabenbereiche verfügbar.</h3>
-                                <p class="dashboard-panel__text mb-0">
-                                    Lege ein neues Projekt an, um Aufgaben und Planungsinformationen hier anzuzeigen.
-                                </p>
-                            </div>
-                        </article>
-                    {% endif %}
-                </div>
+                </ul>
             </section>
         {% endif %}
 
-        <section class="dashboard-section dashboard-section--communication"
-                 aria-labelledby="dashboard-communication-title">
+        <section class="dashboard-section dashboard-section--flat" aria-labelledby="dashboard-next-title">
             <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="dashboard-communication-title">Kommunikation</h2>
-                <p class="dashboard-section-lead mb-0">Newsletter und Mailversand im Blick behalten, inklusive offener Dead-Letter.</p>
+                <h2 class="dashboard-section-title" id="dashboard-next-title">Als Nächstes</h2>
+                <a href="/events" class="btn btn-outline-secondary btn-sm">Alle Termine</a>
             </div>
 
-            <div class="dashboard-communication-grid">
-                {% if latest_sent_newsletter %}
-                    <article class="surface-card dashboard-panel dashboard-panel--communication">
-                        <div class="dashboard-panel__body">
-                            <h3 class="dashboard-panel__title">{{ latest_sent_newsletter.title }}</h3>
-                            <p class="dashboard-panel__text">
-                                Zuletzt versendeter Newsletter
-                                {%- if latest_sent_newsletter.sent_at %}, am {{ latest_sent_newsletter.sent_at|date("d.m.Y H:i") }}{% endif %}
-                                <br>
-                                Projekt: {{ latest_sent_newsletter.project.name|default("-") }}
-                            </p>
-                        </div>
-                        <button type="button"
-                                class="btn btn-outline-danger"
-                                data-newsletter-modal-url="/newsletters/{{ latest_sent_newsletter.id }}/preview?modal=1"
-                                data-newsletter-modal-title="Newsletter Vorschau">Newsletter ansehen</button>
-                    </article>
-                {% endif %}
-
-                {% if dead_mail_count is not null %}
-                    <article class="surface-card dashboard-panel {% if dead_mail_count > 0 %}dashboard-panel--critical{% else %}dashboard-panel--communication{% endif %}">
-                        <div class="dashboard-panel__body">
-                            <h3 class="dashboard-panel__title">Mail-Queue</h3>
-                            <p class="dashboard-panel__text">
-                                {% if dead_mail_count > 0 %}
-                                    <strong>{{ dead_mail_count }} Dead-Letter warten auf Bearbeitung.</strong>
-                                {% else %}
-                                    <strong>Keine Dead-Letter vorhanden.</strong>
+            {% if upcoming_events is empty %}
+                <p class="text-muted mb-0">Zurzeit stehen keine Termine an.</p>
+            {% else %}
+                <ol class="event-plan__list registration-plan">
+                    {% for row in upcoming_events %}
+                        {% set event = row.event %}
+                        {% set _unanswered = row.open and not row.own_status %}
+                        {% set _item_class = _unanswered ? " is-unanswered" : "" %}
+                        <li class="event-plan__item registration-plan__item{{ _item_class }}"
+                            data-registration-card
+                            data-event-id="{{ event.id }}"
+                            data-unanswered="{{ _unanswered ? "1" : "0" }}">
+                            <div class="event-plan__date" aria-hidden="true">
+                                <span class="event-plan__weekday">{{ row.weekday }}</span>
+                                <span class="event-plan__day">{{ event.starts_at|date("j") }}</span>
+                            </div>
+                            <div class="event-plan__body">
+                                <h3 class="registration-plan__heading">
+                                    <a href="/events/{{ event.id }}" class="event-plan__title">
+                                        <span class="visually-hidden">
+                                            {{ row.weekday }} {{ event.starts_at|date("d.m.") }}:
+                                        </span>
+                                        {{ event.title }}
+                                    </a>
+                                </h3>
+                                <div class="event-plan__meta">
+                                    {% set _from = event.starts_at|date("H:i") %}
+                                    {{ event.starts_at|date("d.m.") }} · {{ _from }}–{{ event.ends_at|date("H:i") }} Uhr
+                                    {% if event.location %} · {{ event.location }}{% endif %}
+                                </div>
+                            </div>
+                            <div class="event-plan__aside">
+                                {% if row.relative_label %}
+                                    <span class="event-relative">{{ row.relative_label }}</span>
                                 {% endif %}
-                            </p>
-                            <p class="dashboard-panel__text mb-0">Direkter Einstieg in die Mailversand-Verwaltung.</p>
-                        </div>
-                        <a href="/admin/mail-queue"
-                           class="btn {% if dead_mail_count > 0 %}btn-danger{% else %}btn-outline-success{% endif %}">
-                            Mailversand öffnen
-                        </a>
-                    </article>
-                {% endif %}
-
-                {% if not latest_sent_newsletter and dead_mail_count is null %}
-                    <article class="surface-card dashboard-panel dashboard-panel--empty">
-                        <div class="dashboard-panel__body">
-                            <h3 class="dashboard-panel__title">Aktuell stehen für dich keine Kommunikationskarten bereit.</h3>
-                            <p class="dashboard-panel__text mb-0">
-                                Hier erscheinen der zuletzt versendete Newsletter und der Mail-Queue-Status,
-                                sobald passende Inhalte für dich vorliegen.
-                            </p>
-                        </div>
-                    </article>
-                {% endif %}
-            </div>
+                                {% if _unanswered %}
+                                    <span class="registration-missing" data-missing-badge>Antwort fehlt</span>
+                                {% endif %}
+                            </div>
+                            {% if row.open %}
+                                <div class="registration-plan__answer">
+                                    <form method="post"
+                                          action="/registrations/{{ event.id }}"
+                                          class="registration-answer registration-self-form"
+                                          data-event-id="{{ event.id }}">
+                                        <div class="btn-group registration-answer__group"
+                                             role="group" aria-label="Deine Antwort für {{ event.title }}">
+                                            {{ include("registrations/partials/answer_button.twig", {
+                                                status: "yes", color: "success", icon: "check-circle"
+                                            }) }}
+                                            {{ include("registrations/partials/answer_button.twig", {
+                                                status: "maybe", color: "warning", icon: "question-circle"
+                                            }) }}
+                                            {{ include("registrations/partials/answer_button.twig", {
+                                                status: "no", color: "danger", icon: "x-circle"
+                                            }) }}
+                                        </div>
+                                        <div class="registration-answer__footer">
+                                            <span class="registration-answer__status" data-answer-status>
+                                                {% if row.own_status %}
+                                                    Deine Antwort: {{ answer_labels[row.own_status] }}
+                                                {% else %}
+                                                    Noch keine Antwort
+                                                {% endif %}
+                                            </span>
+                                            <button type="submit"
+                                                    name="status"
+                                                    value="open"
+                                                    data-status="open"
+                                                    class="btn btn-link registration-answer__reset"
+                                                    {% if not row.own_status %}hidden{% endif %}>
+                                                Antwort zurücknehmen
+                                            </button>
+                                            <a href="/registrations/{{ event.id }}" class="registration-answer__more">
+                                                Mit Begründung antworten
+                                            </a>
+                                        </div>
+                                    </form>
+                                </div>
+                            {% elseif row.own_status %}
+                                <div class="registration-plan__answer">
+                                    <span class="registration-final registration-final--{{ row.own_status }}">
+                                        Deine Antwort: {{ answer_labels[row.own_status] }}
+                                    </span>
+                                </div>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ol>
+            {% endif %}
         </section>
+
+        {% if _areas_visible %}
+            <section class="dashboard-section dashboard-section--flat" aria-labelledby="dashboard-areas-title">
+                <div class="dashboard-section-head">
+                    <h2 class="dashboard-section-title" id="dashboard-areas-title">Dein Bereich</h2>
+                </div>
+
+                <ul class="dashboard-areas">
+                    {% if _attendance_visible %}
+                        {% set _attendance_href = "/attendance" %}
+                        {% if todays_event and session.can_manage_attendance_all %}
+                            {% set _attendance_href = "/attendance/" ~ todays_event.id %}
+                        {% endif %}
+                        <li>
+                            <a href="{{ _attendance_href }}" class="dashboard-area">
+                                <span class="dashboard-area__title">Anwesenheit erfassen</span>
+                                <span class="dashboard-area__status">
+                                    {% if todays_event %}
+                                        Heute: {{ todays_event.title }}, {{ todays_event.starts_at|date("H:i") }} Uhr
+                                    {% elseif _first_event %}
+                                        {% set _next = _first_event.event %}
+                                        Nächster Termin: {{ _next.title }}, {{ _next.starts_at|date("d.m.") }}
+                                    {% else %}
+                                        Kein Termin in Sicht
+                                    {% endif %}
+                                </span>
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% if session.can_manage_users %}
+                        <li>
+                            <a href="/users" class="dashboard-area">
+                                <span class="dashboard-area__title">Mitglieder</span>
+                                <span class="dashboard-area__status">
+                                    {{ member_count }} {{ member_count == 1 ? "aktives Mitglied" : "aktive Mitglieder" }}
+                                </span>
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% if _tasks_visible %}
+                        {% set _project_label = current_project ? "Laufendes Projekt" : "Kommendes Projekt" %}
+                        <li>
+                            <a href="/projects/{{ _task_project.id }}/tasks" class="dashboard-area">
+                                <span class="dashboard-area__title">Aufgaben</span>
+                                <span class="dashboard-area__status">{{ _project_label }}: {{ _task_project.name }}</span>
+                            </a>
+                        </li>
+                    {% endif %}
+                    {% if storage_tile %}
+                        {% set _storage = storage_tile.summary %}
+                        <li>
+                            <a href="/storage" class="dashboard-area">
+                                <span class="dashboard-area__title">Speicherplatz</span>
+                                <span class="dashboard-area__status">
+                                    {% if _storage is null %}
+                                        Speicherplatz nicht ermittelbar.
+                                    {% else %}
+                                        {% set _failed = _storage.areas|filter(area => area.failed)|length %}
+                                        {{ _storage.totalBytes|format_bytes }} belegt
+                                        {%- if _failed > 0 %}, {{ _failed }} Bereich nicht ermittelbar{% endif %}
+                                        · Stand: {{ _storage.generatedAt|date("d.m.Y H:i") }}
+                                    {% endif %}
+                                </span>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </section>
+        {% endif %}
+
+        {% if latest_sent_newsletter or newsletter_draft_count is not null %}
+            <section class="dashboard-section dashboard-section--flat" aria-labelledby="dashboard-newsletter-title">
+                <div class="dashboard-section-head">
+                    <h2 class="dashboard-section-title" id="dashboard-newsletter-title">Newsletter</h2>
+                </div>
+
+                <article class="surface-card dashboard-panel">
+                    <div class="dashboard-panel__body">
+                        {% if latest_sent_newsletter %}
+                            <h3 class="dashboard-panel__title">{{ latest_newsletter_subject }}</h3>
+                            {% set _sent_at = latest_sent_newsletter.sent_at %}
+                            <p class="dashboard-panel__text mb-0">
+                                Zuletzt versendet
+                                {%- if _sent_at %}, am {{ _sent_at|date("d.m.Y H:i") }}{% endif %}
+                                {%- if latest_newsletter_project %} · {{ latest_newsletter_project }}{% endif %}
+                            </p>
+                        {% else %}
+                            <h3 class="dashboard-panel__title">Noch kein Newsletter versendet</h3>
+                        {% endif %}
+                        {% if newsletter_draft_count is not null and newsletter_draft_count > 0 %}
+                            {% set _draft_label = newsletter_draft_count == 1 ? "Entwurf wartet" : "Entwürfe warten" %}
+                            <p class="dashboard-panel__text mb-0">
+                                {{ newsletter_draft_count }} {{ _draft_label }} auf den Versand.
+                            </p>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex flex-wrap gap-2">
+                        {% if latest_sent_newsletter %}
+                            <button type="button"
+                                    class="btn btn-outline-secondary"
+                                    data-newsletter-modal-url="/newsletters/{{ latest_sent_newsletter.id }}/preview?modal=1"
+                                    data-newsletter-modal-title="Newsletter Vorschau">Newsletter lesen</button>
+                        {% endif %}
+                        {% if newsletter_draft_count is not null %}
+                            <a href="/newsletters" class="btn btn-outline-secondary">Zu den Newslettern</a>
+                        {% else %}
+                            <a href="/newsletters/archive" class="btn btn-outline-secondary">Alle Newsletter</a>
+                        {% endif %}
+                    </div>
+                </article>
+            </section>
+        {% endif %}
     </div>
 
     {% if settings.modules.newsletter %}
@@ -272,13 +274,13 @@
              aria-labelledby="newsletterActionModalLabel"
              aria-hidden="true">
             <div class="modal-dialog modal-xl modal-dialog-scrollable">
-                <div class="modal-content border-0 shadow rounded-3">
+                <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="newsletterActionModalLabel">Newsletter</h5>
+                        <h2 class="modal-title h5" id="newsletterActionModalLabel">Newsletter</h2>
                         <button type="button"
                                 class="btn-close"
                                 data-bs-dismiss="modal"
-                                aria-label="Close"></button>
+                                aria-label="Schließen"></button>
                     </div>
                     <div class="modal-body p-2 p-md-3">
                         <div id="newsletterActionContent" class="container-fluid px-0"></div>
@@ -292,5 +294,8 @@
 {% block scripts %}
     {% if settings.modules.newsletter %}
         <script src="/js/newsletters.js"></script>
+    {% endif %}
+    {% if settings.modules.registration %}
+        <script src="/js/registrations.js"></script>
     {% endif %}
 {% endblock scripts %}
