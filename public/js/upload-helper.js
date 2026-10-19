@@ -96,19 +96,41 @@ window.uploadHelper = (() => {
         }
     };
 
-    const showSizeError = (input, oversized, prefix) => {
+    const showFieldError = (input, text) => {
         clearSizeError(input);
-        const details = oversized.map(({ file, limit }) => {
-            return `„${file.name}“ (${bytesToMbString(file.size)} MB, erlaubt: ${bytesToMbString(limit)} MB)`;
-        });
 
         const message = document.createElement('div');
         message.className = 'invalid-feedback d-block';
         message.dataset.uploadSizeError = '1';
-        message.textContent = `${prefix} ${details.join(', ')}`;
+        message.textContent = text;
 
         input.classList.add('is-invalid');
         fieldAnchor(input).insertAdjacentElement('afterend', message);
+    };
+
+    const showSizeError = (input, oversized, prefix) => {
+        const details = oversized.map(({ file, limit }) => {
+            return `„${file.name}“ (${bytesToMbString(file.size)} MB, erlaubt: ${bytesToMbString(limit)} MB)`;
+        });
+
+        showFieldError(input, `${prefix} ${details.join(', ')}`);
+    };
+
+    /**
+     * Mehr Dateien als der Server in einer Anfrage annimmt (max_file_uploads)?
+     * Darüber verwirft PHP den Rest, und der Server lehnt alles ab.
+     */
+    const exceedsFileCount = (files, limits) => {
+        const maxFiles = limits && Number(limits.maxFiles);
+        return maxFiles > 0 && Array.from(files || []).length > maxFiles;
+    };
+
+    const showFileCountError = (input, count, limits) => {
+        showFieldError(
+            input,
+            `${count} Dateien ausgewählt, auf einmal gehen höchstens ${limits.maxFiles}. ` +
+            'Bitte in mehreren Schritten hochladen.'
+        );
     };
 
     const sizeOptionsFor = (input, hardLimit) => {
@@ -126,7 +148,16 @@ window.uploadHelper = (() => {
      * @returns {boolean} true, wenn alle Dateien passen
      */
     const checkInputSizes = (input) => {
-        const oversized = findOversizedFiles(input.files, readLimits(), sizeOptionsFor(input, HARD_UPLOAD_LIMIT));
+        const limits = readLimits();
+        if (exceedsFileCount(input.files, limits)) {
+            // Ganz verwerfen statt kürzen: Welche Dateien fehlen, sähe sonst niemand.
+            const count = input.files.length;
+            input.files = new DataTransfer().files;
+            showFileCountError(input, count, limits);
+            return false;
+        }
+
+        const oversized = findOversizedFiles(input.files, limits, sizeOptionsFor(input, HARD_UPLOAD_LIMIT));
         if (oversized.length === 0) {
             clearSizeError(input);
             return true;
@@ -333,6 +364,11 @@ window.uploadHelper = (() => {
 
             // Process files in all inputs
             for (const input of fileInputs) {
+                if (exceedsFileCount(input.files, limits)) {
+                    showFileCountError(input, input.files.length, limits);
+                    return;
+                }
+
                 if (input.files.length > 0) {
                     try {
                         // Nicht komprimierbare Dateien gar nicht erst verarbeiten, wenn sie zu groß sind.

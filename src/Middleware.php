@@ -17,6 +17,7 @@ use App\Middleware\NotificationReminderMiddleware;
 use App\Middleware\RegistrationReminderMiddleware;
 use App\Middleware\RequestContextMiddleware;
 use App\Middleware\SecurityHeadersMiddleware;
+use App\Middleware\UploadFileCountMiddleware;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Slim\Exception\HttpNotFoundException;
 use Slim\Views\Twig;
@@ -113,6 +114,10 @@ return function (App $app): void {
             return $defaultErrorHandler($request, $exception, $displayErrorDetails, false, false);
         }
     );
+
+    // Außerhalb der CSRF-Prüfung und aller Controller: Hat PHP Dateien verworfen,
+    // kommt die Anfrage gar nicht erst bis zu einer Stelle, die etwas speichert.
+    $app->add(UploadFileCountMiddleware::class);
 
     $app->add(SecurityHeadersMiddleware::class);
     $app->add(RequestContextMiddleware::class);

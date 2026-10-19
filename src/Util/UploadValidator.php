@@ -230,6 +230,7 @@ class UploadValidator
             'default' => self::MAX_NON_IMAGE_SIZE,
             'imageTypes' => self::$imageMimeTypes,
             'audioTypes' => self::$audioMimeTypes,
+            'maxFiles' => UploadFileCountGuard::MAX_FILES,
         ];
     }
 

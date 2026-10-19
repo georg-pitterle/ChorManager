@@ -6,8 +6,13 @@ use Dotenv\Dotenv;
 use App\Util\AppUrlResolver;
 use App\Util\SessionConfig;
 use App\Util\Timezone;
+use App\Util\UploadFileCountGuard;
 
 require __DIR__ . '/../vendor/autoload.php';
+
+// Als Erstes: Hat PHP schon beim Start der Anfrage Dateien verworfen, steht nur
+// hier noch die Warnung dazu. Jede spätere Warnung würde sie überschreiben.
+UploadFileCountGuard::record(error_get_last());
 
 $envPath = __DIR__ . '/../.env';
 if (file_exists($envPath)) {

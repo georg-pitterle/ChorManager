@@ -141,6 +141,54 @@ JS);
         $this->assertContains('ok', $output);
     }
 
+    public function testSelectingTooManyFilesClearsTheSelectionAndShowsMessage(): void
+    {
+        $output = $this->runNode(<<<'JS'
+const limits = JSON.parse(process.env.LIMITS);
+const files = [];
+for (let i = 0; i <= limits.maxFiles; i++) {
+    files.push({ name: 'stimme-' + i + '.mp3', type: 'audio/mpeg', size: 1024 });
+}
+
+const inserted = [];
+const classes = new Set();
+const input = {
+    tagName: 'INPUT',
+    type: 'file',
+    dataset: {},
+    files: files,
+    form: { dataset: { uploadCompress: 'true' } },
+    classList: { add: c => classes.add(c), remove: c => classes.delete(c) },
+    closest: () => null,
+    insertAdjacentElement: (pos, el) => { inserted.push(el); el.parentNode = { removeChild: () => {} }; },
+    nextElementSibling: null,
+};
+
+listeners.change({ target: input });
+
+if (input.files.length !== 0) {
+    throw new Error('Auswahl nicht geleert: ' + input.files.length);
+}
+if (!classes.has('is-invalid')) {
+    throw new Error('Feld nicht als ungültig markiert');
+}
+const text = inserted.length === 1 ? inserted[0].textContent : '';
+if (!text.includes(String(limits.maxFiles)) || !text.includes(String(limits.maxFiles + 1))) {
+    throw new Error('Meldung fehlt oder unvollständig: ' + text);
+}
+
+input.nextElementSibling = inserted[0];
+input.files = files.slice(0, limits.maxFiles);
+listeners.change({ target: input });
+if (classes.has('is-invalid') || input.files.length !== limits.maxFiles) {
+    throw new Error('Genau an der Grenze muss die Auswahl bleiben');
+}
+console.log('ok');
+JS);
+
+        $this->assertContains('ok', $output);
+    }
+
     /**
      * Lädt upload-helper.js mit schlanken DOM-Attrappen in Node und führt das Szenario aus.
      *

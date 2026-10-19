@@ -106,11 +106,20 @@ RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/mail-queue-worker.sh \
 # memory_limit is raised to 512M so GD can decode large smartphone JPEGs in RAM.
 # max_execution_time and max_input_time are raised to match the Nginx
 # fastcgi_read_timeout of 120s for slow mobile connections.
+# max_file_uploads must match UploadFileCountGuard::MAX_FILES: beyond it PHP drops
+# the remaining files and the guard rejects the request.
+# The image ships without a php.ini, so PHP's built-in default display_errors=1
+# applied: warnings (with server paths) went to the browser and broke the
+# session headers. Errors go to the log instead (stderr via FPM).
 RUN echo "upload_max_filesize = 0" >> /usr/local/etc/php/conf.d/uploads.ini \
     && echo "post_max_size = 0" >> /usr/local/etc/php/conf.d/uploads.ini \
     && echo "memory_limit = 512M" >> /usr/local/etc/php/conf.d/uploads.ini \
     && echo "max_execution_time = 120" >> /usr/local/etc/php/conf.d/uploads.ini \
-    && echo "max_input_time = 120" >> /usr/local/etc/php/conf.d/uploads.ini
+    && echo "max_input_time = 120" >> /usr/local/etc/php/conf.d/uploads.ini \
+    && echo "max_file_uploads = 50" >> /usr/local/etc/php/conf.d/uploads.ini \
+    && echo "display_errors = Off" >> /usr/local/etc/php/conf.d/uploads.ini \
+    && echo "display_startup_errors = Off" >> /usr/local/etc/php/conf.d/uploads.ini \
+    && echo "log_errors = On" >> /usr/local/etc/php/conf.d/uploads.ini
 
 # The base image's php-fpm.d/docker.conf points the FastCGI access log at
 # stderr, so every request adds a plain-text line to the same container stream
