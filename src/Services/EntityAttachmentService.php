@@ -52,16 +52,7 @@ class EntityAttachmentService
      *
      * @var list<string>
      */
-    public const METADATA_COLUMNS = [
-        'id',
-        'entity_type',
-        'entity_id',
-        'filename',
-        'original_name',
-        'mime_type',
-        'file_size',
-        'created_at',
-    ];
+    public const METADATA_COLUMNS = Attachment::METADATA_COLUMNS;
 
     private LoggerInterface $logger;
 

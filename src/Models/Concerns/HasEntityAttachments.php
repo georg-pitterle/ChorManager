@@ -17,12 +17,23 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  *
  * Voraussetzung ist eine Konstante `ENTITY_TYPE` auf dem Modell; darüber wacht
  * tests/Unit/Models/EntityRelationTraitsTest.
+ *
+ * Die Beziehung lädt nur die Metadaten, nie `file_content`. Jede Übersicht
+ * erreicht die Anhänge über diese Beziehung, und ein `select *` zog dort jeden
+ * BLOB durch den Speicher - im Repertoire mit rund 100 MB Liedanhängen bis zum
+ * Speicherlimit und einer leeren 500-Seite. Den Inhalt holen die Stellen, die
+ * ihn ausliefern, mit einer eigenen Abfrage
+ * (tests/Feature/AttachmentRelationBlobLoadFeatureTest).
  */
 trait HasEntityAttachments
 {
     public function attachments(): HasMany
     {
         return $this->hasMany(Attachment::class, 'entity_id', 'id')
+            ->select(array_map(
+                static fn (string $column): string => 'attachments.' . $column,
+                Attachment::METADATA_COLUMNS
+            ))
             ->where('entity_type', static::ENTITY_TYPE);
     }
 }

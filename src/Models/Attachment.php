@@ -11,6 +11,25 @@ class Attachment extends Model
     protected $table = 'attachments';
     public $timestamps = false;
 
+    /**
+     * Alles außer `file_content`. Festgelegt hier am Modell, weil die Beziehung
+     * `HasEntityAttachments::attachments()` sie braucht und Modelle nichts aus
+     * `App\Services` ziehen; `EntityAttachmentService::METADATA_COLUMNS` verweist
+     * darauf.
+     *
+     * @var list<string>
+     */
+    public const METADATA_COLUMNS = [
+        'id',
+        'entity_type',
+        'entity_id',
+        'filename',
+        'original_name',
+        'mime_type',
+        'file_size',
+        'created_at',
+    ];
+
     // Use string type for created_at if we aren't using Laravel's automatic timestamping, or just let Eloquent handle it
     protected $fillable = [
         'entity_type',
@@ -25,9 +44,9 @@ class Attachment extends Model
     ];
 
     /**
-     * Zweite Absicherung neben den Spaltenlisten der Aufrufer
-     * (`EntityAttachmentService::LIST_COLUMNS` und die eigenen `select()` in
-     * FinanceController, SponsorController und FinanceCsvExportService): Wird ein
+     * Zweite Absicherung neben den Spaltenlisten (`METADATA_COLUMNS` in der
+     * Beziehung `HasEntityAttachments::attachments()` und die eigenen `select()`
+     * der Aufrufer): Wird ein
      * Anhang doch einmal mit allen Spalten geladen und danach serialisiert, bleibt
      * der Dateiinhalt aus der Ausgabe.
      *
