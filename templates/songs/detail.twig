@@ -1,6 +1,7 @@
 {% extends "layout.twig" %}
 
 {% import "macros/help.twig" as help %}
+{% import "macros/upload.twig" as upload %}
 
 {% block title %}
     {{ song.title }} - Repertoire - {{ app_settings.app_name|default('Chor-Manager') }}
@@ -229,20 +230,9 @@
                             <p class="dashboard-panel__text mb-2">Keine Anhänge vorhanden.</p>
                         {% endif %}
 
-                        <form method="post"
-                              action="/song-library/songs/{{ song.id }}/attachments"
-                              enctype="multipart/form-data"
-                              data-upload-compress="true">
-                            <label for="attachments" class="form-label">Dateien hochladen</label>
-                            <input type="file"
-                                   id="attachments"
-                                   name="attachments[]"
-                                   class="form-control mb-2"
-                                   multiple>
-                            <button type="submit" class="btn btn-outline-secondary btn-sm">
-                                <i class="bi bi-upload me-1"></i>Hochladen
-                            </button>
-                        </form>
+                        {{ upload.dropzone("/song-library/songs/" ~ song.id ~ "/attachments", {
+                            id: "song-attachments",
+                        }) }}
                     </div>
                 </article>
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\AttachmentUploadJson;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\Activity;
@@ -23,6 +24,7 @@ use App\Util\AppUrlResolver;
 use App\Util\NotificationType;
 use App\Policies\TaskPolicy;
 use App\Util\InputValidator;
+use App\Util\RequestFormat;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -32,6 +34,8 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 
 class TaskController
 {
+    use AttachmentUploadJson;
+
     /** Anhänge, die an der Aufgabe hängen. */
     /** Derselbe Wert wie am Modell - festgelegt wird er nur dort. */
     public const ENTITY_TYPE = Task::ENTITY_TYPE;
@@ -695,9 +699,19 @@ class TaskController
     public function uploadAttachment(Request $request, Response $response, array $args): Response
     {
         $taskId = (int) $args['id'];
-        $task = Task::findOrFail($taskId);
+        $expectsJson = RequestFormat::expectsJson($request);
+
+        // Für die Ablegefläche ein JSON-404 statt der allgemeinen Fehlerseite,
+        // sonst stünde an der Datei nur "Hochladen fehlgeschlagen.".
+        $task = $expectsJson ? Task::find($taskId) : Task::findOrFail($taskId);
+        if ($task === null) {
+            return $this->attachmentUploadJsonError($response, 'Aufgabe nicht gefunden.', 404);
+        }
 
         if (!$this->hasTaskAccess($task->project)) {
+            if ($expectsJson) {
+                return $this->attachmentUploadJsonError($response, 'Zugriff verweigert.', 403);
+            }
             $_SESSION['error'] = 'Zugriff verweigert.';
             return $response->withHeader('Location', '/dashboard')->withStatus(302);
         }
@@ -714,6 +728,20 @@ class TaskController
 
         $uploadedCount = $result['stored'];
 
+        if ($uploadedCount > 0) {
+            Activity::create([
+                'entity_type' => self::ENTITY_TYPE,
+                'entity_id'   => $task->id,
+                'user_id'     => $_SESSION['user_id'],
+                'action'      => 'attachment_added',
+                'description' => $this->attachmentActivityText($result['ids']),
+            ]);
+        }
+
+        if ($expectsJson) {
+            return $this->attachmentUploadJson($response, $result);
+        }
+
         // Der Dienst meldet die erste Beanstandung, nicht alle mit "; " verkettet.
         // Bei mehreren beanstandeten Dateien gleicht sich der Text ohnehin meist,
         // und eine Kette aus fünf Meldungen liest niemand zu Ende.
@@ -722,17 +750,29 @@ class TaskController
         }
 
         if ($uploadedCount > 0) {
-            Activity::create([
-                'entity_type' => self::ENTITY_TYPE,
-                'entity_id'   => $task->id,
-                'user_id'     => $_SESSION['user_id'],
-                'action'      => 'attachment_added',
-                'description' => "$uploadedCount Anhang/Anhänge hinzugefügt.",
-            ]);
             $_SESSION['success'] = 'Anhänge hochgeladen.';
         }
 
         return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);
+    }
+
+    /**
+     * Die Ablegefläche schickt jede Datei einzeln, also entsteht je Datei ein
+     * Eintrag im Verlauf. Dann soll er sagen, welche Datei es war - 24-mal
+     * "1 Anhang/Anhänge hinzugefügt." sagt nichts.
+     *
+     * @param list<int> $attachmentIds
+     */
+    private function attachmentActivityText(array $attachmentIds): string
+    {
+        if (count($attachmentIds) === 1) {
+            $name = Attachment::whereKey($attachmentIds[0])->value('original_name');
+            if (is_string($name) && $name !== '') {
+                return 'Anhang „' . $name . '“ hinzugefügt.';
+            }
+        }
+
+        return count($attachmentIds) . ' Anhang/Anhänge hinzugefügt.';
     }
 
     public function deleteAttachment(Request $request, Response $response, array $args): Response

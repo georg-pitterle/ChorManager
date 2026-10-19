@@ -3233,8 +3233,10 @@ a:hover {
    Dateiverwaltung
    ------------------------------------------------------------------ */
 
-/* Ablagefläche für Uploads. Hervorgehoben, solange Dateien darüber gezogen werden. */
-.files-dropzone {
+/* Ablagefläche für Uploads (macros/upload.twig), überall dieselbe: Dateiablage,
+   Liedanhänge, Aufgaben, Sponsoren. Hervorgehoben, solange Dateien darüber
+   gezogen werden. */
+.upload-dropzone {
     border: 2px dashed var(--theme-border);
     border-radius: var(--app-radius);
     background: var(--theme-surface-muted);
@@ -3244,26 +3246,66 @@ a:hover {
     transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 
-.files-dropzone.is-dragover {
+.upload-dropzone.is-dragover {
     border-color: var(--theme-primary);
     background: rgba(var(--theme-primary-rgb), 0.08);
 }
 
-.files-upload-list {
+/* Das Dateifeld ist unsichtbar, bleibt aber per Tastatur erreichbar; der Fokus
+   zeigt sich an der ganzen Fläche. */
+.upload-dropzone:focus-within {
+    border-color: var(--theme-primary);
+    outline: 2px solid rgba(var(--theme-primary-rgb), 0.35);
+    outline-offset: 2px;
+}
+
+.upload-dropzone-pick {
+    color: var(--theme-primary);
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.upload-list,
+.upload-total,
+.upload-summary {
     text-align: left;
 }
 
-.files-upload-item + .files-upload-item {
-    margin-top: 0.5rem;
+/* Bei vielen Dateien scrollt die Liste statt die Seite zu verlängern. */
+.upload-list {
+    max-height: 18rem;
+    overflow-y: auto;
 }
 
-.files-upload-progress,
+.upload-item + .upload-item {
+    margin-top: 0.4rem;
+}
+
+.upload-item-line {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: space-between;
+    min-width: 0;
+}
+
+.upload-item-status {
+    flex-shrink: 0;
+    text-align: right;
+}
+
+/* Ein langer Fehlertext darf umbrechen, der Dateiname wird gekürzt. */
+.upload-item-status.text-danger {
+    flex-shrink: 1;
+    max-width: 60%;
+}
+
+.upload-progress,
 .files-quota-bar {
     height: 0.4rem;
 }
 
 /* Breite aus --progress-value, gesetzt vom JS (Upload) bzw. Twig (Kontingent). */
-.files-upload-progress .progress-bar,
+.upload-progress .progress-bar,
 .files-quota-fill {
     width: var(--progress-value, 0%);
 }

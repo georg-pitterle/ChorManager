@@ -7,6 +7,7 @@ namespace App\Controllers;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
+use App\Controllers\Concerns\AttachmentUploadJson;
 use App\Models\Sponsor;
 use App\Models\SponsorPackage;
 use App\Models\Sponsorship;
@@ -20,9 +21,12 @@ use Psr\Log\NullLogger;
 use App\Util\SponsorEngagementState;
 use App\Util\SponsorshipStatus;
 use App\Util\InputValidator;
+use App\Util\RequestFormat;
 
 class SponsorController
 {
+    use AttachmentUploadJson;
+
     private const MAX_NAME_LENGTH = 255;
     private const MAX_CONTACT_PERSON_LENGTH = 255;
     private const MAX_EMAIL_LENGTH = 255;
@@ -365,13 +369,19 @@ class SponsorController
         $id = (int) $args['id'];
 
         $sponsor = Sponsor::find($id);
+        $expectsJson = RequestFormat::expectsJson($request);
         if ($sponsor === null) {
+            if ($expectsJson) {
+                return $this->attachmentUploadJsonError($response, 'Sponsor nicht gefunden.', 404);
+            }
             $_SESSION['error'] = 'Sponsor nicht gefunden.';
             return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
         }
 
         if (!$this->policy->canEditSponsor($sponsor)) {
-            return $this->deny($response);
+            return $expectsJson
+                ? $this->attachmentUploadJsonError($response, 'Zugriff verweigert.', 403)
+                : $this->deny($response);
         }
 
         $result = $this->attachments->storeUploads(
@@ -379,6 +389,10 @@ class SponsorController
             self::ENTITY_TYPE,
             $id
         );
+
+        if ($expectsJson) {
+            return $this->attachmentUploadJson($response, $result);
+        }
 
         if ($result['error'] !== null) {
             $_SESSION['error'] = $result['error'];

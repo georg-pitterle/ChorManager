@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\AttachmentUploadJson;
 use App\Models\Category;
 use App\Models\Project;
 use App\Models\Song;
@@ -12,6 +13,7 @@ use App\Models\SongResource;
 use App\Services\EntityAttachmentService;
 use App\Services\EntityCleanupService;
 use App\Util\InputValidator;
+use App\Util\RequestFormat;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -20,6 +22,8 @@ use Slim\Views\Twig;
 
 class SongLibraryController
 {
+    use AttachmentUploadJson;
+
     /** Anhänge, die am Lied hängen: Noten, Übungsaufnahmen, Begleitstimmen. */
     /** Derselbe Wert wie am Modell - festgelegt wird er nur dort. */
     public const ENTITY_TYPE = Song::ENTITY_TYPE;
@@ -283,13 +287,24 @@ class SongLibraryController
     {
         $songId = (int) ($args['id'] ?? 0);
         $song = Song::find($songId);
+        $expectsJson = RequestFormat::expectsJson($request);
 
         if (!$song) {
+            if ($expectsJson) {
+                return $this->attachmentUploadJsonError($response, 'Lied nicht gefunden.', 404);
+            }
             $_SESSION['error'] = 'Lied nicht gefunden.';
             return $response->withHeader('Location', '/song-library')->withStatus(302);
         }
 
         $uploadedFiles = $request->getUploadedFiles();
+        if ($expectsJson) {
+            return $this->attachmentUploadJson(
+                $response,
+                $this->attachments->storeUploads($uploadedFiles['attachments'] ?? null, self::ENTITY_TYPE, $songId)
+            );
+        }
+
         if (!isset($uploadedFiles['attachments'])) {
             $_SESSION['error'] = 'Keine Dateien übergeben.';
             return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);

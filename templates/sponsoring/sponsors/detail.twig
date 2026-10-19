@@ -1,6 +1,7 @@
 {% extends "layout.twig" %}
 
 {% import "macros/help.twig" as help %}
+{% import "macros/upload.twig" as upload %}
 
 {% block title %}
     {{ sponsor.name }} - Sponsoring - {{ app_settings.app_name|default("Chor-Manager") }}
@@ -502,24 +503,9 @@
             {% endif %}
 
             {% if can_edit_sponsor %}
-                <form method="post"
-                      action="/sponsoring/sponsors/{{ sponsor.id }}/attachments"
-                      enctype="multipart/form-data"
-                      id="sponsor-attachment-form"
-                      data-upload-compress="true"
-                      class="row g-2 align-items-end">
-                    <div class="col-md-8">
-                        <label class="form-label" for="sponsor_attachments">Dateien hinzufügen</label>
-                        <input type="file"
-                               id="sponsor_attachments"
-                               name="attachments[]"
-                               class="form-control"
-                               multiple>
-                    </div>
-                    <div class="col-md-4">
-                        <button type="submit" class="btn btn-outline-secondary w-100">Hochladen</button>
-                    </div>
-                </form>
+                {{ upload.dropzone("/sponsoring/sponsors/" ~ sponsor.id ~ "/attachments", {
+                    id: "sponsor-attachments",
+                }) }}
             {% endif %}
         </section>
     </div>

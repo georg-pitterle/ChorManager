@@ -147,12 +147,12 @@ class FileControllerFeatureTest extends TestCase
         $this->login((int) $reader->id);
         $html = $this->body($controller->folder($this->makeRequest('GET', '/'), $this->makeResponse(), ['id' => $root->id]));
         $this->assertStringContainsString('Ave Maria.pdf', $html);
-        $this->assertStringNotContainsString('data-files-dropzone', $html);
+        $this->assertStringNotContainsString('data-upload-dropzone', $html);
         $this->assertStringNotContainsString('filesSharesModal', $html);
 
         $this->login((int) $manager->id);
         $html = $this->body($controller->folder($this->makeRequest('GET', '/'), $this->makeResponse(), ['id' => $root->id]));
-        $this->assertStringContainsString('data-files-dropzone', $html);
+        $this->assertStringContainsString('data-upload-dropzone', $html);
         $this->assertStringContainsString('filesSharesModal', $html);
         $this->assertMatchesRegularExpression(
             '#name="shares\[\d+\]\[conditions\]\[role\]\[\]".*?value="' . $role->id . '"\s+selected#s',

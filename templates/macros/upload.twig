@@ -1,0 +1,44 @@
+{# Ablegefläche für Datei-Uploads: Ziehen oder auswählen, je Datei eine Anfrage mit #}
+{# eigenem Fortschritt und eigener Fehlermeldung (public/js/upload-dropzone.js). #}
+{# Darunter liegt ein Formular mit Dateifeld und "Hochladen"-Knopf, den das Skript #}
+{# ausblendet. Ein echter Ersatzweg ohne JavaScript ist das nicht: Den CSRF-Token #}
+{# setzt auch dort erst common.js, und die Dateiablage antwortet immer mit JSON. #}
+{# Optionen: id (Feld-ID), field (Feldname, Vorgabe "attachments[]"), max_bytes #}
+{# (Grenze je Datei; sonst gelten die Grenzen je Dateiart aus dem Layout), #}
+{# shrink_images (Bilder vor dem Senden verkleinern, Vorgabe an), hint, classes. #}
+{% macro dropzone(url, options={}) %}
+    {% set _field = options.field ?? "attachments[]" %}
+    {% set _id = options.id ?? ("upload-input-" ~ random()) %}
+    {% set _shrink = options.shrink_images ?? true %}
+    {% set _classes = options.classes ?? "" %}
+    <form action="{{ url }}"
+          method="post"
+          enctype="multipart/form-data"
+          class="upload-dropzone{{ _classes ? " " ~ _classes }}"
+          data-upload-dropzone
+          data-upload-url="{{ url }}"
+          data-upload-field="{{ _field }}"
+          {% if options.max_bytes ?? false %}data-upload-max-bytes="{{ options.max_bytes }}"{% endif %}
+          {% if _shrink %}data-upload-shrink-images="1"{% endif %}>
+        <input type="file"
+               id="{{ _id }}"
+               name="{{ _field }}"
+               class="visually-hidden"
+               multiple
+               data-upload-input>
+        <i class="bi bi-cloud-arrow-up fs-3 d-block mb-1" aria-hidden="true"></i>
+        <span>
+            Dateien hierher ziehen oder
+            <label for="{{ _id }}" class="upload-dropzone-pick">auswählen</label>
+        </span>
+        {% if options.hint ?? false %}
+            <small class="d-block text-muted">{{ options.hint }}</small>
+        {% endif %}
+        <button type="submit" class="btn btn-outline-secondary btn-sm mt-2" data-upload-fallback>
+            <i class="bi bi-upload me-1" aria-hidden="true"></i>Hochladen
+        </button>
+        <div class="upload-total small fw-semibold mt-2" data-upload-total aria-live="polite" hidden></div>
+        <ul class="list-unstyled upload-list mt-2 mb-0" data-upload-list></ul>
+        <div class="upload-summary mt-2" data-upload-summary hidden></div>
+    </form>
+{% endmacro %}

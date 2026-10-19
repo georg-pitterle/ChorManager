@@ -126,14 +126,14 @@ async function main() {
         // Seite nach dem Upload neu lädt.
         const sample = path.join(os.tmpdir(), 'Probenplan Herbst.txt');
         fs.writeFileSync(sample, 'Dienstag 19:00 Tutti\nDonnerstag 19:00 Register\n');
-        await page.locator('[data-files-input]').setInputFiles(sample);
-        await page.locator('[data-files-progress] li', { hasText: 'Hochgeladen' }).waitFor();
+        await page.locator('[data-upload-input]').setInputFiles(sample);
+        await page.locator('[data-upload-list] li', { hasText: 'Hochgeladen' }).waitFor();
         // Der Balken wächst per CSS-Transition auf volle Breite - abwarten.
         await page.waitForFunction(() => {
-            const bar = document.querySelector('[data-files-progress] .progress-bar');
+            const bar = document.querySelector('[data-upload-list] .progress-bar');
             return bar && bar.getBoundingClientRect().width >= bar.parentElement.getBoundingClientRect().width - 1;
         });
-        await page.locator('[data-files-dropzone]').screenshot({ path: path.join(IMAGES_DIR, '03-upload.png') });
+        await page.locator('[data-upload-dropzone]').screenshot({ path: path.join(IMAGES_DIR, '03-upload.png') });
         console.log('gespeichert: 03-upload.png');
         await page.waitForLoadState('networkidle');
 

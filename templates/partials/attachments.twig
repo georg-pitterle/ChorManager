@@ -1,3 +1,4 @@
+{% import "macros/upload.twig" as upload %}
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white pb-0 border-bottom-0">
         <h5 class="mb-0">
@@ -44,24 +45,6 @@
             <p class="text-muted mb-3">Noch keine Anhänge vorhanden.</p>
         {% endif %}
 
-        <form action="{{ upload_url }}"
-              method="post"
-              enctype="multipart/form-data"
-              class="bg-light p-3 rounded-3"
-              id="attachments-form"
-              data-upload-compress="true">
-            <label class="form-label mb-1">Neue Dateien hochladen</label>
-            <div class="input-group input-group-sm">
-                <input type="file"
-                       class="form-control"
-                       name="attachments[]"
-                       multiple
-                       required
-                       aria-label="Dateien zum Hochladen auswählen">
-                <button class="btn btn-outline-primary" type="submit">
-                    <i class="bi bi-upload"></i> Hochladen
-                </button>
-            </div>
-        </form>
+        {{ upload.dropzone(upload_url, {id: "attachments-upload"}) }}
     </div>
 </div>

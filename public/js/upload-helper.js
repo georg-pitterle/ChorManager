@@ -425,6 +425,7 @@ window.uploadHelper = (() => {
     return {
         processFile,
         batchProcess,
+        readLimits,
         findOversizedFiles,
         checkInputSizes,
         setupFormCompression,

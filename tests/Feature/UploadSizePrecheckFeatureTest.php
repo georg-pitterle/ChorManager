@@ -42,10 +42,14 @@ class UploadSizePrecheckFeatureTest extends TestCase
     {
         $root = dirname(__DIR__, 2);
 
-        foreach (['/templates/songs/create.twig', '/templates/songs/detail.twig'] as $template) {
-            $content = (string) file_get_contents($root . $template);
-            $this->assertStringContainsString('data-upload-compress="true"', $content, $template);
-        }
+        $create = (string) file_get_contents($root . '/templates/songs/create.twig');
+        $this->assertStringContainsString('data-upload-compress="true"', $create);
+
+        // Die Detailseite nutzt die Ablegefläche; sie verkleinert Bilder, solange
+        // shrink_images nicht ausdrücklich abgeschaltet ist.
+        $detail = (string) file_get_contents($root . '/templates/songs/detail.twig');
+        $this->assertStringContainsString('upload.dropzone(', $detail);
+        $this->assertStringNotContainsString('shrink_images: false', $detail);
     }
 
     public function testBankStatementInputCarriesItsOwnLimit(): void

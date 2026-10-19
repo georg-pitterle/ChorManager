@@ -1,11 +1,10 @@
 /**
- * Ordnerseite der Dateiverwaltung: Hochladen per Ziehen oder Auswahl, die
+ * Ordnerseite der Dateiverwaltung: der "Hochladen"-Knopf im Seitenkopf, die
  * geteilten Umbenennen-/Verschieben-Modals, die Versionsliste und das
  * Hinzufügen von Freigabe-Zeilen.
  *
- * Jede Datei geht in einer eigenen Anfrage hoch. So bekommt jede ihren eigenen
- * Fortschritt und ihre eigene Fehlermeldung, und eine zu große Datei bricht
- * nicht den Rest ab.
+ * Das Hochladen selbst macht die gemeinsame Ablegefläche (upload-dropzone.js),
+ * dieselbe wie bei Liedanhängen, Aufgaben und Sponsoren.
  */
 (function () {
     'use strict';
@@ -23,141 +22,21 @@
         return value + ' B';
     }
 
-    function setupUpload() {
-        const zone = document.querySelector('[data-files-dropzone]');
-        if (!zone) {
+    /**
+     * Der "Hochladen"-Knopf im Seitenkopf öffnet die Dateiauswahl der Ablegefläche;
+     * das Hochladen selbst übernimmt upload-dropzone.js.
+     */
+    function setupUploadPick() {
+        const input = document.querySelector('[data-upload-dropzone] [data-upload-input]');
+        if (!input) {
             return;
         }
-
-        const input = zone.querySelector('[data-files-input]');
-        const list = zone.querySelector('[data-files-progress]');
-        const url = zone.getAttribute('data-upload-url');
-        const maxBytes = Number(zone.getAttribute('data-max-bytes')) || 0;
-        let pending = 0;
-        let succeeded = 0;
 
         document.querySelectorAll('[data-files-pick]').forEach(function (button) {
             button.addEventListener('click', function () {
                 input.click();
             });
         });
-
-        input.addEventListener('change', function () {
-            uploadAll(input.files);
-            input.value = '';
-        });
-
-        ['dragenter', 'dragover'].forEach(function (type) {
-            zone.addEventListener(type, function (event) {
-                event.preventDefault();
-                zone.classList.add('is-dragover');
-            });
-        });
-        ['dragleave', 'drop'].forEach(function (type) {
-            zone.addEventListener(type, function (event) {
-                event.preventDefault();
-                zone.classList.remove('is-dragover');
-            });
-        });
-        zone.addEventListener('drop', function (event) {
-            if (event.dataTransfer && event.dataTransfer.files) {
-                uploadAll(event.dataTransfer.files);
-            }
-        });
-
-        function uploadAll(files) {
-            // Eine neue Auswahl ersetzt die Rückmeldungen der vorigen, sonst
-            // stapeln sich nach mehreren Fehlversuchen dieselben Meldungen.
-            // Läuft noch etwas, bleiben dessen Zeilen stehen.
-            if (pending === 0) {
-                list.textContent = '';
-                succeeded = 0;
-            }
-            Array.prototype.forEach.call(files, uploadOne);
-        }
-
-        function addRow(name) {
-            const item = document.createElement('li');
-            item.className = 'files-upload-item';
-            const label = document.createElement('div');
-            label.className = 'small text-truncate';
-            label.textContent = name;
-            const progress = document.createElement('div');
-            progress.className = 'progress files-upload-progress';
-            const bar = document.createElement('div');
-            bar.className = 'progress-bar';
-            progress.appendChild(bar);
-            const status = document.createElement('div');
-            status.className = 'small text-muted';
-            item.appendChild(label);
-            item.appendChild(progress);
-            item.appendChild(status);
-            list.appendChild(item);
-            return { item: item, bar: bar, status: status };
-        }
-
-        function finish(row, ok, message) {
-            row.bar.classList.add(ok ? 'bg-success' : 'bg-danger');
-            row.bar.style.setProperty('--progress-value', '100%');
-            row.status.textContent = message;
-            // text-muted setzt seine Farbe mit !important und überstimmte text-danger.
-            row.status.classList.toggle('text-muted', ok);
-            row.status.classList.toggle('text-danger', !ok);
-            pending -= 1;
-            if (ok) {
-                succeeded += 1;
-            }
-            if (pending === 0 && succeeded > 0) {
-                // Kurz stehen lassen, damit die Rückmeldung lesbar ist.
-                window.setTimeout(function () {
-                    window.location.reload();
-                }, 900);
-            }
-        }
-
-        function uploadOne(file) {
-            pending += 1;
-            const row = addRow(file.name);
-
-            if (maxBytes > 0 && file.size > maxBytes) {
-                finish(row, false, 'Zu groß (' + formatSize(file.size) + ', höchstens ' + formatSize(maxBytes) + ').');
-                return;
-            }
-
-            const data = new FormData();
-            data.append('file', file);
-
-            const request = new XMLHttpRequest();
-            request.open('POST', url);
-            request.setRequestHeader('X-CSRF-Token', csrfToken);
-            request.setRequestHeader('Accept', 'application/json');
-            request.upload.addEventListener('progress', function (event) {
-                if (event.lengthComputable) {
-                    const percent = Math.round((event.loaded / event.total) * 100);
-                    row.bar.style.setProperty('--progress-value', percent + '%');
-                }
-            });
-            request.addEventListener('load', function () {
-                let payload = null;
-                try {
-                    payload = JSON.parse(request.responseText);
-                } catch (error) {
-                    payload = null;
-                }
-                if (request.status >= 200 && request.status < 300 && payload && payload.ok) {
-                    finish(row, true, payload.new_version ? 'Als neue Version gespeichert.' : 'Hochgeladen.');
-                    return;
-                }
-                const message = payload && payload.error
-                    ? payload.error
-                    : (request.status === 413 ? 'Die Datei ist zu groß.' : 'Hochladen fehlgeschlagen.');
-                finish(row, false, message);
-            });
-            request.addEventListener('error', function () {
-                finish(row, false, 'Verbindung unterbrochen.');
-            });
-            request.send(data);
-        }
     }
 
     function setupSharedModals() {
@@ -342,7 +221,7 @@
     document.addEventListener('DOMContentLoaded', function () {
         setupRowMenus();
         setupCopyButtons();
-        setupUpload();
+        setupUploadPick();
         setupSharedModals();
         setupVersions();
     });

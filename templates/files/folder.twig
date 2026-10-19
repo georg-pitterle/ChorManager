@@ -1,6 +1,7 @@
 {% extends "layout.twig" %}
 {% import "files/partials/macros.twig" as files_ui %}
 {% import "macros/help.twig" as help %}
+{% import "macros/upload.twig" as upload %}
 
 {% set can_upload = level >= 2 %}
 {% set can_edit = level >= 3 %}
@@ -336,20 +337,15 @@
     {% endif %}
 
     {% if can_upload %}
-        <div class="files-dropzone mt-3"
-             data-files-dropzone
-             data-upload-url="/files/folders/{{ folder.id }}/upload"
-             data-max-bytes="{{ max_upload_bytes }}"
-             data-can-replace="{{ can_edit ? "1" : "0" }}">
-            <input type="file" class="visually-hidden" multiple data-files-input aria-label="Dateien auswählen">
-            <i class="bi bi-cloud-arrow-up fs-3 d-block mb-1" aria-hidden="true"></i>
-            <span>
-                Dateien hierher ziehen oder
-                <button type="button" class="btn btn-link p-0 align-baseline" data-files-pick>auswählen</button>
-            </span>
-            <small class="d-block text-muted">Höchstens {{ files_ui.size(max_upload_bytes) }} je Datei.</small>
-            <ul class="list-unstyled files-upload-list mt-2 mb-0" data-files-progress></ul>
-        </div>
+        {# Die Dateiablage speichert Dateien unverändert, auch Fotos: keine Verkleinerung. #}
+        {{ upload.dropzone("/files/folders/" ~ folder.id ~ "/upload", {
+            id: "files-upload-input",
+            field: "file",
+            max_bytes: max_upload_bytes,
+            shrink_images: false,
+            hint: "Höchstens " ~ files_ui.size(max_upload_bytes)|trim ~ " je Datei.",
+            classes: "mt-3",
+        }) }}
     {% endif %}
 
     {{ include("files/partials/folder_modals.twig") }}
