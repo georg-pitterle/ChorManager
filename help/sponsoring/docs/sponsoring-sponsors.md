@@ -36,7 +36,7 @@ Die Seite liest sich von oben nach unten – ohne Reiter:
 2. **Steckbrief**: Kontaktperson, Telefon (anklickbar), E-Mail, Website, Adresse, die nächste offene Wiedervorlage und die Notizen zum Sponsor.
 3. **Vereinbarungen** – je Vereinbarung eine Karte, siehe Abschnitt 4.
 4. **Kontakthistorie** – alle Gespräche, die neuesten zuerst.
-5. **Anhänge zum Sponsor** – Logo, Mediadaten und alles, was zu keiner einzelnen Vereinbarung gehört.
+5. **Anhänge zum Sponsor** – Logo, Mediadaten und alles, was zu keiner einzelnen Vereinbarung gehört. Neue Dateien ziehst du auf die gestrichelte Fläche oder klickst dort auf **auswählen**; jede zeigt ihren eigenen Fortschritt.
 
 ![Seite eines Sponsors](images/sponsoring/04-sponsor-detail.png)
 

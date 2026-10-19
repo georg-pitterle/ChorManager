@@ -41,7 +41,7 @@ Auf der Detailseite kannst du:
 
 - **Status** und Stammdaten über **Bearbeiten** ändern,
 - **Kommentare** schreiben, um Rückfragen und Zwischenstände zu dokumentieren,
-- **Dateien** anhängen, in der Vorschau ansehen und herunterladen,
+- **Dateien** anhängen – auf die gestrichelte Fläche ziehen oder dort **auswählen**, auch mehrere auf einmal –, in der Vorschau ansehen und herunterladen,
 - den **Aktivitätsverlauf** einsehen (wer hat wann was geändert – bei der Zuweisung steht dort getrennt, wer dazugekommen und wer weggefallen ist),
 - die Aufgabe in der **Gefahrenzone** löschen.
 

@@ -150,10 +150,18 @@ async function main() {
             'hidden.bs.modal'
         );
 
-        // 3. Modal: Projekt bearbeiten (erstes Projekt)
+        // 3. Modal: Projekt bearbeiten (erstes Projekt). Mit Planungsrecht steht
+        // "Bearbeiten" im Menü neben "Planung" - das Menü erst aufklappen.
+        const editTrigger = page.locator(`[data-bs-target="#editProjectModal${firstId}"]`);
+        if (!(await editTrigger.isVisible())) {
+            await editTrigger
+                .locator('xpath=ancestor::*[contains(@class,"btn-group")][1]//button[@data-bs-toggle="dropdown"]')
+                .click();
+            await editTrigger.waitFor({ state: 'visible' });
+        }
         await clickAndWaitForEvent(
             page,
-            page.locator(`[data-bs-target="#editProjectModal${firstId}"]`),
+            editTrigger,
             `#editProjectModal${firstId}`,
             'shown.bs.modal'
         );
@@ -207,7 +215,7 @@ async function main() {
         // 8. Aufgaben-Detailseite
         if (taskId) {
             await page.goto(`${BASE_URL}/tasks/${taskId}`, { waitUntil: 'networkidle' });
-            await page.locator('#task-detail-title').waitFor({ state: 'visible' });
+            await page.locator('[data-upload-dropzone].is-enhanced').waitFor({ state: 'visible' });
             await shot(page, '08-task-detail');
         }
 

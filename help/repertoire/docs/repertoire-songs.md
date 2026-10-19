@@ -29,9 +29,12 @@ Der mittlere Abschnitt teilt sich in drei Spalten.
   **Kategorien speichern**. Die Schlagworte erscheinen danach auch in der
   Repertoireübersicht.
 - **Anhänge** — die eigentlichen Dateien: Notenblätter (PDF, Bild) und Aufnahmen
-  (z. B. MP3). Über **Dateien hochladen** kommen neue dazu, das Augen-Symbol zeigt eine
-  Vorschau, der Pfeil lädt herunter, der Papierkorb löscht. Größenobergrenzen: 2 MB je
-  Bild, 30 MB je Audiodatei, 10 MB für alle übrigen Dateien.
+  (z. B. MP3). Neue ziehst du auf die gestrichelte Fläche darunter oder klickst dort auf
+  **auswählen** – auch viele auf einmal. Jede Datei zeigt ihren eigenen Fortschritt;
+  lehnt der Chor-Manager eine ab, steht der Grund direkt daneben, und die übrigen werden
+  trotzdem gespeichert. Das Augen-Symbol zeigt eine Vorschau, der Pfeil lädt herunter,
+  der Papierkorb löscht. Größenobergrenzen: 2 MB je Bild (größere Fotos werden vor dem
+  Hochladen verkleinert), 30 MB je Audiodatei, 10 MB für alle übrigen Dateien.
 - **Links** — Verweise auf Material, das nicht im Chor-Manager liegt: Aufführungsvideos,
   MIDI-Referenzen, Übe-Tracks. Jeder Link hat Titel, URL und eine optionale Beschreibung.
 

@@ -29,7 +29,7 @@ Deine Stufe steht im Kopf jeder Ordnerseite. Unterordner stehen als Kacheln übe
 
 ## 3. Dateien hochladen
 
-Ab der Stufe **Hochladen** ziehst du Dateien auf die markierte Fläche unter der Dateiliste oder klickst oben auf **Hochladen**. Mehrere Dateien auf einmal sind möglich; jede zeigt ihren eigenen Fortschritt. Die Größe je Datei ist begrenzt – die Grenze steht unter der Fläche.
+Ab der Stufe **Hochladen** ziehst du Dateien auf die markierte Fläche unter der Dateiliste oder klickst oben auf **Hochladen**. Mehrere Dateien auf einmal sind möglich; jede zeigt ihren eigenen Fortschritt. Wird eine abgelehnt, steht der Grund oben in der Liste, und die übrigen werden trotzdem gespeichert. Die Größe je Datei ist begrenzt – die Grenze steht unter der Fläche.
 
 Lädst du eine Datei mit einem Namen hoch, den es im Ordner schon gibt, wird sie zur **neuen Version** der vorhandenen Datei. Das geht nur ab der Stufe **Bearbeiten**; mit der Stufe **Hochladen** erscheint ein Hinweis, dass die Datei schon existiert.
 
