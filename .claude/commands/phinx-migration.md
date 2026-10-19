@@ -96,6 +96,24 @@ zurückschreibt (`20260830120000` legt je Aufgabe eine Zuweisung zurück nach
 `public const` in der Migration, damit `DestructiveMigrationGuardTest` genau die
 Anweisung gegen Wegwerf-Tabellen prüfen kann, die auch läuft.
 
+**Warum Spalten ausgenommen bleiben.** Für eine Spalte gilt dasselbe Argument -
+`sponsorships.paid_at` war in Lauf 48 Teil desselben Befundes, und 29 weitere
+Migrationen nehmen im `down()` eine Spalte zurück, deren Werte erst im Betrieb
+entstanden sind. Nachgerüstet wird das trotzdem nicht; so entschieden in der
+Nacharbeit zu Lauf 48.
+
+Der Grund ist das Prädikat. Bei einer Tabelle ist "ist da was drin" eindeutig,
+bei einer Spalte nicht: Was bei `paid_at` `IS NOT NULL` heißt, heißt bei
+`event_types.is_highlighted` `= 1` und bei einem Freitextfeld `<> ''`. Ein
+pauschaler statischer Zwang erzeugt damit reihenweise Prüfungen, deren Prädikat
+jemand von Hand richtig raten muss - genau die toten Prüfungen, aus denen
+`DestructiveStepNeedsGuardTest` schon `MODIFY ... NOT NULL` heraushält.
+
+Trägt eine Spalte erkennbar eingetragenen Inhalt - ein Datum, einen Betrag,
+einen Freitext -, ist eine Zählabfrage davor willkommen; `20261012120000` zählt
+`paid_at` aus diesem Grund mit. Pflicht ist sie nicht, und kein Test verlangt
+sie. Bei einem Schalter mit Vorgabewert wäre sie ohnehin nur Zeremonie.
+
 **Phinx-Ketten abschließen.** `addColumn()`, `removeColumn()`, `addIndex()`, `drop()`
 und Konsorten reihen die Aktion nur ein. Ausgeführt wird sie erst durch `create()`,
 `save()` oder `update()`. Fehlt der Abschluss, meldet der Lauf trotzdem Erfolg und die
