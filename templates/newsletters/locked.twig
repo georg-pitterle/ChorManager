@@ -4,7 +4,7 @@
 {% endblock editor_scripts %}
 
 {% block title %}
-    Newsletter gesperrt - {{ app_settings.app_name|default('Chor-Manager') }}
+    Newsletter gesperrt - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
 {% block page_header %}
@@ -33,7 +33,7 @@
 
                         {% if locked_by_user %}
                             <div class="alert alert-info" role="alert">
-                                <strong>Derzeit von bearbeitet:</strong>
+                                <strong>Derzeit bearbeitet von:</strong>
                                 <br>
                                 {{ locked_by_user|person_name }}
                                 <br>
@@ -47,10 +47,22 @@
                         </p>
 
                         <div class="d-grid gap-2">
+                            {% if can_force_unlock|default(false) %}
+                                <form method="post"
+                                      action="/newsletters/{{ newsletter.id }}/force-unlock"
+                                      id="force-unlock-form"
+                                      class="d-grid"
+                                      data-confirm="Sperre aufheben? Ungespeicherte Änderungen der anderen Person gehen verloren.">
+                                    <input type="hidden" name="is_modal" value="{{ is_modal|default(false) ? "1" : "0" }}">
+                                    <button type="submit" class="btn btn-warning">
+                                        <i class="bi bi-unlock"></i> Sperre aufheben und selbst bearbeiten
+                                    </button>
+                                </form>
+                            {% endif %}
                             <button type="button"
                                     class="btn btn-outline-secondary"
                                     id="reload-locked-newsletter-btn"
-                                    data-is-modal="{{ is_modal|default(false) ? '1' : '0' }}">
+                                    data-is-modal="{{ is_modal|default(false) ? "1" : "0" }}">
                                 <i class="bi bi-arrow-clockwise"></i> Seite neu laden
                             </button>
                             <a href="/newsletters?project_id={{ newsletter.project_id }}&status=draft"

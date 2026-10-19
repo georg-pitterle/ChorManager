@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Util\SessionConfig;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -82,6 +83,30 @@ final class SessionPersistenceFeatureTest extends TestCase
         $this->assertIsString($frontController);
 
         $applyPosition = strpos($frontController, 'SessionConfig::applySavePath()');
+        $cookieParamsPosition = strpos($frontController, 'session_set_cookie_params(');
+
+        $this->assertIsInt($applyPosition);
+        $this->assertIsInt($cookieParamsPosition);
+        $this->assertLessThan($cookieParamsPosition, $applyPosition);
+    }
+
+    /**
+     * PHP räumt eine Sitzung nach 24 Minuten ohne Anfrage ab. Wer so lange an
+     * einem Newsletter schreibt oder die Liste offen liegen lässt, bekam danach
+     * per Remember-Me still eine neue Sitzung mit neuem CSRF-Token - und die
+     * offene Seite lief beim Absenden in "Ungültiger CSRF-Token".
+     */
+    public function testIdleSessionsLiveForAWorkingSession(): void
+    {
+        $this->assertGreaterThanOrEqual(8 * 3600, SessionConfig::IDLE_LIFETIME_SECONDS);
+    }
+
+    public function testFrontControllerAppliesTheIdleLifetimeBeforeStartingSessions(): void
+    {
+        $frontController = file_get_contents(dirname(__DIR__, 2) . '/public/index.php');
+        $this->assertIsString($frontController);
+
+        $applyPosition = strpos($frontController, 'SessionConfig::applyIdleLifetime()');
         $cookieParamsPosition = strpos($frontController, 'session_set_cookie_params(');
 
         $this->assertIsInt($applyPosition);

@@ -27,7 +27,7 @@ class RoleController
      * Admin-Rolle gibt (AuthController::processSetup) und das damit als oberste
      * Stufe gilt.
      */
-    private const UNRESTRICTED_LEVEL = 100;
+    private const UNRESTRICTED_LEVEL = Role::MAX_HIERARCHY_LEVEL;
 
     /**
      * Wie UserController::LAST_MANAGER_MESSAGE, nur aus Sicht der Rolle: Dort

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Middleware;
 
 use App\Services\Oidc\OidcEndpoints;
+use App\Services\RememberLoginRestoreService;
 use App\Util\Csrf;
 use App\Util\RequestFormat;
 use App\Util\SafeRedirect;
@@ -70,9 +71,19 @@ class CsrfMiddleware implements MiddlewareInterface
 
     private LoggerInterface $logger;
 
-    public function __construct(LoggerInterface $logger = new NullLogger())
-    {
+    /**
+     * Optional, damit die zahlreichen Tests, die nur die Token-Prüfung brauchen,
+     * die Middleware weiter ohne Datenbankdienste bauen können. Verdrahtet wird
+     * er in Dependencies.php.
+     */
+    private ?RememberLoginRestoreService $rememberRestore;
+
+    public function __construct(
+        LoggerInterface $logger = new NullLogger(),
+        ?RememberLoginRestoreService $rememberRestore = null
+    ) {
         $this->logger = $logger;
+        $this->rememberRestore = $rememberRestore;
     }
 
     public function process(Request $request, RequestHandler $handler): Response
@@ -81,12 +92,35 @@ class CsrfMiddleware implements MiddlewareInterface
 
         Csrf::ensureToken();
 
-        $method = strtoupper($request->getMethod());
-        if (in_array($method, ['GET', 'HEAD', 'OPTIONS'], true)) {
+        if ($this->isExemptPath($request->getUri()->getPath())) {
             return $handler->handle($request);
         }
 
-        if ($this->isExemptPath($request->getUri()->getPath())) {
+        return $this->withCurrentToken($this->guard($request, $handler));
+    }
+
+    /**
+     * Nennt der Seite den Token, der nach der Anfrage gilt.
+     *
+     * Gelesen wird erst nach dem Handler: Die AuthMiddleware stellt eine
+     * verfallene Sitzung per Remember-Me innerhalb derselben Anfrage wieder her
+     * und dreht dabei den Token. Genau diesen Wechsel bekam eine offene Seite
+     * bisher nie mit - ihr nächster POST lief in "Ungültiger CSRF-Token".
+     */
+    private function withCurrentToken(Response $response): Response
+    {
+        $token = $_SESSION[Csrf::SESSION_KEY] ?? null;
+        if (!is_string($token) || $token === '') {
+            return $response;
+        }
+
+        return $response->withHeader(Csrf::RESPONSE_HEADER, $token);
+    }
+
+    private function guard(Request $request, RequestHandler $handler): Response
+    {
+        $method = strtoupper($request->getMethod());
+        if (in_array($method, ['GET', 'HEAD', 'OPTIONS'], true)) {
             return $handler->handle($request);
         }
 
@@ -117,6 +151,20 @@ class CsrfMiddleware implements MiddlewareInterface
         // scheitert erst beim Auswerten, mit einer Meldung, die nichts mit der
         // abgelaufenen Sitzung zu tun hat.
         $expectsJson = RequestFormat::expectsJson($request);
+
+        // Ist die Sitzung verfallen, während die Seite offen lag, und ist dieser POST die
+        // erste Anfrage danach, landete die Person bisher auf der Anmeldeseite - obwohl sie
+        // "Eingeloggt bleiben" gewählt hat und jede Abfrage sie still wieder angemeldet
+        // hätte. Deshalb wird die Sitzung hier genauso wiederhergestellt wie in der
+        // AuthMiddleware.
+        //
+        // Angenommen wird der POST trotzdem nicht: Sein Token gehört zur verlorenen
+        // Sitzung, und ein Token, der nicht zur Sitzung passt, ist genau das, wogegen die
+        // Prüfung schützt. Ein fremder Cross-Site-POST kommt hier ohnehin nicht an - das
+        // Remember-Me-Cookie ist SameSite=Lax und fehlt ihm.
+        if (!isset($_SESSION['user_id']) && $this->rememberRestore?->restoreFromCookie($request) === true) {
+            return $this->renewedSessionResponse($request, $expectsJson);
+        }
 
         // Der häufigste Weg hierher ist kein Angriff, sondern ein Formular, das
         // offen lag, bis die Sitzung ablief: Die neue Sitzung trägt einen neuen
@@ -167,7 +215,56 @@ class CsrfMiddleware implements MiddlewareInterface
 
     /**
      * Wohin nach dem Ablauf der Sitzung - mit der Seite als Ziel, auf der das
-     * Formular stand.
+     * Formular stand. Ohne sicheres Ziel (siehe refererTarget()) bleibt es bei der
+     * nackten Anmeldeseite.
+     */
+    private function loginLocation(Request $request): string
+    {
+        $target = $this->refererTarget($request);
+        if ($target === null || $target === '/login') {
+            return '/login';
+        }
+
+        return '/login?redirect=' . rawurlencode($target);
+    }
+
+    /**
+     * Antwort auf einen POST, für den die Sitzung eben per Remember-Me wieder
+     * aufgebaut wurde.
+     *
+     * `fetch`-Aufrufe bekommen den neuen Token im Kopf (withCurrentToken) und den
+     * Hinweis, es noch einmal zu versuchen; public/js/csrf-token-sync.js wiederholt
+     * den Aufruf genau einmal. Ein klassisch abgeschicktes Formular lässt sich
+     * nicht still wiederholen - es geht angemeldet zurück auf die Seite, von der es
+     * kam, mit der Bitte, noch einmal abzusenden.
+     */
+    private function renewedSessionResponse(Request $request, bool $expectsJson): Response
+    {
+        $this->logger->info('Session renewed through remember-me on a POST with a stale token.', [
+            'event' => 'security.csrf.session_renewed',
+        ]);
+
+        if ($expectsJson) {
+            $response = new SlimResponse(403);
+            $response->getBody()->write((string) json_encode([
+                'error' => 'Die Sitzung wurde erneuert. Bitte noch einmal versuchen.',
+            ], JSON_UNESCAPED_UNICODE));
+
+            return $response
+                ->withHeader('Content-Type', 'application/json')
+                ->withHeader(Csrf::RETRY_HEADER, '1');
+        }
+
+        $_SESSION['warning'] = 'Deine Sitzung wurde erneuert. Bitte sende das Formular noch einmal ab.';
+
+        return (new SlimResponse())
+            ->withHeader('Location', $this->refererTarget($request) ?? '/dashboard')
+            ->withStatus(302);
+    }
+
+    /**
+     * Die Seite, von der abgeschickt wurde, als sicheres Ziel innerhalb der
+     * Anwendung - oder null.
      *
      * Der Pfad der abgewiesenen Anfrage taugt dafür nicht: Zu einem POST-Ziel wie
      * `/profile/password` gehört gar keine Seite. Der Rückverweis des Browsers
@@ -176,29 +273,29 @@ class CsrfMiddleware implements MiddlewareInterface
      * `Referrer-Policy` aus der SecurityHeadersMiddleware.
      *
      * Geprüft wird er doppelt: Die Herkunft muss die eigene sein, und der übrige
-     * Pfad muss `SafeRedirect` bestehen. Sonst wäre die Anmeldeseite über einen
+     * Pfad muss `SafeRedirect` bestehen. Sonst wäre die Weiterleitung über einen
      * gefälschten Rückverweis ein offener Weiterleiter.
      *
      * Lässt sich die Herkunft nicht vergleichen - kein Host in der Anfrage, oder
-     * ein Proxy, der den Host-Kopf umschreibt -, bleibt es bei der nackten
-     * Anmeldeseite. Das ist eine Unbequemlichkeit, kein Schaden.
+     * ein Proxy, der den Host-Kopf umschreibt -, gibt es kein Ziel. Das ist eine
+     * Unbequemlichkeit, kein Schaden.
      */
-    private function loginLocation(Request $request): string
+    private function refererTarget(Request $request): ?string
     {
         $referer = trim($request->getHeaderLine('Referer'));
         if ($referer === '') {
-            return '/login';
+            return null;
         }
 
         $parts = parse_url($referer);
         if (!is_array($parts)) {
-            return '/login';
+            return null;
         }
 
         $uri = $request->getUri();
         $refererHost = strtolower((string) ($parts['host'] ?? ''));
         if ($refererHost !== '' && $refererHost !== strtolower($uri->getHost())) {
-            return '/login';
+            return null;
         }
 
         $target = (string) ($parts['path'] ?? '');
@@ -206,12 +303,7 @@ class CsrfMiddleware implements MiddlewareInterface
             $target .= '?' . $parts['query'];
         }
 
-        $safeTarget = SafeRedirect::sanitize($target);
-        if ($safeTarget === null || $safeTarget === '/login') {
-            return '/login';
-        }
-
-        return '/login?redirect=' . rawurlencode($safeTarget);
+        return SafeRedirect::sanitize($target);
     }
 
     /**

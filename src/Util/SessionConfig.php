@@ -17,6 +17,30 @@ class SessionConfig
     public const ENV_KEY = 'SESSION_SAVE_PATH';
 
     /**
+     * Wie lange eine Sitzung ohne Anfrage bestehen bleibt: acht Stunden.
+     *
+     * PHPs Vorgabe sind 24 Minuten. Wer so lange an einem Newsletter schrieb
+     * oder eine Liste offen liegen ließ - auf dem Handy reicht es, die Webapp
+     * in den Hintergrund zu schicken -, verlor die Sitzung. Die nächste Anfrage
+     * baute sie per Remember-Me still neu auf, mit neuem CSRF-Token, und das
+     * Absenden der offenen Seite scheiterte daran.
+     *
+     * Als Leerlaufgrenze gegen Missbrauch taugten die 24 Minuten ohnehin wenig:
+     * Wer "angemeldet bleiben" gewählt hat, kommt bis zu REMEMBER_ME_DAYS ohne
+     * Passwort wieder hinein.
+     */
+    public const IDLE_LIFETIME_SECONDS = 8 * 3600;
+
+    /**
+     * Setzt die Leerlaufgrenze, bevor eine Sitzung startet. Sie gilt für das
+     * Aufräumen der Sitzungsdateien; das Cookie bleibt ein Sitzungs-Cookie.
+     */
+    public static function applyIdleLifetime(): void
+    {
+        ini_set('session.gc_maxlifetime', (string) self::IDLE_LIFETIME_SECONDS);
+    }
+
+    /**
      * Apply the configured session save path.
      *
      * An unset variable or an unusable path keeps the PHP default: a broken

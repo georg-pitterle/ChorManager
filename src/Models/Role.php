@@ -9,6 +9,14 @@ use Illuminate\Database\Eloquent\Model;
 class Role extends Model
 {
     /**
+     * Das höchste Hierarchie-Level. Das Rollenformular lässt 0 bis 100 zu, und
+     * die Erstinstallation gibt es der Admin-Rolle (AuthController::processSetup).
+     * Wer es hält, darf jedes Recht vergeben (RoleController) und fremde
+     * Newsletter-Sperren aufheben (NewsletterController::forceUnlock).
+     */
+    public const MAX_HIERARCHY_LEVEL = 100;
+
+    /**
      * Jedes einzeln setzbare Recht einer Rolle.
      *
      * Die Liste stand vorher nur als Aufzählung in `$fillable`, in `$casts` und

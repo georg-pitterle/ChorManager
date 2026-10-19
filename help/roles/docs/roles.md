@@ -15,7 +15,9 @@ Unter **Administration → Rollen & Rechte** siehst du alle Rollen deiner Instal
 
 Über den Button **"Neue Rolle"** öffnest du ein Formular, in dem du einen Rollennamen, ein Hierarchie-Level sowie die gewünschten Rechte per Schalter aktivierst. Höhere Hierarchie-Level stehen typischerweise für Leitungsfunktionen, während ein einfaches Mitglied oft Level 0 hat.
 
-Das Hierarchie-Level vergibt **keine** Rechte. Es hat genau eine Aufgabe: Wer ein Mitglied bearbeiten oder ihm Rollen zuweisen will, kommt an niemanden heran, der eine höher eingestufte Rolle besitzt – und kann auch keine Rolle oberhalb des eigenen Levels anlegen, bearbeiten oder vergeben.
+Das Hierarchie-Level vergibt **keine** Rechte. Seine Hauptaufgabe: Wer ein Mitglied bearbeiten oder ihm Rollen zuweisen will, kommt an niemanden heran, der eine höher eingestufte Rolle besitzt – und kann auch keine Rolle oberhalb des eigenen Levels anlegen, bearbeiten oder vergeben.
+
+Das höchste Level **100** hat zwei Besonderheiten: Wer es hält, darf jedes Recht vergeben, auch eines, das die eigene Rolle nicht trägt. Und er kann die Bearbeitungssperre eines Newsletter-Entwurfs aufheben, den jemand anderes offen gelassen hat (siehe [Newsletter schreiben und versenden](newsletter-compose)).
 
 ![Formular zum Anlegen einer neuen Rolle](images/roles/02-new-role-modal.png)
 

@@ -24,6 +24,41 @@ function initNewsletterLocked() {
         reloadLockedNewsletterView();
     });
 
+    // Im Modal der Newsletter-Liste darf das Aufheben die Seite nicht verlassen: Die Antwort
+    // nennt den Editor, und das Modal lädt ihn selbst nach. Die Rückfrage aus data-confirm
+    // stellt common.js schon in der Capture-Phase; wer dort abbricht, kommt hier nicht weiter.
+    const forceUnlockForm = document.getElementById("force-unlock-form");
+    if (forceUnlockForm && isModalView) {
+        forceUnlockForm.addEventListener("submit", async function (event) {
+            if (event.defaultPrevented) {
+                return;
+            }
+            event.preventDefault();
+
+            const response = await fetch(forceUnlockForm.getAttribute("action") || "", {
+                method: "POST",
+                body: new FormData(forceUnlockForm),
+                headers: { "X-Requested-With": "XMLHttpRequest" },
+                credentials: "same-origin",
+            });
+            const payload = await response.json().catch(function () {
+                return null;
+            });
+
+            if (!response.ok || !payload || !payload.redirect) {
+                alert(payload && payload.error ? payload.error : "Die Sperre konnte nicht aufgehoben werden.");
+                return;
+            }
+
+            if (typeof window.newsletterModalNavigate === "function") {
+                window.newsletterModalNavigate(payload.redirect, "Newsletter bearbeiten");
+                return;
+            }
+
+            window.location.href = payload.redirect.replace("?modal=1", "");
+        });
+    }
+
     const reloadIntervalId = setInterval(function () {
         if (!document.body.contains(reloadButton)) {
             clearInterval(reloadIntervalId);

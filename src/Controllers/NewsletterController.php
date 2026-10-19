@@ -15,6 +15,7 @@ use App\Models\NewsletterArchive;
 use App\Models\NewsletterRecipient;
 use App\Models\NewsletterTemplate;
 use App\Models\Project;
+use App\Models\Role;
 use App\Models\Event;
 use App\Models\User;
 use App\Policies\NewsletterPolicy;
@@ -593,6 +594,7 @@ class NewsletterController
                 'newsletter' => $newsletter,
                 'locked_by_user' => $lockedByUser,
                 'is_modal' => $isModal,
+                'can_force_unlock' => $this->canForceUnlock(),
             ]);
         }
 
@@ -1192,6 +1194,65 @@ class NewsletterController
         }
 
         return $this->jsonResponse($response, ['released' => true]);
+    }
+
+    /**
+     * Hebt eine fremde Sperre auf - nur mit dem höchsten Rollen-Level.
+     *
+     * Für den Fall, dass jemand den Editor offen gelassen hat und nicht
+     * erreichbar ist: Ohne diesen Weg wartete die Redaktion, bis die Sperre nach
+     * 30 Minuten ohne Lebenszeichen verfällt - und solange das Fenster offen
+     * bleibt, verlängert der Editor sie von selbst, sie verfällt also nie.
+     *
+     * Danach geht es in den Editor, der die Sperre für die aufhebende Person
+     * setzt. Der Editor der bisherigen Person merkt das bei seiner nächsten
+     * Abfrage und meldet, wer jetzt bearbeitet; ungespeichert ist dort höchstens
+     * der Stand seit dem letzten automatischen Speichern.
+     */
+    public function forceUnlock(Request $request, Response $response): Response
+    {
+        $id = (int) $request->getAttribute('id');
+        $expectsJson = RequestFormat::expectsJson($request);
+        $data = (array) $request->getParsedBody();
+        $isModal = InputValidator::asString($data['is_modal'] ?? '0') === '1';
+
+        $newsletter = Newsletter::find($id);
+        if (!$newsletter || !$newsletter->isDraft()) {
+            return $response->withStatus(404);
+        }
+
+        if (!$this->canForceUnlock()) {
+            $message = 'Eine fremde Sperre kann nur aufheben, wer das höchste Rollen-Level hat.';
+            if ($expectsJson) {
+                return $this->jsonResponse($response, ['error' => $message], 403);
+            }
+
+            $_SESSION['error'] = $message;
+            return $response->withHeader('Location', "/newsletters/{$id}/edit")->withStatus(302);
+        }
+
+        $previousHolder = $newsletter->locked_by === null ? null : (int) $newsletter->locked_by;
+        $this->lockingService->releaseLock($newsletter);
+
+        $this->logger->info('Newsletter lock force-released.', [
+            'event' => 'newsletter.lock.force_released',
+            'newsletter_id' => $id,
+            'previous_holder_id' => $previousHolder,
+            'user_id' => (int) ($_SESSION['user_id'] ?? 0),
+        ]);
+
+        $target = "/newsletters/{$id}/edit";
+        if ($expectsJson) {
+            return $this->jsonResponse($response, ['redirect' => $target . ($isModal ? '?modal=1' : '')]);
+        }
+
+        $_SESSION['success'] = 'Sperre aufgehoben. Du bearbeitest den Newsletter jetzt selbst.';
+        return $response->withHeader('Location', $target)->withStatus(302);
+    }
+
+    private function canForceUnlock(): bool
+    {
+        return (int) ($_SESSION['role_level'] ?? 0) >= Role::MAX_HIERARCHY_LEVEL;
     }
 
     /**

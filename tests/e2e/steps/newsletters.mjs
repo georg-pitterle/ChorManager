@@ -348,7 +348,19 @@ export async function leaveEditorAndAwaitLockRelease(page, newsletterId) {
  */
 export async function sendFromEditPage(page) {
     page.once('dialog', (dialog) => dialog.accept());
+    // Auf die Antwort warten statt nur auf die Weiterleitung: Weist der Server ab - etwa mit
+    // "Ungültiger CSRF-Token" -, bleibt die Seite stehen, und ein bloßes waitForURL liefe nur
+    // in einen nichtssagenden Zeitablauf.
+    const sendResponse = page.waitForResponse(
+        (response) => /\/newsletters\/\d+\/send$/.test(new URL(response.url()).pathname)
+            && response.request().method() === 'POST'
+    );
     await page.locator('#send-newsletter-btn').click();
+    const response = await sendResponse;
+    expect(
+        response.status(),
+        `Versand von der Bearbeiten-Seite darf nicht abgewiesen werden (HTTP ${response.status()})`
+    ).toBe(302);
     await page.waitForURL('**/newsletters?**status=sent**');
 }
 
@@ -398,6 +410,49 @@ export async function openEditModalForLockedDraft(page, title) {
     await waitForModalContent(page, '#reload-locked-newsletter-btn');
 
     return (await page.locator(MODAL_CONTENT).innerText()).trim();
+}
+
+/**
+ * Versendet einen Entwurf direkt aus der Übersicht, ohne ihn zu öffnen.
+ * Verifizierte Selektoren aus templates/newsletters/index.twig: In der Zeile klappt der
+ * Split-Knopf (data-bs-toggle="dropdown") das Menü auf; darin steht das Formular
+ * action="/newsletters/{id}/send" mit data-confirm (Rückfrage per window.confirm aus
+ * public/js/common.js). Das Formular wird klassisch abgeschickt; der Server leitet auf die
+ * Liste der versendeten Newsletter weiter oder, bei Ablehnung, zurück auf die Entwürfe.
+ */
+export async function sendFromList(page, title) {
+    const row = page.locator('#newslettersTable tbody tr', { hasText: title });
+    await row.waitFor({ state: 'visible' });
+    await row.locator('[data-bs-toggle="dropdown"]').click();
+
+    page.once('dialog', (dialog) => dialog.accept());
+    const sendResponse = page.waitForResponse(
+        (response) => /\/newsletters\/\d+\/send$/.test(new URL(response.url()).pathname)
+            && response.request().method() === 'POST'
+    );
+    await row.locator('form[action$="/send"] button[type="submit"]').click();
+    const response = await sendResponse;
+    expect(
+        response.status(),
+        `Versand aus der Liste darf nicht abgewiesen werden (HTTP ${response.status()})`
+    ).toBe(302);
+
+    await page.waitForURL('**/newsletters?**status=sent**');
+}
+
+/**
+ * Hebt im Bearbeiten-Dialog der Übersicht eine fremde Sperre auf und wartet, bis derselbe
+ * Dialog den Editor zeigt. Verifizierte Selektoren aus templates/newsletters/locked.twig
+ * (#force-unlock-form, Rückfrage per data-confirm) und public/js/newsletters-locked.js, das
+ * im Modal per fetch absendet und den Editor über window.newsletterModalNavigate nachlädt.
+ */
+export async function forceUnlockInModal(page) {
+    const unlockButton = page.locator(`${MODAL_CONTENT} #force-unlock-form button[type="submit"]`);
+    await unlockButton.waitFor({ state: 'visible', timeout: MODAL_CONTENT_TIMEOUT });
+
+    page.once('dialog', (dialog) => dialog.accept());
+    await unlockButton.click();
+    await waitForModalContent(page, '#edit-newsletter-form');
 }
 
 /**

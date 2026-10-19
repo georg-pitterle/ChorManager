@@ -80,7 +80,19 @@ Beim Versand passiert Folgendes:
 
 ## 5. Gleichzeitiges Bearbeiten
 
-Ein Entwurf kann immer nur von einer Person zugleich bearbeitet werden. Sobald du ihn öffnest, wird er für dich gesperrt; alle anderen sehen einen Hinweis, wer gerade daran arbeitet, und können ihn währenddessen weder bearbeiten noch versenden. Verlässt du die Seite, wird die Sperre sofort wieder freigegeben; spätestens 30 Minuten nach dem Öffnen läuft sie ohnehin ab. Wird ein Entwurf, den du geöffnet hast, zwischenzeitlich von jemand anderem übernommen, bekommst du das gemeldet und die Ansicht wird neu geladen.
+Ein Entwurf kann immer nur von einer Person zugleich bearbeitet werden. Sobald du ihn öffnest, wird er für dich gesperrt; alle anderen sehen einen Hinweis, wer gerade daran arbeitet, und können ihn währenddessen weder bearbeiten noch versenden. Verlässt du die Seite, wird die Sperre sofort wieder freigegeben. Solange der Editor offen ist, verlängert er die Sperre von selbst; sie läuft erst 30 Minuten nach dem letzten Lebenszeichen des Editors ab – etwa wenn der Rechner ausgeschaltet wurde. Wird ein Entwurf, den du geöffnet hast, zwischenzeitlich von jemand anderem übernommen, bekommst du das gemeldet und die Ansicht wird neu geladen.
+
+### Sperre aufheben
+
+Hat jemand einen Entwurf offen gelassen und ist nicht erreichbar, bleibt er gesperrt, solange dessen Editor läuft. Wer eine Rolle mit dem **höchsten Hierarchie-Level (100)** hat, sieht auf der Sperrseite zusätzlich die Schaltfläche **Sperre aufheben und selbst bearbeiten**. Nach einer Rückfrage wird die Sperre aufgehoben und der Entwurf öffnet sich für dich – in der Übersicht direkt im selben Dialog.
+
+![Sperrseite mit der Schaltfläche zum Aufheben](images/newsletter/13-locked-force-unlock.png)
+
+Die Person, die den Entwurf offen hatte, bekommt beim nächsten Abgleich gemeldet, dass du ihn jetzt bearbeitest. Was sie seit dem letzten automatischen Speichern geschrieben hat, geht dabei verloren – der Editor speichert alle 30 Sekunden. Fehlt dir das nötige Level, wende dich an den Administrator.
+
+### Lange Schreibpausen
+
+Du kannst einen Newsletter in Ruhe schreiben oder die Übersicht länger offen lassen, auch in einem Tab im Hintergrund oder in der installierten App am Handy. Die Anmeldung bleibt ohne Aktivität mindestens acht Stunden bestehen. Hast du bei der Anmeldung **Eingeloggt bleiben** gewählt, wirst du auch danach still wieder angemeldet, und Speichern und Versenden funktionieren ohne Neuladen der Seite weiter. Ist das Erste, was du nach so einer Pause tust, das Versenden, kann es passieren, dass du mit dem Hinweis „Deine Sitzung wurde erneuert“ wieder auf derselben Seite landest – dann einfach noch einmal versenden.
 
 ## Häufige Stolperfallen
 

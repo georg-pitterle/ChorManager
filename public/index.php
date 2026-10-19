@@ -25,6 +25,7 @@ date_default_timezone_set(Timezone::resolveAppTimezone());
 // Must run before any session is started: keeps session files out of the
 // container's writable layer so a redeploy does not log every user out.
 SessionConfig::applySavePath();
+SessionConfig::applyIdleLifetime();
 
 $secureSessionCookie = SessionConfig::shouldUseSecureCookie($_SERVER);
 

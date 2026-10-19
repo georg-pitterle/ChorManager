@@ -8,6 +8,20 @@ final class Csrf
 {
     public const SESSION_KEY = '_csrf_token';
 
+    /**
+     * Antwortkopf mit dem Token, der nach der Anfrage gilt. Eine offene Seite
+     * hält ihren Token vom Laden fest; dreht ihn der Server später, zieht
+     * `public/js/csrf-token-sync.js` ihn hierüber nach.
+     */
+    public const RESPONSE_HEADER = 'X-CSRF-Token';
+
+    /**
+     * Antwortkopf "Sitzung wurde eben erneuert, bitte mit dem neuen Token
+     * wiederholen". Gesetzt nur, wenn ein POST ohne Sitzung kam und die
+     * CsrfMiddleware sie per Remember-Me wieder aufgebaut hat.
+     */
+    public const RETRY_HEADER = 'X-CSRF-Retry';
+
     public static function ensureToken(): string
     {
         if (!isset($_SESSION[self::SESSION_KEY]) || !is_string($_SESSION[self::SESSION_KEY])) {

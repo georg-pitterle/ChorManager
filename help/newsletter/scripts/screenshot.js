@@ -20,6 +20,8 @@ const { prepareSidebarForScreenshots } = require('../../screenshot-support');
 const BASE_URL = process.env.BASE_URL || 'https://chormanager.ddev.site';
 const LOGIN_EMAIL = process.env.LOGIN_EMAIL || 'seed.001@chor.local';
 const LOGIN_PASSWORD = process.env.LOGIN_PASSWORD || 'seed';
+// Zweite Seed-Person mit dem Recht "Newsletter verwalten": hält für Bild 13 die Sperre.
+const LOCK_HOLDER_EMAIL = process.env.LOCK_HOLDER_EMAIL || 'seed.002@chor.local';
 const IMAGES_DIR = path.join(__dirname, '..', 'screenshots');
 
 const VIEWPORT = { width: 1440, height: 900 };
@@ -58,9 +60,9 @@ async function shotCapped(page, name, maxHeight = 1400) {
     console.log(`gespeichert: ${path.relative(process.cwd(), filePath)} (${VIEWPORT.width}x${height})`);
 }
 
-async function login(page) {
+async function login(page, email = LOGIN_EMAIL) {
     await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
-    await page.locator('#emailInput').fill(LOGIN_EMAIL);
+    await page.locator('#emailInput').fill(email);
     await page.locator('#passwordInput').fill(LOGIN_PASSWORD);
     await Promise.all([
         page.waitForURL((url) => !url.pathname.startsWith('/login'), { waitUntil: 'networkidle' }),
@@ -231,6 +233,31 @@ async function main() {
         await page.locator('#newsletterReaderModal .newsletter-preview-frame').waitFor({ state: 'visible' });
         await page.frameLocator('#newsletterReaderModal .newsletter-preview-frame').locator('body').waitFor({ state: 'visible' });
         await shotViewport(page, '12-archive-reader');
+
+        // 13. Sperrseite mit "Sperre aufheben": Eine zweite Seed-Person öffnet einen Entwurf
+        // und hält damit die Sperre. Die angemeldete Person trägt das höchste Rollen-Level und
+        // bekommt deshalb den Knopf zum Aufheben angezeigt (NewsletterController::edit).
+        await page.goto(`${BASE_URL}/newsletters?status=draft`, { waitUntil: 'networkidle' });
+        const editUrl = await page.locator('#newslettersTable tbody tr').first()
+            .locator('[data-newsletter-modal-url*="/edit"]').getAttribute('data-newsletter-modal-url');
+        const draftPath = editUrl.replace('?modal=1', '');
+
+        const holderContext = await browser.newContext({ viewport: VIEWPORT, ignoreHTTPSErrors: true });
+        const holderPage = await holderContext.newPage();
+        try {
+            await login(holderPage, LOCK_HOLDER_EMAIL);
+            await holderPage.goto(`${BASE_URL}${draftPath}`, { waitUntil: 'networkidle' });
+            await holderPage.locator('#edit-newsletter-form').waitFor({ state: 'visible' });
+
+            await page.goto(`${BASE_URL}${draftPath}`, { waitUntil: 'networkidle' });
+            await page.locator('#force-unlock-form').waitFor({ state: 'visible' });
+            await shotViewport(page, '13-locked-force-unlock');
+
+            // Sauber verlassen, damit der Beacon die Sperre wieder freigibt.
+            await holderPage.goto(`${BASE_URL}/dashboard`, { waitUntil: 'networkidle' });
+        } finally {
+            await holderContext.close();
+        }
 
         console.log('Fertig: alle Newsletter-Screenshots erstellt.');
     } finally {

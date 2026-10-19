@@ -807,6 +807,10 @@ return function (App $app) {
                             [NewsletterController::class, 'releaseLock']
                         );
                         $newsletterGroup->post(
+                            '/newsletters/{id:[0-9]+}/force-unlock',
+                            [NewsletterController::class, 'forceUnlock']
+                        );
+                        $newsletterGroup->post(
                             '/newsletters/{id:[0-9]+}/delete',
                             [NewsletterController::class, 'deleteDraft']
                         );

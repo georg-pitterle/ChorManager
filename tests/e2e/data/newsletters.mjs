@@ -277,3 +277,46 @@ export const NEWSLETTER_PLACEHOLDER_PREVIEW = {
     project: PLACEHOLDER_PREVIEW_PROJECT.name,
     content: 'Persönlicher Gruß in der Vorschau: ',
 };
+
+// --- Versand nach stillem Neuaufbau der Sitzung und Aufheben einer Sperre --------------------
+// Praxisfall aus der Produktion: Wer länger an einem Newsletter schreibt oder die Liste offen
+// liegen lässt, verliert die Sitzung; die nächste Abfrage baut sie per "Eingeloggt bleiben"
+// still neu auf. Das Versenden der offenen Seite scheiterte danach an "Ungültiger CSRF-Token".
+
+export const RESILIENCE_EDITOR = {
+    firstName: 'Paula',
+    lastName: 'Ausdauernd',
+    email: 'nl.paula.ausdauernd@chor.local',
+    role: 'Vorstand',
+    group: 'Alt',
+    sub: 'Alt 1',
+};
+
+export const RESILIENCE_RECIPIENT = {
+    firstName: 'Jörg',
+    lastName: 'Empfängerlich',
+    email: 'nl.joerg.empfaengerlich@chor.local', // naming:ascii
+    group: 'Bass',
+    sub: 'Bass 1',
+};
+
+export const NEWSLETTER_SENT_FROM_EDITOR = {
+    title: `E2E Versand nach langer Schreibpause ${RUN}`,
+    marker: 'Geschrieben, während die Sitzung im Hintergrund verfiel.',
+};
+
+export const NEWSLETTER_SENT_FROM_LIST = {
+    title: `E2E Versand aus der liegengelassenen Liste ${RUN}`,
+    marker: 'Versendet aus einer Liste, die lange offen lag.',
+};
+
+export const NEWSLETTER_FORCE_UNLOCKED = {
+    title: `E2E Entwurf mit vergessener Sperre ${RUN}`,
+    marker: 'Jemand hat den Editor offen gelassen und ist nicht erreichbar.',
+};
+
+export const NEWSLETTER_SAVED_FIRST = {
+    title: `E2E Speichern als erste Anfrage ${RUN}`,
+    renamedTitle: `E2E Speichern als erste Anfrage, umbenannt ${RUN}`,
+    marker: 'Gespeichert, bevor irgendeine Abfrage die Sitzung erneuert hätte.',
+};

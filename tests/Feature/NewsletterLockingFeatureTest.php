@@ -9,6 +9,7 @@ use App\Models\Newsletter;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Models\Project;
+use App\Models\Role;
 use App\Models\User;
 use App\Policies\NewsletterPolicy;
 use App\Services\EntityAttachmentService;
@@ -363,6 +364,118 @@ final class NewsletterLockingFeatureTest extends TestCase
 
         $this->assertIsArray($payload);
         $this->assertFalse($payload['locked'], 'Eine abgelaufene Sperre ist keine Sperre.');
+    }
+
+    /**
+     * Wer das höchste Rollen-Level hält, kann eine fremde Sperre aufheben - etwa
+     * wenn jemand den Editor offen gelassen hat und nicht erreichbar ist. Danach
+     * geht es direkt in den Editor, der die Sperre für die aufhebende Person setzt.
+     */
+    public function testTopLevelUserCanForceUnlockAForeignLock(): void
+    {
+        $userA = $this->createUser();
+        $userB = $this->createUser();
+        $draft = $this->createDraft($userA);
+        (new NewsletterLockingService())->acquireLock($draft, (int) $userA->id);
+
+        $_SESSION['user_id'] = (int) $userB->id;
+        $_SESSION['can_manage_newsletters'] = true;
+        $_SESSION['role_level'] = Role::MAX_HIERARCHY_LEVEL;
+
+        $response = $this->newsletterController(new NewsletterLockingService())->forceUnlock(
+            $this->makeRequest('POST', '/newsletters/' . $draft->id . '/force-unlock')
+                ->withAttribute('id', (string) $draft->id),
+            $this->makeResponse()
+        );
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertSame('/newsletters/' . $draft->id . '/edit', $response->getHeaderLine('Location'));
+        $this->assertNull(Newsletter::findOrFail($draft->id)->locked_by, 'Die fremde Sperre muss weg sein.');
+    }
+
+    /**
+     * Im Modal der Newsletter-Liste läuft der Knopf über fetch: Die Antwort nennt
+     * das Ziel, das Modal lädt den Editor selbst nach.
+     */
+    public function testForceUnlockAnswersJsonCallersWithTheEditorInModalForm(): void
+    {
+        $userA = $this->createUser();
+        $userB = $this->createUser();
+        $draft = $this->createDraft($userA);
+        (new NewsletterLockingService())->acquireLock($draft, (int) $userA->id);
+
+        $_SESSION['user_id'] = (int) $userB->id;
+        $_SESSION['can_manage_newsletters'] = true;
+        $_SESSION['role_level'] = Role::MAX_HIERARCHY_LEVEL;
+
+        $response = $this->newsletterController(new NewsletterLockingService())->forceUnlock(
+            $this->makeRequest('POST', '/newsletters/' . $draft->id . '/force-unlock', ['is_modal' => '1'], [], [
+                'X-Requested-With' => 'XMLHttpRequest',
+            ])->withAttribute('id', (string) $draft->id),
+            $this->makeResponse()
+        );
+
+        $payload = json_decode((string) $response->getBody(), true);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertIsArray($payload);
+        $this->assertSame('/newsletters/' . $draft->id . '/edit?modal=1', $payload['redirect']);
+        $this->assertNull(Newsletter::findOrFail($draft->id)->locked_by);
+    }
+
+    /**
+     * Unterhalb des höchsten Levels bleibt die Sperre, was sie war: Wer nur
+     * Newsletter verwaltet, darf niemandem die laufende Arbeit wegnehmen.
+     */
+    public function testForceUnlockIsRefusedBelowTheTopLevel(): void
+    {
+        $userA = $this->createUser();
+        $userB = $this->createUser();
+        $draft = $this->createDraft($userA);
+        (new NewsletterLockingService())->acquireLock($draft, (int) $userA->id);
+
+        $_SESSION['user_id'] = (int) $userB->id;
+        $_SESSION['can_manage_newsletters'] = true;
+        $_SESSION['role_level'] = Role::MAX_HIERARCHY_LEVEL - 1;
+
+        $response = $this->newsletterController(new NewsletterLockingService())->forceUnlock(
+            $this->makeRequest('POST', '/newsletters/' . $draft->id . '/force-unlock', [], [], [
+                'X-Requested-With' => 'XMLHttpRequest',
+            ])->withAttribute('id', (string) $draft->id),
+            $this->makeResponse()
+        );
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame((int) $userA->id, (int) Newsletter::findOrFail($draft->id)->locked_by);
+    }
+
+    public function testLockedPageOffersTheUnlockButtonOnlyAtTheTopLevel(): void
+    {
+        $userA = $this->createUser();
+        $userB = $this->createUser();
+        $draft = $this->createDraft($userA);
+        (new NewsletterLockingService())->acquireLock($draft, (int) $userA->id);
+
+        $_SESSION['user_id'] = (int) $userB->id;
+        $_SESSION['can_manage_newsletters'] = true;
+        $unlockAction = 'action="/newsletters/' . $draft->id . '/force-unlock"';
+
+        foreach ([Role::MAX_HIERARCHY_LEVEL => true, Role::MAX_HIERARCHY_LEVEL - 1 => false] as $level => $expected) {
+            $_SESSION['role_level'] = $level;
+
+            $response = $this->newsletterController(new NewsletterLockingService())->edit(
+                $this->makeRequest('GET', '/newsletters/' . $draft->id . '/edit')
+                    ->withAttribute('id', (string) $draft->id),
+                $this->makeResponse()
+            );
+
+            $this->assertSame(423, $response->getStatusCode());
+            $this->assertSame(
+                $expected,
+                str_contains((string) $response->getBody(), $unlockAction),
+                "Level {$level}: Knopf " . ($expected ? 'fehlt' : 'darf nicht erscheinen')
+            );
+        }
     }
 
     /**

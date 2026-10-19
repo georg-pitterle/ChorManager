@@ -82,6 +82,7 @@ use App\Services\FinanceReportPdfService;
 use App\Services\Pdf\PdfCanvas;
 use App\Services\Pdf\TcLibPdfCanvas;
 use App\Services\RememberLoginService;
+use App\Services\RememberLoginRestoreService;
 use App\Commands\ProcessMailQueueCommand;
 use App\Commands\CreateBackupCommand;
 use App\Commands\RotateMailCredentialKeyCommand;
@@ -488,7 +489,14 @@ return function (ContainerBuilder $containerBuilder) {
             );
         },
         CsrfMiddleware::class => function (ContainerInterface $c) {
-            return new CsrfMiddleware($c->get(LoggerInterface::class));
+            return new CsrfMiddleware(
+                $c->get(LoggerInterface::class),
+                new RememberLoginRestoreService(
+                    $c->get(RememberLoginService::class),
+                    $c->get(UserQuery::class),
+                    $c->get(SessionAuthService::class)
+                )
+            );
         },
         // Derselbe Grund wie bei CsrfMiddleware: Der Logger hat einen NullLogger-Default,
         // den die Autowiring-Reflexion sonst stehen lässt - die Warnung über einen

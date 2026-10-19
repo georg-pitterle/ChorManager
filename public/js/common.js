@@ -46,10 +46,16 @@
 })();
 
 document.addEventListener('DOMContentLoaded', function () {
-    const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
-    const csrfToken = csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '';
+    // Bei jedem Absenden neu gelesen: csrf-token-sync.js zieht das meta-Element nach, wenn der
+    // Server den Token dreht, und ein beim Laden gemerkter Wert wäre dann veraltet.
+    function currentCsrfToken() {
+        const csrfTokenMeta = document.querySelector('meta[name="csrf-token"]');
+
+        return csrfTokenMeta ? csrfTokenMeta.getAttribute('content') : '';
+    }
 
     function ensureCsrfField(form) {
+        const csrfToken = currentCsrfToken();
         if (!form || !csrfToken || form.getAttribute('method')?.toLowerCase() !== 'post') {
             return;
         }
