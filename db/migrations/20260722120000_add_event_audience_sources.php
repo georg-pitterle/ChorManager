@@ -31,6 +31,21 @@ final class AddEventAudienceSources extends AbstractMigration
 
     public function down(): void
     {
+        // Prüfung vor dem Löschen: Die Tabelle ist erst mit dieser Migration
+        // entstanden, ihr Inhalt aber nicht - der kam im Betrieb dazu und steht
+        // nirgends sonst. Ein Rückbau nähme ihn ohne Nachfrage mit.
+        $rowsLeft = (int) ($this->fetchRow(
+            'SELECT COUNT(*) AS rows_left FROM event_audience_sources'
+        )['rows_left'] ?? 0);
+
+        if ($rowsLeft > 0) {
+            throw new RuntimeException(sprintf(
+                'Rückbau abgebrochen: event_audience_sources enthält %d Zeile(n), die mit der Tabelle '
+                    . 'unwiederbringlich weg wären. Diese zuerst bewusst selbst entfernen.',
+                $rowsLeft
+            ));
+        }
+
         $this->table('event_audience_sources')->drop()->save();
     }
 }

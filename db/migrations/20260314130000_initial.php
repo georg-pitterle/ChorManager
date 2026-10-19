@@ -475,8 +475,53 @@ final class Initial extends AbstractMigration
             ('Probe','info'),('Auftritt','danger'),('Sondertermin','warning');");
     }
 
+    /**
+     * Die Tabellen, deren Inhalt erst im Betrieb entsteht.
+     *
+     * Bewusst ohne `roles`, `voice_groups`, `sub_voices`, `settings` und
+     * `event_types`: Die füllt `up()` selbst mit den Vorgabewerten, und die
+     * zurückzunehmen vernichtet nichts, was es vorher gab. Stünden sie mit in
+     * der Liste, ließe sich eine frische Installation nie mehr zurückbauen -
+     * die Prüfung würde sofort auf die eigenen Vorgaben anschlagen.
+     *
+     * @var list<string>
+     */
+    private const CONTENT_TABLES = [
+        'users', 'projects', 'app_settings', 'finances', 'event_series', 'events', 'attendance',
+        'project_users', 'user_voice_groups', 'user_roles', 'password_resets', 'remember_logins',
+        'sponsor_packages', 'sponsors', 'sponsorships', 'sponsoring_contacts', 'songs',
+        'newsletters', 'newsletter_templates', 'newsletter_archive', 'newsletter_recipients',
+        'attachments', 'comments', 'tasks', 'activities',
+    ];
+
     public function down(): void
     {
+        // Prüfung vor dem Löschen: Dieses `down()` nimmt das gesamte Schema
+        // mit. Auf einer frischen Installation ist das harmlos, auf einer
+        // benutzten wäre es der vollständige Verlust des Bestands - und
+        // nachholen ließe sich das nicht, weil Phinx den Lauf schon verbucht
+        // hat. Gezählt wird deshalb, was im Betrieb dazugekommen ist.
+        $filled = [];
+
+        foreach (self::CONTENT_TABLES as $table) {
+            $rowsLeft = (int) ($this->fetchRow(
+                sprintf('SELECT COUNT(*) AS rows_left FROM %s', $table)
+            )['rows_left'] ?? 0);
+
+            if ($rowsLeft > 0) {
+                $filled[] = sprintf('%s: %d Zeile(n)', $table, $rowsLeft);
+            }
+        }
+
+        if ($filled !== []) {
+            throw new RuntimeException(sprintf(
+                'Rückbau abgebrochen: Dieses down() entfernt das gesamte Schema, und es steht '
+                    . 'noch Bestand darin - %s. Dieser wäre unwiederbringlich weg. Wer wirklich '
+                    . 'zurück will, sichert und leert ihn vorher bewusst selbst.',
+                implode(', ', $filled)
+            ));
+        }
+
         $this->execute('SET FOREIGN_KEY_CHECKS = 0;');
         $this->execute('DROP TABLE IF EXISTS activities;');
         $this->execute('DROP TABLE IF EXISTS tasks;');

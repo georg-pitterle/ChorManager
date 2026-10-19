@@ -36,6 +36,21 @@ final class CreateWebdavAccessTokens extends AbstractMigration
 
     public function down(): void
     {
+        // Prüfung vor dem Löschen: Die Tabelle ist erst mit dieser Migration
+        // entstanden, ihr Inhalt aber nicht - der kam im Betrieb dazu und steht
+        // nirgends sonst. Ein Rückbau nähme ihn ohne Nachfrage mit.
+        $rowsLeft = (int) ($this->fetchRow(
+            'SELECT COUNT(*) AS rows_left FROM webdav_access_tokens'
+        )['rows_left'] ?? 0);
+
+        if ($rowsLeft > 0) {
+            throw new RuntimeException(sprintf(
+                'Rückbau abgebrochen: webdav_access_tokens enthält %d Zeile(n), die mit der Tabelle '
+                    . 'unwiederbringlich weg wären. Diese zuerst bewusst selbst entfernen.',
+                $rowsLeft
+            ));
+        }
+
         // drop() reiht die Aktion nur ein, ausgeführt wird sie erst durch save().
         $this->table('webdav_access_tokens')->drop()->save();
     }

@@ -26,19 +26,36 @@ The change is purely application logic with no schema modification.
 - Every `DROP COLUMN` / `DROP TABLE` / `MODIFY ... NOT NULL` / `DELETE FROM` /
   `TRUNCATE` is preceded by a completeness check that aborts with a
   `RuntimeException`, and that check runs **before** the destructive statement,
-  never after. Exempt is only a target the same method body created itself - a
-  `drop()` on a table its `up()` made, or rows from a table that was empty
-  until this migration filled it.
+  never after. Exempt is only a **column** the same method body created itself -
+  a `removeColumn()` in `down()` on a column its `up()` added.
   `tests/Unit/Migrations/DestructiveStepNeedsGuardTest` checks this statically
   for every migration; `tests/Feature/DestructiveMigrationGuardTest` runs the
   count queries of the guarded ones against throwaway tables.
+- **Eine Tabelle zu löschen ist nie ausgenommen, auch nicht im eigenen `down()`.**
+  Dass das `up()` sie angelegt hat, bedeutet nur, dass sie *am Anfang* leer war -
+  ihr Inhalt kam im Betrieb dazu und steht nirgends sonst. Ein `drop()` oder
+  `DELETE FROM` im `down()` zählt deshalb vorher die Zeilen und bricht ab, wenn
+  welche drin sind. Dasselbe gilt für `TRUNCATE`.
+- **Gezählt wird, was wirklich verloren geht - nicht stumpf alles.** Schreibt das
+  `down()` die Werte vorher woandershin zurück, zählt die Prüfung nur den Rest;
+  und Zeilen, die das `up()` selbst eingesetzt hat (Vorgabewerte, Stammdaten),
+  zählen nicht mit. Ohne diese beiden Einschränkungen wäre eine frische
+  Installation nie mehr zurückzubauen, weil die Prüfung sofort auf die eigenen
+  Vorgaben anschlägt.
 - A `down()` that restores a column whose values now live elsewhere writes those
   values back before the owning table is dropped by an earlier migration's `down()`.
 - Reference patterns: `20260421120000_drop_songs_project_id` (guard),
   `20260820120000_require_finance_account_on_finances` (guard),
   `20260513220000_add_newsletter_recipient_sources` (restore in `down()`),
   `20261005090100_add_channel_to_user_notification_settings` (guard before
-  deleting rows in `down()`).
+  deleting rows in `down()`),
+  `20261005090000_create_user_notifications` (bloße Zeilenzählung vor dem
+  `drop()` im `down()`),
+  `20260830120000_allow_multiple_task_assignees` (zählt nur die Zuweisungen, die
+  der Rückbau nicht unterbringt),
+  `20260815140000_create_finance_accounts` (lässt die unberührten Vorgabekonten
+  aus der Zählung heraus),
+  `20260314130000_initial` (zählt den Bestand, nicht die eigenen Vorgaben).
 
 ## Warum die Reihenfolge zählt
 
@@ -58,6 +75,26 @@ Spalten und Tabellen; aufgefallen ist die Lücke in Lauf 41, als der Rückbau vo
 hätte. Ausnahme bleibt, was ohne Wert ist: Zeilen, die über keinen Weg mehr
 auffindbar sind, dürfen ungeprüft weg - begründet im Kommentar, wie in
 `20260901122000_drop_plaintext_calendar_subscription_tokens`.
+
+**"Die Tabelle hat mein `up()` doch selbst angelegt" trägt nicht.** Das stimmt am
+Tag der Migration und wird mit jedem Betriebstag falscher: Angelegt hat sie das
+`up()`, gefüllt haben sie die Mitglieder. Aufgefallen ist die Lücke in Lauf 48 am
+`down()` von `20261012120000`, das die ausgehandelten Gegenleistungen und
+Zahlungsstände aller Sponsoren mitgenommen hätte - Werte, die in keiner anderen
+Spalte stehen und nach dem Rückbau aus nichts zurückzuholen sind. Die Ausnahme
+gilt seither nur noch für Spalten; jedes `drop()` auf eine Tabelle zählt vorher
+ihre Zeilen.
+
+Dabei zählt nur, was wirklich verloren geht. Zwei Dinge gehören ausdrücklich
+nicht in die Zählung, sonst blockiert die Prüfung den Rückbau einer frischen
+Installation: die Zeilen, die das `up()` selbst eingesetzt hat
+(`20260314130000_initial` mit Rollen und Stimmgruppen, `20260815140000` mit den
+zwei Vorgabekonten), und alles, was das `down()` vorher woandershin
+zurückschreibt (`20260830120000` legt je Aufgabe eine Zuweisung zurück nach
+`tasks.assigned_to`, `20260621120000` die Gruppennamen nach
+`budget_categories.group_name`). Die Zählabfrage dieser Fälle steht als
+`public const` in der Migration, damit `DestructiveMigrationGuardTest` genau die
+Anweisung gegen Wegwerf-Tabellen prüfen kann, die auch läuft.
 
 **Phinx-Ketten abschließen.** `addColumn()`, `removeColumn()`, `addIndex()`, `drop()`
 und Konsorten reihen die Aktion nur ein. Ausgeführt wird sie erst durch `create()`,

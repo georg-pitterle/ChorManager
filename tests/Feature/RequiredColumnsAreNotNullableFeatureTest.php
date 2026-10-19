@@ -30,6 +30,10 @@ use Tests\Unit\Bootstrap;
  *   Versehen in derselben Migration.
  * - `calendar_subscription_tokens.token_hash` und die vier Spalten von
  *   `invitation_tokens` - Zugangsdaten ohne ihren Wert sind wertlos.
+ *
+ * Die vier Spalten der Mail-Strecke und des Finanzjournals kamen mit
+ * 20261019130000 dazu. Sie stehen in über Jahre gewachsenen Tabellen und waren
+ * deshalb zuerst aussen vor, bis geprüft war, ob dort Nullwerte liegen.
  */
 class RequiredColumnsAreNotNullableFeatureTest extends TestCase
 {
@@ -43,7 +47,10 @@ class RequiredColumnsAreNotNullableFeatureTest extends TestCase
             'calendar_subscription_tokens' => ['token_hash'],
             'event_registrations' => ['event_id', 'user_id', 'status'],
             'finance_accounts' => ['name', 'type'],
+            'finance_revisions' => ['action'],
             'invitation_tokens' => ['user_id', 'selector', 'token_hash', 'expires_at'],
+            'mail_delivery_events' => ['source_channel'],
+            'mail_queue' => ['mail_type', 'delivery_status'],
             'newsletter_recipient_sources' => ['source_type'],
         ];
 
@@ -103,15 +110,25 @@ class RequiredColumnsAreNotNullableFeatureTest extends TestCase
     }
 
     /**
+     * @return array<string, array{0: string}>
+     */
+    public static function narrowingMigrationProvider(): array
+    {
+        return [
+            '20261019120000' => ['20261019120000_require_values_in_mandatory_columns.php'],
+            '20261019130000' => ['20261019130000_require_values_in_grown_columns.php'],
+        ];
+    }
+
+    /**
      * Jede Verengung braucht ihre Zählabfrage davor - und zwar alle vor der
      * ersten Änderung, damit ein Bestand mit Nullwerten den Lauf abbricht,
      * bevor irgendeine Spalte angefasst wurde.
      */
-    public function testEveryGuardStandsBeforeTheFirstNarrowing(): void
+    #[DataProvider('narrowingMigrationProvider')]
+    public function testEveryGuardStandsBeforeTheFirstNarrowing(string $migration): void
     {
-        $content = (string) file_get_contents(
-            dirname(__DIR__, 2) . '/db/migrations/20261019120000_require_values_in_mandatory_columns.php'
-        );
+        $content = (string) file_get_contents(dirname(__DIR__, 2) . '/db/migrations/' . $migration);
 
         $upStart = (int) strpos($content, 'function up()');
         $up = substr($content, $upStart, (int) strpos($content, 'function down()') - $upStart);
@@ -119,8 +136,8 @@ class RequiredColumnsAreNotNullableFeatureTest extends TestCase
         $guard = strpos($up, 'throw new RuntimeException');
         $narrowing = strpos($up, "'null' => false");
 
-        $this->assertIsInt($guard, 'Prüfung fehlt.');
-        $this->assertIsInt($narrowing, 'Verengung fehlt.');
-        $this->assertLessThan($narrowing, $guard, 'Die Prüfung steht nicht vor der ersten Verengung.');
+        $this->assertIsInt($guard, 'Prüfung fehlt: ' . $migration);
+        $this->assertIsInt($narrowing, 'Verengung fehlt: ' . $migration);
+        $this->assertLessThan($narrowing, $guard, 'Prüfung steht nicht vor der Verengung: ' . $migration);
     }
 }

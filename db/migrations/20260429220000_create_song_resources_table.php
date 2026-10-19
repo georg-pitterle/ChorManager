@@ -26,6 +26,21 @@ final class CreateSongResourcesTable extends AbstractMigration
 
     public function down(): void
     {
+        // Prüfung vor dem Löschen: Die Tabelle ist erst mit dieser Migration
+        // entstanden, ihr Inhalt aber nicht - der kam im Betrieb dazu und steht
+        // nirgends sonst. Ein Rückbau nähme ihn ohne Nachfrage mit.
+        $rowsLeft = (int) ($this->fetchRow(
+            'SELECT COUNT(*) AS rows_left FROM song_resources'
+        )['rows_left'] ?? 0);
+
+        if ($rowsLeft > 0) {
+            throw new RuntimeException(sprintf(
+                'Rückbau abgebrochen: song_resources enthält %d Zeile(n), die mit der Tabelle '
+                    . 'unwiederbringlich weg wären. Diese zuerst bewusst selbst entfernen.',
+                $rowsLeft
+            ));
+        }
+
         $this->execute('DROP TABLE IF EXISTS song_resources');
     }
 }

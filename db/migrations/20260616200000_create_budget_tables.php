@@ -37,6 +37,29 @@ final class CreateBudgetTables extends AbstractMigration
 
     public function down(): void
     {
+        // Prüfung vor dem Löschen: Die Tabellen sind erst mit dieser Migration
+        // entstanden, ihr Inhalt aber nicht - der kam im Betrieb dazu und steht
+        // nirgends sonst. Ein Rückbau nähme ihn ohne Nachfrage mit.
+        $filled = [];
+
+        foreach (['budget_items', 'budget_categories'] as $table) {
+            $rowsLeft = (int) ($this->fetchRow(
+                sprintf('SELECT COUNT(*) AS rows_left FROM %s', $table)
+            )['rows_left'] ?? 0);
+
+            if ($rowsLeft > 0) {
+                $filled[] = sprintf('%s: %d Zeile(n)', $table, $rowsLeft);
+            }
+        }
+
+        if ($filled !== []) {
+            throw new RuntimeException(sprintf(
+                'Rückbau abgebrochen: %s. Diese Zeilen wären mit den Tabellen '
+                    . 'unwiederbringlich weg - zuerst bewusst selbst entfernen.',
+                implode(', ', $filled)
+            ));
+        }
+
         $this->execute("DROP TABLE IF EXISTS budget_items;");
         $this->execute("DROP TABLE IF EXISTS budget_categories;");
     }

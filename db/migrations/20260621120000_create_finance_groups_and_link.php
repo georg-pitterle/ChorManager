@@ -22,6 +22,29 @@ final class CreateFinanceGroupsAndLink extends AbstractMigration
           AND finance_group_id IS NULL
         SQL;
 
+    /**
+     * Findet Finanzgruppen, deren Name den Rückbau nicht überlebt. `down()`
+     * schreibt die Namen nach budget_categories.group_name zurück, und
+     * finances.group_name steht als Spiegelfeld ohnehin daneben - eine Gruppe,
+     * die in keiner der beiden Spalten vorkommt, ist nach dem DROP TABLE
+     * nirgends mehr benannt.
+     *
+     * Steht als Konstante bereit, damit DestructiveMigrationGuardTest genau die
+     * Anweisung prüfen kann, die hier auch ausgeführt wird.
+     */
+    public const VANISHING_FINANCE_GROUPS_SQL = <<<'SQL'
+        SELECT COUNT(*) AS vanishing
+        FROM finance_groups g
+        WHERE NOT EXISTS (
+                SELECT 1 FROM budget_categories b
+                WHERE b.group_name = g.name COLLATE utf8mb4_general_ci
+            )
+          AND NOT EXISTS (
+                SELECT 1 FROM finances f
+                WHERE f.group_name = g.name COLLATE utf8mb4_general_ci
+            )
+        SQL;
+
     public function up(): void
     {
         // Canonical finance group table (single source of truth for group identity).
@@ -104,6 +127,24 @@ final class CreateFinanceGroupsAndLink extends AbstractMigration
 
         $this->execute("ALTER TABLE finances DROP FOREIGN KEY fk_finances_finance_group;");
         $this->execute("ALTER TABLE finances DROP COLUMN finance_group_id;");
+
+        // Prüfung vor dem DROP TABLE, und bewusst erst hier: Die Rücknahme
+        // darüber hat die Namen schon nach budget_categories.group_name
+        // zurückgeschrieben, und finances.group_name stand ohnehin als
+        // Spiegelfeld daneben. Was jetzt noch in keiner der beiden Spalten
+        // auftaucht, benennt keine Gruppe mehr und wäre mit der Tabelle weg -
+        // genau das zählt die Abfrage. Ein Bestand, in dem jede Gruppe
+        // irgendwo genannt ist, verliert nichts und läuft weiter durch.
+        $vanishing = (int) ($this->fetchRow(self::VANISHING_FINANCE_GROUPS_SQL)['vanishing'] ?? 0);
+
+        if ($vanishing > 0) {
+            throw new RuntimeException(sprintf(
+                'Rückbau abgebrochen: %d Finanzgruppe(n) werden weder von einer Budget-Kategorie '
+                    . 'noch von einer Buchung namentlich genannt und wären mit finance_groups weg. '
+                    . 'Diese zuerst bewusst selbst entfernen.',
+                $vanishing
+            ));
+        }
 
         $this->execute("DROP TABLE IF EXISTS finance_groups;");
     }

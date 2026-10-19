@@ -106,6 +106,29 @@ final class CreateOidcTables extends AbstractMigration
 
     public function down(): void
     {
+        // Prüfung vor dem Löschen: Die Tabellen sind erst mit dieser Migration
+        // entstanden, ihr Inhalt aber nicht - der kam im Betrieb dazu und steht
+        // nirgends sonst. Ein Rückbau nähme ihn ohne Nachfrage mit.
+        $filled = [];
+
+        foreach (['oidc_access_tokens', 'oidc_auth_codes', 'oidc_signing_keys', 'oidc_clients'] as $table) {
+            $rowsLeft = (int) ($this->fetchRow(
+                sprintf('SELECT COUNT(*) AS rows_left FROM %s', $table)
+            )['rows_left'] ?? 0);
+
+            if ($rowsLeft > 0) {
+                $filled[] = sprintf('%s: %d Zeile(n)', $table, $rowsLeft);
+            }
+        }
+
+        if ($filled !== []) {
+            throw new RuntimeException(sprintf(
+                'Rückbau abgebrochen: %s. Diese Zeilen wären mit den Tabellen '
+                    . 'unwiederbringlich weg - zuerst bewusst selbst entfernen.',
+                implode(', ', $filled)
+            ));
+        }
+
         // drop() reiht die Aktion nur ein, ausgeführt wird sie erst durch save().
         // Reihenfolge nach den Fremdschlüsseln: Token vor Codes.
         $this->table('oidc_access_tokens')->drop()->save();

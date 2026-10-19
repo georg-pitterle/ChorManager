@@ -45,6 +45,21 @@ final class AddNewsletterTemplateSettings extends AbstractMigration
 
     public function down(): void
     {
+        // Prüfung vor dem Löschen: Die Tabelle ist erst mit dieser Migration
+        // entstanden, ihr Inhalt aber nicht - der kam im Betrieb dazu und steht
+        // nirgends sonst. Ein Rückbau nähme ihn ohne Nachfrage mit.
+        $rowsLeft = (int) ($this->fetchRow(
+            'SELECT COUNT(*) AS rows_left FROM newsletter_template_recipient_sources'
+        )['rows_left'] ?? 0);
+
+        if ($rowsLeft > 0) {
+            throw new RuntimeException(sprintf(
+                'Rückbau abgebrochen: newsletter_template_recipient_sources enthält %d Zeile(n), die mit der Tabelle '
+                    . 'unwiederbringlich weg wären. Diese zuerst bewusst selbst entfernen.',
+                $rowsLeft
+            ));
+        }
+
         // Beide Rücknahmen verwerfen Daten, die es vor dieser Migration nicht
         // gab: Titelvorschlag und Vorlagen-Empfängerquellen stehen nirgendwo
         // sonst. Es gibt daher nichts zurückzuschreiben.

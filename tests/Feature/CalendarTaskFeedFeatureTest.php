@@ -50,6 +50,17 @@ final class CalendarTaskFeedFeatureTest extends TestCase
         Bootstrap::setupTestDatabase();
         Capsule::connection()->beginTransaction();
 
+        // Der Aufgaben-Feed wird über den Token geöffnet, nicht über eine
+        // Anmeldung - die leere Sitzung ist hier also der richtige Zustand.
+        //
+        // Gesetzt wird sie hier und nicht dem Vorgänger im Prozess überlassen:
+        // `exportWithToken()` gibt `$_SESSION` an TaskPolicy weiter, und die
+        // nimmt ein `array`, kein `null`. Solange eine andere Testklasse im
+        // selben Prozess die Sitzung vorher anlegte, fiel das nicht auf; sobald
+        // paratest die Klassen anders verteilt, lief der Test in einen
+        // TypeError.
+        $_SESSION = [];
+
         $this->service = new CalendarFeedService(new NameFormatterService());
 
         $this->project = Project::create([
@@ -68,6 +79,10 @@ final class CalendarTaskFeedFeatureTest extends TestCase
         if ($connection->transactionLevel() > 0) {
             $connection->rollBack();
         }
+
+        // Die Sitzung gehört dieser Klasse; sie darf nicht in die nächste
+        // hinüberlecken.
+        $_SESSION = [];
 
         parent::tearDown();
     }

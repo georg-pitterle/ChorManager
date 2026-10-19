@@ -14,6 +14,23 @@ use Phinx\Migration\AbstractMigration;
  */
 final class AllowMultipleTaskAssignees extends AbstractMigration
 {
+    /**
+     * Zählt die Zuweisungen, die der Rückbau nicht unterbringt: alles über die
+     * erste je Aufgabe hinaus. `tasks.assigned_to` nimmt genau eine Person auf,
+     * und `down()` setzt dort die kleinste Kennung je Aufgabe ein.
+     *
+     * Steht als Konstante bereit, damit DestructiveMigrationGuardTest genau die
+     * Anweisung prüfen kann, die hier auch ausgeführt wird - gleiches Muster wie
+     * CreateFinanceGroupsAndLink::ORPHANED_BUDGET_CATEGORIES_SQL.
+     */
+    public const SURPLUS_ASSIGNEES_SQL = <<<'SQL'
+        SELECT COUNT(*) AS dropped
+        FROM task_assignees a
+        WHERE a.user_id <> (
+            SELECT MIN(b.user_id) FROM task_assignees b WHERE b.task_id = a.task_id
+        )
+        SQL;
+
     public function up(): void
     {
         $this->table('task_assignees', ['id' => false, 'primary_key' => ['task_id', 'user_id']])
@@ -61,9 +78,24 @@ final class AllowMultipleTaskAssignees extends AbstractMigration
      * nicht. Bei einer Aufgabe mit mehreren Zugewiesenen bleibt die mit der
      * kleinsten Kennung übrig, die übrigen gehen verloren. Das lässt sich nicht
      * vermeiden, wenn das Ziel nur eine Person aufnehmen kann.
+     *
+     * Die Prüfung davor zählt deshalb nicht alle Zeilen, sondern genau die, die
+     * der Rückbau nicht unterbringt. Ein Bestand, in dem jede Aufgabe höchstens
+     * einen Zugewiesenen hat, verliert nichts und läuft weiter durch.
      */
     public function down(): void
     {
+        $dropped = (int) ($this->fetchRow(self::SURPLUS_ASSIGNEES_SQL)['dropped'] ?? 0);
+
+        if ($dropped > 0) {
+            throw new RuntimeException(sprintf(
+                'Rückbau abgebrochen: %d Zuweisung(en) über die erste je Aufgabe hinaus '
+                    . 'hätten in tasks.assigned_to keinen Platz und wären weg. Diese zuerst '
+                    . 'bewusst selbst entfernen.',
+                $dropped
+            ));
+        }
+
         $this->table('tasks')
             ->addColumn('assigned_to', 'integer', ['null' => true, 'default' => null, 'after' => 'description'])
             ->update();

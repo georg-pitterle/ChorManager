@@ -53,6 +53,41 @@ final class AddSponsoringBenefitsAndPayment extends AbstractMigration
 
     public function down(): void
     {
+        // Prüfung vor dem Löschen: Die beiden Tabellen und `paid_at` sind erst
+        // mit dieser Migration entstanden, ihr Inhalt aber nicht - ausgehandelte
+        // Gegenleistungen und Zahlungstage kamen im Betrieb dazu und stehen
+        // nirgends sonst. Woraus eine Leistung bestand, ließe sich nach dem
+        // Rückbau aus keiner anderen Spalte zurückholen; `paid_at` zählt mit,
+        // weil ein Zahlungstag genauso ein eingetragener Wert ist.
+        $filled = [];
+
+        foreach (['sponsorship_benefits', 'sponsor_package_benefits'] as $table) {
+            $rowsLeft = (int) ($this->fetchRow(
+                sprintf('SELECT COUNT(*) AS rows_left FROM %s', $table)
+            )['rows_left'] ?? 0);
+
+            if ($rowsLeft > 0) {
+                $filled[] = sprintf('%s: %d Zeile(n)', $table, $rowsLeft);
+            }
+        }
+
+        $paid = (int) ($this->fetchRow(
+            'SELECT COUNT(*) AS paid FROM sponsorships WHERE paid_at IS NOT NULL'
+        )['paid'] ?? 0);
+
+        if ($paid > 0) {
+            $filled[] = sprintf('sponsorships.paid_at: %d Eintrag/Einträge', $paid);
+        }
+
+        if ($filled !== []) {
+            throw new RuntimeException(sprintf(
+                'Rückbau abgebrochen: %s. Das sind eingetragene Gegenleistungen und '
+                    . 'Zahlungsstände, die unwiederbringlich weg wären - zuerst bewusst '
+                    . 'selbst entfernen.',
+                implode(', ', $filled)
+            ));
+        }
+
         $this->table('sponsorships')
             ->removeColumn('paid_at')
             ->update();

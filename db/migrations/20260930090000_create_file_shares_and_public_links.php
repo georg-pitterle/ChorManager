@@ -74,6 +74,29 @@ final class CreateFileSharesAndPublicLinks extends AbstractMigration
 
     public function down(): void
     {
+        // Prüfung vor dem Löschen: Die Tabellen sind erst mit dieser Migration
+        // entstanden, ihr Inhalt aber nicht - der kam im Betrieb dazu und steht
+        // nirgends sonst. Ein Rückbau nähme ihn ohne Nachfrage mit.
+        $filled = [];
+
+        foreach (['file_public_links', 'file_shares'] as $table) {
+            $rowsLeft = (int) ($this->fetchRow(
+                sprintf('SELECT COUNT(*) AS rows_left FROM %s', $table)
+            )['rows_left'] ?? 0);
+
+            if ($rowsLeft > 0) {
+                $filled[] = sprintf('%s: %d Zeile(n)', $table, $rowsLeft);
+            }
+        }
+
+        if ($filled !== []) {
+            throw new RuntimeException(sprintf(
+                'Rückbau abgebrochen: %s. Diese Zeilen wären mit den Tabellen '
+                    . 'unwiederbringlich weg - zuerst bewusst selbst entfernen.',
+                implode(', ', $filled)
+            ));
+        }
+
         // drop() reiht die Aktion nur ein, ausgeführt wird sie erst durch save().
         $this->table('file_public_links')->drop()->save();
         $this->table('file_shares')->drop()->save();

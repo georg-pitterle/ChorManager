@@ -173,6 +173,29 @@ final class CreateFileManagementTables extends AbstractMigration
 
     public function down(): void
     {
+        // Prüfung vor dem Löschen: Die Tabellen sind erst mit dieser Migration
+        // entstanden, ihr Inhalt aber nicht - der kam im Betrieb dazu und steht
+        // nirgends sonst. Ein Rückbau nähme ihn ohne Nachfrage mit.
+        $filled = [];
+
+        foreach (['file_favorites', 'file_folder_shares', 'file_versions', 'files', 'file_folders'] as $table) {
+            $rowsLeft = (int) ($this->fetchRow(
+                sprintf('SELECT COUNT(*) AS rows_left FROM %s', $table)
+            )['rows_left'] ?? 0);
+
+            if ($rowsLeft > 0) {
+                $filled[] = sprintf('%s: %d Zeile(n)', $table, $rowsLeft);
+            }
+        }
+
+        if ($filled !== []) {
+            throw new RuntimeException(sprintf(
+                'Rückbau abgebrochen: %s. Diese Zeilen wären mit den Tabellen '
+                    . 'unwiederbringlich weg - zuerst bewusst selbst entfernen.',
+                implode(', ', $filled)
+            ));
+        }
+
         // Die gegenseitige Verknüpfung zuerst lösen, sonst lässt sich keine der
         // beiden Tabellen entfernen. Die Dateien auf der Platte bleiben liegen;
         // sie gehören nicht zur Datenbank und werden hier bewusst nicht angefasst.

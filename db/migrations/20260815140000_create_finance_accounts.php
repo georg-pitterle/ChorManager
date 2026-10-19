@@ -6,6 +6,23 @@ use Phinx\Migration\AbstractMigration;
 
 final class CreateFinanceAccounts extends AbstractMigration
 {
+    /**
+     * Zählt die Konten, die nicht aus `up()` stammen: alles, was nicht eines der
+     * beiden unberührten Vorgabekonten ist. Ein bearbeiteter Name, eine
+     * eingetragene IBAN oder ein geänderter Anfangsstand machen aus der Vorgabe
+     * eine Eingabe, die der Rückbau nicht wegwerfen darf.
+     *
+     * Steht als Konstante bereit, damit DestructiveMigrationGuardTest genau die
+     * Anweisung prüfen kann, die hier auch ausgeführt wird.
+     */
+    public const USER_OWNED_ACCOUNTS_SQL = <<<'SQL'
+        SELECT COUNT(*) AS rows_left
+        FROM finance_accounts
+        WHERE name NOT IN ('Barkassa', 'Bankkonto')
+           OR iban IS NOT NULL
+           OR opening_balance <> '0.00'
+        SQL;
+
     public function up(): void
     {
         $this->table('finance_accounts')
@@ -68,6 +85,27 @@ final class CreateFinanceAccounts extends AbstractMigration
 
     public function down(): void
     {
+        // Prüfung vor dem Löschen: Die Tabelle ist erst mit dieser Migration
+        // entstanden, ihr Inhalt aber nicht - angelegte und umbenannte Konten
+        // kamen im Betrieb dazu und stehen nirgends sonst.
+        //
+        // Die beiden Vorgabekonten aus `up()` zählen nicht mit, solange sie
+        // unberührt sind: Sie zurückzunehmen vernichtet nichts, was es vorher
+        // gab, und stünden sie mit in der Zählung, ließe sich eine frische
+        // Installation nie mehr zurückbauen. Sobald aber Name, IBAN oder
+        // Anfangsstand bearbeitet wurden, ist es eine Eingabe wie jede andere
+        // und die Prüfung schlägt an.
+        $rowsLeft = (int) ($this->fetchRow(self::USER_OWNED_ACCOUNTS_SQL)['rows_left'] ?? 0);
+
+        if ($rowsLeft > 0) {
+            throw new RuntimeException(sprintf(
+                'Rückbau abgebrochen: finance_accounts enthält %d Konto/Konten, die nicht die '
+                    . 'unberührten Vorgaben sind und mit der Tabelle unwiederbringlich weg wären. '
+                    . 'Diese zuerst bewusst selbst entfernen.',
+                $rowsLeft
+            ));
+        }
+
         $this->table('finances')
             ->dropForeignKey('finance_account_id')
             ->removeIndexByName('idx_finances_finance_account_id')

@@ -135,10 +135,17 @@ final class DestructiveStepNeedsGuardTest extends TestCase
                     continue;
                 }
 
-                // Ein down(), das eine Erzeugung des up() zurücknimmt, vernichtet
+                // Ein down(), das eine Spalte des up() zurücknimmt, vernichtet
                 // nichts, was vor der Migration da war.
-                $ownForward = $kind === 'column' ? $forwardColumns : $forwardTables;
-                if (!$isForward && isset($ownForward[$target])) {
+                //
+                // Für Tabellen und Zeilen gilt das nicht mehr: Läuft die
+                // Migration schon eine Weile mit, hat die Tabelle, die das
+                // `up()` angelegt hat, inzwischen Inhalt, den es nirgends sonst
+                // gibt. Ein `drop()` oder `DELETE FROM` im `down()` nimmt den
+                // ohne Nachfrage mit. Die Ausnahme greift deshalb nur noch,
+                // solange die Tabelle leer ist - und genau das stellt die
+                // Zählabfrage davor fest.
+                if (!$isForward && $kind === 'column' && isset($forwardColumns[$target])) {
                     continue;
                 }
 

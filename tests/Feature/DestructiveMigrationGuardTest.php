@@ -6,7 +6,9 @@ namespace Tests\Feature;
 
 use AddChannelToUserNotificationSettings;
 use AllowLockEntriesInFinanceJournal;
+use AllowMultipleTaskAssignees;
 use AllowNewslettersWithoutProject;
+use CreateFinanceAccounts;
 use CreateFinanceGroupsAndLink;
 use DropEventsProjectId;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -14,6 +16,8 @@ use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 
 require_once dirname(__DIR__, 2) . '/db/migrations/20260621120000_create_finance_groups_and_link.php';
+require_once dirname(__DIR__, 2) . '/db/migrations/20260815140000_create_finance_accounts.php';
+require_once dirname(__DIR__, 2) . '/db/migrations/20260830120000_allow_multiple_task_assignees.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260722130000_drop_events_project_id.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260811190000_allow_newsletters_without_project.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260826120000_allow_lock_entries_in_finance_journal.php';
@@ -39,6 +43,10 @@ final class DestructiveMigrationGuardTest extends TestCase
     private const NEWSLETTERS_TABLE = 'test_guard_newsletters';
     private const REVISIONS_TABLE = 'test_guard_finance_revisions';
     private const SETTINGS_TABLE = 'test_guard_user_notification_settings';
+    private const ASSIGNEES_TABLE = 'test_guard_task_assignees';
+    private const GROUPS_TABLE = 'test_guard_finance_groups';
+    private const FINANCES_TABLE = 'test_guard_finances';
+    private const ACCOUNTS_TABLE = 'test_guard_finance_accounts';
 
     protected function setUp(): void
     {
@@ -102,6 +110,44 @@ final class DestructiveMigrationGuardTest extends TestCase
                 PRIMARY KEY (user_id, notification_type, channel)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
             self::SETTINGS_TABLE
+        ));
+
+        Capsule::connection()->statement(sprintf(
+            'CREATE TABLE %s (
+                task_id int(11) NOT NULL,
+                user_id int(11) NOT NULL,
+                PRIMARY KEY (task_id, user_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
+            self::ASSIGNEES_TABLE
+        ));
+
+        Capsule::connection()->statement(sprintf(
+            'CREATE TABLE %s (
+                id int(11) NOT NULL AUTO_INCREMENT,
+                name varchar(255) NOT NULL,
+                PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
+            self::GROUPS_TABLE
+        ));
+
+        Capsule::connection()->statement(sprintf(
+            'CREATE TABLE %s (
+                id int(11) NOT NULL AUTO_INCREMENT,
+                group_name varchar(255) DEFAULT NULL,
+                PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
+            self::FINANCES_TABLE
+        ));
+
+        Capsule::connection()->statement(sprintf(
+            'CREATE TABLE %s (
+                id int(11) NOT NULL AUTO_INCREMENT,
+                name varchar(100) NOT NULL,
+                iban varchar(34) DEFAULT NULL,
+                opening_balance decimal(10,2) NOT NULL DEFAULT 0.00,
+                PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
+            self::ACCOUNTS_TABLE
         ));
     }
 
@@ -265,6 +311,140 @@ final class DestructiveMigrationGuardTest extends TestCase
     }
 
     /**
+     * Der Rückbau von 20260830120000 schreibt je Aufgabe **eine** Zuweisung
+     * zurück. Die Prüfung darf deshalb nicht alle Zeilen zählen, sondern genau
+     * die, für die in `tasks.assigned_to` kein Platz ist.
+     */
+    public function testAssigneeGuardFindsOnlyTheSurplusAssignments(): void
+    {
+        // Aufgabe 1 hat drei Zugewiesene: zwei davon fallen weg. Aufgabe 2 hat
+        // genau einen und verliert nichts.
+        Capsule::connection()->insert(sprintf(
+            'INSERT INTO %s (task_id, user_id) VALUES (1, 4), (1, 7), (1, 9), (2, 5)',
+            self::ASSIGNEES_TABLE
+        ));
+
+        $this->assertSame(2, $this->countFrom(
+            AllowMultipleTaskAssignees::SURPLUS_ASSIGNEES_SQL,
+            ['task_assignees' => self::ASSIGNEES_TABLE],
+            'dropped'
+        ));
+    }
+
+    public function testAssigneeGuardStaysQuietWhenEveryTaskHasOneAssignee(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            'INSERT INTO %s (task_id, user_id) VALUES (1, 4), (2, 5), (3, 6)',
+            self::ASSIGNEES_TABLE
+        ));
+
+        $this->assertSame(0, $this->countFrom(
+            AllowMultipleTaskAssignees::SURPLUS_ASSIGNEES_SQL,
+            ['task_assignees' => self::ASSIGNEES_TABLE],
+            'dropped'
+        ));
+    }
+
+    /**
+     * Der Rückbau von 20260621120000 schreibt die Gruppennamen nach
+     * budget_categories.group_name zurück, und finances.group_name stand
+     * ohnehin daneben. Nur eine Gruppe, die in keiner der beiden Spalten
+     * vorkommt, ist nach dem DROP TABLE nirgends mehr benannt.
+     */
+    public function testFinanceGroupGuardFindsOnlyTheGroupThatIsNamedNowhere(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (name) VALUES ('Miete'), ('Noten'), ('Reise')",
+            self::GROUPS_TABLE
+        ));
+        // "Miete" überlebt in der Budget-Kategorie, "Noten" im Spiegelfeld der
+        // Buchung - nur "Reise" wäre weg.
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (group_name, finance_group_id) VALUES ('Miete', 1)",
+            self::BUDGET_TABLE
+        ));
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (group_name) VALUES ('Noten')",
+            self::FINANCES_TABLE
+        ));
+
+        $this->assertSame(1, $this->countFrom(
+            CreateFinanceGroupsAndLink::VANISHING_FINANCE_GROUPS_SQL,
+            [
+                'finance_groups' => self::GROUPS_TABLE,
+                'budget_categories' => self::BUDGET_TABLE,
+                'finances' => self::FINANCES_TABLE,
+            ],
+            'vanishing'
+        ));
+    }
+
+    public function testFinanceGroupGuardStaysQuietWhenEveryGroupIsNamedSomewhere(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (name) VALUES ('Miete'), ('Noten')",
+            self::GROUPS_TABLE
+        ));
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (group_name, finance_group_id) VALUES ('Miete', 1)",
+            self::BUDGET_TABLE
+        ));
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (group_name) VALUES ('Noten')",
+            self::FINANCES_TABLE
+        ));
+
+        $this->assertSame(0, $this->countFrom(
+            CreateFinanceGroupsAndLink::VANISHING_FINANCE_GROUPS_SQL,
+            [
+                'finance_groups' => self::GROUPS_TABLE,
+                'budget_categories' => self::BUDGET_TABLE,
+                'finances' => self::FINANCES_TABLE,
+            ],
+            'vanishing'
+        ));
+    }
+
+    /**
+     * Der Rückbau von 20260815140000 darf die beiden unberührten Vorgabekonten
+     * mitnehmen - sie stammen aus dem eigenen `up()`. Alles andere ist Eingabe.
+     */
+    public function testAccountGuardFindsTheAccountsThatAreNotUntouchedDefaults(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (name, iban, opening_balance) VALUES
+             ('Barkassa', NULL, '0.00'),
+             ('Bankkonto', 'AT611904300234573201', '0.00'),
+             ('Projektkonto', NULL, '0.00'),
+             ('Bankkonto', NULL, '150.00')",
+            self::ACCOUNTS_TABLE
+        ));
+
+        // Unberührt ist nur die Barkassa; die anderen drei tragen eine IBAN,
+        // einen eigenen Namen oder einen geänderten Anfangsstand.
+        $this->assertSame(3, $this->countFrom(
+            CreateFinanceAccounts::USER_OWNED_ACCOUNTS_SQL,
+            ['finance_accounts' => self::ACCOUNTS_TABLE],
+            'rows_left'
+        ));
+    }
+
+    public function testAccountGuardStaysQuietForTheUntouchedDefaults(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (name, iban, opening_balance) VALUES
+             ('Barkassa', NULL, '0.00'), ('Bankkonto', NULL, '0.00')",
+            self::ACCOUNTS_TABLE
+        ));
+
+        $this->assertSame(0, $this->countFrom(
+            CreateFinanceAccounts::USER_OWNED_ACCOUNTS_SQL,
+            ['finance_accounts' => self::ACCOUNTS_TABLE],
+            'rows_left'
+        ));
+    }
+
+    /**
      * Dieselbe Anweisung wie in der Migration, nur auf den Wegwerf-Tabellen.
      *
      * @param array<string, string> $tableMap
@@ -285,6 +465,10 @@ final class DestructiveMigrationGuardTest extends TestCase
             self::NEWSLETTERS_TABLE,
             self::REVISIONS_TABLE,
             self::SETTINGS_TABLE,
+            self::ASSIGNEES_TABLE,
+            self::GROUPS_TABLE,
+            self::FINANCES_TABLE,
+            self::ACCOUNTS_TABLE,
         ];
 
         foreach ($tables as $table) {
