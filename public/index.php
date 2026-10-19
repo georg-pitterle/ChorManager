@@ -62,6 +62,11 @@ $dependencies($containerBuilder);
 // Build PHP-DI Container instance
 $container = $containerBuilder->build();
 
+// So früh wie möglich nach dem Logger: Ein Fatal Error (Speicherlimit,
+// Zeitüberschreitung) ist keine Ausnahme und erreicht keine Middleware - ohne
+// diesen Haken endet er als leeres 500 ohne Logzeile.
+$container->get(\App\Logging\FatalErrorLogger::class)->register();
+
 // Eager load database capsule to boot Eloquent globally
 $container->get(\Illuminate\Database\Capsule\Manager::class);
 
