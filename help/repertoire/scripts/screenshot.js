@@ -33,7 +33,8 @@ async function shotCapped(page, name, maxHeight = 1400) {
     const fullHeight = await page.evaluate(() => Math.ceil(document.documentElement.scrollHeight));
     const height = Math.min(fullHeight, maxHeight);
     const filePath = path.join(IMAGES_DIR, `${name}.png`);
-    await page.screenshot({ path: filePath, clip: { x: 0, y: 0, width: VIEWPORT.width, height } });
+    // clip wirkt ohne fullPage nur im Sichtfenster - das Bild bliebe 900 px hoch.
+    await page.screenshot({ path: filePath, fullPage: true, clip: { x: 0, y: 0, width: VIEWPORT.width, height } });
     console.log(`gespeichert: ${path.relative(process.cwd(), filePath)} (${VIEWPORT.width}x${height})`);
 }
 
@@ -147,7 +148,9 @@ async function main() {
         // 3. Neues Lied anlegen
         await page.goto(`${BASE_URL}/song-library/create`, { waitUntil: 'networkidle' });
         await page.locator('#title').waitFor({ state: 'visible' });
-        await shotCapped(page, '03-create');
+        // Nur das Sichtfenster: Die Aktionsleiste klebt am unteren Rand und stünde
+        // in einem längeren Bild mitten im Formular.
+        await shotCapped(page, '03-create', VIEWPORT.height);
 
         // Detailseite: das erste Lied nehmen, zu dem es auch Archivdaten gibt -
         // sonst zeigt der Notenarchiv-Screenshot ein leeres Formular.
@@ -186,11 +189,14 @@ async function main() {
         // 7. Projektzuordnungen
         await shotSection(page, '07-assignments', 'section[aria-labelledby="song-assignment-title"]');
 
-        // 8. Downloads mit aufgeklapptem Projekt
+        // 8. Probenmaterial: Das erste laufende Projekt ist schon aufgeklappt.
+        // Gibt es keines, wird das erste frühere Projekt geöffnet.
         await page.goto(`${BASE_URL}/downloads`, { waitUntil: 'networkidle' });
-        const firstProject = page.locator('#downloadsProjectsAccordion .accordion-button').first();
-        const collapseId = await firstProject.getAttribute('data-bs-target');
-        await expandCollapse(page, firstProject, collapseId);
+        if (await page.locator('.downloads-project .accordion-collapse.show').count() === 0) {
+            const firstProject = page.locator('.downloads-project .accordion-button').first();
+            const collapseId = await firstProject.getAttribute('data-bs-target');
+            await expandCollapse(page, firstProject, collapseId);
+        }
         await shotCapped(page, '08-downloads');
 
         console.log('Fertig: alle Repertoire-Screenshots erstellt.');

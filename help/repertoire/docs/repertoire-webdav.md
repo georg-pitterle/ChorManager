@@ -42,8 +42,8 @@ Drei Dinge sind wichtig zu wissen:
 
 ## 1. Zugangsdaten holen
 
-Klickpfad: **Noten & Dateien → Probenmaterial**. Ganz oben steht der Abschnitt **Noten aufs Tablet**
-mit drei Angaben:
+Klickpfad: **Noten & Dateien → Probenmaterial**. Ganz unten steht der Abschnitt **Noten aufs Tablet**;
+ein Klick klappt ihn auf. Er enthält drei Angaben:
 
 | Angabe | Was dort steht |
 |---|---|
