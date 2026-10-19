@@ -31,21 +31,22 @@ class ProcessMailQueueCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $_output): int
     {
-        $batchSize = (int) (AppSetting::query()
-            ->where('setting_key', 'mailqueue_batch_size')
-            ->value('setting_value') ?? 50);
-
-        $batchSize = max(1, $batchSize);
-
-        $this->logger->debug(
-            'Starting mail queue processing.',
-            [
-                'event' => 'mail_queue.process.start',
-                'batch_size' => $batchSize,
-            ]
-        );
+        // Null, solange die Batch-Größe nicht gelesen werden konnte (z. B. Datenbank beim Start nicht erreichbar).
+        $batchSize = null;
 
         try {
+            $batchSize = max(1, (int) (AppSetting::query()
+                ->where('setting_key', 'mailqueue_batch_size')
+                ->value('setting_value') ?? 50));
+
+            $this->logger->debug(
+                'Starting mail queue processing.',
+                [
+                    'event' => 'mail_queue.process.start',
+                    'batch_size' => $batchSize,
+                ]
+            );
+
             $repairedCount = $this->deliveryService->repairStaleSendingEntries();
             $this->logger->debug(
                 'Stale sending entries repaired by watchdog.',

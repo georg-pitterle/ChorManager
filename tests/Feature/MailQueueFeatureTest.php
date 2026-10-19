@@ -147,6 +147,20 @@ class MailQueueFeatureTest extends TestCase
         $this->assertStringContainsString('Mailversand verwalten', $template);
     }
 
+    public function testMailQueueCommandLogsDatabaseFailureOnBatchSizeLookup(): void
+    {
+        $command = file_get_contents(dirname(__DIR__) . '/../src/Commands/ProcessMailQueueCommand.php');
+        $this->assertIsString($command);
+
+        $tryPosition = strpos($command, 'try {');
+        $lookupPosition = strpos($command, "'mailqueue_batch_size'");
+
+        $this->assertNotFalse($tryPosition);
+        $this->assertNotFalse($lookupPosition);
+        // Fällt die Datenbank beim Lesen der Batch-Größe aus, muss das als Ereignis geloggt werden.
+        $this->assertGreaterThan($tryPosition, $lookupPosition);
+    }
+
     public function testMailQueueCommandAndSeedSettingsExist(): void
     {
         $command = file_get_contents(dirname(__DIR__) . '/../src/Commands/ProcessMailQueueCommand.php');
