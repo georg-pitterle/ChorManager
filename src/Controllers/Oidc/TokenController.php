@@ -13,6 +13,7 @@ use App\Services\Oidc\OidcClientService;
 use App\Services\RateLimiterService;
 use App\Services\Oidc\OidcProtocolException;
 use App\Util\AppUrlResolver;
+use App\Util\ClientIpResolver;
 use App\Util\InputValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -56,7 +57,28 @@ class TokenController
 
         [$clientId, $clientSecret] = $this->readClientCredentials($request, $body);
 
+        // Zuerst zählen, dann rechnen - wie AuthController::processLogin() und
+        // PasswordResetController::processReset().
+        //
+        // Der Endpunkt ist öffentlich, und jeder Aufruf kostet einen
+        // bcrypt-Durchlauf: Bei unbekannter Kennung vergleicht
+        // OidcClientService::authenticate() gegen einen Blindhash, damit die
+        // Antwortdauer nicht verrät, ob es die Kennung gibt. Stand die Bremse
+        // hinter dieser Prüfung und zählte auf die Kennung, war sie für einen
+        // nicht angemeldeten Aufrufer wirkungslos: Ein falscher Ausweis flog
+        // vorher heraus und wurde nie gezählt, und eine je Aufruf gewechselte
+        // Kennung bekam jedes Mal einen frischen Zählstand.
+        //
+        // Gezählt wird deshalb die Quelle. Je Quelle und nicht global, damit
+        // ein einziger Angreifer nicht alle angeschlossenen Anwendungen
+        // aussperrt.
+        $sourceKey = 'oidc:token:ip:' . ClientIpResolver::resolve($request);
+
         try {
+            if (!$this->rateLimiter->hit($sourceKey, self::RATE_LIMIT_ATTEMPTS, self::RATE_LIMIT_WINDOW)['allowed']) {
+                throw new OidcProtocolException('invalid_request', 'Bremse hat gegriffen', 429);
+            }
+
             $client = $this->clientService->authenticate($clientId, $clientSecret);
             if (!$this->clientService->isUsableForLogin($client)) {
                 throw new OidcProtocolException('invalid_client', 'Client unbekannt, gesperrt oder ohne Vertrauen', 401);
@@ -106,6 +128,12 @@ class TokenController
             // Billiges, gelegentliches Aufräumen statt eines eigenen Cronjobs -
             // dasselbe Muster wie RememberLoginService::clearExpiredTokens().
             $this->codeService->clearExpired();
+
+            // Wie nach einer erfolgreichen Anmeldung: Der Zählstand der Quelle
+            // fällt zurück. Sonst liefe eine angeschlossene Anwendung, deren
+            // Aufrufe alle von derselben Adresse kommen, im Betrieb selbst in
+            // die Grenze - gezählt werden sollen die Fehlversuche.
+            $this->rateLimiter->reset($sourceKey);
 
             $this->logger->info('OIDC tokens issued.', [
                 'event' => 'oidc.token.issued',

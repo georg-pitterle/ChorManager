@@ -38,7 +38,7 @@ class SheetArchiveController
                     'event' => 'sheet_archive.unauthorized',
                     'reason' => 'not_authenticated',
                 ]);
-                $response->getBody()->write((string) json_encode(['error' => 'Unauthorized']));
+                $response->getBody()->write((string) json_encode(['error' => 'Dafür fehlt die Berechtigung.']));
                 return $response
                     ->withStatus(403)
                     ->withHeader('Content-Type', 'application/json');
@@ -51,7 +51,7 @@ class SheetArchiveController
                     'reason' => 'missing_permission',
                     'user_id' => $userId,
                 ]);
-                $response->getBody()->write((string) json_encode(['error' => 'Unauthorized']));
+                $response->getBody()->write((string) json_encode(['error' => 'Dafür fehlt die Berechtigung.']));
                 return $response
                     ->withStatus(403)
                     ->withHeader('Content-Type', 'application/json');
@@ -67,7 +67,7 @@ class SheetArchiveController
             // Validate song exists
             $song = Song::find($songId);
             if (!$song) {
-                $response->getBody()->write((string) json_encode(['error' => 'Song not found']));
+                $response->getBody()->write((string) json_encode(['error' => 'Das Lied wurde nicht gefunden.']));
                 return $response
                     ->withStatus(404)
                     ->withHeader('Content-Type', 'application/json');
@@ -86,7 +86,7 @@ class SheetArchiveController
             $lineItems = $data['line_items'] ?? [];
 
             if (!is_array($lineItems)) {
-                $response->getBody()->write((string) json_encode(['error' => 'line_items must be an array']));
+                $response->getBody()->write((string) json_encode(['error' => 'Die Stimmzeilen müssen als Liste ankommen.']));
                 return $response
                     ->withStatus(400)
                     ->withHeader('Content-Type', 'application/json');
@@ -133,7 +133,7 @@ class SheetArchiveController
                 'exception' => $e,
             ]);
 
-            $response->getBody()->write((string) json_encode(['error' => 'Failed to save archive data']));
+            $response->getBody()->write((string) json_encode(['error' => 'Die Archivdaten konnten nicht gespeichert werden.']));
             return $response
                 ->withStatus(500)
                 ->withHeader('Content-Type', 'application/json');
@@ -174,7 +174,7 @@ class SheetArchiveController
                     'reason' => 'missing_permission',
                     'user_id' => (int) ($_SESSION['user_id'] ?? 0),
                 ]);
-                $response->getBody()->write((string) json_encode(['error' => 'Unauthorized']));
+                $response->getBody()->write((string) json_encode(['error' => 'Dafür fehlt die Berechtigung.']));
                 return $response
                     ->withStatus(403)
                     ->withHeader('Content-Type', 'application/json');
@@ -192,7 +192,7 @@ class SheetArchiveController
                 'exception' => $e,
             ]);
 
-            $response->getBody()->write((string) json_encode(['error' => 'Failed to fetch categories']));
+            $response->getBody()->write((string) json_encode(['error' => 'Die Stimmlagen konnten nicht geladen werden.']));
             return $response
                 ->withStatus(500)
                 ->withHeader('Content-Type', 'application/json');

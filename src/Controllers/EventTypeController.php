@@ -64,10 +64,20 @@ class EventTypeController
             $editService->clear();
         }
 
+        // Gehört der Fehler zu einem Modal, zeigt ihn die Maske dort. Ein
+        // Fehler ohne Modal-Zustand - das Löschen hat keinen - braucht einen
+        // Platz über der Liste, sonst fällt er ganz aus: index() nimmt ihn
+        // aus der Sitzung, womit auch partials/flash.twig nichts mehr findet.
+        $modalError = $createState['error'];
+        foreach ($editStates as $editState) {
+            $modalError ??= $editState['error'];
+        }
+
         return $this->view->render($response, 'settings/event_types.twig', [
             'event_types' => $eventTypes,
             'success' => $success,
             'error' => $error,
+            'modal_error' => $modalError,
             'modal_form_create' => $createState,
             'modal_form_edits' => $editStates,
         ]);

@@ -869,16 +869,16 @@ class FinanceController
             $changesByRevision[$revision->id] = $this->journal->describeChanges($revision->changeSet());
         }
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
-
+        // Ohne eigenes Abholen der Flash-Meldungen: Diese Seite hat keinen
+        // Platz, an dem sie erscheinen könnten, und hat sie zuvor aus der
+        // Sitzung genommen, ohne sie anzuzeigen. Damit war auch
+        // partials/flash.twig im Layout taub gestellt - das Netz, das jede
+        // liegengelassene Meldung genau einmal zeigt. Jetzt bleibt sie liegen
+        // und das Layout zeigt sie.
         return $this->view->render($response, 'finances/journal.twig', [
             'revisions' => $revisions,
             'changes_by_revision' => $changesByRevision,
             'closed_until' => $this->journal->closedUntil()?->format('d.m.Y'),
-            'success' => $success,
-            'error' => $error,
         ]);
     }
 

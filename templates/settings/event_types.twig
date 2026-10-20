@@ -26,6 +26,7 @@
 
 {% block content %}
     {% if success %}<div class="alert alert-success mt-3">{{ success }}</div>{% endif %}
+    {{ modal.show_page_error(error, modal_error) }}
 
     <input type="hidden" id="eventTypeOpenEditModalId" value="0">
 

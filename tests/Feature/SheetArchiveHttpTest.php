@@ -103,7 +103,9 @@ class SheetArchiveHttpTest extends TestCase
 
         $this->assertEquals(403, $response->getStatusCode());
         $responseBody = json_decode((string) $response->getBody(), true);
-        $this->assertEquals('Unauthorized', $responseBody['error'] ?? null);
+        // Deutsch wie jeder andere UI-Text: Die Oberfläche zeigt genau diesen
+        // Satz an (archive-manager.js reicht responseData.error durch).
+        $this->assertEquals('Dafür fehlt die Berechtigung.', $responseBody['error'] ?? null);
     }
 
     /**
@@ -129,7 +131,9 @@ class SheetArchiveHttpTest extends TestCase
 
         $this->assertEquals(403, $response->getStatusCode());
         $responseBody = json_decode((string) $response->getBody(), true);
-        $this->assertEquals('Unauthorized', $responseBody['error'] ?? null);
+        // Deutsch wie jeder andere UI-Text: Die Oberfläche zeigt genau diesen
+        // Satz an (archive-manager.js reicht responseData.error durch).
+        $this->assertEquals('Dafür fehlt die Berechtigung.', $responseBody['error'] ?? null);
     }
 
     /**
@@ -225,7 +229,9 @@ class SheetArchiveHttpTest extends TestCase
 
         $this->assertEquals(403, $response->getStatusCode());
         $responseBody = json_decode((string) $response->getBody(), true);
-        $this->assertEquals('Unauthorized', $responseBody['error'] ?? null);
+        // Deutsch wie jeder andere UI-Text: Die Oberfläche zeigt genau diesen
+        // Satz an (archive-manager.js reicht responseData.error durch).
+        $this->assertEquals('Dafür fehlt die Berechtigung.', $responseBody['error'] ?? null);
     }
 
     /**
