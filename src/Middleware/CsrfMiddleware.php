@@ -144,6 +144,11 @@ class CsrfMiddleware implements MiddlewareInterface
 
         $this->logger->warning('CSRF token rejected.', [
             'event' => 'security.csrf.rejected',
+            // Token fehlt (Formular ohne Feld, Aufruf ohne Header) oder passt nicht zur
+            // Sitzung (veraltet, Sitzung erneuert). Zusammen mit `authenticated` lässt
+            // sich so eine verfallene Sitzung von einem veralteten Token trennen.
+            'reason' => $providedToken === null ? 'token_missing' : 'token_mismatch',
+            'authenticated' => isset($_SESSION['user_id']),
         ]);
 
         // Ein Aufruf per `fetch` kann mit einer Weiterleitung nichts anfangen - er

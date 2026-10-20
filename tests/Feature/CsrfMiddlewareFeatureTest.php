@@ -395,6 +395,60 @@ class CsrfMiddlewareFeatureTest extends TestCase
     }
 
     /**
+     * Die Zeile muss sagen, woran die Prüfung scheiterte (Token fehlt oder passt nicht)
+     * und ob die Person angemeldet war. Ohne das ließ sich eine verfallene Sitzung nicht
+     * von einem veralteten Token unterscheiden.
+     *
+     * @return array<string, array{0: ?string, 1: bool, 2: string}>
+     */
+    public static function rejectionReasonProvider(): array
+    {
+        return [
+            'Token fehlt' => [null, true, 'token_missing'],
+            'Token passt nicht' => ['falsch', true, 'token_mismatch'],
+            'nicht angemeldet' => ['falsch', false, 'token_mismatch'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('rejectionReasonProvider')]
+    public function testCsrfRejectionLogNamesTheReason(
+        ?string $provided,
+        bool $authenticated,
+        string $expectedReason
+    ): void {
+        $handlerLog = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handlerLog);
+
+        $middleware = new CsrfMiddleware($logger);
+        unset($_SESSION['user_id'], $_SESSION[Csrf::SESSION_KEY]);
+        if ($authenticated) {
+            $_SESSION['user_id'] = 7;
+        }
+        $token = bin2hex(random_bytes(32));
+        $request = $this->makeRequest('POST', '/profile', $provided === null ? [] : ['_csrf' => $provided]);
+        $_SESSION[Csrf::SESSION_KEY] = $token;
+
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return (new Response())->withStatus(200);
+            }
+        };
+
+        $middleware->process($request, $handler);
+
+        $match = array_values(array_filter(
+            $handlerLog->getRecords(),
+            static fn ($record): bool => ($record->context['event'] ?? null) === 'security.csrf.rejected'
+        ));
+
+        $this->assertCount(1, $match);
+        $this->assertSame($expectedReason, $match[0]->context['reason']);
+        $this->assertSame($authenticated, $match[0]->context['authenticated']);
+    }
+
+    /**
      * Der Weg, auf dem der Newsletter-Editor seinen Token verlor: Die Sitzung
      * verfiel, während die Seite offen lag. Beim Zurückwechseln fragte die
      * Glocke nach, die AuthMiddleware stellte die Sitzung per Remember-Me her
