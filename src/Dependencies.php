@@ -705,7 +705,8 @@ return function (ContainerBuilder $containerBuilder) {
             return new PurgeFileTrashCommand(
                 $c->get(FileTrashService::class),
                 $c->get(LocalFileStorage::class),
-                (bool) ($c->get('settings')['modules']['files'] ?? false)
+                (bool) ($c->get('settings')['modules']['files'] ?? false),
+                $c->get(LoggerInterface::class)
             );
         },
         // Office-Anbindung. Die App-Adresse kommt aus APP_URL bzw. DDEV - nie aus

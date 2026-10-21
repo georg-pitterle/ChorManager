@@ -6,6 +6,7 @@ namespace App\Commands;
 
 use App\Services\Files\FileTrashService;
 use App\Services\Files\LocalFileStorage;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -21,7 +22,8 @@ class PurgeFileTrashCommand extends Command
     public function __construct(
         private readonly FileTrashService $trash,
         private readonly LocalFileStorage $storage,
-        private readonly bool $moduleEnabled
+        private readonly bool $moduleEnabled,
+        private readonly LoggerInterface $logger
     ) {
         parent::__construct();
     }
@@ -48,11 +50,12 @@ class PurgeFileTrashCommand extends Command
             $output->writeln('<comment>Probelauf - es wird nichts gelöscht.</comment>');
         } else {
             $result = $this->trash->purgeExpired();
-            $output->writeln(sprintf(
-                'Endgültig gelöscht: %d Datei(en), %d Ordner.',
-                $result['files'],
-                $result['folders']
-            ));
+            // Im Worker landet die Ausgabe in der Log-Pipeline; deshalb strukturiert statt als Klartext.
+            $this->logger->info('Expired trash entries purged.', [
+                'event' => 'files.trash.purge_completed',
+                'files' => $result['files'],
+                'folders' => $result['folders'],
+            ]);
         }
 
         if ((bool) $input->getOption('orphans')) {

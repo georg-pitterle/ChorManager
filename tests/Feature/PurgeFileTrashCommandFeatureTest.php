@@ -14,6 +14,7 @@ use App\Services\Files\FileStorageRegistry;
 use App\Services\Files\FileTrashService;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\AbstractLogger;
 use Psr\Log\NullLogger;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -32,7 +33,7 @@ class PurgeFileTrashCommandFeatureTest extends TestCase
         $this->tearDownFileFixtures();
     }
 
-    private function command(bool $enabled): CommandTester
+    private function command(bool $enabled, ?AbstractLogger $logger = null): CommandTester
     {
         $access = new FileAccessService();
         $quota = new FileQuotaService($access, 0);
@@ -48,7 +49,7 @@ class PurgeFileTrashCommandFeatureTest extends TestCase
         );
         $trash = new FileTrashService($access, $files, $registry, new NullLogger(), 30);
 
-        return new CommandTester(new PurgeFileTrashCommand($trash, $this->storage(), $enabled));
+        return new CommandTester(new PurgeFileTrashCommand($trash, $this->storage(), $enabled, $logger ?? new NullLogger()));
     }
 
     public function testPurgesExpiredFoldersAndReports(): void
@@ -59,11 +60,28 @@ class PurgeFileTrashCommandFeatureTest extends TestCase
         $old->delete();
         Carbon::setTestNow();
 
-        $tester = $this->command(true);
+        $logger = new class extends AbstractLogger {
+            /** @var list<array{level: mixed, message: string, context: array<string, mixed>}> */
+            public array $records = [];
+
+            public function log($level, string|\Stringable $message, array $context = []): void
+            {
+                $this->records[] = ['level' => $level, 'message' => (string) $message, 'context' => $context];
+            }
+        };
+        $tester = $this->command(true, $logger);
         $tester->execute([]);
 
-        $this->assertStringContainsString('1 Ordner', $tester->getDisplay());
         $this->assertNull(FileFolder::withTrashed()->find($old->id));
+        $this->assertSame('', $tester->getDisplay(), 'Ergebnis steht im strukturierten Log, nicht als Klartext.');
+        $completed = array_values(array_filter(
+            $logger->records,
+            static fn (array $r): bool => ($r['context']['event'] ?? '') === 'files.trash.purge_completed'
+        ));
+        $this->assertCount(1, $completed);
+        $this->assertSame('info', $completed[0]['level']);
+        $this->assertSame(1, $completed[0]['context']['folders']);
+        $this->assertSame(0, $completed[0]['context']['files']);
     }
 
     public function testDryRunAndDisabledModuleChangeNothing(): void
