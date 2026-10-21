@@ -82,7 +82,7 @@ final class RegistrationProxyConflictFeatureTest extends TestCase
     {
         return new RegistrationController(
             $this->createAppTwig('/registrations'),
-            new AttendanceScopeService(),
+            new AttendanceScopeService($_SESSION),
             new NullLogger(),
             new NameFormatterService()
         );

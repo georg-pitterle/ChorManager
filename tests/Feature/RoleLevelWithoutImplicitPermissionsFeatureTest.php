@@ -98,7 +98,7 @@ final class RoleLevelWithoutImplicitPermissionsFeatureTest extends TestCase
         $_SESSION['role_level'] = 100;
         $_SESSION['voice_group_ids'] = $groupIds;
 
-        $manageable = (new AttendanceScopeService())->getManageableUserIds();
+        $manageable = (new AttendanceScopeService($_SESSION))->getManageableUserIds();
 
         $expected = User::whereHas('voiceGroups', static function ($query) use ($groupIds): void {
             $query->whereIn('voice_group_id', $groupIds);

@@ -115,7 +115,7 @@ final class AttendanceSaveRobustnessFeatureTest extends TestCase
     {
         return new AttendanceController(
             $this->createTwig(),
-            new AttendanceScopeService(),
+            new AttendanceScopeService($_SESSION),
             $logger ?? new NullLogger(),
             new NameFormatterService()
         );

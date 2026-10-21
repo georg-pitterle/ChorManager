@@ -137,6 +137,44 @@ final class RotateMailCredentialKeyCommandFeatureTest extends TestCase
         $this->assertSame('imap-secret-1', $newService->decrypt((string) $reloaded->imap_password_enc));
     }
 
+    /**
+     * Der Formatwechsel v2 -> v3 kommt ohne Schlüsseltausch aus.
+     *
+     * Die neue Schlüssel-Kennung leitet sich anders ab als die alte, ein
+     * v2-Wert am selben Schlüssel gilt deshalb als neu zu verpacken. Genau
+     * darauf stützt sich der einmalige Rotationslauf nach der Umstellung:
+     * dieselbe MAIL_CREDENTIAL_KEY, kein MAIL_CREDENTIAL_KEY_PREVIOUS, und
+     * hinterher steht alles im neuen Format - ohne dass ein Passwort
+     * verlorengeht.
+     */
+    public function testRewrapsVersionTwoValuesWithoutChangingTheKey(): void
+    {
+        $key = self::randomKey();
+        $this->setEnv(self::ENV_KEY, $key);
+        $this->setEnv(self::ENV_PREVIOUS_KEY, null);
+        $service = new MailCredentialCryptoService();
+
+        // Ein Wert, wie ihn die Fassung vor der Umstellung geschrieben hätte.
+        $rawKey = (string) base64_decode($key, true);
+        $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+        $payload = base64_encode($nonce . sodium_crypto_secretbox('imap-secret-v2', $nonce, $rawKey));
+        $stored = 'v2:' . substr(hash('sha256', $rawKey), 0, 8) . ':' . $payload;
+
+        $account = $this->createAccount($service, 'wird-gleich-ersetzt');
+        $account->imap_password_enc = $stored;
+        $account->save();
+
+        $exitCode = $this->makeTester($service)->execute([]);
+
+        $this->assertSame(Command::SUCCESS, $exitCode);
+
+        $reloaded = UserMailAccount::query()->findOrFail($account->id);
+        $after = (string) $reloaded->imap_password_enc;
+        $this->assertStringStartsWith('v3:' . $service->keyId() . ':', $after);
+        $this->assertFalse($service->needsRewrap($after));
+        $this->assertSame('imap-secret-v2', $service->decrypt($after));
+    }
+
     public function testIsIdempotentAndSkipsAlreadyCurrentAccounts(): void
     {
         [$oldService, $oldKey] = $this->rotateKeys();

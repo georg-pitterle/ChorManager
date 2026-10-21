@@ -87,7 +87,7 @@ class MailCredentialCryptoServiceTest extends TestCase
         $service = new MailCredentialCryptoService();
         $encrypted = $service->encrypt('another-imap-password');
 
-        $prefix = 'v2:' . $service->keyId() . ':';
+        $prefix = 'v3:' . $service->keyId() . ':';
         $raw = base64_decode(substr($encrypted, strlen($prefix)), true);
         $this->assertIsString($raw);
         $tamperedByteIndex = strlen($raw) - 1;
@@ -103,7 +103,7 @@ class MailCredentialCryptoServiceTest extends TestCase
         $service = new MailCredentialCryptoService();
         $encrypted = $service->encrypt('yet-another-imap-password');
 
-        $prefix = 'v2:' . $service->keyId() . ':';
+        $prefix = 'v3:' . $service->keyId() . ':';
         $raw = base64_decode(substr($encrypted, strlen($prefix)), true);
         $this->assertIsString($raw);
         $truncated = $prefix . base64_encode(substr($raw, 0, 5));
@@ -150,7 +150,61 @@ class MailCredentialCryptoServiceTest extends TestCase
 
         $encrypted = $service->encrypt('imap-password');
 
-        $this->assertStringStartsWith('v2:' . $service->keyId() . ':', $encrypted);
+        $this->assertStringStartsWith('v3:' . $service->keyId() . ':', $encrypted);
+    }
+
+    /**
+     * Die Schlüssel-Kennung ist abgeleitet, nicht der blanke Hash des
+     * Schlüssels.
+     *
+     * Im Format v2 stand "die ersten 8 Hex-Zeichen von sha256(Schlüssel)" in
+     * jedem gespeicherten Wert - ein kleiner, ungesalzener Abdruck des
+     * Geheimnisses selbst, mit dem sich ein geratener Schlüssel ohne jeden
+     * Geheimtext bestätigen lässt. Bei 256 Bit Zufall ist das kein praktischer
+     * Angriff, aber eine Ableitung mit festem Zweck kostet nichts.
+     */
+    public function testTheKeyIdIsNotThePlainHashOfTheKey(): void
+    {
+        $service = new MailCredentialCryptoService();
+        $rawKey = (string) base64_decode((string) getenv(self::ENV_KEY), true);
+
+        $this->assertNotSame(substr(hash('sha256', $rawKey), 0, 8), $service->keyId());
+    }
+
+    /**
+     * Werte aus der Zeit des Formats v2 bleiben lesbar - mit derselben
+     * Kennung, die sie damals bekommen haben. Ohne diese Rückwärtsfähigkeit
+     * wäre die Umstellung kein Formatwechsel, sondern ein Datenverlust: Jedes
+     * gespeicherte IMAP-Passwort und jeder OIDC-Signierschlüssel wäre nicht
+     * mehr zu öffnen.
+     */
+    public function testDecryptStillReadsVersionTwoCiphertext(): void
+    {
+        $service = new MailCredentialCryptoService();
+        $plaintext = 'v2-imap-password';
+
+        $rawKey = (string) base64_decode((string) getenv(self::ENV_KEY), true);
+        $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+        $payload = base64_encode($nonce . sodium_crypto_secretbox($plaintext, $nonce, $rawKey));
+        $legacyKeyId = substr(hash('sha256', $rawKey), 0, 8);
+
+        $this->assertSame($plaintext, $service->decrypt('v2:' . $legacyKeyId . ':' . $payload));
+    }
+
+    /**
+     * Und sie gelten als neu zu verpacken, damit der Rotationslauf
+     * (`mail:rotate-key`) sie einsammelt, statt sie für aktuell zu halten.
+     */
+    public function testVersionTwoCiphertextNeedsRewrap(): void
+    {
+        $service = new MailCredentialCryptoService();
+
+        $rawKey = (string) base64_decode((string) getenv(self::ENV_KEY), true);
+        $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+        $payload = base64_encode($nonce . sodium_crypto_secretbox('v2-imap-password', $nonce, $rawKey));
+        $legacyKeyId = substr(hash('sha256', $rawKey), 0, 8);
+
+        $this->assertTrue($service->needsRewrap('v2:' . $legacyKeyId . ':' . $payload));
     }
 
     public function testKeyIdIsStableAndEightHexCharacters(): void

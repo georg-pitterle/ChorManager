@@ -78,7 +78,7 @@ class RegistrationProxyFeatureTest extends TestCase
     {
         return new RegistrationController(
             $this->createAppTwig('/registrations'),
-            new AttendanceScopeService(),
+            new AttendanceScopeService($_SESSION),
             new NullLogger(),
             new \App\Services\NameFormatterService()
         );

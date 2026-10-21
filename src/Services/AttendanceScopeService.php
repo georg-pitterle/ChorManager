@@ -10,12 +10,18 @@ use App\Services\Audience\AudienceFilterService;
 use App\Services\Audience\MemberProfile;
 
 /**
- * Session-based scope: which users may the current user manage
- * in attendance and registration contexts, and which events are
- * visible at all.
+ * Umfang einer Sitzung: welche Mitglieder die angemeldete Person bei Anwesenheit
+ * und Anmeldung verwalten darf, und welche Termine sie dabei überhaupt sieht.
  */
 class AttendanceScopeService
 {
+    private int $userId;
+    private bool $canManageOwnVoiceGroup;
+    private bool $canManageAttendanceAll;
+
+    /** @var list<int> */
+    private array $voiceGroupIds;
+
     /** @var array<int>|null */
     private ?array $manageableUserIdsCache = null;
 
@@ -23,6 +29,34 @@ class AttendanceScopeService
     private ?array $profilesCache = null;
 
     private ?AudienceFilterService $filters = null;
+
+    /**
+     * Die Sitzung kommt von außen - dieselbe Regel wie bei den fünf Policies und
+     * bei FileActor, und festgehalten in
+     * tests/Unit/Services/AttendanceScopeServiceTakesTheSessionTest.
+     *
+     * Gelesen wurde sie zuvor an sechs Stellen direkt aus dem Superglobal. Zwei
+     * Dinge hingen daran: Die Antwort konnte sich mitten im Vorgang ändern, weil
+     * jeder Aufruf neu nachsah statt einmal beim Bauen - und geprüft werden
+     * konnte der Dienst nur, indem man ein Superglobal setzte. Dass hier über
+     * Rechte entschieden wird, macht beides schwerer als bei einem Dienst, der
+     * nur etwas anzeigt.
+     *
+     * Auf Wahrheitswert geprüft, nicht strikt auf true: RoleMiddleware und die
+     * Policies lesen dieselben Schlüssel ebenfalls nur truthy.
+     *
+     * @param array<string, mixed> $session
+     */
+    public function __construct(array $session)
+    {
+        $this->userId = (int) ($session['user_id'] ?? 0);
+        $this->canManageOwnVoiceGroup = (bool) ($session['can_manage_own_voice_group'] ?? false);
+        $this->canManageAttendanceAll = (bool) ($session['can_manage_attendance_all'] ?? false);
+        $this->voiceGroupIds = array_values(array_map(
+            static fn ($id): int => (int) $id,
+            (array) ($session['voice_group_ids'] ?? [])
+        ));
+    }
 
     /**
      * Beide Rechte dürfen für andere eintragen, sie unterscheiden sich nur im Umfang:
@@ -35,10 +69,7 @@ class AttendanceScopeService
      */
     public function canManageOthers(): bool
     {
-        $canManageOwnVoiceGroup = (bool) ($_SESSION['can_manage_own_voice_group'] ?? false);
-        $canManageAttendanceAll = (bool) ($_SESSION['can_manage_attendance_all'] ?? false);
-
-        return $canManageOwnVoiceGroup || $canManageAttendanceAll;
+        return $this->canManageOwnVoiceGroup || $this->canManageAttendanceAll;
     }
 
     /**
@@ -61,13 +92,12 @@ class AttendanceScopeService
             return $this->manageableUserIdsCache = [];
         }
 
-        $canManageAttendanceAll = (bool) ($_SESSION['can_manage_attendance_all'] ?? false);
-        $userVoiceGroupIds = $_SESSION['voice_group_ids'] ?? [];
-
-        if (!$canManageAttendanceAll) {
-            if (empty($userVoiceGroupIds)) {
+        if (!$this->canManageAttendanceAll) {
+            if ($this->voiceGroupIds === []) {
                 return $this->manageableUserIdsCache = [];
             }
+
+            $userVoiceGroupIds = $this->voiceGroupIds;
 
             return $this->manageableUserIdsCache = User::whereHas(
                 'voiceGroups',
@@ -96,7 +126,7 @@ class AttendanceScopeService
      */
     public function canAccessEvent(Event $event): bool
     {
-        if ((bool) ($_SESSION['can_manage_attendance_all'] ?? false)) {
+        if ($this->canManageAttendanceAll) {
             return true;
         }
 
@@ -124,8 +154,7 @@ class AttendanceScopeService
             return $this->profilesCache;
         }
 
-        $userId = (int) ($_SESSION['user_id'] ?? 0);
-        $userIds = $userId > 0 ? [$userId] : [];
+        $userIds = $this->userId > 0 ? [$this->userId] : [];
 
         if ($this->canManageOthers()) {
             $userIds = array_values(array_unique(array_merge($userIds, $this->getManageableUserIds())));

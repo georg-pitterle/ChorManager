@@ -54,7 +54,7 @@ final class AttendanceEventScopeFeatureTest extends TestCase
     {
         return new RegistrationController(
             $this->createAppTwig('/registrations'),
-            new AttendanceScopeService(),
+            new AttendanceScopeService($_SESSION),
             new NullLogger(),
             new NameFormatterService()
         );
@@ -111,7 +111,7 @@ final class AttendanceEventScopeFeatureTest extends TestCase
 
         $_SESSION['user_id'] = (int) $audienceUser->id;
 
-        $this->assertTrue((new AttendanceScopeService())->canAccessEvent($event));
+        $this->assertTrue((new AttendanceScopeService($_SESSION))->canAccessEvent($event));
     }
 
     public function testVoiceGroupManagerSeesEventOfManagedMemberOnly(): void
@@ -132,13 +132,13 @@ final class AttendanceEventScopeFeatureTest extends TestCase
 
         $_SESSION = $managerSession;
         $this->assertTrue(
-            (new AttendanceScopeService())->canAccessEvent($this->createEventForUser($managedMember)),
+            (new AttendanceScopeService($_SESSION))->canAccessEvent($this->createEventForUser($managedMember)),
             'Termine betreuter Mitglieder muessen sichtbar sein.'
         );
 
         $_SESSION = $managerSession;
         $this->assertFalse(
-            (new AttendanceScopeService())->canAccessEvent($this->createEventForUser($foreignMember)),
+            (new AttendanceScopeService($_SESSION))->canAccessEvent($this->createEventForUser($foreignMember)),
             'Termine ohne betreutes Mitglied duerfen nicht sichtbar sein.'
         );
     }
@@ -150,7 +150,7 @@ final class AttendanceEventScopeFeatureTest extends TestCase
         $_SESSION['user_id'] = (int) $this->createUser('allmanager')->id;
         $_SESSION['can_manage_attendance_all'] = true;
 
-        $this->assertTrue((new AttendanceScopeService())->canAccessEvent($event));
+        $this->assertTrue((new AttendanceScopeService($_SESSION))->canAccessEvent($event));
     }
 
     public function testProxyRegistrationIsRejectedForMembersOutsideTheAudience(): void
@@ -178,7 +178,7 @@ final class AttendanceEventScopeFeatureTest extends TestCase
         $_SESSION['can_manage_attendance_all'] = false;
         $_SESSION['can_manage_own_voice_group'] = true;
 
-        $this->assertTrue((new AttendanceScopeService())->canManageOthers());
+        $this->assertTrue((new AttendanceScopeService($_SESSION))->canManageOthers());
     }
 
     public function testWithoutEitherAttendanceRightNobodyManagesOthers(): void
@@ -186,7 +186,7 @@ final class AttendanceEventScopeFeatureTest extends TestCase
         $_SESSION['can_manage_attendance_all'] = false;
         $_SESSION['can_manage_own_voice_group'] = false;
 
-        $this->assertFalse((new AttendanceScopeService())->canManageOthers());
+        $this->assertFalse((new AttendanceScopeService($_SESSION))->canManageOthers());
     }
 
     /**

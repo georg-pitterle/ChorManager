@@ -13,8 +13,17 @@ use RuntimeException;
  * Symmetrische, authentifizierte Verschlüsselung für ruhende Geheimnisse.
  *
  * Verwendet libsodiums Secretbox (XSalsa20-Poly1305). Der Geheimtext trägt die
- * Formatkennung und eine kurze Schlüssel-Kennung ("v2:<keyId>:<base64(nonce.ciphertext)>"),
+ * Formatkennung und eine kurze Schlüssel-Kennung ("v3:<keyId>:<base64(nonce.ciphertext)>"),
  * damit eine Rotation erkennt, welcher gespeicherte Wert noch am alten Schlüssel hängt.
+ *
+ * Die Kennung ist aus dem Schlüssel abgeleitet, nicht sein blanker Hash. Im
+ * Format v2 waren es die ersten 8 Hex-Zeichen von sha256(Schlüssel); damit
+ * stand in jeder gespeicherten Zeile ein ungesalzener Abdruck des Geheimnisses,
+ * an dem sich ein geratener Schlüssel ohne jeden Geheimtext bestätigen ließ.
+ * Bei 256 Bit Zufall war das kein praktischer Angriff, eine Ableitung mit
+ * festem Zweck kostet aber nichts. Geschrieben wird deshalb nur noch v3;
+ * gelesen werden v3, v2 und der Altbestand ganz ohne Präfix, jeweils mit der
+ * Kennung, die zu ihrem Format gehört.
  *
  * Die aktive Schlüssel-Umgebungsvariable ist Pflicht - fehlt oder missfällt sie,
  * wirft der Konstruktor, statt Klartext abzulegen. Die Variable für den vorherigen
@@ -27,7 +36,21 @@ use RuntimeException;
  */
 class SecretBoxCryptoService
 {
-    private const FORMAT_PREFIX = 'v2';
+    /** Das Format, in dem geschrieben wird. */
+    private const FORMAT_PREFIX = 'v3';
+
+    /** Das Format davor - nur noch zum Lesen, mit der alten Kennung. */
+    private const LEGACY_FORMAT_PREFIX = 'v2';
+
+    /** @var list<string> Formate, deren Präfix erkannt wird. */
+    private const KNOWN_FORMATS = [self::FORMAT_PREFIX, self::LEGACY_FORMAT_PREFIX];
+
+    /**
+     * Zweckbindung der Ableitung. Fest und dokumentiert, weil ein geänderter
+     * Text jede bestehende Kennung ungültig machen würde - und damit jeden
+     * gespeicherten Wert als "neu zu verpacken" erscheinen ließe.
+     */
+    private const KEY_ID_PURPOSE = 'chormanager.secretbox.key-id';
 
     private string $keyEnv;
     private ?string $previousKeyEnv;
@@ -55,11 +78,11 @@ class SecretBoxCryptoService
     }
 
     /**
-     * Kurze, nicht umkehrbare Kennung des aktiven Schlüssels.
+     * Kurze, nicht umkehrbare Kennung des aktiven Schlüssels im aktuellen Format.
      */
     public function keyId(): string
     {
-        return self::deriveKeyId($this->key);
+        return self::deriveKeyId($this->key, self::FORMAT_PREFIX);
     }
 
     public function hasPreviousKey(): bool
@@ -80,14 +103,19 @@ class SecretBoxCryptoService
     }
 
     /**
-     * Wahr, wenn der gespeicherte Wert nicht (nachweislich) am aktiven Schlüssel hängt.
+     * Wahr, wenn der gespeicherte Wert nicht (nachweislich) im aktuellen Format
+     * am aktiven Schlüssel hängt.
      *
-     * Altwerte ohne Schlüssel-Kennung melden immer wahr, damit ein Rotationslauf
-     * sie in das versionierte Format überführt.
+     * Altwerte ohne Schlüssel-Kennung melden immer wahr, und ein v2-Wert
+     * ebenfalls - auch wenn er am selben Schlüssel hängt. Das ist Absicht: Der
+     * Rotationslauf ist die Stelle, an der der Altbestand in das neue Format
+     * wandert, und er findet ihn nur, wenn er hier gemeldet wird.
      */
     public function needsRewrap(string $encoded): bool
     {
-        return $this->splitEncoded($encoded)[0] !== $this->keyId();
+        [$format, $keyId] = $this->splitEncoded($encoded);
+
+        return $format !== self::FORMAT_PREFIX || $keyId !== $this->keyId();
     }
 
     /**
@@ -99,9 +127,9 @@ class SecretBoxCryptoService
      */
     public function decrypt(string $encoded): string
     {
-        [$keyId, $payload] = $this->splitEncoded($encoded);
+        [$format, $keyId, $payload] = $this->splitEncoded($encoded);
 
-        foreach ($this->candidateKeys($keyId) as $candidate) {
+        foreach ($this->candidateKeys($format, $keyId) as $candidate) {
             $plaintext = $this->open($payload, $candidate);
             if ($plaintext !== null) {
                 return $plaintext;
@@ -119,20 +147,26 @@ class SecretBoxCryptoService
     }
 
     /**
+     * Die Schlüssel, mit denen dieser Wert aufgehen kann.
+     *
+     * Verglichen wird die Kennung immer in dem Format, in dem der Wert
+     * geschrieben wurde - sonst fiele der ganze v2-Bestand hier heraus und
+     * ließe sich nicht mehr öffnen.
+     *
      * @return list<string>
      */
-    private function candidateKeys(?string $keyId): array
+    private function candidateKeys(?string $format, ?string $keyId): array
     {
-        if ($keyId === null) {
+        if ($format === null || $keyId === null) {
             // Altbestand ohne Schlüssel-Kennung: erst der aktive, dann der vorherige.
             return $this->previousKey === null ? [$this->key] : [$this->key, $this->previousKey];
         }
 
-        if ($keyId === $this->keyId()) {
+        if ($keyId === self::deriveKeyId($this->key, $format)) {
             return [$this->key];
         }
 
-        if ($this->previousKey !== null && $keyId === self::deriveKeyId($this->previousKey)) {
+        if ($this->previousKey !== null && $keyId === self::deriveKeyId($this->previousKey, $format)) {
             return [$this->previousKey];
         }
 
@@ -155,21 +189,34 @@ class SecretBoxCryptoService
     }
 
     /**
-     * @return array{0:?string,1:string} Schlüssel-Kennung (null bei Altwerten) und Nutzlast
+     * @return array{0:?string,1:?string,2:string} Format und Schlüssel-Kennung
+     *     (beide null bei Altwerten ohne Präfix) und Nutzlast
      */
     private function splitEncoded(string $encoded): array
     {
         $parts = explode(':', $encoded, 3);
-        if (count($parts) === 3 && $parts[0] === self::FORMAT_PREFIX) {
-            return [$parts[1], $parts[2]];
+        if (count($parts) === 3 && in_array($parts[0], self::KNOWN_FORMATS, true)) {
+            return [$parts[0], $parts[1], $parts[2]];
         }
 
-        return [null, $encoded];
+        return [null, null, $encoded];
     }
 
-    private static function deriveKeyId(string $rawKey): string
+    /**
+     * Die Kennung eines Schlüssels in einem bestimmten Format.
+     *
+     * v3 leitet über HMAC mit fester Zweckbindung ab, v2 war der blanke
+     * sha256 des Schlüssels. Der alte Weg bleibt hier stehen, weil die
+     * gespeicherten v2-Werte ihn tragen und sonst keinem Schlüssel mehr
+     * zuzuordnen wären.
+     */
+    private static function deriveKeyId(string $rawKey, string $format): string
     {
-        return substr(hash('sha256', $rawKey), 0, 8);
+        if ($format === self::LEGACY_FORMAT_PREFIX) {
+            return substr(hash('sha256', $rawKey), 0, 8);
+        }
+
+        return substr(hash_hmac('sha256', self::KEY_ID_PURPOSE, $rawKey), 0, 8);
     }
 
     private function logDecryptFailure(?string $keyId): void

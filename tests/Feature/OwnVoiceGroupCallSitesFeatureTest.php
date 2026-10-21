@@ -90,7 +90,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $_SESSION['role_level'] = 0;
         $_SESSION['can_manage_own_voice_group'] = true;
 
-        $this->assertTrue((new AttendanceScopeService())->canManageOthers());
+        $this->assertTrue((new AttendanceScopeService($_SESSION))->canManageOthers());
     }
 
     public function testCanManageOthersFalseWithoutFlagOrAdmin(): void
@@ -99,7 +99,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $_SESSION['role_level'] = 30;
         $_SESSION['can_manage_own_voice_group'] = false;
 
-        $this->assertFalse((new AttendanceScopeService())->canManageOthers());
+        $this->assertFalse((new AttendanceScopeService($_SESSION))->canManageOthers());
     }
 
     public function testAdminStillManagesOthers(): void
@@ -107,7 +107,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $_SESSION['can_manage_attendance_all'] = true;
         $_SESSION['can_manage_own_voice_group'] = false;
 
-        $this->assertTrue((new AttendanceScopeService())->canManageOthers());
+        $this->assertTrue((new AttendanceScopeService($_SESSION))->canManageOthers());
     }
 
     /**

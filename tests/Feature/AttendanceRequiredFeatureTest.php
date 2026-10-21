@@ -107,7 +107,7 @@ class AttendanceRequiredFeatureTest extends TestCase
 
         $controller = new AttendanceController(
             $this->createTwig(),
-            new AttendanceScopeService(),
+            new AttendanceScopeService($_SESSION),
             new NullLogger(),
             new \App\Services\NameFormatterService()
         );
@@ -152,7 +152,7 @@ class AttendanceRequiredFeatureTest extends TestCase
 
         $controller = new AttendanceController(
             $this->createTwig(),
-            new AttendanceScopeService(),
+            new AttendanceScopeService($_SESSION),
             new NullLogger(),
             new \App\Services\NameFormatterService()
         );
@@ -225,7 +225,7 @@ class AttendanceRequiredFeatureTest extends TestCase
 
         $controller = new AttendanceController(
             $this->createTwig(),
-            new AttendanceScopeService(),
+            new AttendanceScopeService($_SESSION),
             new NullLogger(),
             new \App\Services\NameFormatterService()
         );
@@ -257,7 +257,7 @@ class AttendanceRequiredFeatureTest extends TestCase
 
         $controller = new AttendanceController(
             $this->createTwig(),
-            new AttendanceScopeService(),
+            new AttendanceScopeService($_SESSION),
             new NullLogger(),
             new \App\Services\NameFormatterService()
         );
@@ -286,7 +286,7 @@ class AttendanceRequiredFeatureTest extends TestCase
 
         $controller = new AttendanceController(
             $this->createTwig(),
-            new AttendanceScopeService(),
+            new AttendanceScopeService($_SESSION),
             new NullLogger(),
             new \App\Services\NameFormatterService()
         );

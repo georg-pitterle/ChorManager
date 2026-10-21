@@ -223,7 +223,7 @@ class AttendanceRegistrationHintFeatureTest extends TestCase
 
         $controller = new AttendanceController(
             $this->createTwig($registrationFeatureEnabled),
-            new AttendanceScopeService(),
+            new AttendanceScopeService($_SESSION),
             new NullLogger(),
             new \App\Services\NameFormatterService()
         );

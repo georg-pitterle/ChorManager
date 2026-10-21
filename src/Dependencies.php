@@ -142,6 +142,7 @@ use App\Controllers\SponsorPackageController;
 use App\Controllers\SponsorshipController;
 use App\Policies\SponsoringPolicy;
 use App\Services\AttachmentAccessRegistry;
+use App\Services\AttendanceScopeService;
 use App\Services\AttachmentResponseFactory;
 use App\Services\EntityAttachmentService;
 use App\Services\EntityCleanupService;
@@ -804,6 +805,13 @@ return function (ContainerBuilder $containerBuilder) {
 
         NewsletterPolicy::class => static fn (): NewsletterPolicy => new NewsletterPolicy($_SESSION),
         UserEditPolicy::class => static fn (): UserEditPolicy => new UserEditPolicy($_SESSION),
+        // Gleiche Begründung wie bei den Policies darüber: Der Dienst entscheidet
+        // über Rechte und bekommt die Sitzung deshalb von hier. Ohne diese Zeile
+        // baute PHP-DI ihn nicht mehr - der Konstruktor verlangt ein Array, und
+        // genau das soll er auch, damit niemand ihn versehentlich ohne Sitzung
+        // bekommt.
+        AttendanceScopeService::class => static fn (): AttendanceScopeService
+            => new AttendanceScopeService($_SESSION),
         AttachmentResponseFactory::class => \DI\autowire(),
         // Die Registry braucht das Modul-Array aus den Settings; PHP-DI kann
         // einen einfachen Array-Parameter nicht selbst auflösen.

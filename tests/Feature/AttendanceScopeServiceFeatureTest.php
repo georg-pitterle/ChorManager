@@ -62,7 +62,7 @@ class AttendanceScopeServiceFeatureTest extends TestCase
 
         $_SESSION['can_manage_attendance_all'] = true;
 
-        $service = new AttendanceScopeService();
+        $service = new AttendanceScopeService($_SESSION);
         $ids = $service->getManageableUserIds();
 
         $this->assertSame(User::where('is_active', 1)->count(), count($ids));
@@ -88,7 +88,7 @@ class AttendanceScopeServiceFeatureTest extends TestCase
         $_SESSION['can_manage_own_voice_group'] = true;
         $_SESSION['voice_group_ids'] = $groupIds;
 
-        $service = new AttendanceScopeService();
+        $service = new AttendanceScopeService($_SESSION);
         $ids = $service->getManageableUserIds();
 
         $expected = User::whereHas('voiceGroups', function ($q) use ($groupIds) {
@@ -128,7 +128,7 @@ class AttendanceScopeServiceFeatureTest extends TestCase
         $_SESSION['role_level'] = 10;
         $_SESSION['voice_group_ids'] = [(int) $ownGroup->id];
 
-        $service = new AttendanceScopeService();
+        $service = new AttendanceScopeService($_SESSION);
 
         $this->assertFalse($service->canManageOthers());
         $this->assertSame(
@@ -144,7 +144,7 @@ class AttendanceScopeServiceFeatureTest extends TestCase
         $_SESSION['role_level'] = 0;
         $_SESSION['voice_group_ids'] = [];
 
-        $service = new AttendanceScopeService();
+        $service = new AttendanceScopeService($_SESSION);
 
         $this->assertSame([], $service->getManageableUserIds());
         $this->assertFalse($service->canManageOthers());

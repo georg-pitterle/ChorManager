@@ -134,7 +134,7 @@ final class OidcIdTokenSignerFeatureTest extends TestCase
         $stored = (string) OidcSigningKey::query()->where('kid', $key->kid)->value('private_key_encrypted');
 
         $this->assertStringNotContainsString('PRIVATE KEY', $stored);
-        $this->assertStringStartsWith('v2:', $stored);
+        $this->assertStringStartsWith('v3:', $stored);
     }
 
     private function keyService(): OidcSigningKeyService

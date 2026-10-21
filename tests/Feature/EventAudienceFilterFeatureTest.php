@@ -80,10 +80,16 @@ class EventAudienceFilterFeatureTest extends TestCase
         ]);
 
         $managed = [(int) $sopranoWithoutProject->id, (int) $altoInProject->id];
-        $scope = new class ($managed) extends AttendanceScopeService {
-            /** @param list<int> $managed */
-            public function __construct(private readonly array $managed)
+        $session = ['user_id' => (int) $manager->id];
+        $_SESSION = $session;
+        $scope = new class ($session, $managed) extends AttendanceScopeService {
+            /**
+             * @param array<string, mixed> $session
+             * @param list<int> $managed
+             */
+            public function __construct(array $session, private readonly array $managed)
             {
+                parent::__construct($session);
             }
 
             public function canManageOthers(): bool
@@ -96,7 +102,6 @@ class EventAudienceFilterFeatureTest extends TestCase
                 return $this->managed;
             }
         };
-        $_SESSION = ['user_id' => (int) $manager->id];
 
         $this->assertFalse($scope->canAccessEvent($event));
     }

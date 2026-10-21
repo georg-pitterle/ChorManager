@@ -124,7 +124,7 @@ class ForbiddenResponseRendersReasonFeatureTest extends TestCase
 
         $controller = new RegistrationController(
             $this->createAppTwig('/registrations'),
-            new AttendanceScopeService(),
+            new AttendanceScopeService($_SESSION),
             new NullLogger(),
             new NameFormatterService()
         );
