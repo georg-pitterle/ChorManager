@@ -78,9 +78,13 @@ class BankStatementImportService
         }
 
         if ($sizeBytes > self::MAX_FILE_SIZE) {
+            // Die Obergrenze aus der Konstanten, nicht als Zahl im Satz: Eine
+            // angehobene Grenze hinterließe sonst eine Meldung, die das alte
+            // Maß nennt - und die liest der Kassier, nicht den Quelltext.
             return sprintf(
-                'Die Datei ist zu groß: %s MB. Maximal erlaubt: 2 MB.',
-                round($sizeBytes / (1024 * 1024), 1)
+                'Die Datei ist zu groß: %s MB. Maximal erlaubt: %s MB.',
+                round($sizeBytes / (1024 * 1024), 1),
+                round(self::MAX_FILE_SIZE / (1024 * 1024), 1)
             );
         }
 

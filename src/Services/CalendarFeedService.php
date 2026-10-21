@@ -297,7 +297,7 @@ class CalendarFeedService
             'DTEND;TZID=' . $timezone . ':' . $event->ends_at->format('Ymd\THis'),
             'SUMMARY:' . $this->escapeIcsText((string) $event->title),
             'DESCRIPTION:' . $this->escapeIcsText($this->buildEventDescription($event, $baseUrl)),
-            'URL:' . $this->escapeIcsText($baseUrl . '/events/' . $event->id),
+            'URL:' . self::icsUri($baseUrl . '/events/' . $event->id),
         ];
 
         if (!empty($event->location)) {
@@ -330,7 +330,7 @@ class CalendarFeedService
                 'DUE;VALUE=DATE:' . $due->format('Ymd'),
                 'SUMMARY:' . $this->escapeIcsText((string) $task->name),
                 'DESCRIPTION:' . $this->escapeIcsText($description),
-                'URL:' . $this->escapeIcsText($url),
+                'URL:' . self::icsUri($url),
                 'STATUS:' . ((string) $task->status === 'In Bearbeitung' ? 'IN-PROCESS' : 'NEEDS-ACTION'),
                 'PRIORITY:' . (self::TODO_PRIORITIES[(string) $task->priority] ?? 5),
                 'END:VTODO',
@@ -347,7 +347,7 @@ class CalendarFeedService
             'DTEND;VALUE=DATE:' . $due->copy()->addDay()->format('Ymd'),
             'SUMMARY:' . $this->escapeIcsText('Aufgabe: ' . (string) $task->name),
             'DESCRIPTION:' . $this->escapeIcsText($description),
-            'URL:' . $this->escapeIcsText($url),
+            'URL:' . self::icsUri($url),
             'END:VEVENT',
         ];
     }
@@ -391,6 +391,21 @@ class CalendarFeedService
     private function buildAudienceLabel(Event $event): string
     {
         return $this->describer->summarizeSets($event->audienceConditionSets());
+    }
+
+    /**
+     * Eine Adresse als URI-Wert nach RFC 5545 §3.8.4.6.
+     *
+     * Ausgezeichnet wird hier nichts: `URL` trägt einen URI, und für den sieht
+     * §3.3.13 keine Fluchtzeichen vor. Komma und Semikolon kamen über
+     * escapeIcsText() mit einem Backslash davor in die Zeile - in einem Text
+     * richtig, in einer Adresse eine kaputte Verlinkung. Entfernt werden nur
+     * Steuerzeichen: Ein Umbruch darin beendete die Inhaltszeile mitten im
+     * Wert, und das Kalenderprogramm läse den Rest als eigene Eigenschaft.
+     */
+    private static function icsUri(string $uri): string
+    {
+        return (string) preg_replace('/[\x00-\x1F\x7F]/', '', $uri);
     }
 
     /**

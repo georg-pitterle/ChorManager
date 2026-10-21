@@ -42,6 +42,15 @@ final class CalendarFeedInactiveUserFeatureTest extends TestCase
         Bootstrap::setupTestDatabase();
         Capsule::connection()->beginTransaction();
 
+        // Der Feed authentifiziert über den Abo-Token, nicht über eine Sitzung -
+        // eine leere ist deshalb der ehrliche Ausgangszustand. Gesetzt wird sie
+        // trotzdem hier: exportTasks() reicht $_SESSION an TaskPolicy weiter, und
+        // ohne diese Zeile hing der Lauf daran, dass eine andere Testklasse im
+        // selben Prozess vorher etwas hineingeschrieben hatte. Parallel entschied
+        // das die Verteilung auf die vier Prozesse, und der Test war mal grün,
+        // mal ein TypeError.
+        $_SESSION = [];
+
         $this->user = User::create([
             'email' => 'archiviert-' . bin2hex(random_bytes(6)) . '@example.test',
             'password' => PasswordHasher::hash('irrelevant'),
@@ -53,6 +62,8 @@ final class CalendarFeedInactiveUserFeatureTest extends TestCase
 
     protected function tearDown(): void
     {
+        $_SESSION = [];
+
         $connection = Capsule::connection();
         if ($connection->transactionLevel() > 0) {
             $connection->rollBack();

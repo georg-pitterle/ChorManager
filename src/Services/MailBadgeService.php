@@ -146,6 +146,21 @@ class MailBadgeService
                 $this->sendCommand($socket, "A0 STARTTLS\r\n", 'starttls_failed');
                 $this->expectTaggedOk($socket, 'A0', 'starttls_failed');
 
+                // Nach dem `A0 OK` schickt ein regelkonformer Server nichts mehr, bis
+                // die Verschlüsselung steht (RFC 3501 §6.2.1). Steht trotzdem noch
+                // etwas im Puffer, hat es jemand in der noch offenen Leitung
+                // nachgeschoben: Nach dem Handschlag läse sich dieser Vorrat wie eine
+                // Antwort des echten Servers, und ein eingeschobenes `A1 OK` machte aus
+                // einer nie bestätigten Anmeldung eine bestätigte. Der klassische
+                // STARTTLS-Einschub (CVE-2011-0411); hier endet er vor dem Handschlag.
+                $pending = (int) (stream_get_meta_data($socket)['unread_bytes'] ?? 0);
+                if ($pending > 0) {
+                    throw new MailBadgeRefreshException(
+                        'starttls_injection',
+                        ['detail' => 'pending_bytes=' . $pending]
+                    );
+                }
+
                 error_clear_last();
                 $cryptoEnabled = @stream_socket_enable_crypto(
                     $socket,

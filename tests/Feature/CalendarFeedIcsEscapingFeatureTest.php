@@ -155,6 +155,24 @@ final class CalendarFeedIcsEscapingFeatureTest extends TestCase
         return str_replace("\r\n ", '', $ics);
     }
 
+    /**
+     * `URL` trägt nach RFC 5545 §3.8.4.6 einen URI, keinen Text - und ein URI
+     * wird nicht ausgezeichnet (§3.3.13). Komma und Semikolon gehören in einer
+     * Adresse deshalb unverändert in die Zeile; mit dem Backslash davor führt
+     * der Link im Kalenderprogramm ins Leere. Im Beschreibungstext daneben
+     * bleibt dieselbe Adresse Text und wird weiterhin ausgezeichnet.
+     */
+    public function testTheUrlPropertyCarriesTheAddressUnescaped(): void
+    {
+        $baseUrl = 'https://chor.example/a,b;c';
+        $event = $this->createEvent('Probe', 'Pfarrsaal');
+
+        $unfolded = $this->unfold($this->service->buildEventCalendar($this->user, $baseUrl));
+
+        $this->assertStringContainsString('URL:' . $baseUrl . '/events/' . $event->id, $unfolded);
+        $this->assertStringContainsString('Details: https://chor.example/a\\,b\\;c/events/', $unfolded);
+    }
+
     private function createEvent(string $title, string $location): Event
     {
         $event = Event::create([

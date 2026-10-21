@@ -274,6 +274,41 @@ class MailBadgeServiceTest extends TestCase
     }
 
     /**
+     * Ein Angreifer in der Leitung kann Zeilen hinter das `A0 OK` schreiben, bevor
+     * die Verschlüsselung steht. Sie liegen dann schon im Puffer und läsen sich nach
+     * dem Handschlag wie Antworten des echten Servers - der klassische
+     * STARTTLS-Einschub (CVE-2011-0411). Entdeckt wird er daran, dass vor dem
+     * Handschlag noch Ungelesenes im Puffer steht; ein regelkonformer Server
+     * schickt nach dem `A0 OK` nichts mehr.
+     */
+    public function testRefreshRejectsLinesInjectedBeforeTheTlsHandshake(): void
+    {
+        $record = $this->failureAgainstServer('tls', [
+            "* OK IMAP ready\r\n",
+            "A0 OK Begin TLS negotiation now\r\n",
+            "A1 OK logged in\r\n",
+            "* STATUS INBOX (UNSEEN 0 UIDNEXT 1)\r\n",
+            "A2 OK STATUS completed\r\n",
+        ]);
+
+        $this->assertSame('starttls_injection', $record['reason']);
+    }
+
+    /**
+     * Die Gegenprobe: Ein Server, der sich an die Regel hält, darf nicht an der
+     * Einschub-Prüfung scheitern - er kommt bis zum Handschlag.
+     */
+    public function testRefreshReachesTheHandshakeWhenNothingWasInjected(): void
+    {
+        $record = $this->failureAgainstServer('tls', [
+            "* OK IMAP ready\r\n",
+            "A0 OK Begin TLS negotiation now\r\n",
+        ]);
+
+        $this->assertSame('tls_handshake_failed', $record['reason']);
+    }
+
+    /**
      * Die Antwort des Servers auf LOGIN nennt den Grund - und das Passwort darf
      * dabei an keiner Stelle des Protokolleintrags auftauchen.
      */
