@@ -38,10 +38,18 @@ class FinanceAccount extends Model
     /**
      * Payment method mirrored onto the booking so report, PDF and table sorting
      * keep working on the denormalized column.
+     *
+     * Rückgabe sind `Finance::PAYMENT_METHOD_*`, nicht die eigenen `TYPE_*`:
+     * Hier wird von der Art des Kontos auf die Zahlungsart der Buchung
+     * übersetzt. Dass `cash` in beiden Spalten gleich geschrieben wird, machte
+     * die Zeile vorher zweideutig - sie gab unbenannte Zeichenketten zurück,
+     * und ob `'cash'` den Kontotyp oder die Zahlungsart meinte, stand nirgends.
      */
     public function paymentMethod(): string
     {
-        return $this->type === self::TYPE_CASH ? 'cash' : 'bank_transfer';
+        return $this->type === self::TYPE_CASH
+            ? Finance::PAYMENT_METHOD_CASH
+            : Finance::PAYMENT_METHOD_BANK_TRANSFER;
     }
 
     /**

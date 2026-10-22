@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\AppSetting;
+use App\Models\Finance;
 use App\Services\Pdf\CarryTotals;
 use App\Services\Pdf\FinanceReportPage;
 use App\Services\Pdf\FinanceReportPaginator;
@@ -81,7 +82,7 @@ final class FinanceReportPdfService
     {
         $rows = [];
         foreach ($reportData['finances'] as $f) {
-            $isIncome = $f->type === 'income';
+            $isIncome = $f->type === Finance::TYPE_INCOME;
             $rows[] = new FinanceReportRow(
                 // Kassabuch nach Zufluss-Abfluss: das Zahldatum ist maßgeblich.
                 ($f->payment_date ?? $f->invoice_date)->format('d.m.Y'),

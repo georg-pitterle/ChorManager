@@ -14,6 +14,47 @@ class Finance extends Model
     /** Der Wert, unter dem Anhänge an dieser Buchung hängen. */
     public const ENTITY_TYPE = 'finance';
 
+    /**
+     * Richtung einer Buchung - Einnahme oder Ausgabe. Die Werte spiegeln das
+     * ENUM der Spalte `finances.type`.
+     *
+     * Wie bei `MailQueue::STATUS_*` und `NewsletterRecipient::STATUS_*` auch:
+     * Vorher standen die beiden Werte nur als Zeichenketten da - im
+     * FinanceController (Bericht und Filter), im FinanceAccountService und im
+     * Seed. Ein Tippfehler an einer davon wäre still geblieben, denn das ENUM
+     * weist einen unbekannten Wert nicht in jedem Modus ab, und eine
+     * `where('type', 'incom')` hätte schlicht nichts summiert.
+     */
+    public const TYPE_INCOME = 'income';
+    public const TYPE_EXPENSE = 'expense';
+
+    /** @var list<string> */
+    public const TYPES = [
+        self::TYPE_INCOME,
+        self::TYPE_EXPENSE,
+    ];
+
+    /**
+     * Wie bezahlt wurde. Die Werte spiegeln das ENUM der Spalte
+     * `finances.payment_method`.
+     *
+     * Nicht zu verwechseln mit `FinanceAccount::TYPE_CASH`/`TYPE_BANK`: Das ist
+     * die Art des Kontos, nicht die Zahlungsart der Buchung. Beide Spalten
+     * schreiben `cash` gleich, meinen aber Verschiedenes, und die Übersetzung
+     * zwischen ihnen stand in `FinanceAccount::paymentMethod()` und
+     * `FinanceAccountService::defaultAccountForPaymentMethod()` mit unbenannten
+     * Zeichenketten da - an beiden Stellen war nicht zu sehen, welche der zwei
+     * Bedeutungen gerade gemeint ist.
+     */
+    public const PAYMENT_METHOD_CASH = 'cash';
+    public const PAYMENT_METHOD_BANK_TRANSFER = 'bank_transfer';
+
+    /** @var list<string> */
+    public const PAYMENT_METHODS = [
+        self::PAYMENT_METHOD_CASH,
+        self::PAYMENT_METHOD_BANK_TRANSFER,
+    ];
+
     protected $table = 'finances';
     public $timestamps = false;
 

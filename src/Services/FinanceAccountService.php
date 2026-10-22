@@ -91,8 +91,8 @@ class FinanceAccountService
             $notYetOpen = $accountOpening !== '' && $accountOpening > $periodEnd;
 
             $opening = $notYetOpen ? 0.0 : $this->balanceBefore($account, $fiscalStart);
-            $income = $this->periodSum($account, 'income', $fiscalStart, $fiscalEnd);
-            $expense = $this->periodSum($account, 'expense', $fiscalStart, $fiscalEnd);
+            $income = $this->periodSum($account, Finance::TYPE_INCOME, $fiscalStart, $fiscalEnd);
+            $expense = $this->periodSum($account, Finance::TYPE_EXPENSE, $fiscalStart, $fiscalEnd);
             $closing = $notYetOpen ? 0.0 : $this->balanceAt($account, $fiscalEnd);
             $beforeOpening = $this->bookingsBeforeOpening($account, $fiscalStart, $fiscalEnd);
 
@@ -182,7 +182,12 @@ class FinanceAccountService
      */
     public function defaultAccountForPaymentMethod(string $paymentMethod): ?FinanceAccount
     {
-        $type = $paymentMethod === 'cash' ? FinanceAccount::TYPE_CASH : FinanceAccount::TYPE_BANK;
+        // Links die Zahlungsart der Buchung, rechts die Art des Kontos - zwei
+        // Spalten, die `cash` gleich schreiben und Verschiedenes meinen. Mit den
+        // Konstanten steht jetzt an jeder Seite, welche von beiden gemeint ist.
+        $type = $paymentMethod === Finance::PAYMENT_METHOD_CASH
+            ? FinanceAccount::TYPE_CASH
+            : FinanceAccount::TYPE_BANK;
 
         return FinanceAccount::where('type', $type)
             ->where('is_active', true)
@@ -194,11 +199,11 @@ class FinanceAccountService
     private function movementSum(int $accountId, string $from, string $to): float
     {
         $income = (float) Finance::where('finance_account_id', $accountId)
-            ->where('type', 'income')
+            ->where('type', Finance::TYPE_INCOME)
             ->whereBetween('payment_date', [$from, $to])
             ->sum('amount');
         $expense = (float) Finance::where('finance_account_id', $accountId)
-            ->where('type', 'expense')
+            ->where('type', Finance::TYPE_EXPENSE)
             ->whereBetween('payment_date', [$from, $to])
             ->sum('amount');
 

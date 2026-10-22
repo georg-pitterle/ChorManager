@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\Finance;
 use App\Util\AmountNormalizer;
 use DateTimeImmutable;
 use Psr\Log\LoggerInterface;
@@ -306,8 +307,8 @@ class BankStatementImportService
             $counterparty = $senderName;
             $counterpartyIban = $senderIban;
         } else {
-            $counterparty = $type === 'expense' ? $receiverName : $senderName;
-            $counterpartyIban = $type === 'expense' ? $receiverIban : $senderIban;
+            $counterparty = $type === Finance::TYPE_EXPENSE ? $receiverName : $senderName;
+            $counterpartyIban = $type === Finance::TYPE_EXPENSE ? $receiverIban : $senderIban;
         }
 
         $row['invoice_date'] = $bookingDate;

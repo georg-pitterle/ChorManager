@@ -1878,7 +1878,7 @@ class DevSeedService
             // haben etwas mehr Ein- als Ausgänge, damit die Bestände über die
             // Jahre nicht ins Minus laufen.
             $slot = $i % 10;
-            $paymentMethod = $slot < 7 ? 'bank_transfer' : 'cash';
+            $paymentMethod = $slot < 7 ? Finance::PAYMENT_METHOD_BANK_TRANSFER : Finance::PAYMENT_METHOD_CASH;
             $isIncome = in_array($slot, [0, 2, 4, 7, 8], true);
 
             $invoiceDate = $invoiceDates[$i]['date'];
@@ -1908,7 +1908,7 @@ class DevSeedService
             // Ein Teil der Überweisungen stammt aus einem Kontoauszug-Import und
             // trägt daher einen Import-Hash. Damit ist die Dublettenerkennung in
             // Dev sofort sichtbar, wenn derselbe Auszug erneut eingelesen wird.
-            $isImported = $paymentMethod === 'bank_transfer' && $i % 12 === 0;
+            $isImported = $paymentMethod === Finance::PAYMENT_METHOD_BANK_TRANSFER && $i % 12 === 0;
 
             $finance = Finance::create([
                 'running_number' => $runningNumber,
@@ -2044,7 +2044,7 @@ class DevSeedService
                     ),
                     'group_name' => $booking->group_name,
                     'finance_group_id' => $booking->finance_group_id,
-                    'type' => $booking->type === 'income' ? 'expense' : 'income',
+                    'type' => $booking->type === Finance::TYPE_INCOME ? Finance::TYPE_EXPENSE : Finance::TYPE_INCOME,
                     'amount' => $booking->amount,
                     'payment_method' => $booking->payment_method,
                     'finance_account_id' => $booking->finance_account_id,

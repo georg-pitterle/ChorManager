@@ -30,16 +30,38 @@ use Tests\Unit\Bootstrap;
 final class ModelSchemaConsistencyTest extends TestCase
 {
     /**
-     * Statuslisten in den Modellen und die Spalte, die jede beschreibt. Nur
+     * Wertelisten in den Modellen und die ENUM-Spalte, die jede spiegelt. Nur
      * Namen, die Vollständigkeit behaupten - eine bewusste Teilmenge heißt
      * anders (siehe `Attendance::RECORDED_STATUSES`).
      *
+     * Hieß bis hierher STATUS_LIST_COLUMNS und deckte nur die drei
+     * Statusspalten ab. Die Frage ist aber bei jeder ENUM-Spalte dieselbe, und
+     * drei Listen, die im Kommentar ausdrücklich ihr ENUM zu spiegeln
+     * behaupten, standen damit ungeprüft da: `AudienceFilterCondition::CATEGORIES`,
+     * `User::CALENDAR_TASK_FEEDS` und `User::CALENDAR_TASK_FORMATS`.
+     *
+     * Bei den Kategorien wäre das Auseinanderlaufen besonders still verlaufen:
+     * `AudienceFilter::conditionSet()` läuft über `CATEGORIES` und lässt jede
+     * Bedingung mit einer dort nicht genannten Kategorie aus der Zielgruppe
+     * fallen - ohne Fehler, ohne Hinweis. Eine per Migration ergänzte Kategorie
+     * hätte Newsletter und Termine an einen anderen Kreis geschickt als
+     * eingestellt.
+     *
+     * `MailQueue::SUPPORTED_MAIL_TYPES` fehlt hier bewusst: Es hat mit
+     * MailQueueMailTypesTest einen eigenen Wächter, der zusätzlich die Labels
+     * prüft.
+     *
      * @var array<string, string>
      */
-    private const STATUS_LIST_COLUMNS = [
+    private const ENUM_MIRRORING_LISTS = [
         'STATUSES' => 'status',
         'SUPPORTED_STATUSES' => 'status',
         'DELIVERY_STATUSES' => 'delivery_status',
+        'CATEGORIES' => 'category',
+        'CALENDAR_TASK_FEEDS' => 'calendar_task_feed',
+        'CALENDAR_TASK_FORMATS' => 'calendar_task_format',
+        'TYPES' => 'type',
+        'PAYMENT_METHODS' => 'payment_method',
     ];
 
     /** @var array<string, list<string>>|null */
@@ -155,7 +177,7 @@ final class ModelSchemaConsistencyTest extends TestCase
     }
 
     /**
-     * Eine Statusliste im Modell muss genau die Werte nennen, die das ENUM erlaubt.
+     * Eine Werteliste im Modell muss genau die Werte nennen, die das ENUM erlaubt.
      *
      * Ein ENUM wird per Migration erweitert, die Liste im Modell bleibt stehen:
      * Der neue Wert wird dann geschrieben, aber von keiner Prüfmethode erkannt.
@@ -165,20 +187,20 @@ final class ModelSchemaConsistencyTest extends TestCase
      * gleichermaßen hindurch.
      *
      * Geprüft werden nur Listen, deren Name Vollständigkeit behauptet, und
-     * jede gegen die Spalte, die sie beschreibt. `Attendance::RECORDED_STATUSES`
+     * jede gegen die Spalte, die sie spiegelt. `Attendance::RECORDED_STATUSES`
      * ist bewusst eine Teilmenge - `unknown` zählt dort nicht als Erfassung -
      * und heißt deshalb anders.
      *
      * @param class-string<Model> $class
      */
     #[\PHPUnit\Framework\Attributes\DataProvider('modelProvider')]
-    public function testStatuslistenDeckenDasEnumAb(string $class): void
+    public function testWertelistenDeckenDasEnumAb(string $class): void
     {
         $model = new $class();
         $reflection = new ReflectionClass($class);
         $checked = 0;
 
-        foreach (self::STATUS_LIST_COLUMNS as $name => $column) {
+        foreach (self::ENUM_MIRRORING_LISTS as $name => $column) {
             if (!$reflection->hasConstant($name)) {
                 continue;
             }
@@ -214,7 +236,7 @@ final class ModelSchemaConsistencyTest extends TestCase
 
     /**
      * Schützt davor, dass der Test oben leer durchläuft, weil keine einzige
-     * Statusliste mehr gefunden wird.
+     * Werteliste mehr gefunden wird.
      */
     public function testEsGibtUeberhauptStatuslistenZuPruefen(): void
     {
@@ -223,12 +245,12 @@ final class ModelSchemaConsistencyTest extends TestCase
         foreach (self::modelProvider() as [$class]) {
             $reflection = new ReflectionClass($class);
 
-            foreach (array_keys(self::STATUS_LIST_COLUMNS) as $name) {
+            foreach (array_keys(self::ENUM_MIRRORING_LISTS) as $name) {
                 $found += $reflection->hasConstant($name) ? 1 : 0;
             }
         }
 
-        self::assertGreaterThanOrEqual(3, $found, 'Es wurde kaum eine Statusliste erkannt.');
+        self::assertGreaterThanOrEqual(8, $found, 'Es wurde kaum eine Werteliste erkannt.');
     }
 
     /**

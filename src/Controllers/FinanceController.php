@@ -316,7 +316,7 @@ class FinanceController
         }
 
         $type = InputValidator::asString($data['type'] ?? null);
-        if (!in_array($type, ['income', 'expense'], true)) {
+        if (!in_array($type, Finance::TYPES, true)) {
             return $this->rejectBooking(
                 $request,
                 $response,
@@ -499,7 +499,7 @@ class FinanceController
             }
         }
 
-        $paymentMethod = InputValidator::asString($data['payment_method'] ?? 'bank_transfer');
+        $paymentMethod = InputValidator::asString($data['payment_method'] ?? Finance::PAYMENT_METHOD_BANK_TRANSFER);
 
         return $this->accountService->defaultAccountForPaymentMethod($paymentMethod);
     }
@@ -811,7 +811,7 @@ class FinanceController
                     ),
                     'group_name' => $original->group_name,
                     'finance_group_id' => $original->finance_group_id,
-                    'type' => $original->type === 'income' ? 'expense' : 'income',
+                    'type' => $original->type === Finance::TYPE_INCOME ? Finance::TYPE_EXPENSE : Finance::TYPE_INCOME,
                     'amount' => $original->amount,
                     'payment_method' => $original->payment_method,
                     'finance_account_id' => $original->finance_account_id,
@@ -979,8 +979,8 @@ class FinanceController
             ->orderBy('payment_date', 'asc')
             ->get();
 
-        $totalIncome = (float) $finances->where('type', 'income')->sum('amount');
-        $totalExpense = (float) $finances->where('type', 'expense')->sum('amount');
+        $totalIncome = (float) $finances->where('type', Finance::TYPE_INCOME)->sum('amount');
+        $totalExpense = (float) $finances->where('type', Finance::TYPE_EXPENSE)->sum('amount');
         $balance = $totalIncome - $totalExpense;
 
         // Das Kassabuch bleibt brutto: § 131 BAO verlangt, dass jede Buchung
@@ -997,17 +997,17 @@ class FinanceController
             static fn(Finance $finance): bool => $finance->reversal_of_id !== null
                 || in_array((int) $finance->id, $reversedIds, true)
         );
-        $reversedIncome = (float) $reversalPairs->where('type', 'income')->sum('amount');
-        $reversedExpense = (float) $reversalPairs->where('type', 'expense')->sum('amount');
+        $reversedIncome = (float) $reversalPairs->where('type', Finance::TYPE_INCOME)->sum('amount');
+        $reversedExpense = (float) $reversalPairs->where('type', Finance::TYPE_EXPENSE)->sum('amount');
 
-        $cashIncome = (float) $finances->where('type', 'income')
-            ->where('payment_method', 'cash')->sum('amount');
-        $cashExpense = (float) $finances->where('type', 'expense')
-            ->where('payment_method', 'cash')->sum('amount');
-        $bankIncome = (float) $finances->where('type', 'income')
-            ->where('payment_method', 'bank_transfer')->sum('amount');
-        $bankExpense = (float) $finances->where('type', 'expense')
-            ->where('payment_method', 'bank_transfer')->sum('amount');
+        $cashIncome = (float) $finances->where('type', Finance::TYPE_INCOME)
+            ->where('payment_method', Finance::PAYMENT_METHOD_CASH)->sum('amount');
+        $cashExpense = (float) $finances->where('type', Finance::TYPE_EXPENSE)
+            ->where('payment_method', Finance::PAYMENT_METHOD_CASH)->sum('amount');
+        $bankIncome = (float) $finances->where('type', Finance::TYPE_INCOME)
+            ->where('payment_method', Finance::PAYMENT_METHOD_BANK_TRANSFER)->sum('amount');
+        $bankExpense = (float) $finances->where('type', Finance::TYPE_EXPENSE)
+            ->where('payment_method', Finance::PAYMENT_METHOD_BANK_TRANSFER)->sum('amount');
 
         $groupTotals = [];
         foreach ($finances as $f) {
@@ -1015,7 +1015,7 @@ class FinanceController
             if (!isset($groupTotals[$key])) {
                 $groupTotals[$key] = ['income' => 0.0, 'expense' => 0.0];
             }
-            if ($f->type === 'income') {
+            if ($f->type === Finance::TYPE_INCOME) {
                 $groupTotals[$key]['income'] += (float) $f->amount;
             } else {
                 $groupTotals[$key]['expense'] += (float) $f->amount;
