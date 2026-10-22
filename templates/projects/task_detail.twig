@@ -28,9 +28,9 @@
         <div class="page-actions">
             {{ help.button("projects-planning", "Projektplanung (Aufgaben)") }}
             {# Häufigste Handlung zuerst: ein Tipp setzt den Status, ohne das Bearbeiten-Fenster #}
-            {% if task.status == "Abgeschlossen" %}
+            {% if task.status == "done" %}
                 <form action="/tasks/{{ task.id }}/status" method="post">
-                    <input type="hidden" name="status" value="Offen">
+                    <input type="hidden" name="status" value="open">
                     <input type="hidden" name="return_to" value="task">
                     <button type="submit" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-counterclockwise"></i> Wieder öffnen
@@ -38,7 +38,7 @@
                 </form>
             {% else %}
                 <form action="/tasks/{{ task.id }}/status" method="post">
-                    <input type="hidden" name="status" value="Abgeschlossen">
+                    <input type="hidden" name="status" value="done">
                     <input type="hidden" name="return_to" value="task">
                     <button type="submit" class="btn btn-primary">
                         Als erledigt markieren
@@ -56,15 +56,8 @@
 {% endblock page_header %}
 
 {% block content %}
-    {% set _status_labels = {"Offen": "Offen", "In Bearbeitung": "In Arbeit", "Abgeschlossen": "Erledigt"} %}
-    {% set _status_badges = {
-        "Offen": "text-bg-secondary",
-        "In Bearbeitung": "text-bg-info",
-        "Abgeschlossen": "text-bg-success",
-    } %}
-    {% set _priority_badges = {"Niedrig": "text-bg-secondary", "Mittel": "text-bg-warning", "Hoch": "text-bg-danger"} %}
     {% set _due_ymd = task.end_date ? task.end_date|date("Y-m-d") : "" %}
-    {% set _is_open = task.status != "Abgeschlossen" %}
+    {% set _is_open = task.status != "done" %}
     {% set _is_overdue = _is_open and _due_ymd != "" and _due_ymd < "now"|date("Y-m-d") %}
     {% set _me = session.user_id|default(0) %}
     {% set _assignee_names = [] %}
@@ -100,8 +93,8 @@
                         <div class="task-fact">
                             <dt>Status</dt>
                             <dd>
-                                <span class="badge {{ _status_badges[task.status]|default("text-bg-secondary") }}">
-                                    {{ _status_labels[task.status]|default(task.status) }}
+                                <span class="badge {{ status_badges[task.status]|default("text-bg-secondary") }}">
+                                    {{ status_labels[task.status]|default(task.status) }}
                                 </span>
                             </dd>
                         </div>
@@ -133,8 +126,8 @@
                         <div class="task-fact">
                             <dt>Priorität</dt>
                             <dd>
-                                {% if _priority_badges[task.priority] is defined %}
-                                    <span class="badge {{ _priority_badges[task.priority] }}">{{ task.priority }}</span>
+                                {% if priority_badges[task.priority] is defined %}
+                                    <span class="badge {{ priority_badges[task.priority] }}">{{ priority_labels[task.priority] }}</span>
                                 {% else %}
                                     <span class="text-muted">Nicht festgelegt</span>
                                 {% endif %}
@@ -249,9 +242,9 @@
                         <div class="col-md-6 mb-3">
                             <label for="editTaskPriority" class="form-label">Priorität</label>
                             <select class="form-select" id="editTaskPriority" name="priority">
-                                {% for _priority in ["Niedrig", "Mittel", "Hoch"] %}
+                                {% for _priority in priorities %}
                                     <option value="{{ _priority }}" {{ task.priority == _priority ? "selected" : "" }}>
-                                        {{ _priority }}
+                                        {{ priority_labels[_priority] }}
                                     </option>
                                 {% endfor %}
                             </select>
@@ -259,7 +252,7 @@
                         <div class="col-md-6 mb-3">
                             <label for="editTaskStatus" class="form-label">Status</label>
                             <select class="form-select" id="editTaskStatus" name="status">
-                                {% for _value, _label in _status_labels %}
+                                {% for _value, _label in status_labels %}
                                     <option value="{{ _value }}" {{ task.status == _value ? "selected" : "" }}>
                                         {{ _label }}
                                     </option>

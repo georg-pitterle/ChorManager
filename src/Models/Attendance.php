@@ -26,6 +26,25 @@ class Attendance extends Model
         self::STATUS_UNEXCUSED,
     ];
 
+    /**
+     * Alle zulässigen Werte - anders als RECORDED_STATUSES einschließlich
+     * `unknown`. Die Werte spiegeln das ENUM aus Migration 20261022120000.
+     *
+     * Die Liste stand vorher nirgends, weil die Spalte ein `varchar(50)` war:
+     * Es gab keine Grenze, gegen die sie hätte stehen können, und ein Tippfehler
+     * an einer Schreibstelle landete als eigener Status in der Tabelle, ohne
+     * dass etwas aufgefallen wäre. Seit die Spalte ein ENUM ist, hält
+     * ModelSchemaConsistencyTest diese Liste damit zusammen.
+     *
+     * @var list<string>
+     */
+    public const SUPPORTED_STATUSES = [
+        self::STATUS_PRESENT,
+        self::STATUS_EXCUSED,
+        self::STATUS_UNEXCUSED,
+        self::STATUS_UNKNOWN,
+    ];
+
     protected $table = 'attendance';
     public $timestamps = false;
 

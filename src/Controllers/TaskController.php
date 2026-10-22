@@ -122,16 +122,42 @@ class TaskController
         return $query->get();
     }
 
+    /**
+     * Zustände und Dringlichkeiten mit Label, Abzeichen-Klasse und Sinnbild für
+     * die Vorlagen - dieselbe Zuordnung für Liste, Kanban und Einzelansicht.
+     *
+     * Die drei Ansichten brachten diese Zuordnung vorher jeweils selbst mit:
+     * `projects/tasks.twig` als vierfach wiederholte `if/elseif`-Kette,
+     * `projects/task_detail.twig` als eigene Twig-Zuordnung. Sie waren sich
+     * nicht einig - derselbe Zustand hieß "In Bearbeitung", "In Arbeit" oder
+     * "Erledigt", je nachdem wo man hinsah - und der Zustand "blockiert" fehlte
+     * in der Liste ganz.
+     *
+     * @return array<string, mixed>
+     */
+    private function taskValueMaps(): array
+    {
+        return [
+            'statuses' => Task::STATUSES,
+            'priorities' => Task::PRIORITIES,
+            'status_labels' => Task::STATUS_LABELS,
+            'priority_labels' => Task::PRIORITY_LABELS,
+            'status_badges' => Task::STATUS_BADGE_CLASSES,
+            'priority_badges' => Task::PRIORITY_BADGE_CLASSES,
+            'status_icons' => Task::STATUS_ICONS,
+            'status_icon_colors' => Task::STATUS_ICON_COLORS,
+            'status_empty_texts' => Task::STATUS_EMPTY_TEXTS,
+        ];
+    }
+
     private function validateStatus(string $status): string
     {
-        $validStatuses = ['Offen', 'In Bearbeitung', 'Abgeschlossen', 'Blockiert'];
-        return in_array($status, $validStatuses, true) ? $status : 'Offen';
+        return in_array($status, Task::STATUSES, true) ? $status : Task::STATUS_OPEN;
     }
 
     private function validatePriority(string $priority): string
     {
-        $validPriorities = ['Niedrig', 'Mittel', 'Hoch'];
-        return in_array($priority, $validPriorities, true) ? $priority : 'Mittel';
+        return in_array($priority, Task::PRIORITIES, true) ? $priority : Task::PRIORITY_MEDIUM;
     }
 
     /**
@@ -411,7 +437,7 @@ class TaskController
             'projectUsers' => $projectUsers,
             'success'      => $success,
             'error'        => $error,
-        ]);
+        ] + $this->taskValueMaps());
     }
 
     public function detail(Request $request, Response $response, array $args): Response
@@ -443,7 +469,7 @@ class TaskController
             'projectUsers' => $this->projectUsersInNameOrder($task->project),
             'success' => $success,
             'error'   => $error,
-        ]);
+        ] + $this->taskValueMaps());
     }
 
     public function create(Request $request, Response $response, array $args): Response
@@ -506,8 +532,8 @@ class TaskController
                 'created_by'       => $_SESSION['user_id'],
                 'start_date'       => $startDate,
                 'end_date'         => $endDate,
-                'status'           => $this->validateStatus($data['status'] ?? 'Offen'),
-                'priority'         => $this->validatePriority($data['priority'] ?? 'Mittel'),
+                'status'           => $this->validateStatus($data['status'] ?? Task::STATUS_OPEN),
+                'priority'         => $this->validatePriority($data['priority'] ?? Task::PRIORITY_MEDIUM),
             ]);
 
             $task->assignees()->sync($assignedUserIds);
@@ -601,11 +627,22 @@ class TaskController
 
             // Changes logging
             $changes = [];
+            // Der Verlauf ist deutscher Text und nennt deshalb die Labels, nicht
+            // die Spaltenwerte: Seit die Spalten englische Bezeichner tragen,
+            // hätte hier "Status von 'open' auf 'done' geändert" gestanden.
             if ($oldStatus !== $task->status) {
-                $changes[] = "Status von '$oldStatus' auf '{$task->status}' geändert";
+                $changes[] = sprintf(
+                    "Status von '%s' auf '%s' geändert",
+                    Task::STATUS_LABELS[$oldStatus] ?? $oldStatus,
+                    Task::STATUS_LABELS[$task->status] ?? $task->status
+                );
             }
             if ($oldPriority !== $task->priority) {
-                $changes[] = "Priorität von '$oldPriority' auf '{$task->priority}' geändert";
+                $changes[] = sprintf(
+                    "Priorität von '%s' auf '%s' geändert",
+                    Task::PRIORITY_LABELS[$oldPriority] ?? $oldPriority,
+                    Task::PRIORITY_LABELS[$task->priority] ?? $task->priority
+                );
             }
             $newAssignedIds = $this->assigneeIds($task->fresh());
             if ($oldAssignedIds !== $newAssignedIds) {
@@ -847,13 +884,18 @@ class TaskController
                     'entity_id'   => $task->id,
                     'user_id'     => $_SESSION['user_id'],
                     'action'      => 'updated',
-                    'description' => "Status von '$oldStatus' auf '$newStatus' geändert via $source",
+                    'description' => sprintf(
+                        "Status von '%s' auf '%s' geändert via %s",
+                        Task::STATUS_LABELS[$oldStatus] ?? $oldStatus,
+                        Task::STATUS_LABELS[$newStatus] ?? $newStatus,
+                        $source
+                    ),
                 ]);
             });
         }
 
         if ($fromTaskPage) {
-            $_SESSION['success'] = $newStatus === 'Abgeschlossen'
+            $_SESSION['success'] = $newStatus === Task::STATUS_DONE
                 ? 'Aufgabe als erledigt markiert.'
                 : 'Status aktualisiert.';
             return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);

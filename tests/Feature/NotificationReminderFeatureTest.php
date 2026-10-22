@@ -197,7 +197,7 @@ final class NotificationReminderFeatureTest extends TestCase
 
     public function testCompletedTasksAreNotReminded(): void
     {
-        $this->makeTask('Schon erledigt', '+1 day', [$this->anna->id], 'Abgeschlossen');
+        $this->makeTask('Schon erledigt', '+1 day', [$this->anna->id], Task::STATUS_DONE);
 
         $this->assertSame(0, $this->service()->processDue(self::BASE_URL));
     }
@@ -263,13 +263,13 @@ final class NotificationReminderFeatureTest extends TestCase
     /**
      * @param list<int> $assigneeIds
      */
-    private function makeTask(string $name, ?string $offset, array $assigneeIds, string $status = 'Offen'): Task
+    private function makeTask(string $name, ?string $offset, array $assigneeIds, string $status = Task::STATUS_OPEN): Task
     {
         $task = Task::create([
             'project_id' => $this->project->id,
             'name' => $name,
             'status' => $status,
-            'priority' => 'Mittel',
+            'priority' => Task::PRIORITY_MEDIUM,
             'end_date' => $offset === null ? null : Carbon::today()->modify($offset)->toDateString(),
             'created_by' => $this->anna->id,
         ]);

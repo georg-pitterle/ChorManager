@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Task;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -208,10 +209,19 @@ class UiControlsFeatureTest extends TestCase
     {
         $templates = self::templates();
         $expected = [
-            'templates/projects/tasks.twig' => ['text-bg-warning">Mittel<'],
             'templates/finances/accounts.twig' => ['text-bg-secondary">Bar<', 'text-bg-secondary">Bank<'],
             'templates/backups/index.twig' => ['text-bg-secondary">Manuell<'],
         ];
+
+        // Aufgaben: Die Paarung aus Farbe und Beschriftung steht seit Lauf 51
+        // nicht mehr in der Vorlage, sondern in den Zuordnungen am Modell - die
+        // Vorlage schlägt beide nur noch nach. Geprüft wird sie deshalb dort,
+        // wo sie festgelegt ist, statt im erzeugten Wortlaut.
+        $this->assertSame('text-bg-warning', Task::PRIORITY_BADGE_CLASSES[Task::PRIORITY_MEDIUM]);
+        $this->assertSame('Mittel', Task::PRIORITY_LABELS[Task::PRIORITY_MEDIUM]);
+        $this->assertSame('text-bg-danger', Task::PRIORITY_BADGE_CLASSES[Task::PRIORITY_HIGH]);
+        $this->assertSame('text-bg-success', Task::STATUS_BADGE_CLASSES[Task::STATUS_DONE]);
+        $this->assertSame('text-bg-info', Task::STATUS_BADGE_CLASSES[Task::STATUS_IN_PROGRESS]);
 
         foreach ($expected as $path => $needles) {
             foreach ($needles as $needle) {

@@ -201,7 +201,7 @@ class TaskMultipleAssigneesFeatureTest extends TestCase
         $task = Task::create([
             'project_id' => $this->project->id,
             'name' => $name,
-            'status' => 'Offen',
+            'status' => Task::STATUS_OPEN,
             'created_by' => $this->anna->id,
         ]);
         $task->assignees()->sync($userIds);

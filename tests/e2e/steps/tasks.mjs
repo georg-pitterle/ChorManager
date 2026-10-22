@@ -4,7 +4,7 @@ import { expect } from '@playwright/test';
 //  - Projektzeile: tr[data-sort-project_name="<name in kleinbuchstaben>"]
 //  - Link zur Planung: a[href="/projects/{id}/tasks"] (steckt im Aktionen-Dropdown)
 //  - Anlegen-Modal: #addTaskModal, Formular POST /projects/{id}/tasks
-//  - Felder: title (Pflicht), status (Offen | In Bearbeitung | Abgeschlossen)
+//  - Felder: title (Pflicht), status (open | in_progress | blocked | done)
 //  - Absenden: button[type="submit"] "Aufgabe Speichern"
 //  - Kanban: #btn-view-kanban schaltet #kanban-view sichtbar,
 //    Spalten sind .kanban-cards-container[data-drop-zone="<Status>"]
@@ -41,7 +41,7 @@ export async function isTaskModuleEnabled(page) {
     return (await page.locator('a[href$="/tasks"]').count()) > 0;
 }
 
-export async function createTask(page, boardPath, { title, status = 'Offen' }) {
+export async function createTask(page, boardPath, { title, status = 'open' }) {
     await page.goto(boardPath);
     await page.click('[data-bs-target="#addTaskModal"]');
 

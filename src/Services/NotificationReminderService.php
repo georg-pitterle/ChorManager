@@ -31,7 +31,7 @@ use Psr\Log\LoggerInterface;
  */
 class NotificationReminderService
 {
-    private const TASK_COMPLETED_STATUS = 'Abgeschlossen';
+    private const TASK_COMPLETED_STATUS = Task::STATUS_DONE;
 
     /**
      * Wie lange ein Merkzettel aufgehoben wird.

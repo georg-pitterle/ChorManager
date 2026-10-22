@@ -28,16 +28,16 @@ class CalendarFeedService
     /**
      * Aufgaben, die als erledigt gelten - die gehören in keinen Kalender mehr.
      */
-    private const COMPLETED_STATUS = 'Abgeschlossen';
+    private const COMPLETED_STATUS = Task::STATUS_DONE;
 
     /**
      * VTODO kennt nur 1 (hoch) bis 9 (niedrig); dazwischen liegt die Skala
      * dieser Anwendung mit drei Stufen.
      */
     private const TODO_PRIORITIES = [
-        'Hoch' => 1,
-        'Mittel' => 5,
-        'Niedrig' => 9,
+        Task::PRIORITY_HIGH => 1,
+        Task::PRIORITY_MEDIUM => 5,
+        Task::PRIORITY_LOW => 9,
     ];
 
     /**
@@ -331,7 +331,7 @@ class CalendarFeedService
                 'SUMMARY:' . $this->escapeIcsText((string) $task->name),
                 'DESCRIPTION:' . $this->escapeIcsText($description),
                 'URL:' . self::icsUri($url),
-                'STATUS:' . ((string) $task->status === 'In Bearbeitung' ? 'IN-PROCESS' : 'NEEDS-ACTION'),
+                'STATUS:' . ((string) $task->status === Task::STATUS_IN_PROGRESS ? 'IN-PROCESS' : 'NEEDS-ACTION'),
                 'PRIORITY:' . (self::TODO_PRIORITIES[(string) $task->priority] ?? 5),
                 'END:VTODO',
             ];

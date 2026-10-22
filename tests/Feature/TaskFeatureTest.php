@@ -248,13 +248,13 @@ class TaskFeatureTest extends TestCase
         $task = Task::create([
             'project_id' => $project->id,
             'name' => 'Aufgabe mit Anhang',
-            'status' => 'Offen',
+            'status' => Task::STATUS_OPEN,
             'created_by' => $user->id,
         ]);
         $otherTask = Task::create([
             'project_id' => $project->id,
             'name' => 'Andere Aufgabe',
-            'status' => 'Offen',
+            'status' => Task::STATUS_OPEN,
             'created_by' => $user->id,
         ]);
 
@@ -317,7 +317,7 @@ class TaskFeatureTest extends TestCase
         $task = Task::create([
             'project_id' => $project->id,
             'name' => 'Aufgabe für den Upload',
-            'status' => 'Offen',
+            'status' => Task::STATUS_OPEN,
             'created_by' => $user->id,
         ]);
 
@@ -664,17 +664,39 @@ class TaskFeatureTest extends TestCase
     }
 
     /**
-     * Test Task enum constraints are defined
+     * Zustand und Dringlichkeit sind in der Datenbank auf ihre Werte begrenzt.
+     *
+     * Geprüft wird das tatsächliche Schema, nicht mehr der Wortlaut der
+     * Ursprungsmigration: Die frühere Fassung suchte in
+     * `20260314130000_initial.php` nach der Zeichenkette
+     * "status ENUM(Task::STATUS_OPEN,Task::STATUS_IN_PROGRESS,Task::STATUS_DONE,Task::STATUS_BLOCKED)". Damit
+     * stand eine Migration unter Test statt die Spalte - eine spätere Migration,
+     * die das ENUM ändert, hätte den Test zu Fall gebracht, obwohl das Schema
+     * danach genau richtig ist. Genau das ist mit 20261022130000 passiert.
      */
     public function testTaskEnumConstraintsAreDefined(): void
     {
-        $migrationContent = file_get_contents(self::INITIAL_MIGRATION_PATH);
+        foreach (['status' => Task::STATUSES, 'priority' => Task::PRIORITIES] as $column => $expected) {
+            $row = Capsule::connection()->selectOne(
+                'SELECT COLUMN_TYPE AS column_type FROM information_schema.COLUMNS '
+                    . 'WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?',
+                ['tasks', $column]
+            );
 
-        // Check status enum
-        $this->assertStringContainsString("status ENUM('Offen','In Bearbeitung','Abgeschlossen','Blockiert')", $migrationContent);
+            $type = is_object($row) ? (string) ($row->column_type ?? '') : '';
+            $this->assertStringStartsWith('enum(', $type, sprintf('tasks.%s ist kein ENUM.', $column));
 
-        // Check priority enum
-        $this->assertStringContainsString("priority ENUM('Niedrig','Mittel','Hoch')", $migrationContent);
+            preg_match_all("/'((?:[^']|'')*)'/", $type, $matches);
+            $allowed = array_map(
+                static fn (string $value): string => str_replace("''", "'", $value),
+                $matches[1]
+            );
+
+            $this->assertSame($expected, $allowed, sprintf(
+                'tasks.%s weicht von der Liste im Modell ab.',
+                $column
+            ));
+        }
     }
 
     /**
@@ -745,24 +767,45 @@ class TaskFeatureTest extends TestCase
     }
 
     /**
-     * Test controller has enum validation methods
+     * Ein unbekannter Zustand oder eine unbekannte Dringlichkeit fällt auf die
+     * Vorgabe zurück, statt in der Spalte zu landen.
+     *
+     * Geprüft wird das Ergebnis, nicht mehr der Quelltext des Controllers: Die
+     * frühere Fassung suchte in `TaskController.php` nach den Zeichenketten
+     * "Task::STATUS_OPEN", "Task::STATUS_IN_PROGRESS" und so weiter. Damit stand die innere
+     * Schreibweise unter Test statt das Verhalten - sie wäre auch grün
+     * geblieben, wenn die Werte bloß irgendwo im Kommentar gestanden hätten,
+     * und der Umbau auf `Task::STATUSES` brachte sie zu Fall, obwohl die
+     * Prüfung danach dieselbe ist. Gleiche Begründung wie bei
+     * testSessionAuthServiceSetsCoreTaskPermissions().
      */
-    public function testTaskControllerHasEnumValidationMethods(): void
+    public function testTaskControllerFallsBackToDefaultsForUnknownValues(): void
     {
-        $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/TaskController.php');
+        $controller = new ReflectionClass(TaskController::class);
 
-        // Check validation function for status
-        $this->assertStringContainsString("validateStatus", $controllerContent);
-        $this->assertStringContainsString("'Offen'", $controllerContent);
-        $this->assertStringContainsString("'In Bearbeitung'", $controllerContent);
-        $this->assertStringContainsString("'Abgeschlossen'", $controllerContent);
-        $this->assertStringContainsString("'Blockiert'", $controllerContent);
+        $validateStatus = $controller->getMethod('validateStatus');
+        $validatePriority = $controller->getMethod('validatePriority');
+        $instance = $controller->newInstanceWithoutConstructor();
 
-        // Check validation function for priority
-        $this->assertStringContainsString("validatePriority", $controllerContent);
-        $this->assertStringContainsString("'Niedrig'", $controllerContent);
-        $this->assertStringContainsString("'Mittel'", $controllerContent);
-        $this->assertStringContainsString("'Hoch'", $controllerContent);
+        foreach (Task::STATUSES as $status) {
+            $this->assertSame($status, $validateStatus->invoke($instance, $status));
+        }
+
+        foreach (Task::PRIORITIES as $priority) {
+            $this->assertSame($priority, $validatePriority->invoke($instance, $priority));
+        }
+
+        // Die alten deutschen Werte sind jetzt genauso unbekannt wie ein
+        // Tippfehler - sie dürfen nicht mehr durchkommen. Hier stehen sie
+        // bewusst als Zeichenkette: Gemeint ist der alte Wortlaut, nicht eine
+        // Konstante, die es für ihn nicht mehr gibt.
+        foreach (['Offen', 'Abgeschlossen', 'erledigt', ''] as $unknown) {
+            $this->assertSame(Task::STATUS_OPEN, $validateStatus->invoke($instance, $unknown));
+        }
+
+        foreach (['Hoch', 'Mittel', 'dringend', ''] as $unknown) {
+            $this->assertSame(Task::PRIORITY_MEDIUM, $validatePriority->invoke($instance, $unknown));
+        }
     }
 
     /**
@@ -846,7 +889,7 @@ class TaskFeatureTest extends TestCase
         $task = Task::create([
             'project_id' => $project->id,
             'name' => 'Statusaufgabe',
-            'status' => 'Offen',
+            'status' => Task::STATUS_OPEN,
             'created_by' => $user->id,
         ]);
         $this->removeAfterTest($project, $user, $task);
@@ -863,13 +906,13 @@ class TaskFeatureTest extends TestCase
         $request = $this->makeRequest(
             'POST',
             '/tasks/' . $task->id . '/status',
-            ['status' => 'Abgeschlossen', 'return_to' => 'task']
+            ['status' => Task::STATUS_DONE, 'return_to' => 'task']
         );
 
         $response = $controller->updateStatus($request, $this->makeResponse(), ['id' => (string) $task->id]);
 
         $this->assertRedirect($response, '/tasks/' . $task->id);
-        $this->assertSame('Abgeschlossen', $task->fresh()->status);
+        $this->assertSame(Task::STATUS_DONE, $task->fresh()->status);
         $this->assertSame('Aufgabe als erledigt markiert.', $_SESSION['success']);
 
         $activity = Activity::where('entity_type', 'task')->where('entity_id', $task->id)->latest('id')->first();
@@ -898,7 +941,7 @@ class TaskFeatureTest extends TestCase
         $task = Task::create([
             'project_id' => $project->id,
             'name' => 'Fehleraufgabe',
-            'status' => 'Offen',
+            'status' => Task::STATUS_OPEN,
             'created_by' => $user->id,
         ]);
         $this->removeAfterTest($project, $user, $task);
@@ -923,7 +966,7 @@ class TaskFeatureTest extends TestCase
         );
         $this->assertRedirect($response, '/tasks/' . $task->id);
         $this->assertSame('Ungültiger Status.', $_SESSION['error']);
-        $this->assertSame('Offen', $task->fresh()->status);
+        $this->assertSame(Task::STATUS_OPEN, $task->fresh()->status);
 
         // Fehlendes Recht: zurück ins Dashboard, Status unverändert.
         $_SESSION = ['user_id' => $user->id, 'can_manage_tasks' => false];
@@ -931,14 +974,14 @@ class TaskFeatureTest extends TestCase
             $this->makeRequest(
                 'POST',
                 '/tasks/' . $task->id . '/status',
-                ['status' => 'Abgeschlossen', 'return_to' => 'task']
+                ['status' => Task::STATUS_DONE, 'return_to' => 'task']
             ),
             $this->makeResponse(),
             $args
         );
         $this->assertRedirect($response, '/dashboard');
         $this->assertSame('Zugriff verweigert.', $_SESSION['error']);
-        $this->assertSame('Offen', $task->fresh()->status);
+        $this->assertSame(Task::STATUS_OPEN, $task->fresh()->status);
     }
 
     public function testUploadAttachmentLogsUploadRejectedForOversizedFileWithoutFilename(): void
@@ -957,7 +1000,7 @@ class TaskFeatureTest extends TestCase
         $task = Task::create([
             'project_id' => $project->id,
             'name' => 'Testaufgabe',
-            'status' => 'Offen',
+            'status' => Task::STATUS_OPEN,
             'created_by' => $user->id,
         ]);
 

@@ -86,7 +86,7 @@ class Attachment extends Model
     {
         $relation = $this->belongsTo(Song::class, 'entity_id', 'id');
 
-        if ($this->entity_type !== 'song') {
+        if ($this->entity_type !== Song::ENTITY_TYPE) {
             $relation->whereRaw('1 = 0');
         }
 

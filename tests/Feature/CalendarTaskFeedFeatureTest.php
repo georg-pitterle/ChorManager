@@ -138,7 +138,7 @@ final class CalendarTaskFeedFeatureTest extends TestCase
         $own = $this->createTask('Eigene Aufgabe', '+5 days', [$this->user->id]);
         $shared = $this->createTask('Gemeinsame Aufgabe', '+6 days', [$this->user->id, $this->other->id]);
         $foreign = $this->createTask('Fremde Aufgabe', '+7 days', [$this->other->id]);
-        $done = $this->createTask('Erledigte Aufgabe', '+8 days', [$this->user->id], 'Abgeschlossen');
+        $done = $this->createTask('Erledigte Aufgabe', '+8 days', [$this->user->id], Task::STATUS_DONE);
         $undated = $this->createTask('Ohne Enddatum', null, [$this->user->id]);
 
         $ics = $this->service->buildTaskCalendar($this->user, self::BASE_URL);
@@ -172,7 +172,7 @@ final class CalendarTaskFeedFeatureTest extends TestCase
     {
         $this->setFeed(User::CALENDAR_TASK_FEED_SEPARATE, User::CALENDAR_TASK_FORMAT_TODO);
         $task = $this->createTask('Als Aufgabe', '+4 days', [$this->user->id]);
-        $task->update(['priority' => 'Hoch', 'status' => 'In Bearbeitung']);
+        $task->update(['priority' => Task::PRIORITY_HIGH, 'status' => Task::STATUS_IN_PROGRESS]);
 
         $ics = $this->service->buildTaskCalendar($this->user, self::BASE_URL);
         $due = Carbon::parse((string) $task->end_date);
@@ -342,13 +342,13 @@ final class CalendarTaskFeedFeatureTest extends TestCase
     /**
      * @param list<int> $assigneeIds
      */
-    private function createTask(string $name, ?string $endOffset, array $assigneeIds, string $status = 'Offen'): Task
+    private function createTask(string $name, ?string $endOffset, array $assigneeIds, string $status = Task::STATUS_OPEN): Task
     {
         $task = Task::create([
             'project_id' => $this->project->id,
             'name' => $name,
             'status' => $status,
-            'priority' => 'Mittel',
+            'priority' => Task::PRIORITY_MEDIUM,
             'end_date' => $endOffset === null ? null : Carbon::now()->modify($endOffset)->toDateString(),
             'created_by' => $this->user->id,
         ]);

@@ -11,9 +11,11 @@ use AllowNewslettersWithoutProject;
 use CreateFinanceAccounts;
 use CreateFinanceGroupsAndLink;
 use DropEventsProjectId;
+use RequireKnownAttendanceStatus;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
+use UseEnglishTaskStatusValues;
 
 require_once dirname(__DIR__, 2) . '/db/migrations/20260621120000_create_finance_groups_and_link.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260815140000_create_finance_accounts.php';
@@ -22,6 +24,8 @@ require_once dirname(__DIR__, 2) . '/db/migrations/20260722130000_drop_events_pr
 require_once dirname(__DIR__, 2) . '/db/migrations/20260811190000_allow_newsletters_without_project.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260826120000_allow_lock_entries_in_finance_journal.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20261005090100_add_channel_to_user_notification_settings.php';
+require_once dirname(__DIR__, 2) . '/db/migrations/20261022120000_require_known_attendance_status.php';
+require_once dirname(__DIR__, 2) . '/db/migrations/20261022130000_use_english_task_status_values.php';
 
 /**
  * Fünf Migrationen führen einen Schritt aus, der Daten unwiederbringlich
@@ -47,6 +51,8 @@ final class DestructiveMigrationGuardTest extends TestCase
     private const GROUPS_TABLE = 'test_guard_finance_groups';
     private const FINANCES_TABLE = 'test_guard_finances';
     private const ACCOUNTS_TABLE = 'test_guard_finance_accounts';
+    private const ATTENDANCE_TABLE = 'test_guard_attendance';
+    private const TASKS_TABLE = 'test_guard_tasks';
 
     protected function setUp(): void
     {
@@ -148,6 +154,27 @@ final class DestructiveMigrationGuardTest extends TestCase
                 PRIMARY KEY (id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
             self::ACCOUNTS_TABLE
+        ));
+
+        // Bewusst varchar und nicht ENUM: Die Prüfung soll gerade den Wert
+        // finden, den das ENUM nicht mehr zulassen würde.
+        Capsule::connection()->statement(sprintf(
+            'CREATE TABLE %s (
+                id int(11) NOT NULL AUTO_INCREMENT,
+                status varchar(50) NOT NULL,
+                PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
+            self::ATTENDANCE_TABLE
+        ));
+
+        Capsule::connection()->statement(sprintf(
+            'CREATE TABLE %s (
+                id int(11) NOT NULL AUTO_INCREMENT,
+                status varchar(32) NOT NULL,
+                priority varchar(32) NOT NULL,
+                PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
+            self::TASKS_TABLE
         ));
     }
 
@@ -449,6 +476,78 @@ final class DestructiveMigrationGuardTest extends TestCase
      *
      * @param array<string, string> $tableMap
      */
+    /**
+     * 20261022120000 verengt `attendance.status` von varchar auf ein ENUM. Ein
+     * Wert, den das ENUM nicht kennt, wird vom ALTER zur leeren Zeichenkette -
+     * die Erfassung wäre dann still weg.
+     */
+    public function testAttendanceGuardFindsTheStatusOutsideTheEnum(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (status) VALUES ('present'), ('unknown'), ('anwesend')",
+            self::ATTENDANCE_TABLE
+        ));
+
+        $this->assertSame(1, $this->countFrom(
+            RequireKnownAttendanceStatus::UNKNOWN_STATUSES_SQL,
+            ['attendance' => self::ATTENDANCE_TABLE],
+            'unknown_statuses'
+        ));
+    }
+
+    public function testAttendanceGuardStaysQuietWhenEveryStatusIsKnown(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (status) VALUES ('present'), ('excused'), ('unexcused'), ('unknown')",
+            self::ATTENDANCE_TABLE
+        ));
+
+        $this->assertSame(0, $this->countFrom(
+            RequireKnownAttendanceStatus::UNKNOWN_STATUSES_SQL,
+            ['attendance' => self::ATTENDANCE_TABLE],
+            'unknown_statuses'
+        ));
+    }
+
+    /**
+     * 20261022130000 schreibt Zustand und Dringlichkeit der Aufgaben auf
+     * englische Bezeichner um. Was die Zuordnung nicht kennt, überlebt das
+     * UPDATE unverändert und wird vom folgenden ENUM zur leeren Zeichenkette.
+     *
+     * Die Prüfung deckt beide Richtungen ab - deutsche und englische Werte
+     * gelten als abgebildet -, weil dieselbe Abfrage auch im `down()` läuft.
+     */
+    public function testTaskGuardFindsTheUnmappedStatusAndPriority(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (status, priority) VALUES
+             ('Offen', 'Mittel'), ('done', 'high'), ('Wartet', 'Mittel'), ('Offen', 'Dringend')",
+            self::TASKS_TABLE
+        ));
+
+        $this->assertSame(2, $this->countFrom(
+            UseEnglishTaskStatusValues::UNMAPPED_TASKS_SQL,
+            ['tasks' => self::TASKS_TABLE],
+            'unmapped_rows'
+        ));
+    }
+
+    public function testTaskGuardStaysQuietForBothSpellings(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (status, priority) VALUES
+             ('Offen', 'Niedrig'), ('In Bearbeitung', 'Mittel'), ('Abgeschlossen', 'Hoch'),
+             ('open', 'low'), ('in_progress', 'medium'), ('blocked', 'high'), ('done', 'low')",
+            self::TASKS_TABLE
+        ));
+
+        $this->assertSame(0, $this->countFrom(
+            UseEnglishTaskStatusValues::UNMAPPED_TASKS_SQL,
+            ['tasks' => self::TASKS_TABLE],
+            'unmapped_rows'
+        ));
+    }
+
     private function countFrom(string $sql, array $tableMap, string $column = 'orphaned'): int
     {
         $row = Capsule::connection()->selectOne(strtr($sql, $tableMap));
@@ -469,6 +568,8 @@ final class DestructiveMigrationGuardTest extends TestCase
             self::GROUPS_TABLE,
             self::FINANCES_TABLE,
             self::ACCOUNTS_TABLE,
+            self::ATTENDANCE_TABLE,
+            self::TASKS_TABLE,
         ];
 
         foreach ($tables as $table) {

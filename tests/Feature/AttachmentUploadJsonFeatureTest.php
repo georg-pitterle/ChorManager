@@ -329,7 +329,7 @@ class AttachmentUploadJsonFeatureTest extends TestCase
         return Task::create([
             'project_id' => $project->id,
             'name' => 'Ablageaufgabe',
-            'status' => 'Offen',
+            'status' => Task::STATUS_OPEN,
             'created_by' => $this->user->id,
         ]);
     }

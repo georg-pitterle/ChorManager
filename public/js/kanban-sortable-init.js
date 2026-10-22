@@ -1,14 +1,13 @@
 // public/js/kanban-sortable-init.js
 
 document.addEventListener('DOMContentLoaded', function () {
-    function getEmptyTextForStatus(status) {
-        var map = {
-            'Offen': 'Keine offenen Aufgaben',
-            'In Bearbeitung': 'Keine Aufgaben in Bearbeitung',
-            'Blockiert': 'Keine blockierten Aufgaben',
-            'Abgeschlossen': 'Keine erledigten Aufgaben'
-        };
-        return map[status] || 'Keine Aufgaben';
+    // Den Hinweis bringt die Spalte selbst als data-empty-text mit. Vorher stand
+    // hier eine eigene Zuordnung, verschluesselt nach den deutschen Statuswerten -
+    // dieselben Texte wie in der Vorlage, nur ein zweites Mal, und das JavaScript
+    // musste die Zustaende kennen. Seit die Werte englische Bezeichner sind,
+    // haette diese Zuordnung ohnehin ins Leere gegriffen.
+    function getEmptyTextForZone(zone) {
+        return zone.dataset.emptyText || 'Keine Aufgaben';
     }
 
     function getOrCreatePlaceholder(zone) {
@@ -25,7 +24,7 @@ document.addEventListener('DOMContentLoaded', function () {
         placeholder.appendChild(icon);
 
         var text = document.createElement('span');
-        text.textContent = getEmptyTextForStatus(zone.dataset.dropZone);
+        text.textContent = getEmptyTextForZone(zone);
         placeholder.appendChild(text);
 
         zone.appendChild(placeholder);

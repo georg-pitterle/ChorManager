@@ -148,7 +148,7 @@ class TaskAssigneeValidationFeatureTest extends TestCase
         $task = Task::create([
             'project_id' => $this->project->id,
             'name' => 'Bestehende Aufgabe',
-            'status' => 'Offen',
+            'status' => Task::STATUS_OPEN,
             'created_by' => $this->member->id,
         ]);
         $task->assignees()->sync([$this->member->id]);

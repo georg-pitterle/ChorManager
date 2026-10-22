@@ -126,7 +126,7 @@
                                                 {% if task.end_date %}
                                                     {% set due = task.end_date|date('Y-m-d') %}
                                                     {% set today = 'now'|date('Y-m-d') %}
-                                                    <span class="{{ due < today and task.status != 'Abgeschlossen' ? 'text-danger fw-bold' : '' }}">
+                                                    <span class="{{ due < today and task.status != "done" ? "text-danger fw-bold" : "" }}">
                                                         {{ task.end_date|date('d.m.Y') }}
                                                     </span>
                                                 {% else %}
@@ -134,22 +134,15 @@
                                                 {% endif %}
                                             </td>
                                             <td data-label="Priorität">
-                                                {% if task.priority == 'Niedrig' %}
-                                                    <span class="badge text-bg-secondary">Niedrig</span>
-                                                {% elseif task.priority == 'Mittel' %}
-                                                    <span class="badge text-bg-warning">Mittel</span>
-                                                {% elseif task.priority == 'Hoch' %}
-                                                    <span class="badge text-bg-danger">Hoch</span>
-                                                {% endif %}
+                                                <span class="badge {{ priority_badges[task.priority]|default("text-bg-secondary") }}">
+                                                    {{ priority_labels[task.priority]|default(task.priority) }}
+                                                </span>
                                             </td>
                                             <td data-label="Status">
-                                                {% if task.status == 'Abgeschlossen' %}
-                                                    <span class="badge text-bg-success"><i class="bi bi-check-circle"></i> Erledigt</span>
-                                                {% elseif task.status == 'In Bearbeitung' %}
-                                                    <span class="badge text-bg-info"><i class="bi bi-arrow-repeat"></i> In Arbeit</span>
-                                                {% else %}
-                                                    <span class="badge text-bg-secondary bg-opacity-75"><i class="bi bi-circle"></i> Offen</span>
-                                                {% endif %}
+                                                <span class="badge {{ status_badges[task.status]|default("text-bg-secondary") }}">
+                                                    <i class="bi {{ status_icons[task.status]|default("bi-circle") }}"></i>
+                                                    {{ status_labels[task.status]|default(task.status) }}
+                                                </span>
                                             </td>
                                             <td data-label="Aktionen" class="text-end">
                                                 <div class="btn-group"
@@ -178,20 +171,26 @@
                 <div class="kanban-container">
                     <div class="row g-3" id="kanban-board">
 
-                        {# Column: Offen #}
-                        <div class="col-12 col-md-6 col-xl-3">
-                            <div class="kanban-column" data-status="Offen">
-                                <div class="kanban-column-header">
-                                    <h3>
-                                        <i class="bi bi-circle text-secondary me-2"></i>Offen
-                                        <span class="badge text-bg-secondary ms-2" id="count-offen">{{ tasks|filter(t => t.status == 'Offen')|length }}</span>
-                                    </h3>
-                                </div>
-                                <div class="kanban-cards-container" data-drop-zone="Offen">
-                                    {% set has_offen = false %}
-                                    {% for task in tasks %}
-                                        {% if task.status == 'Offen' %}
-                                            {% set has_offen = true %}
+                        {# Eine Spalte je Zustand, in der Reihenfolge von Task::STATUSES.
+                           Vorher stand dieser Block viermal fast wortgleich da - verschieden
+                           waren nur Zustand, Beschriftung, Sinnbild, Abzeichen-Klasse und der
+                           Hinweis in der leeren Spalte. Alle fünf kommen jetzt aus den
+                           Zuordnungen am Modell. #}
+                        {% for status in statuses %}
+                            {% set column_tasks = tasks|filter(task => task.status == status) %}
+                            <div class="col-12 col-md-6 col-xl-3">
+                                <div class="kanban-column" data-status="{{ status }}">
+                                    <div class="kanban-column-header">
+                                        <h3>
+                                            <i class="bi {{ status_icons[status] }} {{ status_icon_colors[status] }} me-2"></i>{{ status_labels[status] }}
+                                            <span class="badge {{ status_badges[status] }} ms-2"
+                                                  id="count-{{ status }}">{{ column_tasks|length }}</span>
+                                        </h3>
+                                    </div>
+                                    <div class="kanban-cards-container"
+                                         data-drop-zone="{{ status }}"
+                                         data-empty-text="{{ status_empty_texts[status] }}">
+                                        {% for task in column_tasks %}
                                             <div class="kanban-card"
                                                  data-task-id="{{ task.id }}"
                                                  data-task-status="{{ task.status }}"
@@ -205,20 +204,16 @@
                                                 </div>
                                                 <div class="kanban-card-meta">
                                                     <span>
-                                                        {% if task.priority == 'Hoch' %}
-                                                            <span class="kanban-card-badge badge text-bg-danger">Hoch</span>
-                                                        {% elseif task.priority == 'Mittel' %}
-                                                            <span class="kanban-card-badge badge text-bg-warning">Mittel</span>
-                                                        {% else %}
-                                                            <span class="kanban-card-badge badge text-bg-secondary">Niedrig</span>
-                                                        {% endif %}
+                                                        <span class="kanban-card-badge badge {{ priority_badges[task.priority]|default("text-bg-secondary") }}">
+                                                            {{ priority_labels[task.priority]|default(task.priority) }}
+                                                        </span>
                                                     </span>
                                                     <span>
                                                         {% if task.end_date %}
-                                                            {% set due = task.end_date|date('Y-m-d') %}
-                                                            {% set today = 'now'|date('Y-m-d') %}
+                                                            {% set due = task.end_date|date("Y-m-d") %}
+                                                            {% set today = "now"|date("Y-m-d") %}
                                                             <i class="bi bi-calendar3"></i>
-                                                            <span class="{{ due < today ? 'kanban-date-warning' : '' }}">{{ task.end_date|date('d.m.Y') }}</span>
+                                                            <span class="{{ due < today ? "kanban-date-warning" : "" }}">{{ task.end_date|date("d.m.Y") }}</span>
                                                         {% endif %}
                                                         {% for assignee in task.assignees %}
                                                             <span class="avatar-initials ms-1"
@@ -227,198 +222,17 @@
                                                     </span>
                                                 </div>
                                             </div>
-                                        {% endif %}
-                                    {% endfor %}
-                                    {% if not has_offen %}
-                                        <div class="kanban-empty-placeholder">
-                                            <i class="bi bi-inbox"></i>
-                                            <span>Keine offenen Aufgaben</span>
-                                        </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-
-                        {# Column: In Bearbeitung #}
-                        <div class="col-12 col-md-6 col-xl-3">
-                            <div class="kanban-column" data-status="In Bearbeitung">
-                                <div class="kanban-column-header">
-                                    <h3>
-                                        <i class="bi bi-arrow-repeat text-info me-2"></i>In Bearbeitung
-                                        <span class="badge text-bg-info ms-2" id="count-in-bearbeitung">{{ tasks|filter(t => t.status == 'In Bearbeitung')|length }}</span>
-                                    </h3>
-                                </div>
-                                <div class="kanban-cards-container" data-drop-zone="In Bearbeitung">
-                                    {% set has_in_bearbeitung = false %}
-                                    {% for task in tasks %}
-                                        {% if task.status == 'In Bearbeitung' %}
-                                            {% set has_in_bearbeitung = true %}
-                                            <div class="kanban-card"
-                                                 data-task-id="{{ task.id }}"
-                                                 data-task-status="{{ task.status }}"
-                                                 draggable="true">
-                                                <div class="kanban-card-title">
-                                                    <a href="/tasks/{{ task.id }}">{{ task.name }}</a>
-                                                    {% if task.comments_count > 0 %}
-                                                        <span class="badge text-bg-light ms-1"
-                                                              title="{{ task.comments_count }} Kommentare"><i class="bi bi-chat"></i> {{ task.comments_count }}</span>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="kanban-card-meta">
-                                                    <span>
-                                                        {% if task.priority == 'Hoch' %}
-                                                            <span class="kanban-card-badge badge text-bg-danger">Hoch</span>
-                                                        {% elseif task.priority == 'Mittel' %}
-                                                            <span class="kanban-card-badge badge text-bg-warning">Mittel</span>
-                                                        {% else %}
-                                                            <span class="kanban-card-badge badge text-bg-secondary">Niedrig</span>
-                                                        {% endif %}
-                                                    </span>
-                                                    <span>
-                                                        {% if task.end_date %}
-                                                            {% set due = task.end_date|date('Y-m-d') %}
-                                                            {% set today = 'now'|date('Y-m-d') %}
-                                                            <i class="bi bi-calendar3"></i>
-                                                            <span class="{{ due < today ? 'kanban-date-warning' : '' }}">{{ task.end_date|date('d.m.Y') }}</span>
-                                                        {% endif %}
-                                                        {% for assignee in task.assignees %}
-                                                            <span class="avatar-initials ms-1"
-                                                                  title="{{ assignee|person_name }}">{{ assignee.first_name|slice(0, 1) }}{{ assignee.last_name|slice(0, 1) }}</span>
-                                                        {% endfor %}
-                                                    </span>
-                                                </div>
+                                        {% endfor %}
+                                        {% if column_tasks is empty %}
+                                            <div class="kanban-empty-placeholder">
+                                                <i class="bi bi-inbox"></i>
+                                                <span>{{ status_empty_texts[status] }}</span>
                                             </div>
                                         {% endif %}
-                                    {% endfor %}
-                                    {% if not has_in_bearbeitung %}
-                                        <div class="kanban-empty-placeholder">
-                                            <i class="bi bi-inbox"></i>
-                                            <span>Keine Aufgaben in Bearbeitung</span>
-                                        </div>
-                                    {% endif %}
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-
-                        {# Column: Blockiert #}
-                        <div class="col-12 col-md-6 col-xl-3">
-                            <div class="kanban-column" data-status="Blockiert">
-                                <div class="kanban-column-header">
-                                    <h3>
-                                        <i class="bi bi-x-circle text-danger me-2"></i>Blockiert
-                                        <span class="badge text-bg-danger ms-2" id="count-blockiert">{{ tasks|filter(t => t.status == 'Blockiert')|length }}</span>
-                                    </h3>
-                                </div>
-                                <div class="kanban-cards-container" data-drop-zone="Blockiert">
-                                    {% set has_blockiert = false %}
-                                    {% for task in tasks %}
-                                        {% if task.status == 'Blockiert' %}
-                                            {% set has_blockiert = true %}
-                                            <div class="kanban-card"
-                                                 data-task-id="{{ task.id }}"
-                                                 data-task-status="{{ task.status }}"
-                                                 draggable="true">
-                                                <div class="kanban-card-title">
-                                                    <a href="/tasks/{{ task.id }}">{{ task.name }}</a>
-                                                    {% if task.comments_count > 0 %}
-                                                        <span class="badge text-bg-light ms-1"
-                                                              title="{{ task.comments_count }} Kommentare"><i class="bi bi-chat"></i> {{ task.comments_count }}</span>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="kanban-card-meta">
-                                                    <span>
-                                                        {% if task.priority == 'Hoch' %}
-                                                            <span class="kanban-card-badge badge text-bg-danger">Hoch</span>
-                                                        {% elseif task.priority == 'Mittel' %}
-                                                            <span class="kanban-card-badge badge text-bg-warning">Mittel</span>
-                                                        {% else %}
-                                                            <span class="kanban-card-badge badge text-bg-secondary">Niedrig</span>
-                                                        {% endif %}
-                                                    </span>
-                                                    <span>
-                                                        {% if task.end_date %}
-                                                            {% set due = task.end_date|date('Y-m-d') %}
-                                                            {% set today = 'now'|date('Y-m-d') %}
-                                                            <i class="bi bi-calendar3"></i>
-                                                            <span class="{{ due < today ? 'kanban-date-warning' : '' }}">{{ task.end_date|date('d.m.Y') }}</span>
-                                                        {% endif %}
-                                                        {% for assignee in task.assignees %}
-                                                            <span class="avatar-initials ms-1"
-                                                                  title="{{ assignee|person_name }}">{{ assignee.first_name|slice(0, 1) }}{{ assignee.last_name|slice(0, 1) }}</span>
-                                                        {% endfor %}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        {% endif %}
-                                    {% endfor %}
-                                    {% if not has_blockiert %}
-                                        <div class="kanban-empty-placeholder">
-                                            <i class="bi bi-inbox"></i>
-                                            <span>Keine blockierten Aufgaben</span>
-                                        </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
-
-                        {# Column: Abgeschlossen #}
-                        <div class="col-12 col-md-6 col-xl-3">
-                            <div class="kanban-column" data-status="Abgeschlossen">
-                                <div class="kanban-column-header">
-                                    <h3>
-                                        <i class="bi bi-check-circle text-success me-2"></i>Erledigt
-                                        <span class="badge text-bg-success ms-2" id="count-abgeschlossen">{{ tasks|filter(t => t.status == 'Abgeschlossen')|length }}</span>
-                                    </h3>
-                                </div>
-                                <div class="kanban-cards-container" data-drop-zone="Abgeschlossen">
-                                    {% set has_abgeschlossen = false %}
-                                    {% for task in tasks %}
-                                        {% if task.status == 'Abgeschlossen' %}
-                                            {% set has_abgeschlossen = true %}
-                                            <div class="kanban-card"
-                                                 data-task-id="{{ task.id }}"
-                                                 data-task-status="{{ task.status }}"
-                                                 draggable="true">
-                                                <div class="kanban-card-title">
-                                                    <a href="/tasks/{{ task.id }}">{{ task.name }}</a>
-                                                    {% if task.comments_count > 0 %}
-                                                        <span class="badge text-bg-light ms-1"
-                                                              title="{{ task.comments_count }} Kommentare"><i class="bi bi-chat"></i> {{ task.comments_count }}</span>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="kanban-card-meta">
-                                                    <span>
-                                                        {% if task.priority == 'Hoch' %}
-                                                            <span class="kanban-card-badge badge text-bg-danger">Hoch</span>
-                                                        {% elseif task.priority == 'Mittel' %}
-                                                            <span class="kanban-card-badge badge text-bg-warning">Mittel</span>
-                                                        {% else %}
-                                                            <span class="kanban-card-badge badge text-bg-secondary">Niedrig</span>
-                                                        {% endif %}
-                                                    </span>
-                                                    <span>
-                                                        {% if task.end_date %}
-                                                            <i class="bi bi-calendar3"></i>
-                                                            <span>{{ task.end_date|date('d.m.Y') }}</span>
-                                                        {% endif %}
-                                                        {% for assignee in task.assignees %}
-                                                            <span class="avatar-initials ms-1"
-                                                                  title="{{ assignee|person_name }}">{{ assignee.first_name|slice(0, 1) }}{{ assignee.last_name|slice(0, 1) }}</span>
-                                                        {% endfor %}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        {% endif %}
-                                    {% endfor %}
-                                    {% if not has_abgeschlossen %}
-                                        <div class="kanban-empty-placeholder">
-                                            <i class="bi bi-inbox"></i>
-                                            <span>Keine erledigten Aufgaben</span>
-                                        </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                        </div>
+                        {% endfor %}
 
                     </div>
                 </div>
@@ -468,17 +282,22 @@
                         <div class="col-md-6 mb-3">
                             <label for="priority" class="form-label">Priorität</label>
                             <select class="form-select" id="priority" name="priority">
-                                <option value="Niedrig">Niedrig</option>
-                                <option value="Mittel" selected>Mittel</option>
-                                <option value="Hoch">Hoch</option>
+                                {% for priority in priorities %}
+                                    <option value="{{ priority }}"
+                                            {{ priority == "medium" ? "selected" : "" }}>{{ priority_labels[priority] }}</option>
+                                {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="status" class="form-label">Status</label>
+                            {# Alle vier Zustände, auch "blockiert": Das Auswahlfeld kannte
+                               nur drei, obwohl das Board eine Spalte dafür hat und
+                               TaskController::validateStatus() den Wert längst annimmt. #}
                             <select class="form-select" id="status" name="status">
-                                <option value="Offen" selected>Offen</option>
-                                <option value="In Bearbeitung">In Arbeit</option>
-                                <option value="Abgeschlossen">Erledigt</option>
+                                {% for status in statuses %}
+                                    <option value="{{ status }}"
+                                            {{ status == "open" ? "selected" : "" }}>{{ status_labels[status] }}</option>
+                                {% endfor %}
                             </select>
                         </div>
                     </div>

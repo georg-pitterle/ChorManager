@@ -4211,8 +4211,8 @@ class DevSeedService
             ['name' => 'Generalprobe koordinieren', 'description' => '<p>Ablauf, Einsingzeit und Technikslot planen.</p>'],
             ['name' => 'Social-Media-Ankündigung', 'description' => '<p>Beitragsreihe für Konzertwoche vorbereiten.</p>'],
         ];
-        $statuses = ['Offen', 'In Bearbeitung', 'Abgeschlossen', 'Blockiert'];
-        $priorities = ['Niedrig', 'Mittel', 'Hoch'];
+        $statuses = Task::STATUSES;
+        $priorities = Task::PRIORITIES;
 
         $tasks = [];
         $userCount = count($activeUsers);

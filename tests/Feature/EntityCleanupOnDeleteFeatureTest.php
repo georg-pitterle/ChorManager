@@ -118,8 +118,8 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
         $task = Task::create([
             'project_id' => $this->project->id,
             'name' => 'Noten kopieren',
-            'status' => 'Offen',
-            'priority' => 'Mittel',
+            'status' => Task::STATUS_OPEN,
+            'priority' => Task::PRIORITY_MEDIUM,
             'created_by' => $this->user->id,
         ]);
         $taskId = (int) $task->id;

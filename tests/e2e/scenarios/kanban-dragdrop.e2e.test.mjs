@@ -21,7 +21,8 @@ import {
 // das Szenario legt seine Aufgaben deshalb selbst an. Der Projektname trägt einen
 // Zeitstempel, weil die Szenarien parallel gegen dieselbe Datenbank laufen.
 
-const STATUSES = ['Offen', 'In Bearbeitung', 'Blockiert', 'Abgeschlossen'];
+// Reihenfolge wie Task::STATUSES und damit wie die Spalten des Boards.
+const STATUSES = ['open', 'in_progress', 'blocked', 'done'];
 
 function zone(page, status) {
     return page.locator(`.kanban-cards-container[data-drop-zone="${status}"]`);
@@ -40,7 +41,7 @@ async function projectWithTasks(page, label, titles) {
     const boardPath = await taskBoardPath(page, name);
 
     for (const title of titles) {
-        await createTask(page, boardPath, { title, status: 'Offen' });
+        await createTask(page, boardPath, { title, status: 'open' });
     }
 
     return boardPath;
@@ -53,12 +54,12 @@ test('Kanban: Statuswechsel per Ziehen bleibt nach dem Neuladen erhalten', async
     const boardPath = await projectWithTasks(page, 'Kanban-Zug', ['Noten kopieren', 'Saal reservieren']);
     await openKanbanBoard(page, boardPath);
 
-    const card = zone(page, 'Offen').locator('.kanban-card').first();
+    const card = zone(page, 'open').locator('.kanban-card').first();
     await expect(card).toBeVisible();
 
-    const movedTaskId = await dragCardToZone(page, card, zone(page, 'In Bearbeitung'));
+    const movedTaskId = await dragCardToZone(page, card, zone(page, 'in_progress'));
 
-    const moved = zone(page, 'In Bearbeitung').locator(`.kanban-card[data-task-id="${movedTaskId}"]`);
+    const moved = zone(page, 'in_progress').locator(`.kanban-card[data-task-id="${movedTaskId}"]`);
     await expect(moved.first()).toBeVisible({ timeout: 10000 });
 
     // Der eigentliche Punkt: der Zug muss gespeichert sein, nicht nur im DOM stehen.
@@ -66,7 +67,7 @@ test('Kanban: Statuswechsel per Ziehen bleibt nach dem Neuladen erhalten', async
     await openKanbanBoard(page);
 
     await expect(
-        zone(page, 'In Bearbeitung').locator(`.kanban-card[data-task-id="${movedTaskId}"]`).first()
+        zone(page, 'in_progress').locator(`.kanban-card[data-task-id="${movedTaskId}"]`).first()
     ).toBeVisible({ timeout: 10000 });
 });
 
@@ -77,7 +78,7 @@ test('Kanban: Leere-Hinweis erscheint und verschwindet beim Verschieben', async 
     const boardPath = await projectWithTasks(page, 'Kanban-Hinweis', ['Programmheft setzen']);
     await openKanbanBoard(page, boardPath);
 
-    const sourceStatus = 'Offen';
+    const sourceStatus = 'open';
     const targetStatus = STATUSES.find((status) => status !== sourceStatus);
 
     const sourceZone = zone(page, sourceStatus);

@@ -130,17 +130,22 @@ final class NewsletterEventAudienceRecipientsFeatureTest extends TestCase
         $newsletter = $this->newsletterForEvent($event, $absent);
 
         // Abwesend, gehört aber zur Zielgruppe.
+        //
+        // Stand hier als 'absent' - ein Wert, den Attendance::STATUS_* nie
+        // kannte und der nur durchkam, weil die Spalte ein freies varchar war.
+        // Seit Migration 20261022120000 weist das ENUM ihn ab. Für die Aussage
+        // des Tests zählt allein "war nicht da".
         Attendance::create([
             'event_id' => $event->id,
             'user_id' => $absent->id,
-            'status' => 'absent',
+            'status' => Attendance::STATUS_UNEXCUSED,
         ]);
         // Anwesend eingetragen, gehört aber nicht zur Zielgruppe - etwa als
         // Gast. Die Nachlese zum Termin geht trotzdem an die Zielgruppe.
         Attendance::create([
             'event_id' => $event->id,
             'user_id' => $presentButOutside->id,
-            'status' => 'present',
+            'status' => Attendance::STATUS_PRESENT,
         ]);
 
         $recipientIds = (new NewsletterRecipientService())

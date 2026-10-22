@@ -62,6 +62,7 @@ final class ModelSchemaConsistencyTest extends TestCase
         'CALENDAR_TASK_FORMATS' => 'calendar_task_format',
         'TYPES' => 'type',
         'PAYMENT_METHODS' => 'payment_method',
+        'PRIORITIES' => 'priority',
     ];
 
     /** @var array<string, list<string>>|null */

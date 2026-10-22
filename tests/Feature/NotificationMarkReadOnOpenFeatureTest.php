@@ -191,8 +191,8 @@ final class NotificationMarkReadOnOpenFeatureTest extends TestCase
         return Task::create([
             'project_id' => $this->project->id,
             'name' => $name,
-            'status' => 'Offen',
-            'priority' => 'Mittel',
+            'status' => Task::STATUS_OPEN,
+            'priority' => Task::PRIORITY_MEDIUM,
             'created_by' => $this->anna->id,
         ]);
     }

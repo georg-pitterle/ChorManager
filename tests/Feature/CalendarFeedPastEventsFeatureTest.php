@@ -111,8 +111,8 @@ final class CalendarFeedPastEventsFeatureTest extends TestCase
         $done = Task::create([
             'project_id' => $project->id,
             'name' => 'Längst erledigt',
-            'status' => 'Abgeschlossen',
-            'priority' => 'Mittel',
+            'status' => Task::STATUS_DONE,
+            'priority' => Task::PRIORITY_MEDIUM,
             'end_date' => Carbon::now()->subDays(20)->toDateString(),
             'created_by' => $this->user->id,
         ]);
@@ -121,8 +121,8 @@ final class CalendarFeedPastEventsFeatureTest extends TestCase
         $open = Task::create([
             'project_id' => $project->id,
             'name' => 'Noch offen',
-            'status' => 'Offen',
-            'priority' => 'Mittel',
+            'status' => Task::STATUS_OPEN,
+            'priority' => Task::PRIORITY_MEDIUM,
             'end_date' => Carbon::now()->subDays(20)->toDateString(),
             'created_by' => $this->user->id,
         ]);

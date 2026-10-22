@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Task;
 use App\Util\MailBranding;
 use App\Util\NotificationType;
 use Illuminate\Support\Collection;
@@ -30,8 +31,8 @@ final class NotificationTemplatesRenderFeatureTest extends TestCase
         $task = (object) [
             'id' => 7,
             'name' => 'Saalreservierung bestätigen',
-            'status' => 'Offen',
-            'priority' => 'Hoch',
+            'status' => Task::STATUS_OPEN,
+            'priority' => Task::PRIORITY_HIGH,
             'end_date' => new \DateTimeImmutable('2026-09-15'),
             'project' => (object) ['id' => 3, 'name' => 'HS 2026 - Lametta und Legato'],
         ];
