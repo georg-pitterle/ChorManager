@@ -223,8 +223,14 @@ class SponsoringPolicy
      * Übersicht der zuständigen Person nicht - sie hätte ihn nur auf der
      * Sponsor-Detailseite gefunden, wenn sie dort nachgesehen hätte.
      *
-     * Die Zusammenfassung des fremden Kontakts kommt dabei nicht mit: die
-     * Wiedervorlagen-Zeile führt sie nicht, anders als die Kontakthistorie.
+     * Die Zusammenfassung des fremden Kontakts kommt dabei nicht mit - aber
+     * nicht, weil die Wiedervorlagen-Zeile sie nicht führte. Sie führt sie, und
+     * zwar hinter canSeeContactDetails() (SponsoringDashboardController::
+     * mapUpcomingFollowUp()). Genau dort liegt die Absicherung: Weil diese Liste
+     * bewusst fremde Einträge aufnimmt, muss jede Zeile die Zusammenfassung
+     * einzeln erfragen. Die Kontakthistorie darunter gibt sie ungeprüft weiter,
+     * und das ist richtig - ihre Abfrage ist über ownContactUserIdFilter()
+     * bereits auf eigene Kontakte eingeschränkt, hier also gerade nicht.
      *
      * @param Builder<SponsoringContact> $query
      * @return Builder<SponsoringContact>

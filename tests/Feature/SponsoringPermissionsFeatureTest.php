@@ -705,6 +705,15 @@ class SponsoringPermissionsFeatureTest extends TestCase
             $this->assertCount(1, $urls);
             $this->assertStringContainsString('/contacts/' . $onMyAgreement->id . '/done', $urls[0]);
 
+            // Die Zeile steht in der Liste, ihre Zusammenfassung aber nicht.
+            // Weil diese Liste als einzige bewusst fremde Einträge aufnimmt,
+            // hängt das Feld an canSeeContactDetails() - und zwar je Zeile, in
+            // SponsoringDashboardController::mapUpcomingFollowUp(). Ohne diese
+            // Zusage war genau diese Abfrage von keinem Test gehalten: Wer sie
+            // entfernte, bekam die fremde Zusammenfassung in die Übersicht und
+            // alle Tests blieben grün.
+            $this->assertNull($data['upcoming_follow_ups'][0]['summary']);
+
             // Was in der Liste steht, lässt sich auch abhaken - dieselbe Regel.
             $policy = new SponsoringPolicy($_SESSION);
             $this->assertTrue($policy->canCompleteFollowUp($onMyAgreement->fresh()));
