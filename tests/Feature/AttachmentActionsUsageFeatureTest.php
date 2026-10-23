@@ -439,8 +439,9 @@ final class AttachmentActionsUsageFeatureTest extends TestCase
 
             $this->assertStringNotContainsString('/downloads/attachments/', $html);
 
-            // Die Größe steht lesbar in der Dateizeile, nicht als Tabellenspalte.
-            $this->assertMatchesRegularExpression('/Übe-Audio · \d+(\.\d+)? ?(B|KB)/u', $html);
+            // Die Größe steht lesbar in der Dateizeile, nicht als Tabellenspalte;
+            // die Dateiart nennt die Gruppe darüber.
+            $this->assertMatchesRegularExpression('/downloads-file__meta">\d+(\.\d+)? ?(B|KB)</u', $html);
             $this->assertStringNotContainsString('Groesse', $html); // naming:ascii Vergleich gegen die frühere Transliteration
             $this->assertStringContainsString('Dein Browser unterstützt kein Audio-Playback.', $html);
         } finally {

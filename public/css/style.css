@@ -2985,8 +2985,8 @@ a:hover {
 /* Probenmaterial: Projekt -> Lied -> Dateiliste.
    Ein Projekt ist eine Karte mit Akzentkante oben in der Vereinsfarbe (wie die übrigen Karten); darin stehen
    die Lieder nur durch Trennlinien getrennt, nicht in eigenen Karten. Dateien
-   sind Zeilen mit Typ-Symbol, nicht Tabellenzellen: Am Telefon bricht die Zeile
-   um (Aktionen unter den Namen), ohne dass dafür ein zweites Layout nötig wäre. */
+   sind Zeilen, nicht Tabellenzellen: Am Telefon bricht die Zeile um (Aktionen
+   unter den Namen), ohne dass dafür ein zweites Layout nötig wäre. */
 .downloads-shell {
     display: grid;
     gap: 1.5rem;
@@ -3064,57 +3064,125 @@ a:hover {
     font-size: 0.875rem;
 }
 
-.downloads-files {
+/* Dateien eines Lieds, nach Art gegliedert (RehearsalFileGroups).
+   Eine Gruppe ist ein <details> ohne eigenen Rahmen - die Projektkarte ist schon
+   der Rahmen (One-Frame-Rule). Der Kopf trägt die Gruppenlabel-Typografie und
+   einen Zähler; die Zeilen darunter sind nur durch Haarlinien getrennt, damit
+   auch 14 Übe-Audios noch eine ruhige Liste ergeben statt eines Kachelstapels. */
+.downloads-group {
     margin-top: 0.75rem;
-    display: grid;
+}
+
+.downloads-group + .downloads-group {
+    margin-top: 0.25rem;
+}
+
+.downloads-group__summary {
+    display: flex;
+    align-items: center;
     gap: 0.5rem;
+    padding: 0.5rem 0;
+    cursor: pointer;
+    list-style: none;
+    color: var(--theme-text-muted);
+    border-radius: var(--app-radius);
+}
+
+.downloads-group__summary::-webkit-details-marker {
+    display: none;
+}
+
+.downloads-group__summary::before {
+    content: "\f285";
+    font-family: bootstrap-icons, sans-serif;
+    font-size: 0.75rem;
+    line-height: 1;
+    transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.downloads-group[open] > .downloads-group__summary::before {
+    transform: rotate(90deg);
+}
+
+.downloads-group__summary:hover,
+.downloads-group[open] > .downloads-group__summary {
+    color: var(--theme-text);
+}
+
+.downloads-group__summary:focus-visible {
+    outline: 2px solid var(--theme-primary-strong);
+    outline-offset: 2px;
+}
+
+.downloads-group__label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.downloads-group__count {
+    min-width: 1.5rem;
+    padding: 0.05rem 0.45rem;
+    background: var(--theme-surface-muted);
+    color: var(--theme-text);
+    font-size: 0.75rem;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+}
+
+.downloads-files {
+    display: grid;
 }
 
 .downloads-file {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    align-items: start;
-    gap: 0.75rem;
-    padding: 0.6rem 0.75rem;
-    border-radius: var(--app-radius);
-    background: var(--theme-surface-muted);
-}
-
-.downloads-file__icon {
-    display: inline-flex;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: center;
-    width: 2.25rem;
-    height: 2.25rem;
-    border-radius: var(--app-radius);
-    background: rgba(var(--theme-primary-rgb), 0.18);
-    color: var(--theme-text);
-    font-size: 1.15rem;
+    gap: 0.25rem 0.75rem;
+    padding: 0.5rem 0 0.5rem 1.25rem;
+    border-top: 1px solid var(--theme-border);
 }
 
 .downloads-file__main {
     display: flex;
-    flex-direction: column;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 0.6rem;
     min-width: 0;
 }
 
 .downloads-file__name {
-    font-weight: 600;
     overflow-wrap: anywhere;
 }
 
 .downloads-file__meta {
     color: var(--theme-text-muted);
     font-size: 0.8125rem;
-}
-
-.downloads-file__player {
-    width: 100%;
-    margin-top: 0.5rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
 }
 
 .downloads-file__actions {
-    align-self: center;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.downloads-file__play[aria-expanded="true"] {
+    color: var(--theme-text);
+    background: var(--theme-surface-muted);
+    border-color: var(--theme-border);
+}
+
+/* Der aufgeklappte Abspieler nimmt die ganze Zeilenbreite unter Name und Knöpfen. */
+.downloads-file__player {
+    grid-column: 1 / -1;
+    padding-bottom: 0.25rem;
+}
+
+.downloads-file__player audio {
+    display: block;
+    width: 100%;
 }
 
 .downloads-song-links {
@@ -3131,19 +3199,21 @@ a:hover {
     }
 
     .downloads-file {
-        grid-template-columns: auto minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr);
+        padding-left: 0;
     }
 
-    /* Die Aktionen rücken unter Symbol und Name und bleiben gut greifbar. */
-    .downloads-file__actions {
-        grid-column: 1 / -1;
+    /* Die Aktionen rücken unter den Namen und bleiben gut greifbar. */
+    .downloads-file__actions .downloads-file__play,
+    .downloads-file__actions .attachment-actions {
+        flex: 1 1 0;
     }
 
     .downloads-file__actions .attachment-actions {
         display: flex;
     }
 
-    .downloads-file__actions .attachment-actions .btn {
+    .downloads-file__actions .btn {
         flex: 1 1 0;
         min-height: 2.75rem;
     }

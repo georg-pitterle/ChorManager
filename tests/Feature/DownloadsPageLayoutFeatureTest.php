@@ -243,6 +243,66 @@ final class DownloadsPageLayoutFeatureTest extends TestCase
         $this->assertMatchesRegularExpression('/<midi-player[^>]*aria-label="[^"]*Begleitung\.mid[^"]*"/', $html);
     }
 
+    public function testManyFilesAreGroupedByKindWithOnlySheetMusicOpen(): void
+    {
+        $fixture = $this->makeMemberWithProjects(['Gruppen ' . bin2hex(random_bytes(3)) => ['start' => date('Y-m-d')]]);
+        $songId = (int) $fixture['song']->id;
+        $title = (string) $fixture['song']->title;
+        $this->makeAttachment($songId, $title . '_Bass1.mp3', 'audio/mpeg');
+        $this->makeAttachment($songId, $title . '_Sopran1.mp3', 'audio/mpeg');
+        $this->makeAttachment($songId, $title . '_Alt1.mp3', 'audio/mpeg');
+        $this->makeAttachment($songId, 'Begleitung.mid', 'audio/midi');
+        $this->makeAttachment($songId, 'Partitur.pdf', 'application/pdf');
+
+        $html = $this->renderIndexFor($fixture['user']);
+
+        $this->assertMatchesRegularExpression('/<details class="downloads-group" data-file-kind="sheet" open>/', $html);
+        $this->assertMatchesRegularExpression('/<details class="downloads-group" data-file-kind="audio">/', $html);
+        $this->assertMatchesRegularExpression('/<details class="downloads-group" data-file-kind="midi">/', $html);
+
+        // Gruppen in fester Reihenfolge, jede mit ihrer Anzahl.
+        $sheet = strpos($html, 'data-file-kind="sheet"');
+        $audio = strpos($html, 'data-file-kind="audio"');
+        $midi = strpos($html, 'data-file-kind="midi"');
+        $this->assertTrue($sheet < $audio && $audio < $midi);
+        $this->assertMatchesRegularExpression(
+            '/data-file-kind="audio">\s*<summary[^>]*>\s*<span[^>]*>Übe-Audio<\/span>\s*<span[^>]*>3<\/span>/',
+            $html
+        );
+
+        // Kurzname ohne Liedtitel, in Stimmreihenfolge; der volle Name bleibt als Titel erhalten.
+        $sopran = strpos($html, '>Sopran1<');
+        $alt = strpos($html, '>Alt1<');
+        $bass = strpos($html, '>Bass1<');
+        $this->assertNotFalse($sopran);
+        $this->assertTrue($sopran < $alt && $alt < $bass);
+        $this->assertStringContainsString('title="' . $title . '_Alt1.mp3"', $html);
+    }
+
+    public function testPlayersOpenFromAToggleInsteadOfStandingInEveryRow(): void
+    {
+        $fixture = $this->makeMemberWithProjects(['Knopf ' . bin2hex(random_bytes(3)) => ['start' => date('Y-m-d')]]);
+        $songId = (int) $fixture['song']->id;
+        $audio = $this->makeAttachment($songId, 'Sopran.mp3', 'audio/mpeg');
+        $midi = $this->makeAttachment($songId, 'Sopran.mid', 'audio/midi');
+        $pdf = $this->makeAttachment($songId, 'Noten.pdf', 'application/pdf');
+
+        $html = $this->renderIndexFor($fixture['user']);
+
+        foreach ([$audio, $midi] as $attachment) {
+            $playerId = 'downloads-player-' . $attachment->id;
+            $this->assertMatchesRegularExpression(
+                '/<button[^>]*data-player-toggle[^>]*aria-controls="' . $playerId . '"[^>]*aria-expanded="false"/',
+                $html
+            );
+            $this->assertMatchesRegularExpression('/<div[^>]*id="' . $playerId . '"[^>]*hidden/', $html);
+        }
+
+        // Noten haben nichts abzuspielen.
+        $this->assertStringNotContainsString('downloads-player-' . $pdf->id, $html);
+        $this->assertSame(2, preg_match_all('/<button[^>]*data-player-toggle\s/', $html));
+    }
+
     public function testMidiScriptsLoadOnlyWhenAMidiFileIsOnThePage(): void
     {
         $fixture = $this->makeMemberWithProjects(['Skripte ' . bin2hex(random_bytes(3)) => ['start' => date('Y-m-d')]]);

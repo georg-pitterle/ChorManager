@@ -6,7 +6,9 @@ namespace App\Controllers;
 
 use App\Models\Project;
 use App\Models\User;
+use App\Models\VoiceGroup;
 use App\Services\WebdavAccessService;
+use App\Util\RehearsalFileGroups;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -26,7 +28,7 @@ class DownloadController
      * MIME-Typen, die der MIDI-Abspieler bekommt. Die Seite lädt dessen
      * Skripte nur, wenn mindestens eine solche Datei darauf steht.
      */
-    private const MIDI_MIME_TYPES = ['audio/midi', 'audio/x-midi', 'application/x-midi'];
+    private const MIDI_MIME_TYPES = RehearsalFileGroups::MIDI_MIME_TYPES;
 
     private Twig $view;
     private WebdavAccessService $webdav;
@@ -86,8 +88,8 @@ class DownloadController
             return $this->view->render($response, 'songs/downloads.twig', [
                 'current_projects' => [],
                 'past_projects' => [],
+                'file_groups' => [],
                 'has_midi' => false,
-                'midi_mime_types' => self::MIDI_MIME_TYPES,
                 'active_nav' => 'downloads',
                 'webdav' => null,
             ]);
@@ -117,11 +119,37 @@ class DownloadController
         return $this->view->render($response, 'songs/downloads.twig', [
             'current_projects' => $groups['current'],
             'past_projects' => $groups['past'],
+            'file_groups' => $this->fileGroups($projects),
             'has_midi' => $this->hasMidi($projects),
-            'midi_mime_types' => self::MIDI_MIME_TYPES,
             'active_nav' => 'downloads',
             'webdav' => $this->webdavState($request, $userId),
         ]);
+    }
+
+    /**
+     * Dateien je Lied, nach Art gegliedert. Ein Lied, das in mehreren Projekten
+     * steht, wird nur einmal gegliedert - die Gruppen hängen am Lied, nicht am
+     * Projekt.
+     *
+     * @param iterable<Project> $projects
+     * @return array<int, list<array<string, mixed>>> Gruppen je Lied-ID
+     */
+    private function fileGroups(iterable $projects): array
+    {
+        $voiceNames = VoiceGroup::orderBy('id')->pluck('name')->map(fn ($name) => (string) $name)->all();
+        $groups = [];
+
+        foreach ($projects as $project) {
+            foreach ($project->assignedSongs as $song) {
+                $groups[(int) $song->id] ??= RehearsalFileGroups::build(
+                    $song->attachments,
+                    (string) $song->title,
+                    $voiceNames
+                );
+            }
+        }
+
+        return $groups;
     }
 
     /**
