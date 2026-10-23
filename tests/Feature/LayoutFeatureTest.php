@@ -322,4 +322,25 @@ class LayoutFeatureTest extends TestCase
         $this->assertStringContainsString('height: auto;', $styleContent);
         $this->assertStringContainsString('aspect-ratio: auto;', $styleContent);
     }
+
+    /**
+     * "Zurück" schließt die Anhang-Vorschau, statt die Seite zu verlassen. Dafür muss
+     * modal-history.js geladen sein, bevor attachment-preview.js es anbindet - sonst
+     * findet die Vorschau window.ChorModalHistory nicht und übergeht es still.
+     */
+    public function testModalHistoryLoadsBeforeTheAttachmentPreview(): void
+    {
+        $layout = file_get_contents(dirname(__DIR__, 2) . '/templates/layout.twig');
+        $preview = file_get_contents(dirname(__DIR__, 2) . '/public/js/attachment-preview.js');
+
+        $this->assertIsString($layout);
+        $this->assertIsString($preview);
+
+        $history = strpos($layout, "/js/modal-history.js");
+        $attachment = strpos($layout, "/js/attachment-preview.js");
+        $this->assertNotFalse($history, 'modal-history.js fehlt im Layout.');
+        $this->assertNotFalse($attachment);
+        $this->assertLessThan($attachment, $history);
+        $this->assertStringContainsString('ChorModalHistory.bind(modalElement)', $preview);
+    }
 }

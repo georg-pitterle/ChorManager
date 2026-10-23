@@ -10,6 +10,12 @@ document.addEventListener('DOMContentLoaded', function () {
         return;
     }
 
+    // "Zurück" schließt die Vorschau statt die Seite zu verlassen (modal-history.js).
+    // Am Telefon füllt sie fast den Bildschirm und wird wie eine Seite bedient.
+    if (window.ChorModalHistory) {
+        window.ChorModalHistory.bind(modalElement);
+    }
+
     const body = document.getElementById('attachmentPreviewBody');
     const title = document.getElementById('attachmentPreviewTitle');
     const meta = document.getElementById('attachmentPreviewMeta');
