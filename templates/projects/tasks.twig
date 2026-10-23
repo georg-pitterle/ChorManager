@@ -213,7 +213,14 @@
                                                             {% set due = task.end_date|date("Y-m-d") %}
                                                             {% set today = "now"|date("Y-m-d") %}
                                                             <i class="bi bi-calendar3"></i>
-                                                            <span class="{{ due < today ? "kanban-date-warning" : "" }}">{{ task.end_date|date("d.m.Y") }}</span>
+                                                            {# Rot nur bei offener Arbeit - wie in der Listenansicht.
+                                                               data-past-due lässt das Board die Warnung nach einem
+                                                               Zug anpassen (kanban-sortable-init.js). #}
+                                                            {% set _past_due = due < today %}
+                                                            {% set _warn = _past_due and task.status != "done" %}
+                                                            <span class="{{ _warn ? "kanban-date-warning" : "" }}"{% if _past_due %} data-past-due{% endif %}>
+                                                                {{- task.end_date|date("d.m.Y") -}}
+                                                            </span>
                                                         {% endif %}
                                                         {% for assignee in task.assignees %}
                                                             <span class="avatar-initials ms-1"

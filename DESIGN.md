@@ -42,6 +42,21 @@ typography:
     fontWeight: 700
     lineHeight: 1.3
     letterSpacing: "0.06em"
+  meta:
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Noto Sans, Liberation Sans, Arial, sans-serif"
+    fontSize: "0.8125rem"
+    fontWeight: 400
+    lineHeight: 1.4
+  small:
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Noto Sans, Liberation Sans, Arial, sans-serif"
+    fontSize: "0.875rem"
+    fontWeight: 400
+    lineHeight: 1.45
+  lead:
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Noto Sans, Liberation Sans, Arial, sans-serif"
+    fontSize: "0.9375rem"
+    fontWeight: 400
+    lineHeight: 1.5
   kpi-value:
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Noto Sans, Liberation Sans, Arial, sans-serif"
     fontSize: "1.75rem"
@@ -150,6 +165,12 @@ Neutrales Blaugrau als Rahmen, Weiß als Arbeitsfläche, die Vereinsfarbe als ei
 - **Fließtext** (400, 1rem, 1,5).
 - **Gruppenlabel** (700, 0,75rem, 0,06em, Großbuchstaben, gedämpft): `.group-label` – die einzige Stelle mit Großschreibung. Auch Tabellenköpfe nutzen diesen Stil.
 - **Kennzahl** (400, 1,75rem, tabellarische Ziffern): `.finance-kpi-value`; fett nur der Saldo.
+
+Unterhalb der Überschriften gibt es genau vier Textgrößen, als Tokens in `:root`: Gruppenlabel
+0,75rem (`--font-size-label`), Nebeninfo 0,8125rem (`--font-size-meta`: Größe, Datum, Zähltext),
+klein 0,875rem (`--font-size-small`: Hinweise, Metazeilen, dichte Tabellen) und Einleitung
+0,9375rem (`--font-size-lead`: Begleitsätze, Kanban-Titel). Kartentitel und Kennzahl nutzen
+`--font-size-title` und `--font-size-kpi`. Eine feste Größe zwischen diesen Stufen ist ein Fehler.
 
 ### Named Rules
 **The Four Roles Rule.** Es gibt vier Überschriftenrollen. Eine Überschrift hat keine eigene Farbe und keine Hilfsklassen für Größe, Gewicht oder Großschreibung.

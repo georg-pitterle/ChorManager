@@ -41,6 +41,16 @@ document.addEventListener('DOMContentLoaded', function () {
         placeholder.style.display = cards.length === 0 ? 'flex' : 'none';
     }
 
+    // Ein überschrittenes Datum ist nur bei offener Arbeit eine Warnung. Wandert
+    // eine Karte nach "erledigt" oder wieder heraus, passt sich die Farbe an,
+    // ohne dass die Seite neu geladen werden muss.
+    function syncDueWarning(card, status) {
+        var due = card.querySelector('[data-past-due]');
+        if (due) {
+            due.classList.toggle('kanban-date-warning', status !== 'done');
+        }
+    }
+
     if (window.Sortable) {
         document.querySelectorAll('.kanban-cards-container').forEach(function (zone) {
             updatePlaceholder(zone);
@@ -78,6 +88,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             .then(function (data) {
                                 if (data.success) {
                                     card.dataset.taskStatus = newStatus;
+                                    syncDueWarning(card, newStatus);
                                 } else {
                                     // Fehler: zurückschieben
                                     evt.from.insertBefore(card, evt.from.children[evt.oldIndex]);

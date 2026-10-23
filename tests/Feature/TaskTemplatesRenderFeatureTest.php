@@ -191,6 +191,41 @@ final class TaskTemplatesRenderFeatureTest extends TestCase
         self::assertStringNotContainsString('value="Abgeschlossen"', $html);
     }
 
+    /**
+     * Ein überschrittenes Datum ist nur bei offener Arbeit eine Warnung. In der Spalte
+     * "Abgeschlossen" stand es trotzdem rot - die Listenansicht nahm erledigte Aufgaben
+     * schon aus, das Kanban-Board nicht. `data-past-due` steht an jedem überschrittenen
+     * Datum, damit das Board die Warnung nach einem Zug ohne Neuladen anpassen kann.
+     */
+    public function testKanbanWarnsAboutPastDueDatesOnlyForOpenWork(): void
+    {
+        $this->seedProjectWithOneTaskPerStatus();
+        foreach ($this->tasks as $task) {
+            $task->update(['end_date' => '2020-01-15']);
+        }
+
+        $_SESSION = ['user_id' => (int) $this->user->id, 'can_manage_tasks' => true];
+
+        $html = $this->buildTwig()->fetch('projects/tasks.twig', [
+            'project' => $this->project,
+            'tasks' => Task::with(['assignees'])->where('project_id', $this->project->id)->get(),
+            'projectUsers' => $this->project->users()->get(),
+            'success' => null,
+            'error' => null,
+        ] + $this->valueMaps());
+
+        $board = substr($html, (int) strpos($html, 'id="kanban-board"'));
+
+        self::assertSame(count(Task::STATUSES), substr_count($board, 'data-past-due'));
+        self::assertSame(count(Task::STATUSES) - 1, substr_count($board, 'kanban-date-warning'));
+
+        $doneCard = substr($board, (int) strpos($board, 'data-task-status="done"'));
+        $next = strpos($doneCard, 'class="kanban-card"');
+        $doneCard = $next === false ? $doneCard : substr($doneCard, 0, $next);
+        self::assertStringContainsString('data-past-due', $doneCard);
+        self::assertStringNotContainsString('kanban-date-warning', $doneCard);
+    }
+
     /** Einzelansicht: Zustand, Dringlichkeit und der Knopf "Als erledigt markieren". */
     public function testTaskDetailRendersStatusAndPriority(): void
     {

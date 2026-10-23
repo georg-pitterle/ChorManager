@@ -170,8 +170,9 @@ class LayoutFeatureTest extends TestCase
         // Typographic treatment on th cells
         $this->assertStringContainsString('text-transform: uppercase', $styleContent);
         // Tabellenköpfe nutzen die Gruppenlabel-Typografie aus DESIGN.md (700, 0,06em, 0,75rem).
+        $this->assertStringContainsString('--font-size-label: 0.75rem;', $styleContent);
         $this->assertMatchesRegularExpression(
-            '/thead th \{[^}]*font-weight: 700;[^}]*letter-spacing: 0\.06em;[^}]*font-size: 0\.75rem;/s',
+            '/thead th \{[^}]*font-weight: 700;[^}]*letter-spacing: 0\.06em;[^}]*font-size: var\(--font-size-label\);/s',
             $styleContent
         );
     }
@@ -244,13 +245,13 @@ class LayoutFeatureTest extends TestCase
 
         $this->assertIsString($styleContent);
         // A narrow-viewport thead th override must exist
-        // Verify by checking for the exact font-size reduction value
-        $this->assertStringContainsString('font-size: 0.75rem', $styleContent);
+        // Verify by checking for the font-size reduction (Gruppenlabel-Größe, 0,75rem)
+        $this->assertStringContainsString('font-size: var(--font-size-label)', $styleContent);
         // The responsive card-header padding reduction must exist
         $this->assertStringContainsString('padding: 0.625rem 1rem', $styleContent);
         // Confirm the narrow styles live inside a 767.98px media query
         $this->assertMatchesRegularExpression(
-            '/@media \(max-width: 767\.98px\).*font-size: 0\.75rem/s',
+            '/@media \(max-width: 767\.98px\).*font-size: var\(--font-size-label\)/s',
             $styleContent
         );
     }
