@@ -64,6 +64,6 @@ final class DevSeedOfficeDocumentsFeatureTest extends TestCase
 
         $this->assertStringContainsString('DevSeedAttachmentFixtures::odt(', $content);
         $this->assertStringContainsString('DevSeedAttachmentFixtures::docx(', $content);
-        $this->assertStringContainsString("'office_access_tokens',", $content);
+        // Dass der Reset office_access_tokens leert, prüft DevSeedResetCoverageFeatureTest für alle Tabellen.
     }
 }

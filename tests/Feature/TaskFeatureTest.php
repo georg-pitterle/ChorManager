@@ -826,11 +826,7 @@ class TaskFeatureTest extends TestCase
     {
         $seedContent = file_get_contents(dirname(__DIR__) . '/../src/Services/DevSeedService.php');
 
-        // Check seed clears task-related tables
-        $this->assertStringContainsString("'tasks'", $seedContent);
-        $this->assertStringContainsString("'comments'", $seedContent);
-        $this->assertStringContainsString("'activities'", $seedContent);
-        $this->assertStringContainsString("'attachments'", $seedContent);
+        // Dass der Reset die Aufgaben-Tabellen leert, prüft DevSeedResetCoverageFeatureTest für alle Tabellen.
 
         // Check task seed methods are wired in run flow
         $this->assertStringContainsString("'task_activities' => 0", $seedContent);

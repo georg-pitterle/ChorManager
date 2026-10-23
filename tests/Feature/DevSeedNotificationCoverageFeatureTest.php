@@ -26,12 +26,6 @@ final class DevSeedNotificationCoverageFeatureTest extends TestCase
         $this->assertStringContainsString('function seedUserNotifications', $content);
         $this->assertStringContainsString('$this->seedUserNotifications(', $content);
         $this->assertStringContainsString('NotificationChannel::IN_APP', $content);
-
-        // Geleert wird vor `users`, sonst hielte der Fremdschlüssel das Löschen auf.
-        $resetPosition = strpos($content, "            'user_notifications',");
-        $usersPosition = strpos($content, "            'users',");
-        $this->assertNotFalse($resetPosition, 'user_notifications fehlt in der Liste der geleerten Tabellen.');
-        $this->assertNotFalse($usersPosition);
-        $this->assertLessThan($usersPosition, $resetPosition);
+        // Dass der Reset die Tabelle leert, prüft DevSeedResetCoverageFeatureTest für alle Tabellen.
     }
 }

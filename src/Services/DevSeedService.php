@@ -341,79 +341,7 @@ class DevSeedService
         $connection = Capsule::connection();
         $connection->statement('SET FOREIGN_KEY_CHECKS=0');
 
-        $tables = [
-            'office_access_tokens',
-            'file_favorites',
-            'audience_filter_conditions',
-            'audience_filters',
-            'file_public_links',
-            'file_shares',
-            'file_folder_shares',
-            'file_versions',
-            'files',
-            'file_folders',
-            'event_registrations',
-            'attendance',
-            'activities',
-            'attachments',
-            'comments',
-            'task_assignees',
-            'tasks',
-            'project_song_assignments',
-            'song_category_assignments',
-            'song_resources',
-            'sheet_archive_line_items',
-            'sheet_archives',
-            'songs',
-            'repertoire_categories',
-            'remember_logins',
-            'password_resets',
-            'calendar_subscription_tokens',
-            'webdav_access_tokens',
-            'oidc_access_tokens',
-            'oidc_auth_codes',
-            'oidc_clients',
-            'oidc_signing_keys',
-            'notification_dispatch_log',
-            'user_notification_settings',
-            'user_notifications',
-            'sponsoring_contacts',
-            'sponsorship_benefits',
-            'sponsorships',
-            'sponsors',
-            'sponsor_package_benefits',
-            'sponsor_packages',
-            'newsletter_recipients',
-            'newsletter_recipient_sources',
-            'newsletter_archive',
-            'newsletters',
-            'newsletter_template_recipient_sources',
-            'newsletter_templates',
-            'mail_delivery_events',
-            'mail_queue',
-            'budget_items',
-            'budget_categories',
-            'finance_groups',
-            'project_users',
-            'user_voice_groups',
-            'user_roles',
-            'events',
-            'event_series',
-            'finance_revisions',
-            'finances',
-            'finance_accounts',
-            'projects',
-            'user_mail_accounts',
-            'users',
-            'event_types',
-            'sub_voices',
-            'voice_groups',
-            'roles',
-            'settings',
-            'app_settings',
-        ];
-
-        foreach ($tables as $table) {
+        foreach ($this->resetTables() as $table) {
             $connection->table($table)->truncate();
         }
 
@@ -428,6 +356,28 @@ class DevSeedService
         foreach ($this->backupService->list() as $backup) {
             $this->backupService->delete($backup['id']);
         }
+    }
+
+    /**
+     * Alle Tabellen des Schemas außer dem Migrationsprotokoll.
+     *
+     * Vorher stand hier eine feste Liste. Ihr fehlte `invitation_tokens`, und jede
+     * neue Tabelle hätte ihr genauso gefehlt - nach einem eingespielten
+     * Produktiv-Backup blieben so echte Daten im Dev-Stand liegen. `phinxlog` bleibt
+     * stehen, sonst hielte Phinx alle Migrationen für ausstehend.
+     *
+     * @return list<string>
+     */
+    private function resetTables(): array
+    {
+        $rows = Capsule::connection()->select(
+            "SELECT table_name AS name FROM information_schema.tables
+             WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'"
+        );
+
+        $tables = array_map(static fn(object $row): string => (string) $row->name, $rows);
+
+        return array_values(array_diff($tables, ['phinxlog']));
     }
 
     private function seedRoles(): array

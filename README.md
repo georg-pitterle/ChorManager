@@ -111,7 +111,7 @@ ddev exec APP_ENV=development ALLOW_DEV_SEED=1 composer seed:dev -- --mode=appen
 Verfügbare Modi:
 
 - `append`: fügt weitere Seed-Daten hinzu.
-- `reset-and-seed`: leert seed-relevante Tabellen und erzeugt einen frischen Datensatz (nur Dev).
+- `reset-and-seed`: leert alle Tabellen außer `phinxlog`, dazu Dateiablage und Backups, und erzeugt einen frischen Datensatz (nur Dev).
 
 ### Seed-Report-Zugangsdaten
 

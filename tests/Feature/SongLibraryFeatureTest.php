@@ -323,7 +323,7 @@ class SongLibraryFeatureTest extends TestCase
 
         $this->assertIsString($seedContent);
         $this->assertStringContainsString("'song_link_resources' => 0", $seedContent);
-        $this->assertStringContainsString("'song_resources'", $seedContent);
+        // Dass der Reset song_resources leert, prüft DevSeedResetCoverageFeatureTest für alle Tabellen.
         $this->assertStringContainsString('$this->seedSongLinkResources($songs, 24);', $seedContent);
     }
 
