@@ -158,13 +158,32 @@ class SponsoringPolicy
     /**
      * Darf der Betrag und die Anhänge dieser Vereinbarung gesehen werden?
      *
-     * Bewusst eine eigene Frage, obwohl die Bedingung heute dieselbe ist wie
-     * beim Ändern: "sehen" und "ändern" sind zwei Entscheidungen, und wer eine
-     * davon später lockert, soll nicht ungewollt die andere mitlockern.
+     * Der Urheber ohnehin. Dazu die zuständige Person: Sie erfüllt die Zusage -
+     * Logo ins Programmheft, Freikarten zurücklegen - und muss dafür wissen,
+     * was vereinbart wurde, und die Vertragsdatei öffnen können. Zuvor hing
+     * beides allein am Urheber, und die Zuständigkeit reichte nur zum Abhaken
+     * der Gegenleistungen: Diese Person sollte eine Zusage einhalten, deren
+     * Inhalt ihr verdeckt blieb.
+     *
+     * Dass "sehen" damit weiter reicht als "ändern" (canEditSponsorship() bleibt
+     * beim Urheber), ist die Absicht und kein Versehen: Den Betrag abtippen darf
+     * weiterhin nur, wer die Vereinbarung geführt hat.
+     *
+     * Die Bedingung ist jetzt dieselbe wie bei canTickBenefits(), und das bleibt
+     * trotzdem eine eigene Frage: "sehen" und "abhaken" sind zwei
+     * Entscheidungen, und wer eine davon später lockert, soll nicht ungewollt
+     * die andere mitlockern.
+     *
+     * Die Gesamtsummen folgen dem nicht - sie lassen sich keiner Urheberschaft
+     * und keiner Zuständigkeit zuordnen, siehe canSeeFinancialTotals().
      */
     public function canSeeSponsorshipDetails(Sponsorship $sponsorship): bool
     {
-        return $this->canEditOwned($sponsorship->created_by_user_id);
+        if ($this->canEditOwned($sponsorship->created_by_user_id)) {
+            return true;
+        }
+
+        return $this->isAssignee($sponsorship->assigned_user_id);
     }
 
     public function canSeeSponsorDetails(Sponsor $sponsor): bool
@@ -359,6 +378,16 @@ class SponsoringPolicy
      * Ein fehlendes Datum bedeutet dabei "offen", nicht "nicht laufend": ein
      * Projekt mit Beginn in der Vergangenheit und ohne gepflegtes Ende läuft.
      * Vorher verlangte die Prüfung beide Daten und sperrte solche Projekte aus.
+     *
+     * Das gilt hier auch für ein fehlendes Startdatum, und damit absichtlich
+     * anders als in ProjectQuery::findCurrentProjectId(): Dort ist das
+     * Startdatum Pflicht, weil eine Vorauswahl einen Zeitpunkt braucht, ab dem
+     * das Projekt läuft. Diese Einschränkung hat eine andere Aufgabe - sie soll
+     * abgeschlossene Projekte sperren, denn die nachträglich zu ergänzen ist
+     * Sache des Sponsoring-Teams. Ein noch nicht terminiertes Projekt ist nicht
+     * abgeschlossen, sondern das Gegenteil davon; es auszusperren hieße, dass
+     * eine Zusage für das nächste Konzert erst nach der Terminplanung erfasst
+     * werden könnte.
      *
      * @param Builder<Project> $query
      * @return Builder<Project>

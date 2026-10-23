@@ -427,6 +427,42 @@ class SponsoringPermissionsFeatureTest extends TestCase
         }
     }
 
+    /**
+     * Und ein Projekt ohne Startdatum bleibt es ebenfalls - ein noch nicht
+     * terminiertes Konzert ist nicht abgeschlossen, sondern das Gegenteil
+     * davon.
+     *
+     * Das ist absichtlich eine andere Antwort als in
+     * ProjectQuery::findCurrentProjectId(), wo das Startdatum Pflicht ist, weil
+     * eine Vorauswahl einen Zeitpunkt braucht, ab dem das Projekt läuft. Hier
+     * geht es um etwas anderes: gesperrt werden sollen abgeschlossene Projekte,
+     * weil die nachträglich zu ergänzen Sache des Sponsoring-Teams ist. Ohne
+     * diesen Test hielte die Abweichung nur ein Kommentar, und sie liest sich
+     * beim nächsten Durchgang wie ein Versehen.
+     */
+    public function testProjectWithoutAStartDateStaysSelectable(): void
+    {
+        $this->loginAsContributor();
+        $unscheduled = Project::create([
+            'name' => "Unterminiertes Projekt " . bin2hex(random_bytes(4)),
+            'start_date' => null,
+            'end_date' => null,
+        ]);
+
+        try {
+            $policy = new SponsoringPolicy($_SESSION);
+
+            $this->assertTrue($policy->canUseProject((int) $unscheduled->id));
+            $this->assertTrue(
+                $policy->selectableProjects()->contains(
+                    static fn (Project $project): bool => (int) $project->id === (int) $unscheduled->id
+                )
+            );
+        } finally {
+            $unscheduled->delete();
+        }
+    }
+
     public function testContributorIsOnlyOfferedProjectsTheyMayActuallyUse(): void
     {
         $this->loginAsContributor();
@@ -803,6 +839,80 @@ class SponsoringPermissionsFeatureTest extends TestCase
             $this->assertFalse($detail['may_edit_contacts'][(int) $theirs->id]);
         } finally {
             SponsoringContact::whereIn('id', [$theirs->id])->delete();
+            $this->cleanUp($sponsor);
+        }
+    }
+
+    /**
+     * Wer bei der Vereinbarung als zuständig eingetragen ist, sieht auch deren
+     * Betrag und Anhänge. Sie bringt das Logo ins Programmheft und legt die
+     * Freikarten zurück - dafür muss sie wissen, was vereinbart wurde, und die
+     * Vertragsdatei öffnen können.
+     *
+     * Zuvor hing beides allein am Urheber. Die Zuständigkeit reichte zum
+     * Abhaken der Gegenleistungen (canTickBenefits()), an der Stelle des
+     * Betrags stand aber ein Gedankenstrich und die Datei blieb gesperrt - die
+     * Person sollte eine Zusage erfüllen, deren Inhalt sie nicht sehen durfte.
+     *
+     * Zwei Grenzen bleiben: Eine Vereinbarung, bei der diese Person weder
+     * Urheberin noch zuständig ist, bleibt verdeckt. Und die Gesamtsummen
+     * lassen sich keiner Urheberschaft zuordnen - sie bleiben dem Vollrecht
+     * vorbehalten.
+     */
+    public function testTheAssignedPersonSeesTheAmountAndAttachmentsOfTheirAgreement(): void
+    {
+        $this->loginAsContributor();
+        $sponsor = $this->makeSponsor();
+
+        $assignedToMe = $this->makeSponsorship($sponsor, (int) $this->otherUser->id);
+        $assignedToMe->assigned_user_id = $this->contributor->id;
+        $assignedToMe->save();
+
+        $foreign = $this->makeSponsorship($sponsor, (int) $this->otherUser->id);
+
+        $mineFile = $this->makeAttachment('sponsorship', (int) $assignedToMe->id);
+        $foreignFile = $this->makeAttachment('sponsorship', (int) $foreign->id);
+
+        // Ein fremd protokollierter Kontakt auf der eigenen Vereinbarung: Er
+        // steht in der Wiedervorlagen-Liste der Übersicht, und dort gehört
+        // jetzt auch der Betrag hin.
+        $contact = $this->makeContact($sponsor, $assignedToMe, (int) $this->otherUser->id, 'Fremd auf meiner');
+
+        try {
+            $policy = new SponsoringPolicy($_SESSION);
+            $this->assertTrue($policy->canSeeSponsorshipDetails($assignedToMe->fresh()));
+            $this->assertFalse($policy->canSeeSponsorshipDetails($foreign->fresh()));
+
+            // Die Detailseite reicht dieselbe Antwort je Zeile ins Template.
+            $detail = $this->sponsorDetailData((int) $sponsor->id);
+            $this->assertTrue($detail['visible_details'][(int) $assignedToMe->id]);
+            $this->assertFalse($detail['visible_details'][(int) $foreign->id]);
+
+            // Und der Anhang derselben Vereinbarung lässt sich öffnen, der der
+            // fremden nicht - dieselbe Frage stellt der Abruf.
+            $this->assertTrue($this->attachmentRegistry()->mayAccess($mineFile));
+            $this->assertFalse($this->attachmentRegistry()->mayAccess($foreignFile));
+
+            // Die Anhangsammlung listet deshalb genau die eine Datei.
+            $entityIds = array_column($this->attachmentOverviewRows(), 'id');
+            $this->assertContains((int) $mineFile->id, $entityIds);
+            $this->assertNotContains((int) $foreignFile->id, $entityIds);
+
+            // Auf der Übersicht steht der Betrag statt des Gedankenstrichs.
+            $data = $this->dashboardData();
+            $this->assertCount(1, $data['upcoming_follow_ups']);
+            $this->assertStringContainsString(
+                '100,00',
+                $data['upcoming_follow_ups'][0]['agreement_amount_display']
+            );
+
+            // Die Gesamtsummen bleiben trotzdem dem Vollrecht vorbehalten.
+            $this->assertFalse($data['sees_totals']);
+            $this->assertNull($data['total_amount']);
+        } finally {
+            SponsoringContact::whereIn('id', [$contact->id])->delete();
+            $mineFile->delete();
+            $foreignFile->delete();
             $this->cleanUp($sponsor);
         }
     }

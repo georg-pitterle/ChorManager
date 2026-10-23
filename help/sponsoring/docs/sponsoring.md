@@ -26,9 +26,10 @@ Es gibt zwei Rechte:
 Der Überblick ist Absicht: Du sollst vor einer Anfrage sehen, ob schon jemand an
 dieser Firma dran ist. Die Einzelheiten fremder Vorgänge gehören aber den
 Beteiligten. Ohne das Recht "Sponsoring verwalten" bleiben bei Vereinbarungen,
-die du nicht selbst angelegt hast, verborgen:
+die du weder selbst angelegt hast noch für die du als **zuständig** eingetragen
+bist, verborgen:
 
-- der **Betrag**, das Datum **"Bezahlt am"** und die Summe "Zugesagt insgesamt"
+- der **Betrag** und das Datum **"Bezahlt am"**
 - die **Notizen** der Vereinbarung
 - die **Belege** – weder Dateiname noch Download, auch nicht über die Seite "Anhänge"
 - die **Zusammenfassung** der Gesprächsnotizen; dass ein Kontakt stattfand und wann, bleibt sichtbar
@@ -37,9 +38,21 @@ Sichtbar bleiben Firma, Projekt, Paket, Status, Zuständige, Zeitraum und die
 **Gegenleistungen** – also alles, was die Fragen "wo kann ich noch fragen" und
 "was müssen wir für diesen Sponsor noch tun" beantwortet.
 
-**Abhaken** darf eine Gegenleistung, wer die Vereinbarung bearbeiten darf, und
-außerdem die Person, die bei der Vereinbarung als **zuständig** eingetragen ist –
-sie bringt das Logo ins Programmheft oder legt die Freikarten zurück.
+Die Summe **"Zugesagt insgesamt"** bleibt in jedem Fall dem Recht "Sponsoring
+verwalten" vorbehalten: Sie fasst alle Vereinbarungen zusammen und lässt sich
+daher keiner einzelnen zuordnen.
+
+### Wenn du für eine fremde Vereinbarung zuständig bist
+
+Bist du bei einer Vereinbarung als **zuständig** eingetragen, siehst du deren
+Betrag, Notizen und Belege – auch wenn sie jemand anderer angelegt hat. Du
+erfüllst die Zusage und musst dafür wissen, was vereinbart wurde.
+
+**Bearbeiten** darfst sie deshalb nicht: Den Betrag ändern bleibt bei der Person,
+die die Vereinbarung geführt hat. **Abhaken** darfst du die Gegenleistungen – du
+bringst das Logo ins Programmheft oder legst die Freikarten zurück. Und die
+**Zusammenfassung** eines fremden Gesprächs bleibt auch dann verborgen: Die
+gehört dem, der sie geschrieben hat.
 
 Damit kann jedes Mitglied selbst eine Firma anfragen und das dokumentieren, während das Sponsoring-Team koordiniert und prüft. Vor jeder Anfrage lohnt ein Blick in die Sponsorenliste: dort steht, wo schon jemand angefragt hat.
 
