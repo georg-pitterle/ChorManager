@@ -34,17 +34,19 @@ fi
 # nach einem Update die Revision der Vorversion, meldete "bereit", und die
 # E2E-Tests fanden ihren Browser nicht. `playwright install` prüft die Revision
 # selbst, lädt nur, was fehlt, und räumt nicht mehr benutzte Revisionen ab.
-echo "Prüfe Playwright-Chromium unter $BROWSERS_PATH ..."
+# WebKit dazu, damit Safari-Fehler (iPhone, Mac) im Container nachstellbar sind.
+# Die Systembibliotheken dafür stehen in webimage_extra_packages.
+echo "Prüfe Playwright-Chromium und -WebKit unter $BROWSERS_PATH ..."
 OWNER_NAME="$(getent passwd "$OWNER_UID" | cut -d: -f1)"
 
 if [ "$(id -u)" = "0" ] && [ -n "$OWNER_NAME" ]; then
     # Als der Benutzer installieren, dem das Volume gehoert, damit die Dateien
     # spaeter auch ohne root aktualisiert werden koennen.
     su -s /bin/bash -c \
-        "cd /var/www/html && PLAYWRIGHT_BROWSERS_PATH='$BROWSERS_PATH' npx playwright install chromium" \
+        "cd /var/www/html && PLAYWRIGHT_BROWSERS_PATH='$BROWSERS_PATH' npx playwright install chromium webkit" \
         "$OWNER_NAME"
 else
-    PLAYWRIGHT_BROWSERS_PATH="$BROWSERS_PATH" npx playwright install chromium
+    PLAYWRIGHT_BROWSERS_PATH="$BROWSERS_PATH" npx playwright install chromium webkit
 fi
 
 echo "playwright-browser bereit unter $BROWSERS_PATH"
