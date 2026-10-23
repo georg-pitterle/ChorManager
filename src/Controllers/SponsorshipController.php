@@ -78,8 +78,8 @@ class SponsorshipController
         $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         $amount    = trim(InputValidator::asString($data['amount'] ?? null));
 
-        if (!$sponsorId || $amount === '') {
-            $_SESSION['error'] = 'Sponsor und Betrag sind Pflichtfelder.';
+        if (!$sponsorId) {
+            $_SESSION['error'] = 'Sponsor ist ein Pflichtfeld.';
             return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
         }
 
@@ -564,9 +564,17 @@ class SponsorshipController
      * Wie im Finanzmodul: erst das Eingabeformat normalisieren ("1.500,00" =>
      * "1500.00"), dann prüfen. Ohne die Prüfung wird "abc" still zu 0,00 und ein
      * negativer Betrag kommentarlos gespeichert.
+     *
+     * Ein leeres Feld ist dagegen erlaubt und gilt als 0,00: Bei einer
+     * Kontaktanfrage stehen Paket und Betrag meist noch nicht fest, und auch
+     * eine Absage muss sich ohne Betrag festhalten lassen.
      */
     public static function validateAmount(string $amount): ?string
     {
+        if ($amount === '') {
+            return '0.00';
+        }
+
         $normalized = AmountNormalizer::normalize($amount);
         if (!is_numeric($normalized) || (float) $normalized < 0) {
             return null;

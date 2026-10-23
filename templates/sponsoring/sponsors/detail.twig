@@ -218,7 +218,9 @@
                                 </div>
                                 <div class="agreement-money">
                                     {% if sees_sp %}
-                                        <span class="agreement-amount">{{ sp.amount|number_format(2, ",", ".") }} €</span>
+                                        {% if sp.amount > 0 %}
+                                            <span class="agreement-amount">{{ sp.amount|number_format(2, ",", ".") }} €</span>
+                                        {% endif %}
                                         {% if sp.paid_at %}
                                             <span class="agreement-paid is-paid">
                                                 <i class="bi bi-check-circle" aria-hidden="true"></i>
@@ -666,15 +668,12 @@
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label for="sponsors-detail-amount" class="form-label">
-                                    Betrag (€) <span class="text-danger">*</span>
-                                </label>
+                                <label for="sponsors-detail-amount" class="form-label">Betrag (€)</label>
                                 <input type="number"
                                        name="amount"
                                        class="form-control"
                                        step="0.01"
                                        min="0"
-                                       required
                                        data-sponsorship-amount
                                        id="sponsors-detail-amount">
                                 <div class="form-text d-none" data-sponsorship-min-hint></div>
@@ -800,16 +799,13 @@
                                     </select>
                                 </div>
                                 <div class="col-md-6">
-                                    <label for="sponsors-detail-amount-v2-{{ loop.index }}" class="form-label">
-                                        Betrag (€) <span class="text-danger">*</span>
-                                    </label>
+                                    <label for="sponsors-detail-amount-v2-{{ loop.index }}" class="form-label">Betrag (€)</label>
                                     <input type="number"
                                            name="amount"
                                            class="form-control"
                                            step="0.01"
                                            min="0"
                                            value="{{ sp.amount }}"
-                                           required
                                            data-sponsorship-amount
                                            id="sponsors-detail-amount-v2-{{ loop.index }}">
                                     <div class="form-text d-none" data-sponsorship-min-hint></div>

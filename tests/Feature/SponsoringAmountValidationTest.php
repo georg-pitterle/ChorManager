@@ -127,6 +127,47 @@ final class SponsoringAmountValidationTest extends TestCase
         $this->assertStringContainsString('Betrag', (string) $_SESSION['error']);
     }
 
+    /**
+     * Bei einer Kontaktanfrage steht meist weder Paket noch Betrag fest - auch
+     * eine Absage muss sich dann festhalten lassen.
+     */
+    public function testEmptyAmountIsStoredAsZeroForADeclinedRequest(): void
+    {
+        $this->sponsorships->create(
+            $this->makeRequest('POST', '/sponsoring/sponsorships', [
+                'sponsor_id' => (string) $this->sponsor->id,
+                'amount' => '',
+                'status' => 'declined',
+            ]),
+            $this->makeResponse()
+        );
+
+        $sponsorship = Sponsorship::where('sponsor_id', $this->sponsor->id)->firstOrFail();
+        $this->assertSame('declined', $sponsorship->status);
+        $this->assertSame(0.0, (float) $sponsorship->amount);
+        $this->assertSame('Vereinbarung angelegt.', $_SESSION['success']);
+    }
+
+    public function testClearingTheAmountOnUpdateStoresZero(): void
+    {
+        $this->createSponsorship('250,00');
+        $sponsorship = Sponsorship::where('sponsor_id', $this->sponsor->id)->firstOrFail();
+        $_SESSION = [];
+
+        $this->sponsorships->update(
+            $this->makeRequest('POST', '/sponsoring/sponsorships/' . $sponsorship->id, [
+                'sponsor_id' => (string) $this->sponsor->id,
+                'amount' => '',
+            ]),
+            $this->makeResponse(),
+            ['id' => (string) $sponsorship->id]
+        );
+
+        $sponsorship->refresh();
+        $this->assertSame(0.0, (float) $sponsorship->amount);
+        $this->assertSame('Vereinbarung gespeichert.', $_SESSION['success']);
+    }
+
     public function testPackageMinAmountIsNormalizedAndValidated(): void
     {
         $this->createPackage('1.500,00');
