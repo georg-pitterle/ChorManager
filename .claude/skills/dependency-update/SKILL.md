@@ -75,7 +75,7 @@ npm:
   (`npm install -D @playwright/test@^1.64.0`).
 - `allowScripts` in `package.json` nennt Pakete **mit Version** (`core-js@3.50.0`). Ändert
   sich eine davon im Lockfile (`npm ls core-js protobufjs`), mit
-  `npm approve-scripts <paket>` neu freigeben, sonst laufen deren Install-Skripte nicht.
+  `npm install-scripts approve <paket>` neu freigeben, sonst laufen deren Install-Skripte nicht.
 - `overrides` erzwingen Versionen für Sicherheitslücken in Unterpaketen. Nicht entfernen,
   ohne mit `npm ls <paket>` belegt zu haben, dass die Lücke anders geschlossen ist.
 - `npm audit fix --force` nie ungeprüft: Es stuft gern Pakete zurück (z. B. html-midi-player

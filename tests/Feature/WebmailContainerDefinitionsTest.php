@@ -16,7 +16,7 @@ use PHPUnit\Framework\TestCase;
  */
 class WebmailContainerDefinitionsTest extends TestCase
 {
-    private const TACHYON_IMAGE = 'ghcr.io/kimusan/tachyon:v3.2.8';
+    private const TACHYON_IMAGE = 'ghcr.io/kimusan/tachyon:v4.4.7';
 
     private function repoRoot(): string
     {

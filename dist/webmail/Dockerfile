@@ -10,7 +10,7 @@
 #
 # Pin the base tag deliberately; bump it consciously instead of tracking a
 # floating tag.
-FROM ghcr.io/kimusan/tachyon:v3.2.8
+FROM ghcr.io/kimusan/tachyon:v4.4.7
 
 # The plugin source is baked OUTSIDE the /var/lib/tachyon volume. The
 # startup script copies it into the volume on every boot, so pulling a new
