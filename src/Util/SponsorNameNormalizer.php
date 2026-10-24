@@ -45,7 +45,9 @@ final class SponsorNameNormalizer
      */
     public static function normalize(string $name): string
     {
-        $normalized = mb_strtolower($name);
+        // "ß" und "ss" sind derselbe Name - Schweizer Tastaturen und ältere Listen
+        // kennen kein ß.
+        $normalized = str_replace('ß', 'ss', mb_strtolower($name));
         $normalized = (string) preg_replace('/[^\p{L}\p{N}]+/u', ' ', $normalized);
         $normalized = trim((string) preg_replace('/\s+/u', ' ', $normalized));
 

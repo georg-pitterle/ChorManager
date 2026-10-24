@@ -29,6 +29,8 @@ final class SponsorNameNormalizerTest extends TestCase
             'Rechtsform mit Leerzeichen' => ['Sport Müller e. U.', 'sportmüller'],
             'Komma vor der Rechtsform' => ['Huber,KG', 'huber'],
             'Ges.m.b.H.' => ['Huber Ges.m.b.H.', 'huber'],
+            // Schweizer Tastaturen und alte Listen schreiben "ss" statt "ß".
+            'ß und ss' => ['Bäckerei Größinger', 'bäckereigrössinger'],
             'Verein' => ['Musikfreunde Tirol e.V.', 'musikfreundetirol'],
             'nur eine Rechtsform' => ['GmbH', ''],
             'Rechtsform mitten im Namen bleibt' => ['AG Kultur Innsbruck', 'agkulturinnsbruck'],
