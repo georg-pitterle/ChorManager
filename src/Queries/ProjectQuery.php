@@ -209,12 +209,7 @@ class ProjectQuery
      */
     public function getUsersNotInProject(int $projectId): Collection
     {
-        $query = User::select(User::LIST_COLUMNS)
-            ->whereDoesntHave('projects', function ($query) use ($projectId) {
-                $query->where('project_id', $projectId);
-            });
-
-        return $this->nameFormatter->applyNameOrder($query)->get();
+        return $this->candidatesQuery($projectId)->get();
     }
 
     /**
@@ -235,14 +230,36 @@ class ProjectQuery
             return new Collection();
         }
 
+        return $this->candidatesQuery($projectId, $voiceGroupIds)->get();
+    }
+
+    /**
+     * Die Kandidatenliste eines Projekts: die noch nicht zugeordneten Mitglieder,
+     * mit den Listenspalten und in der konfigurierten Namensreihenfolge.
+     *
+     * Beide Aufrufer standen bis hierher mit derselben Abfrage nebeneinander und
+     * unterschieden sich allein in der Einschränkung auf Stimmgruppen. Eine
+     * gemeinsame Quelle hält die beiden Seiten künftig zusammen; vorher konnte eine
+     * Änderung an der einen Liste die andere unbemerkt zurücklassen - dieselbe
+     * Richtung wie bei projectMembersQuery() und UserQuery::orderedListQuery().
+     *
+     * @param array<int>|null $voiceGroupIds null = keine Einschränkung auf Stimmgruppen
+     * @return \Illuminate\Database\Eloquent\Builder<User>
+     */
+    private function candidatesQuery(int $projectId, ?array $voiceGroupIds = null)
+    {
         $query = User::select(User::LIST_COLUMNS)
-            ->whereDoesntHave('projects', function ($query) use ($projectId) {
-                $query->where('project_id', $projectId);
-            })->whereHas('voiceGroups', function ($query) use ($voiceGroupIds) {
-                $query->whereIn('voice_group_id', $voiceGroupIds);
+            ->whereDoesntHave('projects', function ($relation) use ($projectId): void {
+                $relation->where('project_id', $projectId);
             });
 
-        return $this->nameFormatter->applyNameOrder($query)->get();
+        if ($voiceGroupIds !== null) {
+            $query->whereHas('voiceGroups', function ($relation) use ($voiceGroupIds): void {
+                $relation->whereIn('voice_group_id', $voiceGroupIds);
+            });
+        }
+
+        return $this->nameFormatter->applyNameOrder($query);
     }
 
     /**
