@@ -96,6 +96,7 @@
              data-sub-voice-options="{{ sub_voice_options_attr|replace({'\n': '', '\r': '', '\t': ' '})|trim }}"
              data-project-options="{{ project_options_attr|replace({'\n': '', '\r': '', '\t': ' '})|trim }}"
              data-role-options="{{ role_options_attr|replace({'\n': '', '\r': '', '\t': ' '})|trim }}"
+             data-project-none-filter="{{ show_projects ? "1" : "0" }}"
              data-show-archived="{{ show_archived ? "1" : "0" }}"
              data-invitation-filter="{{ session.can_manage_users and not show_archived ? "1" : "0" }}"
              data-default-page-size="100"
@@ -168,13 +169,15 @@
                                         {% endif %}
                                     {% endfor %}
                                 {% endfor %}
+                                {# "6 Projekte" stand fast überall, weil alle Saisonen mitzählten. #}
+                                {# Die Zelle nennt jetzt das laufende Projekt; der Dialog zeigt alle. #}
+                                {% set _current_projects = user.projects|filter(p => not p.end_date or p.end_date|date("Y-m-d") >= _today) %}
                                 {% set project_filter_ids = "|" %}
                                 {% for pid in user.project_ids %}
                                     {% set project_filter_ids = project_filter_ids ~ pid ~ "|" %}
                                 {% endfor %}
-                                {# "6 Projekte" stand fast überall, weil alle Saisonen mitzählten. #}
-                                {# Die Zelle nennt jetzt das laufende Projekt; der Dialog zeigt alle. #}
-                                {% set _current_projects = user.projects|filter(p => not p.end_date or p.end_date|date("Y-m-d") >= _today) %}
+                                {# Marke für den Filter "In keinem laufenden Projekt" (Archiv-Kandidaten). #}
+                                {% set project_filter_ids = project_filter_ids ~ (_current_projects is empty ? "none_running|" : "") %}
                                 {% set _is_self = user.id == session.user_id %}
                                 {% set _role_ok = can_archive_member[user.id]|default(false) %}
                                 {% set _may_archive = _role_ok and not _is_self %}

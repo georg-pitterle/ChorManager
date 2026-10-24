@@ -359,6 +359,24 @@ final class UserListLayoutFeatureTest extends TestCase
         );
     }
 
+    public function testTheProjectFilterFindsMembersOutsideEveryRunningProject(): void
+    {
+        $twig = $this->template('users/manage.twig');
+
+        // Wer in keinem laufenden Projekt ist, ist Kandidat fürs Archiv. Die Zeile
+        // trägt dafür eine eigene Marke; die Auswahl gibt es nur, wenn auch die
+        // Spalte "Laufendes Projekt" steht.
+        $this->assertStringContainsString(
+            '{% set project_filter_ids = project_filter_ids ~ (_current_projects is empty ? "none_running|" : "") %}',
+            $twig
+        );
+        $this->assertLessThan(
+            (int) strpos($twig, '{% set project_filter_ids = project_filter_ids ~ (_current_projects'),
+            (int) strpos($twig, '{% set _current_projects = user.projects|filter(')
+        );
+        $this->assertStringContainsString('data-project-none-filter="{{ show_projects ? "1" : "0" }}"', $twig);
+    }
+
     public function testRowsTellTheBulkInvitationWhoAlreadyUsesTheApp(): void
     {
         $this->assertStringContainsString(

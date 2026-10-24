@@ -101,6 +101,11 @@
             const roleOptions = parseOptions(tableContainer && tableContainer.dataset ? tableContainer.dataset.roleOptions : '');
             const voiceOptions = parseOptions(tableContainer && tableContainer.dataset ? tableContainer.dataset.voiceOptions : '');
             const projectOptions = parseOptions(tableContainer && tableContainer.dataset ? tableContainer.dataset.projectOptions : '');
+            // Wer in keinem laufenden Projekt ist, ist Kandidat fürs Archiv. Die
+            // Zeilen tragen dafür die Marke none_running in data-project.
+            if (tableContainer.dataset.projectNoneFilter === '1') {
+                projectOptions.unshift({ value: 'none_running', label: 'In keinem laufenden Projekt' });
+            }
             const roleSelectControl = createSelect('Rolle', roleOptions, 'role');
             const voiceSelectControl = createSelect('Stimme', voiceOptions, 'voice');
             // Im Archiv kein Projekt-Filter: Archivierte sind in keinem laufenden

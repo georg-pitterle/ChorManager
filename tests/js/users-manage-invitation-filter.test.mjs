@@ -128,6 +128,60 @@ test('Archiv: ohne Projekt-Filter, weil Archivierte in keinem Projekt mehr sind'
     assert.deepEqual(labels, ['Rolle', 'Stimme']);
 });
 
+function mountedProjectOptions(dataset) {
+    const created = [];
+    globalThis.document = {
+        createElement(tag) {
+            const el = {
+                tag, children: [], className: '', textContent: '', value: '',
+                setAttribute() {}, addEventListener() {},
+                appendChild(child) { this.children.push(child); return child; },
+            };
+            created.push(el);
+            return el;
+        },
+    };
+    const registered = {};
+    globalThis.window = { ChorTableEngine: { registerFilterPlugin(name, f) { registered[name] = f; } } };
+    const path = require.resolve('../../public/js/table-plugins/users-manage-plugin.js');
+    delete require.cache[path];
+    require(path);
+
+    const container = {
+        dataset: Object.assign({ voiceOptions: '', roleOptions: '', invitationFilter: '0' }, dataset),
+    };
+    registered.usersManage({ pluginSlot: { appendChild() {}, closest() { return container; } }, onPluginStateChange() {} }).mount();
+
+    const projectSelect = created.find((el) => el.tag === 'select' && el.children.some((o) => o.textContent === 'HS 2026'));
+    return projectSelect.children.map((o) => ({ value: o.value, label: o.textContent }));
+}
+
+test('Projektfilter: bietet "In keinem laufenden Projekt" vor den einzelnen Projekten an', () => {
+    const options = mountedProjectOptions({ projectOptions: '7::HS 2026||', projectNoneFilter: '1' });
+
+    assert.deepEqual(options, [
+        { value: '', label: 'Alle' },
+        { value: 'none_running', label: 'In keinem laufenden Projekt' },
+        { value: '7', label: 'HS 2026' },
+    ]);
+});
+
+test('Projektfilter: ohne laufendes Projekt fehlt die Auswahl "In keinem laufenden Projekt"', () => {
+    const options = mountedProjectOptions({ projectOptions: '7::HS 2026||', projectNoneFilter: '0' });
+
+    assert.deepEqual(options.map((o) => o.label), ['Alle', 'HS 2026']);
+});
+
+test('Projektfilter: "In keinem laufenden Projekt" trifft nur Zeilen mit dieser Markierung', () => {
+    const plugin = loadPluginFactory()({ onPluginStateChange() {} });
+    plugin.setState({ project: 'none_running' });
+    const matches = plugin.getPredicate();
+
+    assert.equal(matches(row({ project: '|3|none_running|' })), true, 'nur in einem früheren Projekt');
+    assert.equal(matches(row({ project: '|none_running|' })), true, 'in gar keinem Projekt');
+    assert.equal(matches(row({ project: '|3|' })), false, 'im laufenden Projekt dabei');
+});
+
 test('Einladungsfilter: ohne Auswahl bleiben alle Zeilen sichtbar, auch ohne Attribut', () => {
     const plugin = loadPluginFactory()({ onPluginStateChange() {} });
     const matches = plugin.getPredicate();
