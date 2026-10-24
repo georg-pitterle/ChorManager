@@ -231,19 +231,168 @@ class FileBackupFeatureTest extends TestCase
         $this->assertInstanceOf(FileBackupService::class, $property->getValue($service));
     }
 
-    public function testFilesArchiveContainsManifestAndFiles(): void
+    private const IMPORT_ID = 'backup_manual_20260101T000000Z_0badc0de';
+
+    private static function poolPath(string $seed): string
     {
-        $file = $this->upload('Noten.pdf', 'Inhalt A');
-        $service = $this->backups();
-        $meta = $service->create(BackupService::TYPE_MANUAL, null);
+        $hash = md5($seed);
 
-        $archive = $service->getFilesArchive($meta['id']);
+        return substr($hash, 0, 2) . '/' . substr($hash, 2, 2) . '/' . $hash;
+    }
 
-        $this->assertNotNull($archive);
-        $phar = new \PharData($archive['path']);
-        $this->assertTrue(isset($phar['manifest.json']));
-        $this->assertSame('Inhalt A', file_get_contents($phar['files/' . $this->pathOf($file)]->getPathname()));
-        unset($phar);
-        unlink($archive['path']);
+    /**
+     * @param array<string, string> $contents storage_path => Inhalt
+     * @param array<string, string> $hashes   abweichende Prüfsummen je Pfad
+     */
+    private static function manifestJson(string $backupId, array $contents, array $hashes = []): string
+    {
+        $files = [];
+        foreach ($contents as $path => $content) {
+            $files[] = [
+                'storage_driver' => 'local',
+                'storage_path' => $path,
+                'size' => strlen($content),
+                'sha256' => $hashes[$path] ?? hash('sha256', $content),
+            ];
+        }
+
+        return (string) json_encode(['version' => 1, 'backup_id' => $backupId, 'files' => $files]);
+    }
+
+    /** @param array<string, string> $contents */
+    private static function opener(array $contents): \Closure
+    {
+        return static function (string $path) use ($contents) {
+            $stream = fopen('php://memory', 'w+b');
+            fwrite($stream, $contents[$path]);
+            rewind($stream);
+
+            return $stream;
+        };
+    }
+
+    private function writePool(string $path, string $content): void
+    {
+        $target = $this->backupDir . '/files/' . $path;
+        if (!is_dir(dirname($target))) {
+            mkdir(dirname($target), 0750, true);
+        }
+        file_put_contents($target, $content);
+    }
+
+    private function importer(): FileBackupService
+    {
+        if (!is_dir($this->backupDir)) {
+            mkdir($this->backupDir, 0750, true);
+        }
+
+        return new FileBackupService($this->storage(), new NullLogger());
+    }
+
+    public function testImportFilesWritesMissingFilesAndManifest(): void
+    {
+        $contents = [self::poolPath('a') => 'Inhalt A', self::poolPath('b') => 'Inhalt B'];
+        $manifest = self::manifestJson(self::IMPORT_ID, $contents);
+
+        $this->importer()->importFiles($this->backupDir, self::IMPORT_ID, $manifest, self::opener($contents));
+
+        foreach ($contents as $path => $content) {
+            $this->assertSame($content, file_get_contents($this->backupDir . '/files/' . $path));
+        }
+        $this->assertSame($manifest, file_get_contents($this->backupDir . '/' . self::IMPORT_ID . '.files.json'));
+    }
+
+    public function testImportFilesKeepsIdenticalPoolFileWithoutRewriting(): void
+    {
+        $path = self::poolPath('a');
+        $this->importer();
+        $this->writePool($path, 'Inhalt A');
+        touch($this->backupDir . '/files/' . $path, 1_000_000_000);
+        clearstatcache();
+
+        $this->importer()->importFiles(
+            $this->backupDir,
+            self::IMPORT_ID,
+            self::manifestJson(self::IMPORT_ID, [$path => 'Inhalt A']),
+            self::opener([$path => 'Inhalt A'])
+        );
+        clearstatcache();
+
+        $this->assertSame(1_000_000_000, filemtime($this->backupDir . '/files/' . $path));
+    }
+
+    public function testImportFilesRejectsPoolConflictAndLeavesPoolFileUntouched(): void
+    {
+        $path = self::poolPath('a');
+        $this->importer();
+        $this->writePool($path, 'alt');
+
+        try {
+            $this->importer()->importFiles(
+                $this->backupDir,
+                self::IMPORT_ID,
+                self::manifestJson(self::IMPORT_ID, [$path => 'neu']),
+                self::opener([$path => 'neu'])
+            );
+            $this->fail('Pool-Konflikt nicht bemerkt.');
+        } catch (\RuntimeException) {
+        }
+
+        $this->assertSame('alt', file_get_contents($this->backupDir . '/files/' . $path));
+        $this->assertFileDoesNotExist($this->backupDir . '/' . self::IMPORT_ID . '.files.json');
+    }
+
+    public function testImportFilesRejectsHashMismatchAndRemovesOnlyNewlyWrittenFiles(): void
+    {
+        $good = self::poolPath('gut');
+        $bad = self::poolPath('schlecht');
+        $existing = self::poolPath('vorher');
+        $this->importer();
+        $this->writePool($existing, 'vorher');
+        $contents = [$existing => 'vorher', $good => 'gut', $bad => 'schlecht'];
+
+        try {
+            $this->importer()->importFiles(
+                $this->backupDir,
+                self::IMPORT_ID,
+                self::manifestJson(self::IMPORT_ID, $contents, [$bad => hash('sha256', 'anders')]),
+                self::opener($contents)
+            );
+            $this->fail('Falsche Prüfsumme nicht bemerkt.');
+        } catch (\RuntimeException) {
+        }
+
+        $this->assertFileDoesNotExist($this->backupDir . '/files/' . $good);
+        $this->assertFileDoesNotExist($this->backupDir . '/files/' . $bad);
+        $this->assertSame('vorher', file_get_contents($this->backupDir . '/files/' . $existing));
+        $this->assertFileDoesNotExist($this->backupDir . '/' . self::IMPORT_ID . '.files.json');
+    }
+
+    public function testImportFilesRejectsManifestOfAnotherBackupId(): void
+    {
+        $path = self::poolPath('a');
+
+        $this->expectException(\RuntimeException::class);
+        $this->importer()->importFiles(
+            $this->backupDir,
+            self::IMPORT_ID,
+            self::manifestJson('backup_manual_20260101T000000Z_ffffffff', [$path => 'A']),
+            self::opener([$path => 'A'])
+        );
+    }
+
+    public function testImportFilesRejectsInvalidPathInManifest(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        try {
+            $this->importer()->importFiles(
+                $this->backupDir,
+                self::IMPORT_ID,
+                self::manifestJson(self::IMPORT_ID, ['../x' => 'A']),
+                self::opener(['../x' => 'A'])
+            );
+        } finally {
+            $this->assertFileDoesNotExist($this->backupDir . '/x');
+        }
     }
 }

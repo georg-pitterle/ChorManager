@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Services\BackupLimitReachedException;
+use App\Services\BackupPackageService;
 use App\Services\BackupService;
 use App\Util\DownloadFileName;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -19,6 +20,7 @@ class BackupController
     public function __construct(
         private readonly Twig $view,
         private readonly BackupService $backupService,
+        private readonly BackupPackageService $packages,
         private readonly LoggerInterface $logger
     ) {
     }
@@ -33,6 +35,7 @@ class BackupController
 
         return $this->view->render($response, 'backups/index.twig', [
             'backups' => $backups,
+            'pending_packages' => $this->packages->pendingPackages(),
             'success' => $success,
             'error' => $error,
         ]);
@@ -112,18 +115,24 @@ class BackupController
         return $response->withHeader('Location', '/backups')->withStatus(302);
     }
 
+    /**
+     * Das Backup als ein Paket: Dump, Metadaten und die Dateien seines Manifests.
+     * Es entsteht erst auf Anforderung in einer Temp-Datei und verschwindet nach
+     * dem Ausliefern. Ohne Zeitlimit, weil der Paketbau mit Dump und Dateien
+     * wächst und sonst mittendrin abbräche.
+     */
     public function download(Request $request, Response $response, array $args): Response
     {
         $id = (string) $args['id'];
 
+        set_time_limit(0);
         try {
-            $file = $this->backupService->getFile($id);
+            $package = $this->packages->build($id);
         } catch (\Throwable $exception) {
-            // Protokolliert wie beim Löschen und Wiederherstellen: Ein Backup, das
-            // in der Liste steht und sich nicht ausliefern lässt, ist ein Befund -
-            // die gefangene Ausnahme blieb hier als einziger der vier Wege ungenutzt.
-            $this->logger->error('Backup download failed.', [
-                'event' => 'backup.download.failed',
+            // Ein Backup, das in der Liste steht und sich nicht ausliefern lässt,
+            // ist ein Befund.
+            $this->logger->error('Backup package download failed.', [
+                'event' => 'backup.package.failed',
                 'id' => $id,
                 'exception' => $exception,
             ]);
@@ -131,64 +140,27 @@ class BackupController
             return $response->withStatus(404);
         }
 
-        $stream = fopen($file['path'], 'rb');
+        $stream = fopen($package['path'], 'rb');
         if ($stream === false) {
             $response->getBody()->write('Backup nicht gefunden.');
             return $response->withStatus(404);
         }
-        $body = new Stream($stream);
+        // Geöffnet bleibt der Inhalt lesbar; der Verzeichniseintrag darf schon weg.
+        @unlink($package['path']);
 
         // Über DownloadFileName statt von Hand zusammengesetzt - wie jeder andere
-        // Download der Anwendung. Der Name stammt hier aus BackupService und nicht
-        // aus einem Upload, aber ein Anführungszeichen darin bräche den Kopf
-        // genauso auf, und die zweite Fassung nach RFC 5987 hält Umlaute.
-        $safeName = DownloadFileName::sanitize((string) $file['filename']);
-
-        return $response
-            ->withBody($body)
-            ->withHeader('Content-Type', 'application/gzip')
-            ->withHeader(
-                'Content-Disposition',
-                'attachment; filename="' . $safeName . '"'
-                    . '; filename*=UTF-8\'\'' . rawurlencode($safeName)
-            )
-            ->withHeader('Content-Length', (string) $file['size']);
-    }
-
-    /**
-     * Die gesicherten Dateien der Dateiverwaltung. Das Archiv entsteht erst auf
-     * Anforderung in einer Temp-Datei und verschwindet nach dem Ausliefern.
-     */
-    public function downloadFiles(Request $request, Response $response, array $args): Response
-    {
-        $id = (string) $args['id'];
-
-        try {
-            $archive = $this->backupService->getFilesArchive($id);
-        } catch (\Throwable) {
-            $archive = null;
-        }
-        if ($archive === null) {
-            $response->getBody()->write('Zu diesem Backup gibt es keine gesicherten Dateien.');
-            return $response->withStatus(404);
-        }
-
-        $stream = fopen($archive['path'], 'rb');
-        if ($stream === false) {
-            return $response->withStatus(404);
-        }
-        // Geöffnet bleibt der Inhalt lesbar; der Verzeichniseintrag darf schon weg.
-        @unlink($archive['path']);
-        $safeName = DownloadFileName::sanitize($archive['filename']);
+        // Download der Anwendung. Ein Anführungszeichen im Namen bräche den Kopf
+        // auf, und die zweite Fassung nach RFC 5987 hält Umlaute.
+        $safeName = DownloadFileName::sanitize($package['filename']);
 
         return $response
             ->withBody(new Stream($stream))
-            ->withHeader('Content-Type', 'application/gzip')
+            ->withHeader('Content-Type', 'application/zip')
             ->withHeader(
                 'Content-Disposition',
                 'attachment; filename="' . $safeName . '"'
                     . '; filename*=UTF-8\'\'' . rawurlencode($safeName)
             )
-            ->withHeader('Content-Length', (string) $archive['size']);
+            ->withHeader('Content-Length', (string) $package['size']);
     }
 }

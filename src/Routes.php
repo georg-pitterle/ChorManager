@@ -881,10 +881,6 @@ return function (App $app) {
                     $backupGroup->post('/backups/{id:[A-Za-z0-9_]+}/restore', [BackupController::class, 'restore']);
                     $backupGroup->post('/backups/{id:[A-Za-z0-9_]+}/delete', [BackupController::class, 'delete']);
                     $backupGroup->get('/backups/{id:[A-Za-z0-9_]+}/download', [BackupController::class, 'download']);
-                    $backupGroup->get(
-                        '/backups/{id:[A-Za-z0-9_]+}/download-files',
-                        [BackupController::class, 'downloadFiles']
-                    );
                 }
             )->add(new RoleMiddleware(requiresBackupManagement: true));
 

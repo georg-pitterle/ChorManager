@@ -351,4 +351,36 @@ final class BackupServiceTest extends TestCase
 
         $this->assertSame([], $service->list());
     }
+
+    public function testListFlagsMailKeyMismatch(): void
+    {
+        $this->makeService(mailKeyId: 'aaaa1111')->create(BackupService::TYPE_MANUAL, null);
+
+        $listed = $this->makeService(mailKeyId: 'bbbb2222')->list();
+
+        $this->assertTrue($listed[0]['mail_key_mismatch']);
+    }
+
+    public function testListDoesNotFlagMatchingMailKey(): void
+    {
+        $this->makeService(mailKeyId: 'aaaa1111')->create(BackupService::TYPE_MANUAL, null);
+
+        $listed = $this->makeService(mailKeyId: 'aaaa1111')->list();
+
+        $this->assertFalse($listed[0]['mail_key_mismatch']);
+    }
+
+    public function testListDoesNotFlagWhenEitherKeyIsUnknown(): void
+    {
+        $this->makeService(mailKeyId: 'aaaa1111')->create(BackupService::TYPE_MANUAL, null);
+        $this->advanceClock();
+        $this->makeService()->create(BackupService::TYPE_MANUAL, null);
+
+        $this->assertSame([false, false], array_column($this->makeService()->list(), 'mail_key_mismatch'));
+        $this->assertSame(
+            [false, true],
+            array_column($this->makeService(mailKeyId: 'bbbb2222')->list(), 'mail_key_mismatch'),
+            'Neuestes zuerst: das ohne Schlüssel ist unbekannt, das mit fremdem Schlüssel weicht ab.'
+        );
+    }
 }

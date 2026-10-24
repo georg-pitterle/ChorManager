@@ -35,11 +35,32 @@ interface FileBackupInterface
     /** Fehlende Dateien aus dem Pool in die Ablage zurückschreiben. */
     public function restore(string $backupDir, string $backupId): int;
 
-    /** Manifest entfernen und Pool-Dateien löschen, die kein Backup mehr braucht. */
-    public function forget(string $backupDir, string $backupId): void;
+    /**
+     * Manifest entfernen und Pool-Dateien löschen, die kein Backup mehr braucht.
+     * Mit `$onlyPaths` kommen nur diese Pfade als Kandidaten in Frage - für das
+     * Zurücknehmen einer Übernahme, die Pool-Dateien teils schon vorfand.
+     *
+     * @param list<string>|null $onlyPaths
+     */
+    public function forget(string $backupDir, string $backupId, ?array $onlyPaths = null): void;
 
     /**
-     * Manifest und Dateien als .tar.gz in einer Temp-Datei, oder null ohne Manifest.
+     * Was ein Backup-Paket aus dem Pool braucht: das Manifest im Wortlaut und je
+     * Eintrag der Pfad der Datei im Pool. Null ohne Manifest. Wirft, wenn eine
+     * Datei des Manifests im Pool fehlt.
+     *
+     * @return array{manifest: string, files: array<string, string>}|null
      */
-    public function archive(string $backupDir, string $backupId): ?string;
+    public function packageContents(string $backupDir, string $backupId): ?array;
+
+    /**
+     * Die Dateien eines Pakets in den Pool übernehmen und zuletzt das Manifest
+     * schreiben. `$open` liefert zu einem storage_path den Inhalt aus dem Paket.
+     * Eine schon vorhandene Pool-Datei muss dieselbe Prüfsumme haben. Scheitert
+     * etwas, verschwinden die in diesem Aufruf neu geschriebenen Dateien wieder.
+     *
+     * @param \Closure(string): (resource|false) $open
+     * @return list<string> die neu in den Pool geschriebenen storage_paths
+     */
+    public function importFiles(string $backupDir, string $backupId, string $manifestJson, \Closure $open): array;
 }

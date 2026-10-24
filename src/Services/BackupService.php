@@ -12,7 +12,7 @@ class BackupService
     public const TYPE_MANUAL = 'manual';
     public const TYPE_AUTO = 'auto';
 
-    private const ID_PATTERN = '/^backup_(manual|auto)_\d{8}T\d{6}Z_[0-9a-f]{8}$/';
+    public const ID_PATTERN = '/^backup_(manual|auto)_\d{8}T\d{6}Z_[0-9a-f]{8}$/';
 
     public function __construct(
         private readonly DumpRunnerInterface $dumpRunner,
@@ -77,6 +77,14 @@ class BackupService
             if ($dataPath === null || !file_exists($dataPath)) {
                 continue;
             }
+
+            // Mit einem anderen MAIL_CREDENTIAL_KEY lassen sich die verschlüsselten
+            // Mail-Zugangsdaten des Backups nach dem Restore nicht mehr lesen. Ist eine
+            // der beiden Kennungen unbekannt, lässt sich nichts sagen.
+            $backupKey = $decoded['mail_key_id'] ?? null;
+            $decoded['mail_key_mismatch'] = $this->mailKeyId !== null
+                && is_string($backupKey)
+                && $backupKey !== $this->mailKeyId;
 
             $entries[] = $decoded;
         }
@@ -204,31 +212,6 @@ class BackupService
         $this->fileBackup?->forget($this->backupDir, $id);
 
         $this->logger->info('Backup deleted.', ['event' => 'backup.delete', 'id' => $id]);
-    }
-
-    /**
-     * Die gesicherten Dateien eines Backups als .tar.gz (Temp-Datei, der
-     * Aufrufer löscht sie nach dem Ausliefern), oder null ohne Dateisicherung.
-     *
-     * @return array{path:string,filename:string,size:int}|null
-     */
-    public function getFilesArchive(string $id): ?array
-    {
-        $this->assertValidId($id);
-        if (!file_exists($this->backupDir . '/' . $id . '.json')) {
-            throw new \RuntimeException('Backup not found: ' . $id);
-        }
-
-        $path = $this->fileBackup?->archive($this->backupDir, $id);
-        if ($path === null) {
-            return null;
-        }
-
-        return [
-            'path' => $path,
-            'filename' => $id . '_files.tar.gz',
-            'size' => (int) filesize($path),
-        ];
     }
 
     /**

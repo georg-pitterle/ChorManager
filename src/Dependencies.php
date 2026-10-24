@@ -93,6 +93,7 @@ use App\Services\NotificationReminderService;
 use App\Services\PasswordPolicyService;
 use App\Services\NotificationService;
 use App\Services\RegistrationReminderService;
+use App\Services\BackupPackageService;
 use App\Services\BackupService;
 use App\Commands\PurgeFileTrashCommand;
 use App\Services\Files\FileAccessService;
@@ -633,6 +634,14 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(SessionInvalidationService::class),
                 null,
                 $c->get(FileBackupService::class)
+            );
+        },
+        BackupPackageService::class => function (ContainerInterface $c) {
+            return new BackupPackageService(
+                $c->get(BackupService::class),
+                $c->get('settings')['backup']['dir'],
+                $c->get(FileBackupService::class),
+                $c->get(LoggerInterface::class)
             );
         },
         BackupController::class => \DI\autowire(),

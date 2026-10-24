@@ -8,7 +8,9 @@
     <section class="page-header">
         <div>
             <h1 class="h2 mb-1">Backups</h1>
-            <p class="text-muted mb-0">Datenbank-Backups erstellen, herunterladen und wiederherstellen.</p>
+            <p class="text-muted mb-0">
+                Backups der Datenbank und der Dateiverwaltung erstellen, herunterladen und wiederherstellen.
+            </p>
         </div>
         <div class="page-actions">
             <form method="post" action="/backups">
@@ -40,7 +42,32 @@
         <i class="bi bi-exclamation-triangle-fill me-2"></i>
         Eine Wiederherstellung überschreibt die gesamte Datenbank und beendet alle aktiven Sitzungen, auch Ihre eigene.
         Gesicherte Dateien der Dateiverwaltung werden dabei zurückgeschrieben.
+        Zum Umzug in eine andere Installation: Backup herunterladen, die ZIP-Datei in deren Backup-Ordner legen
+        und dort „php bin/import_backup.php“ ausführen.
     </div>
+
+    {% if pending_packages.waiting is not empty %}
+        <div class="alert alert-info">
+            Im Backup-Ordner liegen Pakete, die noch nicht übernommen sind:
+            <ul class="mb-1">
+                {% for name in pending_packages.waiting %}
+                    <li><code>{{ name }}</code></li>
+                {% endfor %}
+            </ul>
+            Übernehmen mit „php bin/import_backup.php“.
+        </div>
+    {% endif %}
+    {% if pending_packages.failed is not empty %}
+        <div class="alert alert-warning">
+            Diese Pakete konnten nicht übernommen werden:
+            <ul class="mb-1">
+                {% for name in pending_packages.failed %}
+                    <li><code>{{ name }}</code></li>
+                {% endfor %}
+            </ul>
+            Den Grund nennt das Protokoll; die Dateien bitte von Hand aus dem Backup-Ordner entfernen.
+        </div>
+    {% endif %}
 
     <div class="surface-card card border-0 table-shell"
          data-table-engine="true"
@@ -64,7 +91,11 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {% set _pool_where = "Jede Datei liegt nur einmal im Backup-Ordner," %}
+                        {% set pool_hint = _pool_where ~ " egal wie viele Backups sie enthalten." %}
                         {% for backup in backups %}
+                            {% set _mismatch = backup.mail_key_mismatch|default(false) %}
+                            {% set _files_mb = (backup.files_bytes|default(0) / 1024 / 1024)|round(1) %}
                             <tr data-sort-created="{{ backup.created_at }}">
                                 <td data-label="Typ">
                                     {% if backup.type == "manual" %}
@@ -72,12 +103,18 @@
                                     {% else %}
                                         <span class="badge text-bg-secondary">Automatisch</span>
                                     {% endif %}
+                                    {% if _mismatch %}
+                                        <span class="badge text-bg-warning">anderer Mail-Schlüssel</span>
+                                    {% endif %}
                                 </td>
                                 <td data-label="Erstellt am">{{ backup.created_at|date("d.m.Y H:i") }}</td>
                                 <td data-label="Größe">{{ (backup.size / 1024 / 1024)|round(2) }} MB</td>
                                 <td data-label="Dateien">
                                     {% if backup.files_count is defined %}
-                                        {{ backup.files_count }} ({{ (backup.files_bytes / 1024 / 1024)|round(1) }} MB)
+                                        <span title="{{ pool_hint }}">
+                                            {{ backup.files_count }} Dateien ({{ _files_mb }} MB)
+                                            <small class="text-muted d-block">im gemeinsamen Pool</small>
+                                        </span>
                                         {% if backup.files_missing|default(0) > 0 %}
                                             <span class="badge text-bg-warning" title="Beim Sichern nicht gefunden">
                                                 {{ backup.files_missing }} fehlend
@@ -92,16 +129,12 @@
                                         <a class="btn btn-sm btn-outline-secondary" href="/backups/{{ backup.id }}/download">
                                             <i class="bi bi-download"></i> Download
                                         </a>
-                                        {% if backup.files_count is defined %}
-                                            <a class="btn btn-sm btn-outline-secondary" href="/backups/{{ backup.id }}/download-files">
-                                                <i class="bi bi-folder2"></i> Dateien
-                                            </a>
-                                        {% endif %}
                                         <button type="button"
                                                 class="btn btn-sm btn-outline-danger restore-backup-btn"
                                                 data-bs-toggle="modal"
                                                 data-bs-target="#restoreBackupModal"
-                                                data-id="{{ backup.id }}">
+                                                data-id="{{ backup.id }}"
+                                                data-mail-key-mismatch="{{ _mismatch ? "1" : "0" }}">
                                             <i class="bi bi-arrow-counterclockwise"></i> Wiederherstellen
                                         </button>
                                         <button type="button"
@@ -135,7 +168,15 @@
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <p>Diese Aktion überschreibt die gesamte Datenbank mit dem Inhalt dieses Backups und beendet <strong>alle</strong> aktiven Sitzungen, einschließlich Ihrer eigenen. Diese Aktion kann nicht widerrufen werden.</p>
+                        <p>
+                            Diese Aktion überschreibt die gesamte Datenbank mit dem Inhalt dieses Backups und beendet
+                            <strong>alle</strong> aktiven Sitzungen, einschließlich Ihrer eigenen.
+                            Diese Aktion kann nicht widerrufen werden.
+                        </p>
+                        <div class="alert alert-warning d-none" id="restoreMailKeyWarning">
+                            Dieses Backup stammt von einem anderen Mail-Schlüssel. Gespeicherte Mail-Zugangsdaten lassen sich
+                            danach nicht mehr entschlüsseln und müssen neu eingegeben werden.
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>

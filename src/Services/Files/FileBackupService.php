@@ -102,7 +102,7 @@ final class FileBackupService implements FileBackupInterface
         return $restored;
     }
 
-    public function forget(string $backupDir, string $backupId): void
+    public function forget(string $backupDir, string $backupId, ?array $onlyPaths = null): void
     {
         $manifest = $this->manifestPath($backupDir, $backupId);
         if (!is_file($manifest)) {
@@ -114,7 +114,7 @@ final class FileBackupService implements FileBackupInterface
         // prepare() schon Dateien in den Pool gelegt, sein Manifest entsteht
         // aber erst nach dem Dump; ein Rundumschlag würde ihm die Dateien
         // unter den Füßen wegziehen.
-        $candidates = array_column($this->readManifest($manifest), 'storage_path');
+        $candidates = $onlyPaths ?? array_column($this->readManifest($manifest), 'storage_path');
         unlink($manifest);
 
         $referenced = [];
@@ -141,28 +141,86 @@ final class FileBackupService implements FileBackupInterface
         }
     }
 
-    public function archive(string $backupDir, string $backupId): ?string
+    public function packageContents(string $backupDir, string $backupId): ?array
     {
         $manifest = $this->manifestPath($backupDir, $backupId);
         if (!is_file($manifest)) {
             return null;
         }
 
-        $base = sys_get_temp_dir() . '/' . $backupId . '_files_' . bin2hex(random_bytes(4));
-        $tar = new \PharData($base . '.tar');
-        $tar->addFile($manifest, 'manifest.json');
         $pool = $this->pool($backupDir);
+        $files = [];
         foreach ($this->readManifest($manifest) as $entry) {
-            $local = $pool->localPath($entry['storage_path']);
-            if ($local !== null) {
-                $tar->addFile($local, 'files/' . $entry['storage_path']);
+            $local = $pool->exists($entry['storage_path']) ? $pool->localPath($entry['storage_path']) : null;
+            if ($local === null) {
+                throw new \RuntimeException('File backup is incomplete: ' . $backupId);
             }
+            $files[$entry['storage_path']] = $local;
         }
-        $tar->compress(\Phar::GZ);
-        unset($tar);
-        @unlink($base . '.tar');
 
-        return $base . '.tar.gz';
+        return ['manifest' => (string) file_get_contents($manifest), 'files' => $files];
+    }
+
+    public function importFiles(string $backupDir, string $backupId, string $manifestJson, \Closure $open): array
+    {
+        $manifestPath = $this->manifestPath($backupDir, $backupId);
+        $parsed = $this->parseManifest($manifestJson, $backupId);
+        if ($parsed['backup_id'] !== $backupId) {
+            throw new \RuntimeException('File manifest belongs to another backup: ' . $backupId);
+        }
+        if (is_file($manifestPath)) {
+            throw new \RuntimeException('File manifest already exists: ' . $backupId);
+        }
+
+        $pool = $this->pool($backupDir);
+        // Nur was dieser Aufruf neu in den Pool legt, darf er beim Scheitern wieder
+        // entfernen. Vorhandene Dateien gehören womöglich anderen Backups.
+        $written = [];
+        try {
+            foreach ($parsed['entries'] as $entry) {
+                $path = $entry['storage_path'];
+                if ($pool->exists($path)) {
+                    if (!hash_equals($entry['sha256'], (string) hash_file('sha256', (string) $pool->localPath($path)))) {
+                        throw new \RuntimeException('Backup pool holds different content for: ' . $path);
+                    }
+                    continue;
+                }
+
+                $stream = $open($path);
+                if (!is_resource($stream)) {
+                    throw new \RuntimeException('Package file missing: ' . $path);
+                }
+                try {
+                    $written[] = $path;
+                    $pool->writeAt($path, $stream);
+                } finally {
+                    fclose($stream);
+                }
+                if (!hash_equals($entry['sha256'], (string) hash_file('sha256', (string) $pool->localPath($path)))) {
+                    throw new \RuntimeException('Package file checksum mismatch: ' . $path);
+                }
+            }
+
+            if (file_put_contents($manifestPath, $manifestJson) === false) {
+                throw new \RuntimeException('Could not write file manifest.');
+            }
+        } catch (\Throwable $exception) {
+            foreach ($written as $path) {
+                $pool->delete($path);
+            }
+            if (is_file($manifestPath)) {
+                unlink($manifestPath);
+            }
+            throw $exception;
+        }
+
+        $this->logger->info('Package files adopted into backup pool.', [
+            'event' => 'backup.files.imported',
+            'backup_id' => $backupId,
+            'count' => count($written),
+        ]);
+
+        return $written;
     }
 
     public function hasManifest(string $backupDir, string $backupId): bool
@@ -251,16 +309,25 @@ final class FileBackupService implements FileBackupInterface
      */
     private function readManifest(string $path): array
     {
-        $decoded = json_decode((string) file_get_contents($path), true);
+        return $this->parseManifest((string) file_get_contents($path), basename($path))['entries'];
+    }
+
+    /**
+     * @return array{backup_id: ?string, entries: list<array{storage_driver: string, storage_path: string, size: int,
+     *                                                        sha256: string}>}
+     */
+    private function parseManifest(string $json, string $label): array
+    {
+        $decoded = json_decode($json, true);
         if (!is_array($decoded) || !is_array($decoded['files'] ?? null)) {
-            throw new \RuntimeException('File manifest is corrupt: ' . basename($path));
+            throw new \RuntimeException('File manifest is corrupt: ' . $label);
         }
 
         $entries = [];
         foreach ($decoded['files'] as $entry) {
             $storagePath = (string) ($entry['storage_path'] ?? '');
             if (!LocalFileStorage::isValidPath($storagePath)) {
-                throw new \RuntimeException('File manifest contains an invalid path: ' . basename($path));
+                throw new \RuntimeException('File manifest contains an invalid path: ' . $label);
             }
             $entries[] = [
                 'storage_driver' => (string) ($entry['storage_driver'] ?? LocalFileStorage::NAME),
@@ -270,7 +337,9 @@ final class FileBackupService implements FileBackupInterface
             ];
         }
 
-        return $entries;
+        $backupId = $decoded['backup_id'] ?? null;
+
+        return ['backup_id' => is_string($backupId) ? $backupId : null, 'entries' => $entries];
     }
 
     private function pool(string $backupDir): LocalFileStorage

@@ -54,6 +54,19 @@ final class BackupUsageProviderTest extends TestCase
         $this->assertSame(5542, $node->bytes);
     }
 
+    public function testCountsPackagesUnderTheirBackupType(): void
+    {
+        $this->put('backup_manual_20261001T100000Z_0123abcd.zip', 300);
+        $this->put('backup_auto_20261002T030000Z_89abcdef.zip.failed', 40);
+        $this->put('.import.lock', 0);
+
+        $node = (new BackupUsageProvider($this->dir))->usage();
+
+        $this->assertSame(300, $node->child('backups.dumps.manual')?->bytes);
+        $this->assertSame(40, $node->child('backups.dumps.auto')?->bytes);
+        $this->assertNull($node->child('backups.other'), 'Die leere Sperrdatei ist kein Sonstiges.');
+    }
+
     public function testMissingDirectoryIsZeroWithoutError(): void
     {
         $node = (new BackupUsageProvider($this->dir . '/fehlt'))->usage();
