@@ -32,13 +32,21 @@ export async function taskBoardPath(page, projectName) {
 }
 
 /**
- * Ist das Aufgaben-Modul in dieser Umgebung an? Ohne FEATURE_TASKS gibt es die
- * Route gar nicht, und das Szenario soll übersprungen werden statt rot zu laufen.
+ * Hat das Projekt einen Link zur Planung? Nur mit FEATURE_TASKS - so erkennt das
+ * Szenario, ob es das Aufgaben-Modul gibt, und wird sonst übersprungen statt rot.
+ *
+ * Bewusst an einem Projekt, das der Test vorher selbst angelegt hat: Die frühere
+ * Prüfung suchte den Link irgendwo auf /projects. Auf der frischen E2E-Datenbank gab
+ * es dort zu dem Zeitpunkt oft noch kein Projekt - die Prüfung meldete "Modul aus",
+ * und beide Kanban-Tests liefen nie, obwohl das Modul eingeschaltet war.
  */
-export async function isTaskModuleEnabled(page) {
+export async function hasTaskBoard(page, projectName) {
     await page.goto('/projects');
 
-    return (await page.locator('a[href$="/tasks"]').count()) > 0;
+    const row = page.locator(`tr[data-sort-project_name="${projectName.toLowerCase()}"]`);
+    await row.waitFor({ state: 'attached' });
+
+    return (await row.locator('a[href$="/tasks"]').count()) > 0;
 }
 
 export async function createTask(page, boardPath, { title, status = 'open' }) {

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { createProject } from '../steps/projects.mjs';
 import {
-    isTaskModuleEnabled,
+    hasTaskBoard,
     taskBoardPath,
     createTask,
     openKanbanBoard,
@@ -38,6 +38,7 @@ async function projectWithTasks(page, label, titles) {
         endDate: '2026-12-31',
     });
 
+    test.skip(!(await hasTaskBoard(page, name)), 'Aufgaben-Modul ist in dieser Umgebung aus.');
     const boardPath = await taskBoardPath(page, name);
 
     for (const title of titles) {
@@ -49,7 +50,6 @@ async function projectWithTasks(page, label, titles) {
 
 test('Kanban: Statuswechsel per Ziehen bleibt nach dem Neuladen erhalten', async ({ page }) => {
     test.setTimeout(120_000);
-    test.skip(!(await isTaskModuleEnabled(page)), 'Aufgaben-Modul ist in dieser Umgebung aus.');
 
     const boardPath = await projectWithTasks(page, 'Kanban-Zug', ['Noten kopieren', 'Saal reservieren']);
     await openKanbanBoard(page, boardPath);
@@ -73,7 +73,6 @@ test('Kanban: Statuswechsel per Ziehen bleibt nach dem Neuladen erhalten', async
 
 test('Kanban: Leere-Hinweis erscheint und verschwindet beim Verschieben', async ({ page }) => {
     test.setTimeout(120_000);
-    test.skip(!(await isTaskModuleEnabled(page)), 'Aufgaben-Modul ist in dieser Umgebung aus.');
 
     const boardPath = await projectWithTasks(page, 'Kanban-Hinweis', ['Programmheft setzen']);
     await openKanbanBoard(page, boardPath);
