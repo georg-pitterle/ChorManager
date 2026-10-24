@@ -12,6 +12,13 @@ export async function createProject(page, project) {
     await modal.locator('textarea[name="description"]').fill(project.description);
     await modal.locator('input[name="start_date"]').fill(project.startDate);
     await modal.locator('input[name="end_date"]').fill(project.endDate);
+    // Die Logo-Fristen stehen nur mit eingeschaltetem Sponsoring-Modul im Formular.
+    if (project.logoDeadlinePrint) {
+        await modal.locator('input[name="logo_deadline_print"]').fill(project.logoDeadlinePrint);
+    }
+    if (project.logoDeadlineOnline) {
+        await modal.locator('input[name="logo_deadline_online"]').fill(project.logoDeadlineOnline);
+    }
 
     await modal.locator('button[type="submit"]').click();
     await page.waitForURL('**/projects');
