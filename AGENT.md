@@ -29,6 +29,15 @@ You are a professional software engineer.
 - Welcher Testbefehl wann, gegen welche Datenbank, und was ein paralleler Rotlauf
   bedeutet: `/test-runs`.
 
+## Pläne
+- Wird ein Plan aus `docs/superpowers/plans/` umgesetzt, werden nach jedem
+  abgeschlossenen Task dessen Checkboxen in der Plandatei abgehakt (`- [x]`), im
+  selben Commit wie der Task. Grund: Die Aufgabenliste der Sitzung geht mit der
+  Sitzung verloren; der Stand soll im Repo und in der Git-Historie sichtbar bleiben.
+- Abgehakt wird nur, was tatsächlich erledigt und durch Tests belegt ist. Ein bewusst
+  übersprungener oder geänderter Schritt bleibt offen und bekommt eine kurze Notiz
+  darunter, warum.
+
 ## Naming
 @instructions/naming.md
 
