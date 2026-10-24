@@ -19,6 +19,8 @@ use App\Util\PasswordHasher;
 use App\Util\SponsorshipStatus;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
@@ -121,6 +123,58 @@ final class SponsoringMissingLogosFeatureTest extends TestCase
 
         $this->assertCount(1, $rows);
         $this->assertSame('01.05.2026', $rows[0]['deadline']);
+    }
+
+    public function testEveryAssigneeOfTheSponsorIsNamed(): void
+    {
+        // Beide Zuständigen dürfen die Logos hochladen; die Zeile soll keinen
+        // davon verschweigen, nur weil seine Frist später liegt.
+        $sponsor = Sponsor::create(['name' => 'Zweifach Zuständig']);
+        $first = $this->agreement($sponsor, $this->project('2026-05-01', null), print: true);
+        $second = $this->agreement($sponsor, $this->project('2026-09-01', null), print: true);
+        $first->update(['assigned_user_id' => $this->person('Anna', 'Frühfrist')->id]);
+        $second->update(['assigned_user_id' => $this->person('Berta', 'Spätfrist')->id]);
+
+        $rows = $this->missingLogos();
+
+        $this->assertCount(1, $rows);
+        $assignees = implode(' | ', $rows[0]['assignees']);
+        $this->assertStringContainsString('Frühfrist', $assignees);
+        $this->assertStringContainsString('Spätfrist', $assignees);
+        $this->assertStringContainsString('Frühfrist', $this->renderDashboard());
+        $this->assertStringContainsString('Spätfrist', $this->renderDashboard());
+    }
+
+    public function testChangingTheDeadlinesIsLogged(): void
+    {
+        $project = $this->project(null, null);
+        $handler = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handler);
+
+        (new SponsoringDashboardController(
+            $this->createStub(Twig::class),
+            new NameFormatterService(),
+            new SponsoringPolicy($_SESSION),
+            $logger
+        ))->updateLogoDeadlines(
+            $this->makeRequest('POST', '/sponsoring/projects/' . $project->id . '/logo-deadlines', [
+                'logo_deadline_print' => '2026-06-10',
+                'logo_deadline_online' => '',
+            ]),
+            $this->makeResponse(),
+            ['id' => (string) $project->id]
+        );
+
+        $records = array_values(array_filter(
+            $handler->getRecords(),
+            static fn ($record): bool => ($record->context['event'] ?? null) === 'sponsoring.logo_deadlines.updated'
+        ));
+        $this->assertCount(1, $records);
+        $this->assertSame((int) $project->id, $records[0]->context['project_id']);
+        $this->assertSame((int) $this->manager->id, $records[0]->context['user_id']);
+        $this->assertSame('2026-06-10', $records[0]->context['logo_deadline_print']);
+        $this->assertNull($records[0]->context['logo_deadline_online']);
     }
 
     public function testEntriesWithoutDeadlineComeLast(): void
@@ -392,6 +446,17 @@ final class SponsoringMissingLogosFeatureTest extends TestCase
             'needs_logo_print' => $print,
             'needs_logo_online' => $online,
             'created_by_user_id' => $this->manager->id,
+        ]);
+    }
+
+    private function person(string $firstName, string $lastName): User
+    {
+        return User::create([
+            'first_name' => $firstName,
+            'last_name' => $lastName,
+            'email' => 'logo-person-' . bin2hex(random_bytes(6)) . '@example.test',
+            'password' => PasswordHasher::hash('x'),
+            'is_active' => 1,
         ]);
     }
 

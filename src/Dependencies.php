@@ -17,6 +17,7 @@ use App\Controllers\EventController;
 use App\Controllers\ProfileController;
 use App\Controllers\ProjectController;
 use App\Controllers\SponsorController;
+use App\Controllers\SponsoringDashboardController;
 use App\Controllers\TaskController;
 use App\Controllers\UserNotificationController;
 use App\Queries\ProjectQuery;
@@ -433,6 +434,14 @@ return function (ContainerBuilder $containerBuilder) {
         UserNotificationController::class => \DI\autowire(),
         // Der Logger ist im Konstruktor optional (die Tests kommen ohne aus), und
         // optionale Parameter füllt PHP-DI nicht aus dem Container.
+        SponsoringDashboardController::class => function (ContainerInterface $c): SponsoringDashboardController {
+            return new SponsoringDashboardController(
+                $c->get(Twig::class),
+                $c->get(NameFormatterService::class),
+                $c->get(SponsoringPolicy::class),
+                $c->get(LoggerInterface::class)
+            );
+        },
         SponsorController::class => function (ContainerInterface $c): SponsorController {
             return new SponsorController(
                 $c->get(Twig::class),

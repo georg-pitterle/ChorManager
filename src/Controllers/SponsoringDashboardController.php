@@ -16,6 +16,8 @@ use App\Services\NameFormatterService;
 use App\Util\LogoDeadline;
 use App\Util\SponsorshipStatus;
 use Carbon\Carbon;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 class SponsoringDashboardController
 {
@@ -23,14 +25,18 @@ class SponsoringDashboardController
     private NameFormatterService $nameFormatter;
     private SponsoringPolicy $policy;
 
+    private LoggerInterface $logger;
+
     public function __construct(
         Twig $view,
         NameFormatterService $nameFormatter,
-        SponsoringPolicy $policy
+        SponsoringPolicy $policy,
+        ?LoggerInterface $logger = null
     ) {
         $this->view = $view;
         $this->nameFormatter = $nameFormatter;
         $this->policy = $policy;
+        $this->logger = $logger ?? new NullLogger();
     }
 
     public function index(Request $request, Response $response): Response
@@ -125,19 +131,6 @@ class SponsoringDashboardController
         ]);
     }
 
-    /**
-     * Zugesagte Vereinbarungen mit noch nicht erbrachten Gegenleistungen - die
-     * Liste, die vor jedem Konzert gebraucht wird: Welche Logos gehören ins
-     * Programmheft, wer bekommt Freikarten?
-     *
-     * Für alle mit Sponsoring-Zugang, wie die Leistungen selbst. Abhaken darf je
-     * Vereinbarung, wen die Policy lässt; das steht an jeder Zeile.
-     *
-     * Sortiert nach dem Ende der Vereinbarung: was bald vorbei ist, muss zuerst
-     * erledigt sein. Ohne Enddatum ganz hinten.
-     *
-     * @return list<array<string, mixed>>
-     */
     /** Ab wie vielen Tagen vor der Frist eine Zeile als "bald" gilt. */
     private const LOGO_SOON_DAYS = 14;
 
@@ -146,12 +139,14 @@ class SponsoringDashboardController
      *
      * Grundlage sind Zusagen, die ein Logo brauchen (Druck oder online), deren
      * Sponsor noch keins hat. Ein Sponsor erscheint einmal, mit der frühesten
-     * Frist seiner Vereinbarungen; ohne Frist steht er am Ende. Sichtbar für
-     * alle mit Sponsoring-Zugang, wie die offenen Gegenleistungen.
+     * Frist seiner Vereinbarungen; ohne Frist steht er am Ende. Genannt werden
+     * alle Zuständigen dieser Vereinbarungen - jede davon darf die Logos
+     * hochladen, keine soll hinter der früheren Frist verschwinden. Sichtbar
+     * für alle mit Sponsoring-Zugang, wie die offenen Gegenleistungen.
      *
      * @return list<array{sponsor_id: int, sponsor_name: string, sponsor_url: string, project_name: ?string,
      *                    deadline: ?string, deadline_sort: string, kind: string,
-     *                    urgency: string, assignee: ?string}>
+     *                    urgency: string, assignees: list<string>}>
      */
     private function missingLogos(): array
     {
@@ -163,6 +158,7 @@ class SponsoringDashboardController
 
         $today = Carbon::today();
         $bySponsor = [];
+        $assignees = [];
         foreach ($sponsorships as $sponsorship) {
             $deadline = LogoDeadline::for(
                 (bool) $sponsorship->needs_logo_print,
@@ -189,10 +185,12 @@ class SponsoringDashboardController
                     $date->lte($today->copy()->addDays(self::LOGO_SOON_DAYS)) => 'soon',
                     default => 'later',
                 },
-                'assignee' => $sponsorship->assignedUser !== null
-                    ? $this->nameFormatter->formatPerson($sponsorship->assignedUser)
-                    : null,
             ];
+
+            if ($sponsorship->assignedUser !== null) {
+                $assignees[$row['sponsor_id']][(int) $sponsorship->assignedUser->id]
+                    = $this->nameFormatter->formatPerson($sponsorship->assignedUser);
+            }
 
             $current = $bySponsor[$row['sponsor_id']] ?? null;
             if ($current === null || $row['deadline_sort'] < $current['deadline_sort']) {
@@ -200,7 +198,12 @@ class SponsoringDashboardController
             }
         }
 
-        $rows = array_values($bySponsor);
+        $rows = [];
+        foreach ($bySponsor as $sponsorId => $row) {
+            $names = array_values($assignees[$sponsorId] ?? []);
+            sort($names);
+            $rows[] = $row + ['assignees' => $names];
+        }
         usort($rows, static fn (array $a, array $b): int => [$a['deadline_sort'], $a['sponsor_name']]
             <=> [$b['deadline_sort'], $b['sponsor_name']]);
 
@@ -252,11 +255,33 @@ class SponsoringDashboardController
         }
 
         $project->update($deadlines);
+        // Das Sponsoring-Team ändert hier Daten eines Projekts, für das es oft
+        // keine Projektrechte hat - das soll nachvollziehbar bleiben.
+        $this->logger->info('Project logo deadlines updated.', [
+            'event' => 'sponsoring.logo_deadlines.updated',
+            'project_id' => (int) $project->id,
+            'user_id' => $this->policy->currentUserId(),
+            'logo_deadline_print' => $project->logo_deadline_print?->format('Y-m-d'),
+            'logo_deadline_online' => $project->logo_deadline_online?->format('Y-m-d'),
+        ]);
         $_SESSION['success'] = 'Logo-Fristen für ' . $project->name . ' gespeichert.';
 
         return $back;
     }
 
+    /**
+     * Zugesagte Vereinbarungen mit noch nicht erbrachten Gegenleistungen - die
+     * Liste, die vor jedem Konzert gebraucht wird: Welche Logos gehören ins
+     * Programmheft, wer bekommt Freikarten?
+     *
+     * Für alle mit Sponsoring-Zugang, wie die Leistungen selbst. Abhaken darf je
+     * Vereinbarung, wen die Policy lässt; das steht an jeder Zeile.
+     *
+     * Sortiert nach dem Ende der Vereinbarung: was bald vorbei ist, muss zuerst
+     * erledigt sein. Ohne Enddatum ganz hinten.
+     *
+     * @return list<array<string, mixed>>
+     */
     private function openBenefits(): array
     {
         return $this->openLines('benefits', 'delivered_at', 'sponsorship-benefits');

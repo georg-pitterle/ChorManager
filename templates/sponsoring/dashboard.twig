@@ -59,7 +59,7 @@
                                     ohne Frist
                                 {% endif %}
                                 · {{ row.project_name|default("Ohne Projekt") }}
-                                · Zuständig: {{ row.assignee|default("niemand") }}
+                                · Zuständig: {{ row.assignees ? row.assignees|join(", ") : "niemand" }}
                             </p>
                         </li>
                     {% endfor %}
