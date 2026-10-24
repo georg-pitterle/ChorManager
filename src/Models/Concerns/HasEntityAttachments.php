@@ -29,11 +29,21 @@ trait HasEntityAttachments
 {
     public function attachments(): HasMany
     {
+        return $this->attachmentsOfType(static::ENTITY_TYPE);
+    }
+
+    /**
+     * Die Anhänge unter einem bestimmten entity_type. Der Sponsor führt seine
+     * Logo-Dateien unter einem eigenen Typ (HasLogoAttachments) und braucht
+     * dieselbe Beziehung ein zweites Mal - ohne sie abzuschreiben.
+     */
+    protected function attachmentsOfType(string $entityType): HasMany
+    {
         return $this->hasMany(Attachment::class, 'entity_id', 'id')
             ->select(array_map(
                 static fn (string $column): string => 'attachments.' . $column,
                 Attachment::METADATA_COLUMNS
             ))
-            ->where('entity_type', static::ENTITY_TYPE);
+            ->where('entity_type', $entityType);
     }
 }

@@ -7,11 +7,13 @@ namespace App\Controllers;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
+use App\Controllers\ProjectController;
+use App\Models\Project;
 use App\Models\Sponsorship;
-use App\Models\SponsorshipBenefit;
 use App\Models\SponsoringContact;
 use App\Policies\SponsoringPolicy;
 use App\Services\NameFormatterService;
+use App\Util\LogoDeadline;
 use App\Util\SponsorshipStatus;
 use Carbon\Carbon;
 
@@ -110,7 +112,10 @@ class SponsoringDashboardController
             'total_amount'      => $seesTotals ? $totalAmount : null,
             'requested_amount'  => $seesTotals ? $requestedAmount : null,
             'unpaid_amount'     => $seesTotals ? $unpaidAmount : null,
+            'missing_logos'     => $this->missingLogos(),
+            'logo_deadline_projects' => $this->policy->canManageAll() ? $this->logoDeadlineProjects() : [],
             'open_benefits'     => $this->openBenefits(),
+            'open_deliverables' => $this->openDeliverables(),
             'unpaid'            => $seesTotals ? $this->unpaidCommitments() : [],
             'shows_own_only'    => $ownUserId !== null,
             'open_follow_ups'   => $openFollowUps,
@@ -133,16 +138,156 @@ class SponsoringDashboardController
      *
      * @return list<array<string, mixed>>
      */
+    /** Ab wie vielen Tagen vor der Frist eine Zeile als "bald" gilt. */
+    private const LOGO_SOON_DAYS = 14;
+
+    /**
+     * Von welchem zugesagten Sponsor fehlt das Logo, und bis wann?
+     *
+     * Grundlage sind Zusagen, die ein Logo brauchen (Druck oder online), deren
+     * Sponsor noch keins hat. Ein Sponsor erscheint einmal, mit der frühesten
+     * Frist seiner Vereinbarungen; ohne Frist steht er am Ende. Sichtbar für
+     * alle mit Sponsoring-Zugang, wie die offenen Gegenleistungen.
+     *
+     * @return list<array{sponsor_id: int, sponsor_name: string, sponsor_url: string, project_name: ?string,
+     *                    deadline: ?string, deadline_sort: string, kind: string,
+     *                    urgency: string, assignee: ?string}>
+     */
+    private function missingLogos(): array
+    {
+        $sponsorships = Sponsorship::with(['sponsor', 'project', 'assignedUser'])
+            ->where('status', SponsorshipStatus::ACCEPTED)
+            ->where(static fn ($query) => $query->where('needs_logo_print', true)->orWhere('needs_logo_online', true))
+            ->whereHas('sponsor', static fn ($query) => $query->whereDoesntHave('logos'))
+            ->get();
+
+        $today = Carbon::today();
+        $bySponsor = [];
+        foreach ($sponsorships as $sponsorship) {
+            $deadline = LogoDeadline::for(
+                (bool) $sponsorship->needs_logo_print,
+                (bool) $sponsorship->needs_logo_online,
+                $sponsorship->project?->logo_deadline_print,
+                $sponsorship->project?->logo_deadline_online
+            );
+            if ($deadline === null || $sponsorship->sponsor === null) {
+                continue;
+            }
+
+            $date = $deadline['date'];
+            $row = [
+                'sponsor_id' => (int) $sponsorship->sponsor_id,
+                'sponsor_name' => (string) $sponsorship->sponsor->name,
+                'sponsor_url' => '/sponsoring/sponsors/' . $sponsorship->sponsor_id,
+                'project_name' => $sponsorship->project?->name,
+                'deadline' => $date?->format('d.m.Y'),
+                'deadline_sort' => $date?->format('Y-m-d') ?? '9999-12-31',
+                'kind' => $deadline['kind'],
+                'urgency' => match (true) {
+                    $date === null => 'none',
+                    $date->lt($today) => 'overdue',
+                    $date->lte($today->copy()->addDays(self::LOGO_SOON_DAYS)) => 'soon',
+                    default => 'later',
+                },
+                'assignee' => $sponsorship->assignedUser !== null
+                    ? $this->nameFormatter->formatPerson($sponsorship->assignedUser)
+                    : null,
+            ];
+
+            $current = $bySponsor[$row['sponsor_id']] ?? null;
+            if ($current === null || $row['deadline_sort'] < $current['deadline_sort']) {
+                $bySponsor[$row['sponsor_id']] = $row;
+            }
+        }
+
+        $rows = array_values($bySponsor);
+        usort($rows, static fn (array $a, array $b): int => [$a['deadline_sort'], $a['sponsor_name']]
+            <=> [$b['deadline_sort'], $b['sponsor_name']]);
+
+        return $rows;
+    }
+
+    /**
+     * Projekte, für die das Sponsoring-Team Logo-Fristen pflegt: alle mit
+     * mindestens einer Zusage, die ein Logo braucht. Nur für das Vollrecht.
+     *
+     * @return \Illuminate\Support\Collection<int, Project>
+     */
+    private function logoDeadlineProjects(): \Illuminate\Support\Collection
+    {
+        return Project::query()
+            ->whereIn('id', Sponsorship::query()
+                ->select('project_id')
+                ->whereNotNull('project_id')
+                ->where('status', SponsorshipStatus::ACCEPTED)
+                ->where(static fn ($query) => $query->where('needs_logo_print', true)->orWhere('needs_logo_online', true)))
+            ->orderBy('start_date')
+            ->orderBy('name')
+            ->get();
+    }
+
+    /**
+     * Logo-Fristen eines Projekts aus dem Sponsoring-Bereich setzen. Die
+     * Fristen gehören dem Sponsoring-Team, das oft keine Projektrechte hat;
+     * die Prüfung der Daten ist dieselbe wie im Projektformular.
+     */
+    public function updateLogoDeadlines(Request $request, Response $response, array $args): Response
+    {
+        if (!$this->policy->canManageAll()) {
+            $response->getBody()->write('Zugriff verweigert.');
+            return $response->withStatus(403);
+        }
+
+        $back = $response->withHeader('Location', '/sponsoring')->withStatus(302);
+        $project = Project::find((int) $args['id']);
+        if ($project === null) {
+            $_SESSION['error'] = 'Projekt nicht gefunden.';
+            return $back;
+        }
+
+        $deadlines = ProjectController::logoDeadlines((array) $request->getParsedBody(), $project);
+        if ($deadlines === false) {
+            $_SESSION['error'] = ProjectController::INVALID_LOGO_DEADLINE_MESSAGE;
+            return $back;
+        }
+
+        $project->update($deadlines);
+        $_SESSION['success'] = 'Logo-Fristen für ' . $project->name . ' gespeichert.';
+
+        return $back;
+    }
+
     private function openBenefits(): array
     {
+        return $this->openLines('benefits', 'delivered_at', 'sponsorship-benefits');
+    }
+
+    /**
+     * Zugesagte Vereinbarungen, bei denen vom Sponsor noch etwas aussteht -
+     * Banner, Vertrag, Sachleistung. Aufgebaut wie openBenefits(), auch in
+     * Sichtbarkeit und Sortierung.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function openDeliverables(): array
+    {
+        return $this->openLines('deliverables', 'received_at', 'sponsorship-deliverables');
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function openLines(string $relation, string $doneColumn, string $path): array
+    {
+        $open = static fn ($query) => $query->whereNull($doneColumn);
         $sponsorships = Sponsorship::with([
             'sponsor',
             'project',
             'package',
-            'benefits' => static fn ($query) => $query->whereNull('delivered_at'),
+            $relation => $open,
         ])
             ->where('status', SponsorshipStatus::ACCEPTED)
-            ->whereHas('benefits', static fn ($query) => $query->whereNull('delivered_at'))
+            ->whereHas($relation, $open)
             ->orderByRaw('end_date IS NULL, end_date')
             ->get();
 
@@ -156,12 +301,12 @@ class SponsoringDashboardController
                 'package_name' => $sponsorship->package ? (string) $sponsorship->package->name : null,
                 'package_badge' => $sponsorship->package?->badge_class,
                 'end_date_display' => $sponsorship->end_date?->format('d.m.Y'),
-                'benefits' => $sponsorship->benefits
-                    ->map(static fn (SponsorshipBenefit $benefit): array => [
-                        'id' => (int) $benefit->id,
-                        'description' => (string) $benefit->description,
+                'benefits' => $sponsorship->{$relation}
+                    ->map(static fn ($line): array => [
+                        'id' => (int) $line->id,
+                        'description' => (string) $line->description,
                         'may_tick' => $mayTick,
-                        'toggle_url' => '/sponsoring/sponsorship-benefits/' . $benefit->id
+                        'toggle_url' => '/sponsoring/' . $path . '/' . $line->id
                             . '/toggle?redirect_to=dashboard',
                     ])
                     ->values()

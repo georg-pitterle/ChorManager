@@ -34,6 +34,73 @@
     {{ include("sponsoring/partials/subnav.twig", {subnav_active: "overview"}) }}
 
     <div class="sponsoring-board">
+        <section class="sponsoring-panel" aria-labelledby="sponsoring-logos-title">
+            <header class="sponsoring-panel-head">
+                <h2 class="sponsoring-panel-title" id="sponsoring-logos-title">Logo fehlt</h2>
+                <span class="sponsoring-panel-count">{{ missing_logos|length }}</span>
+            </header>
+            <p class="sponsoring-panel-lead">
+                Zugesagte Sponsoren, deren Logo für Druck oder online noch fehlt - zuerst, was am frühesten gebraucht wird.
+            </p>
+            {% if missing_logos|length > 0 %}
+                <ul class="work-list">
+                    {% for row in missing_logos %}
+                        <li class="work-item work-item--stacked logo-deadline-{{ row.urgency }}">
+                            <div class="work-item-title">
+                                <a href="{{ row.sponsor_url }}">{{ row.sponsor_name }}</a>
+                                <span class="badge text-bg-light border">{{ row.kind == "print" ? "Druck" : "online" }}</span>
+                            </div>
+                            <p class="work-item-meta">
+                                {% if row.deadline %}
+                                    bis {{ row.deadline }}
+                                    {% if row.urgency == "overdue" %}<span class="due-chip due-chip--overdue">überfällig</span>{% endif %}
+                                    {% if row.urgency == "soon" %}<span class="due-chip due-chip--soon">bald</span>{% endif %}
+                                {% else %}
+                                    ohne Frist
+                                {% endif %}
+                                · {{ row.project_name|default("Ohne Projekt") }}
+                                · Zuständig: {{ row.assignee|default("niemand") }}
+                            </p>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="sponsoring-panel-empty">Von allen zugesagten Sponsoren mit Logo-Bedarf liegt das Logo vor.</p>
+            {% endif %}
+
+            {% if logo_deadline_projects|length > 0 %}
+                <details class="logo-deadline-settings">
+                    <summary>Logo-Fristen der Projekte</summary>
+                    {% for project in logo_deadline_projects %}
+                        <form method="post" action="/sponsoring/projects/{{ project.id }}/logo-deadlines" class="logo-deadline-form">
+                            <h3 class="group-label">{{ project.name }}</h3>
+                            <div class="row g-2 align-items-end">
+                                <div class="col-sm-5">
+                                    <label for="logo-deadline-print-{{ project.id }}" class="form-label">Druck</label>
+                                    <input type="date"
+                                           name="logo_deadline_print"
+                                           class="form-control form-control-sm"
+                                           value="{{ project.logo_deadline_print ? project.logo_deadline_print.format("Y-m-d") : "" }}"
+                                           id="logo-deadline-print-{{ project.id }}">
+                                </div>
+                                <div class="col-sm-5">
+                                    <label for="logo-deadline-online-{{ project.id }}" class="form-label">Online</label>
+                                    <input type="date"
+                                           name="logo_deadline_online"
+                                           class="form-control form-control-sm"
+                                           value="{{ project.logo_deadline_online ? project.logo_deadline_online.format("Y-m-d") : "" }}"
+                                           id="logo-deadline-online-{{ project.id }}">
+                                </div>
+                                <div class="col-sm-2">
+                                    <button type="submit" class="btn btn-sm btn-outline-primary w-100">Speichern</button>
+                                </div>
+                            </div>
+                        </form>
+                    {% endfor %}
+                </details>
+            {% endif %}
+        </section>
+
         <section class="sponsoring-panel" aria-labelledby="sponsoring-followups-title">
             <header class="sponsoring-panel-head">
                 <h2 class="sponsoring-panel-title" id="sponsoring-followups-title">Wiedervorlagen</h2>
@@ -112,6 +179,36 @@
                 </ul>
             {% else %}
                 <p class="sponsoring-panel-empty">Alle zugesagten Gegenleistungen sind erbracht.</p>
+            {% endif %}
+        </section>
+
+        <section class="sponsoring-panel" aria-labelledby="sponsoring-deliverables-title">
+            <header class="sponsoring-panel-head">
+                <h2 class="sponsoring-panel-title" id="sponsoring-deliverables-title">Offene Leistungen des Sponsors</h2>
+                <span class="sponsoring-panel-count">{{ open_deliverables|reduce((carry, row) => carry + row.benefits|length, 0) }}</span>
+            </header>
+            <p class="sponsoring-panel-lead">
+                Was zugesagte Sponsoren noch liefern - Banner, Vertrag, Sachleistung.
+            </p>
+            {% if open_deliverables|length > 0 %}
+                <ul class="work-list">
+                    {% for row in open_deliverables %}
+                        <li class="work-item work-item--stacked">
+                            <div class="work-item-title">
+                                <a href="{{ row.sponsor_url }}">{{ row.sponsor_name }}</a>
+                                {% if row.package_name %}
+                                    <span class="badge {{ row.package_badge }}">{{ row.package_name }}</span>
+                                {% endif %}
+                            </div>
+                            <p class="work-item-meta">
+                                {{ row.project_name }}{% if row.end_date_display %} · bis {{ row.end_date_display }}{% endif %}
+                            </p>
+                            {{ include("sponsoring/partials/benefit_list.twig", {benefits: row.benefits, field: "received", done_word: "erhalten"}) }}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <p class="sponsoring-panel-empty">Von den zugesagten Sponsoren steht nichts mehr aus.</p>
             {% endif %}
         </section>
 

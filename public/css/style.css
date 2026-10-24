@@ -4596,6 +4596,113 @@ a:hover {
     padding: 0.15rem 0;
 }
 
+/* Sprungleiste auf der Seite eines Sponsors. Bewusst keine Reiter: Sie
+   springt innerhalb der Seite und darf nicht wie die Bereichsnavigation
+   (Übersicht, Sponsoren, Pakete, Anhänge) aussehen. */
+.sponsor-section-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.sponsor-section-nav-label {
+    font-size: var(--font-size-meta);
+    color: var(--bs-secondary-color);
+}
+
+.sponsor-section-nav-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sponsor-section-nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.25rem;
+    padding: 0.3rem 0.75rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 999px;
+    background: var(--bs-body-bg);
+    color: var(--bs-body-color);
+    font-size: var(--font-size-small);
+    text-decoration: none;
+}
+
+.sponsor-section-nav-link:hover,
+.sponsor-section-nav-link:focus-visible {
+    border-color: var(--bs-secondary-color);
+    color: var(--bs-body-color);
+}
+
+.sponsor-section-nav-count {
+    color: var(--bs-secondary-color);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Sprungziele: nicht unter der fixierten Topbar verschwinden. */
+.sponsor-section-anchor {
+    scroll-margin-top: 5rem;
+}
+
+/* Logo am Sponsor: Vorschau neben Dateiname und Aktionen, auf schmalen
+   Bildschirmen untereinander. */
+.sponsor-logo {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.sponsor-logo-preview {
+    max-width: 12rem;
+    max-height: 6rem;
+    object-fit: contain;
+    padding: 0.5rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    background: var(--bs-body-bg);
+}
+
+.sponsor-logo-file {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+}
+
+.sponsor-logo-upload {
+    max-width: 32rem;
+}
+
+/* Dashboard "Logo fehlt": Dringlichkeit tragen die Chips neben der Frist
+   (due-chip--overdue, due-chip--soon), wie bei den Wiedervorlagen. */
+.logo-deadline-settings {
+    margin-top: 1rem;
+}
+
+.logo-deadline-settings > summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.logo-deadline-form {
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.logo-deadline-form:last-child {
+    border-bottom: 0;
+}
+
 .agreement-actions {
     display: flex;
     flex-wrap: wrap;

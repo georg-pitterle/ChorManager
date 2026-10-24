@@ -25,6 +25,7 @@ final class DatabaseUsageProvider implements StorageUsageProvider
         'finance' => 'Finanzen',
         'song' => 'Lieder',
         'sponsor' => 'Sponsoren',
+        'sponsor_logo' => 'Sponsoren-Logos',
         'sponsorship' => 'Sponsoring',
         'task' => 'Aufgaben',
         'newsletter' => 'Newsletter',

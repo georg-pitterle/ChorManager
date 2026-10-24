@@ -64,11 +64,14 @@ use App\Models\Setting;
 use App\Models\Song;
 use App\Models\SongResource;
 use App\Models\Sponsor;
+use App\Models\SponsorCategory;
 use App\Models\SponsorPackage;
 use App\Models\SponsorPackageBenefit;
+use App\Models\SponsorPackageDeliverable;
 use App\Models\SponsoringContact;
 use App\Models\Sponsorship;
 use App\Models\SponsorshipBenefit;
+use App\Models\SponsorshipDeliverable;
 use App\Models\SheetArchive;
 use App\Models\SheetArchiveLineItem;
 use App\Models\SubVoice;
@@ -209,6 +212,10 @@ class DevSeedService
                 'sponsor_packages' => 0,
                 'sponsor_package_benefits' => 0,
                 'sponsors' => 0,
+                'sponsor_categories' => 0,
+                'sponsor_package_deliverables' => 0,
+                'sponsorship_deliverables' => 0,
+                'project_logo_deadlines' => 0,
                 'sponsorships' => 0,
                 'sponsorship_benefits' => 0,
                 'sponsoring_contacts' => 0,
@@ -295,6 +302,7 @@ class DevSeedService
             $packages = $this->seedSponsorPackages();
             $sponsors = $this->seedSponsors($users['active']);
             $sponsorships = $this->seedSponsorships($sponsors, $packages, $projects, $users['active']);
+            $this->seedLogoDeadlines($projects);
             $this->seedSponsoringContacts($sponsors, $sponsorships, $users['active']);
             $this->seedSponsorAttachments($sponsors, $sponsorships);
             // Nach Aufgaben, Terminen, Projekten und Sponsoren: Die Einträge
@@ -2974,6 +2982,7 @@ class DevSeedService
         $definitions = [
             [
                 'name' => 'Bronze',
+                'needs_logo_online' => true,
                 'description' => 'Kleines Einstiegspaket mit Logo auf ausgewählten Werbemitteln.',
                 'min_amount' => 500.00,
                 'color' => 'secondary',
@@ -2981,6 +2990,8 @@ class DevSeedService
             ],
             [
                 'name' => 'Silber',
+                'needs_logo_print' => true,
+                'needs_logo_online' => true,
                 'description' => 'Sichtbarkeit bei Konzerten, Website und Programmheft.',
                 'min_amount' => 1200.00,
                 'color' => 'info',
@@ -2988,6 +2999,8 @@ class DevSeedService
             ],
             [
                 'name' => 'Gold',
+                'needs_logo_print' => true,
+                'needs_logo_online' => true,
                 'description' => 'Erweiterte Präsenz mit Ansprache bei Veranstaltungen.',
                 'min_amount' => 2500.00,
                 'color' => 'warning',
@@ -3000,6 +3013,8 @@ class DevSeedService
             ],
             [
                 'name' => 'Hauptsponsor',
+                'needs_logo_print' => true,
+                'needs_logo_online' => true,
                 'description' => 'Exklusive Hauptpartnerschaft für Saison oder Projekt.',
                 'min_amount' => 5000.00,
                 'color' => 'danger',
@@ -3011,6 +3026,14 @@ class DevSeedService
                     '10 Freikarten',
                 ],
             ],
+        ];
+
+        // Was der Sponsor liefert: ab Silber das Logo-Material und der Vertrag,
+        // beim Hauptsponsor zusätzlich das Banner für den Saal.
+        $deliverablesByPackage = [
+            'Silber' => ['Vertrag unterschrieben zurück'],
+            'Gold' => ['Vertrag unterschrieben zurück', 'Roll-up für das Foyer übergeben'],
+            'Hauptsponsor' => ['Vertrag unterschrieben zurück', 'Banner/Beachflag übergeben'],
         ];
 
         $packages = [];
@@ -3037,6 +3060,17 @@ class DevSeedService
                         'sort_order' => $index,
                     ]);
                     $this->report['counts']['sponsor_package_benefits']++;
+                }
+            }
+
+            if (!$package->deliverables()->exists()) {
+                foreach ($deliverablesByPackage[$package->name] ?? [] as $index => $description) {
+                    SponsorPackageDeliverable::create([
+                        'package_id' => $package->id,
+                        'description' => $description,
+                        'sort_order' => $index,
+                    ]);
+                    $this->report['counts']['sponsor_package_deliverables']++;
                 }
             }
 
@@ -3083,6 +3117,19 @@ class DevSeedService
                 'address' => 'Musterweg 5, 5071 Wals',
                 'website' => null,
                 'notes' => 'Bietet Sachleistungen für Drucksorten an.',
+            ],
+            // Unterscheidet sich vom Eintrag davor nur durch die Rechtsform: Beim
+            // Anlegen über das Formular meldet die Dublettenwarnung genau so ein
+            // Paar. Hier eine eigene Filiale, also bewusst ein zweiter Sponsor.
+            [
+                'type' => 'organization',
+                'name' => 'Druckerei Klangfarbe GmbH',
+                'contact_person' => 'Thomas Pichler',
+                'email' => 'thomas.pichler@klangfarbe.local',
+                'phone' => '+43 662 401 129',
+                'address' => 'Industriestraße 9, 5020 Salzburg',
+                'website' => null,
+                'notes' => 'Filiale in der Stadt, eigene Ansprechperson.',
             ],
             [
                 'type' => 'organization',
@@ -3158,11 +3205,28 @@ class DevSeedService
             ],
         ];
 
+        // Kategorien: überwiegend die allgemeinen Vorgaben der Migration, dazu
+        // eine eigene ("Veranstaltungstechnik"), wie sie im Formular beim
+        // Tippen entsteht. Zwei Sponsoren bleiben ohne Kategorie.
+        $categoryByName = [
+            'Musikhaus Weber' => 'Einzelhandel',
+            'Kulturstiftung am Fluss' => 'Kultur',
+            'Druckerei Klangfarbe' => 'Handwerk',
+            'Druckerei Klangfarbe GmbH' => 'Handwerk',
+            'ProAudio Salzburg' => 'Veranstaltungstechnik',
+            'Bankhaus Fortschritt' => 'Banken & Versicherungen',
+            'Hotel Harmonie' => 'Gastronomie',
+            'Barbara Singer' => 'Privatperson',
+            'Bäckerei Morgenstern' => 'Gastronomie',
+        ];
+        $categoryIds = $this->seedSponsorCategories(array_values($categoryByName));
+
         $sponsors = [];
         $activeUserCount = count($activeUsers);
         $definitionIndex = 0;
 
         foreach ($definitions as $definition) {
+            $definition['category_id'] = $categoryIds[$categoryByName[$definition['name']] ?? ''] ?? null;
             $isMemberContributed = $definitionIndex >= count($definitions) - 2;
             if ($isMemberContributed && $activeUserCount > 0) {
                 $definition['created_by_user_id'] = $activeUsers[$definitionIndex % $activeUserCount]->id;
@@ -3182,6 +3246,28 @@ class DevSeedService
         }
 
         return $sponsors;
+    }
+
+    /**
+     * Die allgemeinen Vorgaben der Migration plus die übergebenen Namen. Der
+     * Reset leert auch sponsor_categories, deshalb legt der Seed die Vorgaben
+     * selbst wieder an - sonst fehlten sie nach jedem reset-and-seed.
+     *
+     * @param list<string> $names
+     * @return array<string, int> Name => Id
+     */
+    private function seedSponsorCategories(array $names): array
+    {
+        $ids = [];
+        foreach (array_unique(array_merge(SponsorCategory::DEFAULT_NAMES, $names)) as $name) {
+            $category = SponsorCategory::firstOrCreate(['name' => $name]);
+            if ($category->wasRecentlyCreated) {
+                $this->report['counts']['sponsor_categories']++;
+            }
+            $ids[$name] = (int) $category->id;
+        }
+
+        return $ids;
     }
 
     private function seedSponsorships(array $sponsors, array $packages, array $projects, array $activeUsers): array
@@ -3307,6 +3393,30 @@ class DevSeedService
                     'notes' => 'Absage nach der letzten Anfrage, weitere Anfragen sind nicht erwünscht.',
                 ],
             ],
+            // Zwei Zusagen in verschiedenen Projekten, beide ohne Logo: Die Liste
+            // "Logo fehlt" zeigt den Sponsor einmal, mit der früheren Frist.
+            'Druckerei Klangfarbe GmbH' => [
+                [
+                    'package' => 'Silber',
+                    'project_offset' => -2,
+                    'assigned_user_offset' => 6,
+                    'amount' => 900.00,
+                    'status' => 'accepted',
+                    'start_date' => '-3 months',
+                    'end_date' => '+3 months',
+                    'notes' => 'Filiale sponsert das Frühjahrskonzert, Logo noch ausständig.',
+                ],
+                [
+                    'package' => 'Silber',
+                    'project_offset' => -3,
+                    'assigned_user_offset' => 6,
+                    'amount' => 900.00,
+                    'status' => 'accepted',
+                    'start_date' => '-1 month',
+                    'end_date' => '+6 months',
+                    'notes' => 'Zusage auch für das Folgeprojekt.',
+                ],
+            ],
             'Eventagentur Taktvoll' => [
                 [
                     'package' => 'Hauptsponsor',
@@ -3377,6 +3487,8 @@ class DevSeedService
                             ? $activeUsers[($item['assigned_user_offset'] + 1) % $activeUserCount]->id
                             : null,
                         'amount' => max((float) $item['amount'], (float) $package->min_amount),
+                        'needs_logo_print' => (bool) $package->needs_logo_print,
+                        'needs_logo_online' => (bool) $package->needs_logo_online,
                         'status' => $item['status'],
                         'start_date' => $startDate,
                         'end_date' => $endDate,
@@ -3409,6 +3521,36 @@ class DevSeedService
      * @param array<string, mixed> $item
      * @param array<int, User> $activeUsers
      */
+    /**
+     * Logo-Fristen an den drei jüngsten Projekten: eine überschritten, eine in
+     * einer Woche, eine in zwei Monaten - so zeigt "Logo fehlt" jede
+     * Hervorhebung. Gesetzt wird nur, was noch leer ist.
+     *
+     * @param list<Project> $projects
+     */
+    private function seedLogoDeadlines(array $projects): void
+    {
+        $offsets = [
+            -1 => ['print' => '+7 days', 'online' => '+60 days'],
+            -2 => ['print' => '-10 days', 'online' => '+20 days'],
+            -3 => ['print' => '+60 days', 'online' => '+90 days'],
+        ];
+
+        $count = count($projects);
+        foreach ($offsets as $offset => $dates) {
+            $project = $projects[$count + $offset] ?? null;
+            if (!$project instanceof Project || $project->logo_deadline_print !== null) {
+                continue;
+            }
+
+            $project->update([
+                'logo_deadline_print' => (new DateTimeImmutable())->modify($dates['print'])->format('Y-m-d'),
+                'logo_deadline_online' => (new DateTimeImmutable())->modify($dates['online'])->format('Y-m-d'),
+            ]);
+            $this->report['counts']['project_logo_deadlines']++;
+        }
+    }
+
     private function seedSponsorshipBenefitsAndPayment(
         Sponsorship $sponsorship,
         SponsorPackage $package,
@@ -3425,6 +3567,8 @@ class DevSeedService
                 'paid_at' => (new DateTimeImmutable())->modify((string) $paidOffset)->format('Y-m-d'),
             ]);
         }
+
+        $this->seedSponsorshipDeliverables($sponsorship, $package, $status, $activeUsers, $item);
 
         if ($sponsorship->benefits()->exists()) {
             return;
@@ -3450,6 +3594,47 @@ class DevSeedService
                 'delivered_by_user_id' => $delivered ? $deliveredBy?->id : null,
             ]);
             $this->report['counts']['sponsorship_benefits']++;
+        }
+    }
+
+    /**
+     * Die Leistungen des Sponsors aus dem Paket, wie beim Anlegen einer
+     * Vereinbarung. Abgeschlossene haben alles erhalten, zugesagte das erste
+     * davon - so bleibt auf dem Dashboard etwas offen.
+     *
+     * @param array<string, mixed> $item
+     */
+    private function seedSponsorshipDeliverables(
+        Sponsorship $sponsorship,
+        SponsorPackage $package,
+        string $status,
+        array $activeUsers,
+        array $item
+    ): void {
+        if ($sponsorship->deliverables()->exists()) {
+            return;
+        }
+
+        $descriptions = $package->deliverables()->pluck('description')->all();
+        $receivedCount = match ($status) {
+            'closed' => count($descriptions),
+            'accepted' => min(1, count($descriptions)),
+            default => 0,
+        };
+        $receivedBy = $activeUsers[(int) $item['assigned_user_offset'] % max(1, count($activeUsers))] ?? null;
+
+        foreach ($descriptions as $index => $description) {
+            $received = $index < $receivedCount;
+            SponsorshipDeliverable::create([
+                'sponsorship_id' => $sponsorship->id,
+                'description' => $description,
+                'sort_order' => $index,
+                'received_at' => $received
+                    ? (new DateTimeImmutable())->modify('-' . (10 + $index * 5) . ' days')->format('Y-m-d')
+                    : null,
+                'received_by_user_id' => $received ? $receivedBy?->id : null,
+            ]);
+            $this->report['counts']['sponsorship_deliverables']++;
         }
     }
 
@@ -3718,16 +3903,32 @@ class DevSeedService
                 'sponsor' => 'Musikhaus Weber',
                 'base_name' => 'logo-musikhaus-weber',
                 'fixture' => DevSeedAttachmentFixtures::png('Logo Musikhaus Weber'),
+                'entity_type' => Sponsor::LOGO_ENTITY_TYPE,
+            ],
+            // Zweite Variante desselben Logos, wie sie Grafikbüros mitschicken.
+            [
+                'sponsor' => 'Musikhaus Weber',
+                'base_name' => 'logo-musikhaus-weber-druckvorlage',
+                'fixture' => DevSeedAttachmentFixtures::pdf('Logo Musikhaus Weber - Druckvorlage'),
+                'entity_type' => Sponsor::LOGO_ENTITY_TYPE,
+            ],
+            [
+                'sponsor' => 'Bankhaus Fortschritt',
+                'base_name' => 'logo-bankhaus-fortschritt',
+                'fixture' => DevSeedAttachmentFixtures::png('Logo Bankhaus Fortschritt'),
+                'entity_type' => Sponsor::LOGO_ENTITY_TYPE,
             ],
             [
                 'sponsor' => 'Kulturstiftung am Fluss',
                 'base_name' => 'mediadaten-kulturstiftung',
                 'fixture' => DevSeedAttachmentFixtures::pdf('Mediadaten Kulturstiftung am Fluss'),
+                'entity_type' => 'sponsor',
             ],
             [
                 'sponsor' => 'Eventagentur Taktvoll',
                 'base_name' => 'sponsorenportraet-taktvoll', // naming:ascii
                 'fixture' => DevSeedAttachmentFixtures::wordDocument('Sponsorenporträt Eventagentur Taktvoll'),
+                'entity_type' => 'sponsor',
             ],
         ];
 
@@ -3740,9 +3941,12 @@ class DevSeedService
             $fixture = $definition['fixture'];
             $originalName = $definition['base_name'] . '.' . $fixture['extension'];
 
+            // Logo-Dateien hängen als eigener Typ am Sponsor, getrennt von
+            // Mediadaten und Porträt; die übrigen Sponsoren mit Logo-Bedarf
+            // bleiben ohne, damit "Logo fehlt" etwas zeigt.
             $attachment = Attachment::updateOrCreate(
                 [
-                    'entity_type' => 'sponsor',
+                    'entity_type' => $definition['entity_type'],
                     'entity_id' => $sponsor->id,
                     'original_name' => $originalName,
                 ],

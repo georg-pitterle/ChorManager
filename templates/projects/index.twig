@@ -201,6 +201,27 @@
                                        value="{{ project.end_date and project.end_date != "-" ? project.end_date|date("Y-m-d") : "" }}">
                             </div>
                         </div>
+                        {# Logo-Fristen gehören zum Sponsoring - ohne das Modul bewirken sie nichts. #}
+                        {% if settings.modules.sponsoring|default(false) %}
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit_{{ project.id }}_logo_deadline_print" class="form-label">Logo-Frist Druck</label>
+                                    <input type="date"
+                                           class="form-control"
+                                           id="edit_{{ project.id }}_logo_deadline_print"
+                                           name="logo_deadline_print"
+                                           value="{{ project.logo_deadline_print ? project.logo_deadline_print|date("Y-m-d") : "" }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="edit_{{ project.id }}_logo_deadline_online" class="form-label">Logo-Frist online</label>
+                                    <input type="date"
+                                           class="form-control"
+                                           id="edit_{{ project.id }}_logo_deadline_online"
+                                           name="logo_deadline_online"
+                                           value="{{ project.logo_deadline_online ? project.logo_deadline_online|date("Y-m-d") : "" }}">
+                                </div>
+                            </div>
+                        {% endif %}
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
@@ -245,6 +266,27 @@
                             <input type="date" class="form-control" id="end_date" name="end_date">
                         </div>
                     </div>
+                    {# Logo-Fristen gehören zum Sponsoring - ohne das Modul bewirken sie nichts. #}
+                    {% if settings.modules.sponsoring|default(false) %}
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="logo_deadline_print" class="form-label">Logo-Frist Druck</label>
+                                <input type="date"
+                                       class="form-control"
+                                       id="logo_deadline_print"
+                                       name="logo_deadline_print"
+                                       value="">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="logo_deadline_online" class="form-label">Logo-Frist online</label>
+                                <input type="date"
+                                       class="form-control"
+                                       id="logo_deadline_online"
+                                       name="logo_deadline_online"
+                                       value="">
+                            </div>
+                        </div>
+                    {% endif %}
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>

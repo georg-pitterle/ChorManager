@@ -1,0 +1,23 @@
+{# Kategorie eines Sponsors: Auswahl aus den vorhandenen Werten. Im Browser
+   macht sponsor-category-select.js daraus ein Tom-Select-Feld, in das man
+   einen neuen Namen tippen kann; der Server legt ihn beim Speichern an. Ohne
+   JavaScript bleibt die Auswahl der vorhandenen Kategorien.
+   Erwartet input_id, value und categories. #}
+{% set _value = value|default("") %}
+{% set _known = categories|filter(c => c.name == _value)|length > 0 %}
+<label for="{{ input_id }}" class="form-label">Kategorie</label>
+<select name="category"
+        class="form-select"
+        data-sponsor-category
+        data-placeholder="Kategorie wählen oder neu eintippen"
+        id="{{ input_id }}"
+        aria-describedby="{{ input_id }}-hint">
+    <option value="">– Ohne Kategorie –</option>
+    {% for category in categories %}
+        <option value="{{ category.name }}"{{ category.name == _value ? " selected" : "" }}>{{ category.name }}</option>
+    {% endfor %}
+    {% if _value != "" and not _known %}
+        <option value="{{ _value }}" selected>{{ _value }}</option>
+    {% endif %}
+</select>
+<div class="form-text" id="{{ input_id }}-hint">Vorhandene Kategorie wählen oder eine neue eintippen.</div>

@@ -88,6 +88,7 @@ final class AttachmentAccessRegistry
             'finance'     => $this->moduleEnabled('finance') && $this->mayReadFinances(),
             'task'        => $this->moduleEnabled('tasks') && $this->taskPolicy->canManageTasks(),
             'sponsor'     => $this->moduleEnabled('sponsoring') && $this->maySeeSponsor($entityId),
+            'sponsor_logo' => $this->moduleEnabled('sponsoring') && $this->maySeeSponsorLogo($entityId),
             'sponsorship' => $this->moduleEnabled('sponsoring') && $this->maySeeSponsorship($entityId),
             'song'        => $this->maySeeSong($entityId),
             'newsletter'  => $this->moduleEnabled('newsletter')
@@ -120,6 +121,21 @@ final class AttachmentAccessRegistry
         $sponsor = Sponsor::find($sponsorId);
 
         return $sponsor !== null && $this->sponsoringPolicy->canSeeSponsorDetails($sponsor);
+    }
+
+    /**
+     * Logo-Dateien sieht, wer die Anhänge des Sponsors sehen darf, und
+     * zusätzlich, wer die Logos pflegen darf (SponsoringPolicy::canManageLogo):
+     * Die zuständige Person einer Zusage soll prüfen können, was sie
+     * hochgeladen hat, ohne an Mediadaten und Verträge zu kommen.
+     */
+    private function maySeeSponsorLogo(int $sponsorId): bool
+    {
+        $sponsor = Sponsor::find($sponsorId);
+
+        return $sponsor !== null
+            && ($this->sponsoringPolicy->canSeeSponsorDetails($sponsor)
+                || $this->sponsoringPolicy->canManageLogo($sponsor));
     }
 
     private function maySeeSponsorship(int $sponsorshipId): bool

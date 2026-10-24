@@ -24,6 +24,7 @@ use App\Util\InputValidator;
 class ProjectController
 {
     private const INVALID_DATE_MESSAGE = 'Beginn und Ende müssen ein Datum sein (JJJJ-MM-TT) oder leer bleiben.';
+    public const INVALID_LOGO_DEADLINE_MESSAGE = 'Die Logo-Fristen müssen ein Datum sein (JJJJ-MM-TT) oder leer bleiben.';
 
     private const REVERSED_PERIOD_MESSAGE = 'Das Ende des Projekts darf nicht vor seinem Beginn liegen.';
 
@@ -114,6 +115,39 @@ class ProjectController
     }
 
     /**
+     * Die beiden Logo-Fristen aus dem Formular, oder false bei einem
+     * ungültigen Datum. Ein fehlendes Feld lässt den bisherigen Wert stehen:
+     * Die Fristen pflegt auch das Sponsoring-Team im eigenen Bereich, und ein
+     * älteres Formular ohne die Felder soll sie nicht löschen.
+     *
+     * Auch vom SponsoringDashboardController genutzt, damit dieselbe Regel an
+     * beiden Stellen gilt.
+     *
+     * @param array<string, mixed> $data
+     * @return array{logo_deadline_print?: ?string, logo_deadline_online?: ?string}|false
+     */
+    public static function logoDeadlines(array $data, ?Project $current): array|false
+    {
+        $values = [];
+        foreach (['logo_deadline_print', 'logo_deadline_online'] as $field) {
+            if (!array_key_exists($field, $data)) {
+                if ($current === null) {
+                    $values[$field] = null;
+                }
+                continue;
+            }
+
+            $date = self::normalizeProjectDate($data[$field]);
+            if ($date === false) {
+                return false;
+            }
+            $values[$field] = $date;
+        }
+
+        return $values;
+    }
+
+    /**
      * Liegt das Ende nicht vor dem Beginn?
      *
      * Fehlt eine der beiden Angaben, ist nichts zu vergleichen - ein Projekt
@@ -176,11 +210,18 @@ class ProjectController
             return $response->withHeader('Location', '/projects')->withStatus(302);
         }
 
+        $logoDeadlines = self::logoDeadlines($data, null);
+        if ($logoDeadlines === false) {
+            $_SESSION['error'] = self::INVALID_LOGO_DEADLINE_MESSAGE;
+            return $response->withHeader('Location', '/projects')->withStatus(302);
+        }
+
         $project = new Project();
         $project->name = $name;
         $project->description = $description;
         $project->start_date = $startDate;
         $project->end_date = $endDate;
+        $project->fill($logoDeadlines);
         $project->save();
 
         $_SESSION['success'] = 'Projekt erfolgreich angelegt.';
@@ -218,10 +259,17 @@ class ProjectController
             return $response->withHeader('Location', '/projects')->withStatus(302);
         }
 
+        $logoDeadlines = self::logoDeadlines($data, $project);
+        if ($logoDeadlines === false) {
+            $_SESSION['error'] = self::INVALID_LOGO_DEADLINE_MESSAGE;
+            return $response->withHeader('Location', '/projects')->withStatus(302);
+        }
+
         $project->name = $name;
         $project->description = $description;
         $project->start_date = $startDate;
         $project->end_date = $endDate;
+        $project->fill($logoDeadlines);
         $project->save();
 
         $_SESSION['success'] = 'Projekt erfolgreich aktualisiert.';

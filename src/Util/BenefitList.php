@@ -22,12 +22,21 @@ final class BenefitList
     public const FORMAT_ERROR = 'Die Gegenleistungen bitte als Text eintragen, eine pro Zeile.';
 
     /**
+     * Wie die Liste in den Meldungen heißt. Die Leistungen des Sponsors nehmen
+     * ihre Zeilen auf demselben Weg entgegen wie die Gegenleistungen; nur die
+     * Meldung soll sagen, welches Feld gemeint ist.
+     */
+    public const BENEFIT_LABELS = ['singular' => 'Gegenleistung', 'plural' => 'Gegenleistungen'];
+    public const DELIVERABLE_LABELS = ['singular' => 'Leistung des Sponsors', 'plural' => 'Leistungen des Sponsors'];
+
+    /**
      * Zerlegt die Eingabe in Leistungen. Leere Zeilen fallen weg, Leerraum am
      * Rand ebenso; null heißt "nicht übermittelt" und bleibt null.
      *
+     * @param array{singular: string, plural: string} $labels
      * @return array{error: string|null, items: list<string>|null}
      */
-    public static function parse(mixed $input): array
+    public static function parse(mixed $input, array $labels = self::BENEFIT_LABELS): array
     {
         if ($input === null) {
             return ['error' => null, 'items' => null];
@@ -36,7 +45,7 @@ final class BenefitList
         // Ein Array (benefits[]=...) kommt aus keinem Formular. Still als leere
         // Liste gelesen, löschte es alle vorhandenen Leistungen.
         if (!is_string($input)) {
-            return ['error' => self::FORMAT_ERROR, 'items' => null];
+            return ['error' => sprintf('Die %s bitte als Text eintragen, eine pro Zeile.', $labels['plural']), 'items' => null];
         }
 
         $lines = preg_split('/\R/u', InputValidator::asString($input)) ?: [];
@@ -47,13 +56,19 @@ final class BenefitList
                 continue;
             }
             if (mb_strlen($line) > self::MAX_LENGTH) {
-                return ['error' => self::LENGTH_ERROR, 'items' => null];
+                return [
+                    'error' => sprintf('Eine %s darf höchstens %d Zeichen lang sein.', $labels['singular'], self::MAX_LENGTH),
+                    'items' => null,
+                ];
             }
             $items[] = $line;
         }
 
         if (count($items) > self::MAX_ITEMS) {
-            return ['error' => self::COUNT_ERROR, 'items' => null];
+            return [
+                'error' => sprintf('Bitte höchstens %d %s je Eintrag erfassen.', self::MAX_ITEMS, $labels['plural']),
+                'items' => null,
+            ];
         }
 
         return ['error' => null, 'items' => $items];

@@ -216,7 +216,6 @@ final class SponsoringPagesFeatureTest extends TestCase
         $templates = [
             'dashboard.twig',
             'sponsors/index.twig',
-            'sponsors/detail.twig',
             'packages/index.twig',
             'attachments/index.twig',
         ];
@@ -225,6 +224,26 @@ final class SponsoringPagesFeatureTest extends TestCase
             $source = file_get_contents(dirname(__DIR__, 2) . '/templates/sponsoring/' . $template);
             $this->assertIsString($source);
             $this->assertStringContainsString('sponsoring/partials/subnav.twig', $source, $template);
+        }
+    }
+
+    /**
+     * Auf der Seite eines einzelnen Sponsors wirkten die Reiter des Bereichs
+     * (Übersicht, Sponsoren, Pakete, Anhänge) wie Reiter dieses Sponsors -
+     * "Anhänge" schien zu seinen Anhängen zu führen, die weit unten stehen.
+     * Dort führt jetzt die Brotkrumenleiste zurück, und eine Sprungleiste
+     * erreicht die eigenen Abschnitte.
+     */
+    public function testTheSponsorPageNavigatesItsOwnSectionsInsteadOfTheAreaTabs(): void
+    {
+        $source = (string) file_get_contents(dirname(__DIR__, 2) . '/templates/sponsoring/sponsors/detail.twig');
+
+        $this->assertStringNotContainsString('sponsoring/partials/subnav.twig', $source);
+        $this->assertStringContainsString('class="breadcrumb', $source);
+        $this->assertStringContainsString('class="sponsor-section-nav"', $source);
+        foreach (['sponsor-agreements-title', 'sponsor-contacts-title', 'sponsor-logo-title', 'sponsor-attachments-title'] as $anchor) {
+            $this->assertStringContainsString('anchor: "' . $anchor . '"', $source, $anchor);
+            $this->assertStringContainsString('id="' . $anchor . '"', $source, $anchor);
         }
     }
 

@@ -73,6 +73,38 @@
                 Eine pro Zeile, z. B. „Logo im Programmheft“ oder „2 Freikarten“. Bestehende Vereinbarungen behalten ihre eigene Liste.
             </div>
         </div>
+        <div class="col-12">
+            <label for="{{ prefix }}-deliverables" class="form-label">Leistungen des Sponsors</label>
+            <textarea name="deliverables"
+                      class="form-control"
+                      rows="3"
+                      id="{{ prefix }}-deliverables">{{ (pkg.deliverables ?? [])|map(d => d.description)|join("\n") }}</textarea>
+            <div class="form-text">
+                Was der Sponsor liefert, eine pro Zeile, z. B. „Banner/Beachflag übergeben“ oder „Vertrag unterschrieben zurück“.
+            </div>
+        </div>
+        <div class="col-12">
+            <span class="form-label d-block">Logo gebraucht für</span>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input"
+                       type="checkbox"
+                       name="needs_logo_print"
+                       value="1"
+                       {{ pkg.needs_logo_print|default(false) ? "checked" : "" }}
+                       id="{{ prefix }}-logo-print">
+                <label class="form-check-label" for="{{ prefix }}-logo-print">Druck (Plakat, Flyer, Programmheft)</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input"
+                       type="checkbox"
+                       name="needs_logo_online"
+                       value="1"
+                       {{ pkg.needs_logo_online|default(false) ? "checked" : "" }}
+                       id="{{ prefix }}-logo-online">
+                <label class="form-check-label" for="{{ prefix }}-logo-online">online (Homepage, Social Media)</label>
+            </div>
+            <div class="form-text">Neue Vereinbarungen mit diesem Paket übernehmen die Auswahl; die Fristen stehen am Projekt.</div>
+        </div>
     </div>
 {% endmacro %}
 
@@ -153,6 +185,12 @@
                                             </ul>
                                         {% else %}
                                             <span class="text-muted small">Keine vorgegeben</span>
+                                        {% endif %}
+                                        {% if pkg.deliverables|length > 0 %}
+                                            <div class="small text-muted mt-2">Vom Sponsor:</div>
+                                            <ul class="package-benefits">
+                                                {% for deliverable in pkg.deliverables %}<li>{{ deliverable.description }}</li>{% endfor %}
+                                            </ul>
                                         {% endif %}
                                     </td>
                                     {% if can_manage_all %}

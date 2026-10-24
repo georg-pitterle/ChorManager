@@ -558,6 +558,16 @@ return function (App $app) {
                             '/sponsors/{id:[0-9]+}/attachments',
                             [SponsorController::class, 'uploadAttachment']
                         );
+                        // Das Recht prüft der Controller: Hochladen dürfen auch die
+                        // Zuständigen einer Zusage (SponsoringPolicy::canManageLogo).
+                        $sponsoringGroup->post(
+                            '/sponsors/{id:[0-9]+}/logos',
+                            [SponsorController::class, 'uploadLogo']
+                        );
+                        $sponsoringGroup->post(
+                            '/sponsors/{id:[0-9]+}/logos/{attachment_id:[0-9]+}/delete',
+                            [SponsorController::class, 'deleteLogo']
+                        );
                         $sponsoringGroup->post(
                             '/sponsors/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',
                             [SponsorController::class, 'deleteAttachment']
@@ -582,6 +592,10 @@ return function (App $app) {
                         $sponsoringGroup->post(
                             '/sponsorship-benefits/{id:[0-9]+}/toggle',
                             [SponsorshipController::class, 'toggleBenefit']
+                        );
+                        $sponsoringGroup->post(
+                            '/sponsorship-deliverables/{id:[0-9]+}/toggle',
+                            [SponsorshipController::class, 'toggleDeliverable']
                         );
 
                         // Kontakthistorie
@@ -616,6 +630,12 @@ return function (App $app) {
                         $sponsoringAdminGroup->post(
                             '/sponsors/{id:[0-9]+}/delete',
                             [SponsorController::class, 'delete']
+                        );
+
+                        // Logo-Fristen eines Projekts, gepflegt vom Sponsoring-Team
+                        $sponsoringAdminGroup->post(
+                            '/projects/{id:[0-9]+}/logo-deadlines',
+                            [SponsoringDashboardController::class, 'updateLogoDeadlines']
                         );
 
                         // Paketverwaltung

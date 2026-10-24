@@ -3,20 +3,27 @@
    Zeile entschieden (SponsoringPolicy::canTickBenefits); das Template fragt nur das
    Kennzeichen ab.
 
+   Dieselbe Liste dient für die Leistungen des Sponsors; dann heißen Feld und
+   Wort anders ("received" / "erhalten").
+
    Parameter:
      benefits  Liste aus {id, description, may_tick, toggle_url, delivered_display}
-               delivered_display ist null, solange die Leistung offen ist. #}
+               delivered_display ist null, solange die Leistung offen ist.
+     field     Name des Formularfelds, Vorgabe "delivered"
+     done_word Wort für den Haken, Vorgabe "erbracht" #}
+{% set _field = field|default("delivered") %}
+{% set _done_word = done_word|default("erbracht") %}
 <ul class="benefit-list">
     {% for benefit in benefits %}
         {% set _done = benefit.delivered_display|default(null) is not null %}
         <li class="benefit-item{{ _done ? " is-done" : "" }}">
             {% if benefit.may_tick %}
                 <form method="post" action="{{ benefit.toggle_url }}" class="benefit-form">
-                    <input type="hidden" name="delivered" value="{{ _done ? "0" : "1" }}">
+                    <input type="hidden" name="{{ _field }}" value="{{ _done ? "0" : "1" }}">
                     <button type="submit"
                             class="benefit-toggle"
                             aria-pressed="{{ _done ? "true" : "false" }}"
-                            title="{{ _done ? "Wieder als offen markieren" : "Als erbracht abhaken" }}">
+                            title="{{ _done ? "Wieder als offen markieren" : "Als " ~ _done_word ~ " abhaken" }}">
                         <i class="bi {{ _done ? "bi-check-square-fill" : "bi-square" }}" aria-hidden="true"></i>
                         <span>{{ benefit.description }}</span>
                     </button>
@@ -28,7 +35,7 @@
                 </span>
             {% endif %}
             {% if _done %}
-                <span class="benefit-done-date">erbracht am {{ benefit.delivered_display }}</span>
+                <span class="benefit-done-date">{{ _done_word }} am {{ benefit.delivered_display }}</span>
             {% endif %}
         </li>
     {% endfor %}

@@ -77,13 +77,18 @@ class EntityAttachmentService
      *        Bedeutung nicht - der Newsletter setzt darüber seinen Zustellmodus, und ohne
      *        diesen Weg bräuchte er entweder eine eigene Kopie des Upload-Ablaufs oder
      *        einen Nachlauf, der die eben geschriebenen Zeilen wieder sucht.
+     * @param callable(int, string): array{valid: bool, error?: string, reason?: string}|null $validate
+     *        Eigene Regel für Typ und Größe statt UploadValidator::validateFileSize() - die
+     *        Logo-Dateien eines Sponsors erlauben Vektor- und Archivformate bis 50 MB
+     *        (App\Util\SponsorLogoUpload). Alles Übrige am Ablauf bleibt gleich.
      * @return array{stored: int, error: ?string, ids: list<int>}
      */
     public function storeUploads(
         mixed $files,
         string $entityType,
         int $entityId,
-        ?callable $extraColumns = null
+        ?callable $extraColumns = null,
+        ?callable $validate = null
     ): array {
         if ($files === null) {
             return ['stored' => 0, 'error' => null, 'ids' => []];
@@ -116,7 +121,9 @@ class EntityAttachmentService
             $contents = $file->getStream()->getContents();
             $size = strlen($contents);
 
-            $validation = UploadValidator::validateFileSize($size, $mimeType);
+            $validation = $validate !== null
+                ? $validate($size, $mimeType)
+                : UploadValidator::validateFileSize($size, $mimeType);
             if (!$validation['valid']) {
                 // Ohne Dateiname: der Name stammt vom Hochladenden und hat in
                 // einer Protokollzeile nichts verloren.

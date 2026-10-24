@@ -1,0 +1,17 @@
+{# Hinweis nach einer Dublettenwarnung im Sponsor-Formular. Erwartet form_state
+   (ModalFormService-Zustand) und confirm_label. Der Knopf sendet dasselbe
+   Formular mit confirm_duplicate=1 erneut; "Abbrechen" verwirft die Eingabe. #}
+{% set _duplicate = form_state.error %}
+{% if form_state.open_modal and _duplicate.duplicate_id is defined %}
+    <div class="alert alert-warning sponsor-duplicate-warning" role="alert">
+        <p class="mb-2">
+            Es gibt bereits einen ähnlichen Sponsor:
+            <a href="/sponsoring/sponsors/{{ _duplicate.duplicate_id }}"
+               class="alert-link"
+               target="_blank"
+               rel="noopener">{{ _duplicate.duplicate_name }}</a>.
+            Ist es derselbe, bitte dort weiterarbeiten.
+        </p>
+        <button type="submit" class="btn btn-sm btn-warning" name="confirm_duplicate" value="1">{{ confirm_label }}</button>
+    </div>
+{% endif %}

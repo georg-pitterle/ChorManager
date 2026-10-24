@@ -23,12 +23,16 @@ class Project extends Model
         'name',
         'description',
         'start_date',
-        'end_date'
+        'end_date',
+        'logo_deadline_print',
+        'logo_deadline_online',
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
+        'logo_deadline_print' => 'date',
+        'logo_deadline_online' => 'date',
     ];
 
     /**

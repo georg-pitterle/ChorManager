@@ -8,12 +8,15 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\Project;
 use App\Models\Sponsor;
 use App\Models\SponsorPackage;
 use App\Models\Sponsorship;
 use App\Models\SponsorshipBenefit;
+use App\Models\SponsorshipDeliverable;
 use App\Models\User;
 use App\Policies\SponsoringPolicy;
 use App\Services\EntityAttachmentService;
@@ -126,6 +129,12 @@ class SponsorshipController
             return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
         }
 
+        $deliverables = BenefitList::parse($data['deliverables'] ?? null, BenefitList::DELIVERABLE_LABELS);
+        if ($deliverables['error'] !== null) {
+            $_SESSION['error'] = $deliverables['error'];
+            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+        }
+
         $paidAt = self::validatePaidAt($data['paid_at'] ?? null);
         if ($paidAt === false) {
             $_SESSION['error'] = self::PAID_AT_ERROR;
@@ -145,9 +154,11 @@ class SponsorshipController
                 $status,
                 $period,
                 $data,
-                $benefits
+                $benefits,
+                $deliverables
             ): Sponsorship {
-                $sponsorship = Sponsorship::create([
+                $package = $packageId !== null ? SponsorPackage::find($packageId) : null;
+                $sponsorship = Sponsorship::create($this->logoNeeds($data, $package) + [
                 'sponsor_id'       => $sponsorId,
                 'project_id'       => $projectId,
                 'package_id'       => $packageId,
@@ -166,13 +177,15 @@ class SponsorshipController
                 // Feld ist dagegen eine Entscheidung: keine Gegenleistung.
                 // Kopiert, nicht verwiesen: was ausgehandelt ist, ändert sich
                 // nicht mit dem Paket.
-                $items = $benefits['items'];
-                if ($items === null) {
-                    $items = $packageId !== null
-                        ? (SponsorPackage::find($packageId)?->benefits()->pluck('description')->all() ?? [])
-                        : [];
-                }
-                $this->syncBenefits($sponsorship, $items);
+                // Dasselbe für die Leistungen des Sponsors.
+                $this->syncLines(
+                    $sponsorship->benefits(),
+                    $benefits['items'] ?? ($package?->benefits()->pluck('description')->all() ?? [])
+                );
+                $this->syncLines(
+                    $sponsorship->deliverables(),
+                    $deliverables['items'] ?? ($package?->deliverables()->pluck('description')->all() ?? [])
+                );
 
                 return $sponsorship;
             });
@@ -247,6 +260,12 @@ class SponsorshipController
                 return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
             }
 
+            $deliverables = BenefitList::parse($data['deliverables'] ?? null, BenefitList::DELIVERABLE_LABELS);
+            if ($deliverables['error'] !== null) {
+                $_SESSION['error'] = $deliverables['error'];
+                return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            }
+
             // Fehlt das Feld, bleibt der Zahlungsstand unverändert - ältere
             // Formulare und Aufrufe ohne das Feld sollen ihn nicht löschen.
             $paidAt = array_key_exists('paid_at', $data)
@@ -268,9 +287,10 @@ class SponsorshipController
                 $normalizedAmount,
                 $paidAt,
                 $status,
-                $benefits
+                $benefits,
+                $deliverables
             ): void {
-                $sponsorship->update([
+                $sponsorship->update($this->logoNeeds($data, null, $sponsorship) + [
                 'project_id'       => $projectId,
                 'package_id'       => !empty($data['package_id']) ? (int) $data['package_id'] : null,
                 'assigned_user_id' => $assignee['value'],
@@ -283,7 +303,10 @@ class SponsorshipController
                 ]);
 
                 if ($benefits['items'] !== null) {
-                    $this->syncBenefits($sponsorship, $benefits['items']);
+                    $this->syncLines($sponsorship->benefits(), $benefits['items']);
+                }
+                if ($deliverables['items'] !== null) {
+                    $this->syncLines($sponsorship->deliverables(), $deliverables['items']);
                 }
             });
 
@@ -445,56 +468,120 @@ class SponsorshipController
             return $this->deny($response);
         }
 
-        $data = (array) $request->getParsedBody();
-        $wantDelivered = InputValidator::asString($data['delivered'] ?? '1') === '1';
-        $isDelivered = $benefit->delivered_at !== null;
+        return $this->tickLine($request, $response, $benefit, 'delivered');
+    }
 
-        if ($wantDelivered !== $isDelivered) {
-            $benefit->update([
-                'delivered_at' => $wantDelivered ? Carbon::today()->format('Y-m-d') : null,
-                'delivered_by_user_id' => $wantDelivered ? $this->policy->currentUserId() : null,
+    /**
+     * Hakt eine Leistung des Sponsors als erhalten ab oder nimmt den Haken
+     * zurück. Dasselbe Recht wie bei den Gegenleistungen: Beides wird von
+     * denselben Leuten nachgehalten.
+     */
+    public function toggleDeliverable(Request $request, Response $response, array $args): Response
+    {
+        $deliverable = SponsorshipDeliverable::with('sponsorship')->find((int) $args['id']);
+        if ($deliverable === null || $deliverable->sponsorship === null) {
+            $_SESSION['error'] = 'Die Leistung des Sponsors wurde nicht gefunden.';
+            return $response->withHeader('Location', '/sponsoring')->withStatus(302);
+        }
+
+        if (!$this->policy->canTickBenefits($deliverable->sponsorship)) {
+            return $this->deny($response);
+        }
+
+        return $this->tickLine($request, $response, $deliverable, 'received');
+    }
+
+    /**
+     * Setzt oder löscht den Haken einer Leistungszeile. $field ist zugleich der
+     * Name des Formularfelds und der Wortstamm der Spalten ("delivered" =>
+     * delivered_at, delivered_by_user_id).
+     */
+    private function tickLine(
+        Request $request,
+        Response $response,
+        SponsorshipBenefit|SponsorshipDeliverable $line,
+        string $field
+    ): Response {
+        $data = (array) $request->getParsedBody();
+        $wantDone = InputValidator::asString($data[$field] ?? '1') === '1';
+        $isDone = $line->getAttribute($field . '_at') !== null;
+
+        if ($wantDone !== $isDone) {
+            $line->update([
+                $field . '_at' => $wantDone ? Carbon::today()->format('Y-m-d') : null,
+                $field . '_by_user_id' => $wantDone ? $this->policy->currentUserId() : null,
             ]);
         }
 
         $query = $request->getQueryParams();
         $target = ($query['redirect_to'] ?? '') === 'dashboard'
             ? '/sponsoring'
-            : '/sponsoring/sponsors/' . $benefit->sponsorship->sponsor_id;
+            : '/sponsoring/sponsors/' . $line->sponsorship->sponsor_id;
 
         return $response->withHeader('Location', $target)->withStatus(302);
     }
 
     /**
-     * Gleicht die Leistungen einer Vereinbarung mit der neuen Liste ab.
+     * Gleicht eine Leistungsliste der Vereinbarung - Gegenleistungen oder
+     * Leistungen des Sponsors - mit der neuen Liste ab.
      *
      * Eine Zeile, deren Text gleich bleibt, behält ihren Haken - sonst müsste
      * nach jeder Korrektur der Liste alles neu abgehakt werden. Neue Zeilen
      * kommen offen hinzu, gestrichene verschwinden.
      *
+     * @param HasMany<Model, Sponsorship> $relation
      * @param list<string> $items
      */
-    private function syncBenefits(Sponsorship $sponsorship, array $items): void
+    private function syncLines(HasMany $relation, array $items): void
     {
-        $existing = $sponsorship->benefits()->get();
+        $existing = (clone $relation)->get();
         $kept = [];
 
         foreach ($items as $index => $description) {
             $match = $existing->first(
-                static fn (SponsorshipBenefit $benefit): bool => $benefit->description === $description
-                    && !in_array($benefit->id, $kept, true)
+                static fn (Model $line): bool => $line->getAttribute('description') === $description
+                    && !in_array($line->getKey(), $kept, true)
             );
 
             if ($match !== null) {
                 $match->update(['sort_order' => $index]);
-                $kept[] = $match->id;
+                $kept[] = $match->getKey();
                 continue;
             }
 
-            $created = $sponsorship->benefits()->create(['description' => $description, 'sort_order' => $index]);
-            $kept[] = $created->id;
+            $created = (clone $relation)->create(['description' => $description, 'sort_order' => $index]);
+            $kept[] = $created->getKey();
         }
 
-        $sponsorship->benefits()->whereNotIn('id', $kept === [] ? [0] : $kept)->delete();
+        (clone $relation)->whereNotIn('id', $kept === [] ? [0] : $kept)->delete();
+    }
+
+    /**
+     * Wofür die Vereinbarung das Logo braucht.
+     *
+     * Die Formulare senden logo_needs=1 mit, sobald sie die beiden Häkchen
+     * zeigen - nur so lässt sich ein abgewähltes Häkchen von einem fehlenden
+     * Feld unterscheiden. Fehlt der Marker, gilt beim Anlegen die Vorgabe des
+     * Pakets, beim Ändern bleibt der bisherige Stand.
+     *
+     * @param array<string, mixed> $data
+     * @return array{needs_logo_print: bool, needs_logo_online: bool}
+     */
+    private function logoNeeds(array $data, ?SponsorPackage $package, ?Sponsorship $current = null): array
+    {
+        if (!empty($data['logo_needs'])) {
+            return [
+                'needs_logo_print' => !empty($data['needs_logo_print']),
+                'needs_logo_online' => !empty($data['needs_logo_online']),
+            ];
+        }
+
+        $source = $current ?? $package;
+
+        return [
+            'needs_logo_print' => (bool) ($source?->needs_logo_print ?? false),
+            'needs_logo_online' => (bool) ($source?->needs_logo_online ?? false),
+        ];
     }
 
     /**

@@ -17,6 +17,8 @@ class SponsorPackage extends Model
         'description',
         'min_amount',
         'color',
+        'needs_logo_print',
+        'needs_logo_online',
     ];
 
     /**
@@ -28,6 +30,8 @@ class SponsorPackage extends Model
      */
     protected $casts = [
         'min_amount' => 'decimal:2',
+        'needs_logo_print' => 'boolean',
+        'needs_logo_online' => 'boolean',
     ];
 
     /**
@@ -37,6 +41,11 @@ class SponsorPackage extends Model
     public function benefits()
     {
         return $this->hasMany(SponsorPackageBenefit::class, 'package_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function deliverables()
+    {
+        return $this->hasMany(SponsorPackageDeliverable::class, 'package_id')->orderBy('sort_order')->orderBy('id');
     }
 
     /**

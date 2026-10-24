@@ -9,6 +9,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Controllers\Concerns\AttachmentUploadJson;
 use App\Models\Sponsor;
+use App\Models\SponsorCategory;
 use App\Models\SponsorPackage;
 use App\Models\Sponsorship;
 use App\Models\User;
@@ -22,6 +23,10 @@ use App\Util\SponsorEngagementState;
 use App\Util\SponsorshipStatus;
 use App\Util\InputValidator;
 use App\Util\RequestFormat;
+use App\Util\SponsorCategoryResolver;
+use App\Util\SponsorDuplicateFinder;
+use App\Util\SponsorLogoUpload;
+use App\Services\ModalFormService;
 
 class SponsorController
 {
@@ -38,6 +43,9 @@ class SponsorController
     /** Anhänge, die unmittelbar am Sponsor hängen: Logo, Mediadaten, Rahmenvertrag. */
     /** Derselbe Wert wie am Modell - festgelegt wird er nur dort. */
     public const ENTITY_TYPE = Sponsor::ENTITY_TYPE;
+
+    private const CREATE_FORM_SCOPE = 'sponsor_create';
+    private const EDIT_FORM_SCOPE_PREFIX = 'sponsor_edit_';
 
     private Twig $view;
     private SponsoringPolicy $policy;
@@ -62,7 +70,8 @@ class SponsorController
         // Nur Statusspalte laden: mehr braucht weder der abgeleitete Zustand
         // noch die Zähler-Spalte der Tabelle, und die Notizen der Vereinbarungen
         // wären bei vielen Sponsoren reiner Ballast.
-        $sponsors = Sponsor::with([
+        $sponsors = Sponsor::withCount('logos')->with([
+            'category',
             'sponsorships:id,sponsor_id,package_id,status,amount,created_at',
             'sponsorships.package',
             // Nur offene Wiedervorlagen: die Spalte "Nächste Frist" braucht die
@@ -88,10 +97,22 @@ class SponsorController
             'state_options'  => SponsorEngagementState::options(),
             'state_badges'   => SponsorEngagementState::badgeClasses(),
             'state_labels'   => SponsorEngagementState::labels(),
+            'categories'     => $this->categories(),
+            'create_form'    => $this->takeFormState(self::CREATE_FORM_SCOPE),
             'success'        => $success,
             'error'          => $error,
             'active_nav'     => 'sponsoring',
         ]);
+    }
+
+    /**
+     * Alle Kategorien für Filter und Vorschlagsliste, alphabetisch.
+     *
+     * @return \Illuminate\Support\Collection<int, SponsorCategory>
+     */
+    private function categories(): \Illuminate\Support\Collection
+    {
+        return SponsorCategory::orderBy('name')->get();
     }
 
     /**
@@ -158,6 +179,12 @@ class SponsorController
             return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
         }
 
+        $createForm = new ModalFormService(self::CREATE_FORM_SCOPE);
+        if ($this->warnAboutDuplicate($createForm, $data, (string) $validation['values']['name'], null)) {
+            return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
+        }
+        $createForm->clear();
+
         try {
             Sponsor::create($validation['values'] + [
                 'created_by_user_id' => $this->policy->currentUserId(),
@@ -178,12 +205,15 @@ class SponsorController
         $metadataOnly = static fn ($query) => $query->select(EntityAttachmentService::METADATA_COLUMNS);
 
         $sponsor = Sponsor::with([
+            'category',
+            'logos',
             'sponsorships.package',
             'sponsorships.project',
             'sponsorships.assignedUser',
             'sponsorships.attachments' => $metadataOnly,
             'sponsorships.contacts.user',
             'sponsorships.benefits',
+            'sponsorships.deliverables',
             'attachments' => $metadataOnly,
             'contacts.user',
             'contacts.sponsorship.package',
@@ -199,7 +229,7 @@ class SponsorController
 
         $users    = User::where('is_active', 1)->orderBy('last_name')->get();
         $projects = $this->policy->selectableProjects();
-        $packages = SponsorPackage::with('benefits')->orderBy('min_amount')->get();
+        $packages = SponsorPackage::with(['benefits', 'deliverables'])->orderBy('min_amount')->get();
 
         $contactPermissions = $this->buildContactPermissions($sponsor);
 
@@ -216,6 +246,10 @@ class SponsorController
             // Herunterladen-Knopf, und der Knopf endete in einer Abweisung - der
             // Name selbst verriet dabei schon, was die Datei enthält.
             'sees_sponsor_details' => $this->policy->canSeeSponsorDetails($sponsor),
+            // Nur die Anzahl für die Sprungleiste - sie steht auch ohne Einsicht
+            // unter 'Anhänge zum Sponsor'; Namen und Links bleiben hinter der Prüfung.
+            'attachment_count' => $sponsor->attachments->count(),
+            'can_manage_logo' => $this->policy->canManageLogo($sponsor),
             'current_user_id' => $this->policy->currentUserId(),
             'sponsor_state'  => SponsorEngagementState::forSponsor($sponsor),
             'state_labels'   => SponsorEngagementState::labels(),
@@ -239,8 +273,11 @@ class SponsorController
             'status_options' => SponsorshipStatus::options(),
             'status_labels'  => SponsorshipStatus::labels(),
             'status_badges'  => SponsorshipStatus::badgeClasses(),
-            'benefit_rows'   => $this->buildBenefitRows($sponsor),
+            'benefit_rows'   => $this->buildLineRows($sponsor, 'benefits', 'delivered', 'sponsorship-benefits'),
+            'deliverable_rows' => $this->buildLineRows($sponsor, 'deliverables', 'received', 'sponsorship-deliverables'),
             'next_follow_up' => $this->nextOpenFollowUp($sponsor),
+            'categories'     => $this->categories(),
+            'edit_form'      => $this->takeFormState(self::EDIT_FORM_SCOPE_PREFIX . $sponsor->id),
             'success'        => $success,
             'error'          => $error,
             'active_nav'     => 'sponsoring',
@@ -248,24 +285,27 @@ class SponsorController
     }
 
     /**
-     * Leistungen je Vereinbarung, schon mit der Entscheidung, ob diese Person
-     * abhaken darf - das Template fragt nur noch das Kennzeichen ab, wie bei
-     * visible_details.
+     * Leistungen je Vereinbarung - Gegenleistungen oder Leistungen des
+     * Sponsors -, schon mit der Entscheidung, ob diese Person abhaken darf: das
+     * Template fragt nur noch das Kennzeichen ab, wie bei visible_details.
+     *
+     * $field ist der Wortstamm der Haken-Spalte ("delivered" => delivered_at),
+     * $path der Routenteil vor /{id}/toggle.
      *
      * @return array<int, list<array<string, mixed>>>
      */
-    private function buildBenefitRows(Sponsor $sponsor): array
+    private function buildLineRows(Sponsor $sponsor, string $relation, string $field, string $path): array
     {
         $rows = [];
         foreach ($sponsor->sponsorships as $sponsorship) {
             $mayTick = $this->policy->canTickBenefits($sponsorship);
-            $rows[(int) $sponsorship->id] = $sponsorship->benefits
-                ->map(static fn ($benefit): array => [
-                    'id' => (int) $benefit->id,
-                    'description' => (string) $benefit->description,
+            $rows[(int) $sponsorship->id] = $sponsorship->{$relation}
+                ->map(static fn ($line): array => [
+                    'id' => (int) $line->id,
+                    'description' => (string) $line->description,
                     'may_tick' => $mayTick,
-                    'toggle_url' => '/sponsoring/sponsorship-benefits/' . $benefit->id . '/toggle',
-                    'delivered_display' => $benefit->delivered_at?->format('d.m.Y'),
+                    'toggle_url' => '/sponsoring/' . $path . '/' . $line->id . '/toggle',
+                    'delivered_display' => $line->{$field . '_at'}?->format('d.m.Y'),
                 ])
                 ->values()
                 ->all();
@@ -310,6 +350,15 @@ class SponsorController
             return $response->withHeader('Location', '/sponsoring/sponsors/' . $id)->withStatus(302);
         }
 
+        // Nur beim Umbenennen: Wer bloß die Telefonnummer ändert, soll nicht
+        // über eine Dublette stolpern, die längst bewusst angelegt wurde.
+        $editForm = new ModalFormService(self::EDIT_FORM_SCOPE_PREFIX . $id);
+        $newName = (string) $validation['values']['name'];
+        if ($newName !== $sponsor->name && $this->warnAboutDuplicate($editForm, $data, $newName, $id)) {
+            return $response->withHeader('Location', '/sponsoring/sponsors/' . $id)->withStatus(302);
+        }
+        $editForm->clear();
+
         try {
             $sponsor->update($validation['values']);
             $_SESSION['success'] = 'Sponsor erfolgreich aktualisiert.';
@@ -349,6 +398,7 @@ class SponsorController
                 array_map('intval', $sponsorshipIds)
             );
             $cleanup->purgeForEntity(self::ENTITY_TYPE, $id);
+            $cleanup->purgeForEntity(Sponsor::LOGO_ENTITY_TYPE, $id);
 
             $sponsor->delete();
             $_SESSION['success'] = 'Sponsor erfolgreich gelöscht.';
@@ -427,10 +477,144 @@ class SponsorController
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
     }
 
+    /**
+     * Lädt eine oder mehrere Logo-Dateien hoch. Logos kommen in vielen
+     * Formaten und Varianten, deshalb gibt es kein Ersetzen: hinzufügen, was
+     * da ist, und Überholtes löschen. Typ und Größe prüft SponsorLogoUpload
+     * statt der engeren Anhang-Regeln. Die Ablegefläche schickt je Datei eine
+     * Anfrage und erwartet JSON.
+     */
+    public function uploadLogo(Request $request, Response $response, array $args): Response
+    {
+        $id = (int) $args['id'];
+        $expectsJson = RequestFormat::expectsJson($request);
+        $sponsor = Sponsor::find($id);
+        if ($sponsor === null) {
+            if ($expectsJson) {
+                return $this->attachmentUploadJsonError($response, 'Sponsor nicht gefunden.', 404);
+            }
+            $_SESSION['error'] = 'Sponsor nicht gefunden.';
+            return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
+        }
+
+        if (!$this->policy->canManageLogo($sponsor)) {
+            return $expectsJson
+                ? $this->attachmentUploadJsonError($response, 'Zugriff verweigert.', 403)
+                : $this->deny($response);
+        }
+
+        $result = $this->attachments->storeUploads(
+            $request->getUploadedFiles()['logos'] ?? null,
+            Sponsor::LOGO_ENTITY_TYPE,
+            $id,
+            null,
+            static fn (int $size, string $mimeType): array => SponsorLogoUpload::validate($size, $mimeType)
+        );
+
+        if ($result['stored'] > 0) {
+            $this->logger->info('Sponsor logo files uploaded.', [
+                'event' => 'sponsoring.logo.uploaded',
+                'sponsor_id' => $id,
+                'attachment_ids' => $result['ids'],
+                'user_id' => $this->policy->currentUserId(),
+            ]);
+        }
+
+        if ($expectsJson) {
+            return $this->attachmentUploadJson($response, $result);
+        }
+
+        if ($result['error'] !== null) {
+            $_SESSION['error'] = $result['error'];
+        } elseif ($result['stored'] > 0) {
+            $_SESSION['success'] = $result['stored'] === 1 ? 'Logo-Datei hochgeladen.' : 'Logo-Dateien hochgeladen.';
+        }
+
+        return $response->withHeader('Location', '/sponsoring/sponsors/' . $id)->withStatus(302);
+    }
+
+    /**
+     * Löscht eine Logo-Datei. Dasselbe Recht wie beim Hochladen: Ohne
+     * "Ersetzen" muss auch die zuständige Person eine falsche Variante wieder
+     * entfernen können. Gelöscht wird nur, was wirklich an diesem Sponsor hängt.
+     */
+    public function deleteLogo(Request $request, Response $response, array $args): Response
+    {
+        $id = (int) $args['id'];
+        $attachmentId = (int) $args['attachment_id'];
+        $sponsor = Sponsor::find($id);
+        if ($sponsor === null) {
+            $_SESSION['error'] = 'Sponsor nicht gefunden.';
+            return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
+        }
+
+        if (!$this->policy->canManageLogo($sponsor)) {
+            return $this->deny($response);
+        }
+
+        if ($this->attachments->deleteForEntity(Sponsor::LOGO_ENTITY_TYPE, $id, $attachmentId)) {
+            $this->logger->info('Sponsor logo file deleted.', [
+                'event' => 'sponsoring.logo.deleted',
+                'sponsor_id' => $id,
+                'attachment_id' => $attachmentId,
+                'user_id' => $this->policy->currentUserId(),
+            ]);
+            $_SESSION['success'] = 'Logo-Datei gelöscht.';
+        } else {
+            $_SESSION['error'] = 'Logo-Datei nicht gefunden.';
+        }
+
+        return $response->withHeader('Location', '/sponsoring/sponsors/' . $id)->withStatus(302);
+    }
+
     private function deny(Response $response): Response
     {
         $response->getBody()->write('Zugriff verweigert.');
         return $response->withStatus(403);
+    }
+
+    /**
+     * Merkt sich das Formular samt Treffer und meldet true, wenn es einen
+     * ähnlich benannten Sponsor gibt und die Dublette noch nicht bestätigt
+     * ist. Ein Hinweis, keine Sperre: "Trotzdem anlegen" sendet dasselbe
+     * Formular mit confirm_duplicate=1 erneut.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function warnAboutDuplicate(ModalFormService $form, array $data, string $name, ?int $exceptId): bool
+    {
+        if (!empty($data['confirm_duplicate'])) {
+            return false;
+        }
+
+        $duplicate = SponsorDuplicateFinder::find($name, $exceptId);
+        if ($duplicate === null) {
+            return false;
+        }
+
+        $form->setError(
+            'Es gibt bereits einen ähnlichen Sponsor.',
+            array_map(static fn (mixed $value): string => InputValidator::asString($value), $data),
+            ['duplicate_id' => (int) $duplicate->id, 'duplicate_name' => (string) $duplicate->name],
+            false
+        );
+
+        return true;
+    }
+
+    /**
+     * Zustand eines Sponsor-Formulars nach einer Dublettenwarnung, für genau
+     * eine Anzeige: Danach öffnet ein Neuladen den Dialog nicht noch einmal.
+     *
+     * @return array{form: array<string, mixed>, error: mixed, message: ?string, open_modal: bool}
+     */
+    private function takeFormState(string $scope): array
+    {
+        $form = new ModalFormService($scope);
+        $state = $form->getState();
+        $form->clear();
+
+        return $state;
     }
 
     private function normalizeOptionalText(mixed $value): ?string
@@ -500,12 +684,20 @@ class SponsorController
             return $fail('Die Begründung zur Absage ist zu lang (max. 2000 Zeichen).');
         }
 
+        // Als letzte Prüfung: Eine neue Kategorie entsteht dabei schon, und das
+        // soll erst passieren, wenn der Rest der Eingabe in Ordnung ist.
+        $category = SponsorCategoryResolver::resolve($data['category'] ?? null);
+        if ($category['error'] !== null) {
+            return $fail($category['error']);
+        }
+
         return [
             'error' => null,
             'values' => [
                 'type'           => in_array(InputValidator::asString($data['type'] ?? null), ['organization', 'person'], true)
                     ? (string) $data['type']
                     : 'organization',
+                'category_id'    => $category['id'],
                 'name'           => $name,
                 'contact_person' => $contactPerson,
                 'email'          => $email,

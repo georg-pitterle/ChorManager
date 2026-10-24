@@ -29,6 +29,7 @@ final class StorageSeedCoverageFeatureTest extends TestCase
             $this->assertStringContainsString("'entity_type' => '{$type}'", $seed, "Anhänge {$type}");
         }
         $this->assertStringContainsString('NewsletterAttachmentService::ENTITY_TYPE', $seed);
+        $this->assertStringContainsString("'entity_type' => Sponsor::LOGO_ENTITY_TYPE", $seed, 'Logo-Dateien');
         $this->assertStringContainsString('$this->seedMailQueue(', $seed);
         $this->assertStringContainsString('$this->seedUserNotifications(', $seed);
     }

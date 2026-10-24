@@ -8,7 +8,9 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Slim\Views\Twig;
 use App\Models\SponsorPackage;
 use App\Policies\SponsoringPolicy;
@@ -34,7 +36,7 @@ class SponsorPackageController
 
     public function index(Request $request, Response $response): Response
     {
-        $packages = SponsorPackage::with('benefits')->orderBy('min_amount')->get();
+        $packages = SponsorPackage::with(['benefits', 'deliverables'])->orderBy('min_amount')->get();
         $success = $_SESSION['success'] ?? null;
         $error = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
@@ -73,15 +75,24 @@ class SponsorPackageController
             return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
         }
 
+        $deliverables = BenefitList::parse($data['deliverables'] ?? null, BenefitList::DELIVERABLE_LABELS);
+        if ($deliverables['error'] !== null) {
+            $_SESSION['error'] = $deliverables['error'];
+            return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
+        }
+
         try {
-            Capsule::connection()->transaction(function () use ($name, $data, $minAmount, $benefits): void {
+            Capsule::connection()->transaction(function () use ($name, $data, $minAmount, $benefits, $deliverables): void {
                 $package = SponsorPackage::create([
                     'name'        => $name,
                     'description' => trim(InputValidator::asString($data['description'] ?? null)) ?: null,
                     'min_amount'  => $minAmount,
                     'color'       => SponsorPackageColor::normalize($data['color'] ?? null),
+                    'needs_logo_print' => !empty($data['needs_logo_print']),
+                    'needs_logo_online' => !empty($data['needs_logo_online']),
                 ]);
-                $this->replaceBenefits($package, $benefits['items'] ?? []);
+                $this->replaceLines($package->benefits(), $benefits['items'] ?? []);
+                $this->replaceLines($package->deliverables(), $deliverables['items'] ?? []);
             });
             $_SESSION['success'] = 'Paket angelegt.';
         } catch (\Exception $e) {
@@ -122,18 +133,36 @@ class SponsorPackageController
             return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
         }
 
+        $deliverables = BenefitList::parse($data['deliverables'] ?? null, BenefitList::DELIVERABLE_LABELS);
+        if ($deliverables['error'] !== null) {
+            $_SESSION['error'] = $deliverables['error'];
+            return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
+        }
+
         try {
             $package = SponsorPackage::findOrFail($id);
-            Capsule::connection()->transaction(function () use ($package, $name, $data, $minAmount, $benefits): void {
+            Capsule::connection()->transaction(function () use (
+                $package,
+                $name,
+                $data,
+                $minAmount,
+                $benefits,
+                $deliverables
+            ): void {
                 $package->update([
                     'name'        => $name,
                     'description' => trim(InputValidator::asString($data['description'] ?? null)) ?: null,
                     'min_amount'  => $minAmount,
                     'color'       => SponsorPackageColor::normalize($data['color'] ?? null),
+                    'needs_logo_print' => !empty($data['needs_logo_print']),
+                    'needs_logo_online' => !empty($data['needs_logo_online']),
                 ]);
                 // Fehlt das Feld ganz, bleibt die Liste, wie sie ist.
                 if ($benefits['items'] !== null) {
-                    $this->replaceBenefits($package, $benefits['items']);
+                    $this->replaceLines($package->benefits(), $benefits['items']);
+                }
+                if ($deliverables['items'] !== null) {
+                    $this->replaceLines($package->deliverables(), $deliverables['items']);
                 }
             });
             $_SESSION['success'] = 'Paket gespeichert.';
@@ -155,17 +184,19 @@ class SponsorPackageController
     }
 
     /**
-     * Die Vorgabe eines Pakets ersetzen. Bestehende Vereinbarungen bleiben
-     * unberührt: sie haben ihre Leistungen beim Anlegen kopiert, und was
-     * ausgehandelt ist, ändert sich nicht mit dem Paket.
+     * Eine Vorgabe des Pakets ersetzen - Gegenleistungen oder Leistungen des
+     * Sponsors. Bestehende Vereinbarungen bleiben unberührt: sie haben ihre
+     * Leistungen beim Anlegen kopiert, und was ausgehandelt ist, ändert sich
+     * nicht mit dem Paket.
      *
+     * @param HasMany<Model, SponsorPackage> $relation
      * @param list<string> $items
      */
-    private function replaceBenefits(SponsorPackage $package, array $items): void
+    private function replaceLines(HasMany $relation, array $items): void
     {
-        $package->benefits()->delete();
+        (clone $relation)->delete();
         foreach ($items as $index => $description) {
-            $package->benefits()->create(['description' => $description, 'sort_order' => $index]);
+            (clone $relation)->create(['description' => $description, 'sort_order' => $index]);
         }
     }
 

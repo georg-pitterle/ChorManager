@@ -80,6 +80,9 @@
         }
 
         const benefits = form.querySelector("[data-sponsorship-benefits]");
+        const deliverables = form.querySelector("[data-sponsorship-deliverables]");
+        const logoPrint = form.querySelector("[data-sponsorship-logo-print]");
+        const logoOnline = form.querySelector("[data-sponsorship-logo-online]");
         const amount = form.querySelector("[data-sponsorship-amount]");
         const hint = form.querySelector("[data-sponsorship-min-hint]");
 
@@ -105,6 +108,17 @@
             const option = selectedOption();
             if (option && benefits) {
                 applySuggestion(benefits, option.dataset.benefits || "");
+            }
+            if (option && deliverables) {
+                applySuggestion(deliverables, option.dataset.deliverables || "");
+            }
+            // Wofür das Logo gebraucht wird, gibt das Paket vor - wie bei den
+            // Leistungen ein Vorschlag, den man danach ändern kann.
+            if (option && logoPrint && option.dataset.needsLogoPrint !== undefined) {
+                logoPrint.checked = option.dataset.needsLogoPrint === "1";
+            }
+            if (option && logoOnline && option.dataset.needsLogoOnline !== undefined) {
+                logoOnline.checked = option.dataset.needsLogoOnline === "1";
             }
             if (option && amount && option.dataset.minAmount) {
                 applySuggestion(amount, Number.parseFloat(option.dataset.minAmount).toFixed(2));

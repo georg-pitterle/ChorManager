@@ -94,7 +94,28 @@
 {% endblock page_header %}
 
 {% block content %}
-    {{ include("sponsoring/partials/subnav.twig", {subnav_active: "sponsors"}) }}
+    {# Keine Bereichsreiter auf der Seite eines einzelnen Sponsors: Dort wirkten
+       "Pakete" und "Anhänge" wie Reiter dieses Sponsors. Zurück führt die
+       Brotkrumenleiste; die Sprungleiste erreicht die eigenen Abschnitte. #}
+    {% set _section_links = [
+        {anchor: "sponsor-agreements-title", label: "Vereinbarungen", count: sponsor.sponsorships|length},
+        {anchor: "sponsor-contacts-title", label: "Kontakte", count: sponsor.contacts|length},
+        {anchor: "sponsor-logo-title", label: "Logos", count: sponsor.logos|length},
+        {anchor: "sponsor-attachments-title", label: "Anhänge", count: attachment_count},
+    ] %}
+    <nav class="sponsor-section-nav" aria-label="Abschnitte dieses Sponsors">
+        <span class="sponsor-section-nav-label">Springen zu</span>
+        <ul class="sponsor-section-nav-list">
+            {% for link in _section_links %}
+                <li>
+                    <a href="#{{ link.anchor }}" class="sponsor-section-nav-link">
+                        {{ link.label }}
+                        <span class="sponsor-section-nav-count">{{ link.count }}</span>
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    </nav>
 
     {% if success %}
         <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -120,6 +141,10 @@
            Als Text, nicht als Formular - bearbeitet wird im Dialog "Stammdaten bearbeiten". #}
         <section class="surface-card card border-0 sponsor-profile" aria-label="Steckbrief">
             <dl class="sponsor-facts">
+                <div>
+                    <dt>Kategorie</dt>
+                    <dd>{{ sponsor.category.name|default("–") }}</dd>
+                </div>
                 <div>
                     <dt>Kontaktperson</dt>
                     <dd>{{ sponsor.contact_person ?: "–" }}</dd>
@@ -185,7 +210,7 @@
 
         <section class="dashboard-section dashboard-section--context" aria-labelledby="sponsor-agreements-title">
             <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="sponsor-agreements-title">
+                <h2 class="dashboard-section-title sponsor-section-anchor" id="sponsor-agreements-title">
                     Vereinbarungen <span class="text-muted fw-normal">{{ sponsor.sponsorships|length }}</span>
                 </h2>
                 <p class="dashboard-section-lead mb-0">
@@ -205,6 +230,8 @@
                         {% set sees_sp = visible_details[sp.id] %}
                         {% set _benefits = benefit_rows[sp.id] ?? [] %}
                         {% set _benefits_done = _benefits|filter(b => b.delivered_display is not null)|length %}
+                        {% set _deliverables = deliverable_rows[sp.id] ?? [] %}
+                        {% set _deliverables_done = _deliverables|filter(d => d.delivered_display is not null)|length %}
                         <article class="surface-card card border-0 agreement-card" id="agreement-{{ sp.id }}">
                             <header class="agreement-head">
                                 <div class="agreement-heading">
@@ -259,6 +286,16 @@
                                     </p>
                                 {% endif %}
                             </div>
+
+                            {% if _deliverables|length > 0 %}
+                                <div class="agreement-block">
+                                    <h4 class="group-label">
+                                        Leistungen des Sponsors
+                                        <span class="fw-normal">· {{ _deliverables_done }} von {{ _deliverables|length }} erhalten</span>
+                                    </h4>
+                                    {{ include("sponsoring/partials/benefit_list.twig", {benefits: _deliverables, field: "received", done_word: "erhalten"}) }}
+                                </div>
+                            {% endif %}
 
                             {% if sees_sp and sp.notes %}
                                 <div class="agreement-block">
@@ -376,7 +413,7 @@
 
         <section class="dashboard-section dashboard-section--context" aria-labelledby="sponsor-contacts-title">
             <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="sponsor-contacts-title">
+                <h2 class="dashboard-section-title sponsor-section-anchor" id="sponsor-contacts-title">
                     Kontakthistorie <span class="text-muted fw-normal">{{ sponsor.contacts|length }}</span>
                 </h2>
                 <p class="dashboard-section-lead mb-0">Alle Gespräche mit diesem Sponsor, die neuesten zuerst.</p>
@@ -460,17 +497,85 @@
             {% endif %}
         </section>
 
+        <section class="dashboard-section dashboard-section--context" aria-labelledby="sponsor-logo-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title sponsor-section-anchor" id="sponsor-logo-title">Logos</h2>
+                <p class="dashboard-section-lead mb-0">Alle Formate und Varianten, die der Sponsor geschickt hat. Bleiben für spätere Vereinbarungen erhalten.</p>
+            </div>
+
+            {% set _sees_logos = can_manage_logo or sees_sponsor_details %}
+            {% if sponsor.logos|length > 0 and _sees_logos %}
+                <ul class="list-unstyled mb-3 sponsor-logos">
+                    {% for logo in sponsor.logos %}
+                        <li class="sponsor-logo">
+                            {# Vorschau nur für Formate, die der Browser sicher anzeigt;
+                               SVG, EPS, AI und ZIP gibt es nur zum Herunterladen. #}
+                            {% if attachment_previewable(logo.mime_type) and logo.mime_type starts with "image/" %}
+                                <img src="/attachments/{{ logo.id }}/preview"
+                                     alt="Logo {{ sponsor.name }}"
+                                     width="192"
+                                     height="96"
+                                     class="sponsor-logo-preview">
+                            {% endif %}
+                            <div class="sponsor-logo-file">
+                                <span class="attachment-name text-truncate" title="{{ logo.original_name }}">{{ logo.original_name }}</span>
+                                {{ include("partials/attachment_actions.twig", {
+                                    attachment_id: logo.id,
+                                    attachment_name: logo.original_name,
+                                    attachment_mime: logo.mime_type,
+                                    attachment_size: logo.file_size,
+                                }, false) }}
+                                {% if can_manage_logo %}
+                                    <form method="post"
+                                          action="/sponsoring/sponsors/{{ sponsor.id }}/logos/{{ logo.id }}/delete"
+                                          class="d-inline"
+                                          data-confirm="Logo-Datei {{ logo.original_name }} löschen?">
+                                        <button type="submit"
+                                                class="btn btn-sm btn-outline-danger"
+                                                title="Logo-Datei löschen"
+                                                aria-label="Logo-Datei löschen">
+                                            <i class="bi bi-trash" aria-hidden="true"></i>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% elseif sponsor.logos|length > 0 %}
+                <p class="text-muted mb-3">
+                    <i class="bi bi-image" aria-hidden="true"></i>
+                    {{ sponsor.logos|length }} {{ sponsor.logos|length == 1 ? "Logo-Datei" : "Logo-Dateien" }}
+                </p>
+            {% else %}
+                <p class="text-muted mb-3">Noch keine Logos.</p>
+            {% endif %}
+
+            {% if can_manage_logo %}
+                {# Wie in der Dateiablage: Originale unverändert, keine Verkleinerung -
+                   der Grafiker braucht die Datei so, wie sie vom Sponsor kam. #}
+                {{ upload.dropzone("/sponsoring/sponsors/" ~ sponsor.id ~ "/logos", {
+                    id: "sponsor-logos",
+                    field: "logos[]",
+                    max_bytes: 52428800,
+                    shrink_images: false,
+                    hint: "Bilder, SVG, PDF, EPS, AI oder ZIP, höchstens 50 MB je Datei.",
+                }) }}
+            {% endif %}
+        </section>
+
+        {% set _files = sponsor.attachments %}
         <section class="dashboard-section dashboard-section--context" aria-labelledby="sponsor-attachments-title">
             <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="sponsor-attachments-title">Anhänge zum Sponsor</h2>
-                <p class="dashboard-section-lead mb-0">Logo, Mediadaten oder Unterlagen, die zu keiner einzelnen Vereinbarung gehören.</p>
+                <h2 class="dashboard-section-title sponsor-section-anchor" id="sponsor-attachments-title">Anhänge zum Sponsor</h2>
+                <p class="dashboard-section-lead mb-0">Mediadaten oder Unterlagen, die zu keiner einzelnen Vereinbarung gehören.</p>
             </div>
 
             {# Dateinamen und Links nur mit Einsicht - dieselbe Regel wie bei den
                Belegen einer Vereinbarung und beim Abruf selbst. #}
-            {% if sponsor.attachments|length > 0 and sees_sponsor_details %}
+            {% if _files|length > 0 and sees_sponsor_details %}
                 <ul class="list-unstyled mb-3 sponsor-files">
-                    {% for att in sponsor.attachments %}
+                    {% for att in _files %}
                         <li>
                             <span class="attachment-name text-truncate" title="{{ att.original_name }}">{{ att.original_name }}</span>
                             {{ include("partials/attachment_actions.twig", {
@@ -495,10 +600,10 @@
                         </li>
                     {% endfor %}
                 </ul>
-            {% elseif sponsor.attachments|length > 0 %}
+            {% elseif _files|length > 0 %}
                 <p class="text-muted mb-3">
                     <i class="bi bi-paperclip" aria-hidden="true"></i>
-                    {{ sponsor.attachments|length }} {{ sponsor.attachments|length == 1 ? "Anhang" : "Anhänge" }}
+                    {{ _files|length }} {{ _files|length == 1 ? "Anhang" : "Anhänge" }}
                 </p>
             {% else %}
                 <p class="text-muted">Noch keine Anhänge.</p>
@@ -516,8 +621,13 @@
        Bereich heraus geöffnet zeigte Bootstrap früher nur den Hintergrund. #}
 
     {% if can_edit_sponsor %}
+        {# Nach einer Dublettenwarnung zeigt der Dialog die eben eingegebenen
+           Werte statt der gespeicherten. #}
+        {% set _reopen = edit_form.open_modal %}
+        {% set _f = _reopen ? edit_form.form : {} %}
         <div class="modal fade"
              id="editSponsorModal"
+             data-open-on-load="{{ _reopen ? "1" : "0" }}"
              tabindex="-1"
              aria-labelledby="editSponsorModalLabel"
              aria-hidden="true">
@@ -531,6 +641,7 @@
                                 aria-label="Schließen"></button>
                     </div>
                     <div class="modal-body">
+                        {{ include("sponsoring/partials/duplicate_warning.twig", {form_state: edit_form, confirm_label: "Trotzdem speichern"}) }}
                         <div class="row g-3">
                             <div class="col-12">
                                 <label for="sponsors-detail-name" class="form-label">
@@ -539,23 +650,26 @@
                                 <input type="text"
                                        name="name"
                                        class="form-control"
-                                       value="{{ sponsor.name }}"
+                                       value="{{ _f.name ?? sponsor.name }}"
                                        required
                                        id="sponsors-detail-name">
                             </div>
                             <div class="col-md-6">
                                 <label for="sponsors-detail-type" class="form-label">Typ</label>
                                 <select name="type" class="form-select" id="sponsors-detail-type">
-                                    <option value="organization" {{ sponsor.type == "organization" ? "selected" : "" }}>Organisation oder Firma</option>
-                                    <option value="person" {{ sponsor.type == "person" ? "selected" : "" }}>Einzelperson</option>
+                                    <option value="organization" {{ (_f.type ?? sponsor.type) == "organization" ? "selected" : "" }}>Organisation oder Firma</option>
+                                    <option value="person" {{ (_f.type ?? sponsor.type) == "person" ? "selected" : "" }}>Einzelperson</option>
                                 </select>
+                            </div>
+                            <div class="col-md-6">
+                                {{ include("sponsoring/partials/category_input.twig", {input_id: "sponsors-detail-category", value: _f.category ?? sponsor.category.name|default("")}) }}
                             </div>
                             <div class="col-md-6">
                                 <label for="sponsors-detail-contact-person" class="form-label">Kontaktperson</label>
                                 <input type="text"
                                        name="contact_person"
                                        class="form-control"
-                                       value="{{ sponsor.contact_person }}"
+                                       value="{{ _f.contact_person ?? sponsor.contact_person }}"
                                        id="sponsors-detail-contact-person">
                             </div>
                             <div class="col-md-6">
@@ -563,7 +677,7 @@
                                 <input type="email"
                                        name="email"
                                        class="form-control"
-                                       value="{{ sponsor.email }}"
+                                       value="{{ _f.email ?? sponsor.email }}"
                                        id="sponsors-detail-email">
                             </div>
                             <div class="col-md-6">
@@ -571,7 +685,7 @@
                                 <input type="tel"
                                        name="phone"
                                        class="form-control"
-                                       value="{{ sponsor.phone }}"
+                                       value="{{ _f.phone ?? sponsor.phone }}"
                                        id="sponsors-detail-phone">
                             </div>
                             <div class="col-12">
@@ -579,17 +693,17 @@
                                 <input type="url"
                                        name="website"
                                        class="form-control"
-                                       value="{{ sponsor.website }}"
+                                       value="{{ _f.website ?? sponsor.website }}"
                                        placeholder="https://..."
                                        id="sponsors-detail-website">
                             </div>
                             <div class="col-12">
                                 <label for="sponsors-detail-address" class="form-label">Adresse</label>
-                                <textarea name="address" class="form-control" rows="2" id="sponsors-detail-address">{{ sponsor.address }}</textarea>
+                                <textarea name="address" class="form-control" rows="2" id="sponsors-detail-address">{{ _f.address ?? sponsor.address }}</textarea>
                             </div>
                             <div class="col-12">
                                 <label for="sponsors-detail-notes" class="form-label">Notizen</label>
-                                <textarea name="notes" class="form-control" rows="3" id="sponsors-detail-notes">{{ sponsor.notes }}</textarea>
+                                <textarea name="notes" class="form-control" rows="3" id="sponsors-detail-notes">{{ _f.notes ?? sponsor.notes }}</textarea>
                             </div>
                             <div class="col-12">
                                 <div class="form-check form-switch">
@@ -600,7 +714,7 @@
                                            name="requests_blocked"
                                            value="1"
                                            data-reveals="#sponsor-blocked-note-field"
-                                           {{ sponsor.requests_blocked ? "checked" : "" }}>
+                                           {{ (_reopen ? (_f.requests_blocked ?? "") : sponsor.requests_blocked) ? "checked" : "" }}>
                                     <label class="form-check-label" for="sponsor_requests_blocked">Keine Anfragen erwünscht</label>
                                 </div>
                             </div>
@@ -609,7 +723,7 @@
                                 <textarea name="requests_blocked_note"
                                           class="form-control"
                                           rows="2"
-                                          id="sponsors-detail-requests-blocked-note">{{ sponsor.requests_blocked_note }}</textarea>
+                                          id="sponsors-detail-requests-blocked-note">{{ _f.requests_blocked_note ?? sponsor.requests_blocked_note }}</textarea>
                             </div>
                         </div>
                     </div>
@@ -655,7 +769,10 @@
                                     {% for pkg in packages %}
                                         <option value="{{ pkg.id }}"
                                                 data-min-amount="{{ pkg.min_amount }}"
-                                                data-benefits="{{ pkg.benefits|map(b => b.description)|join("\n") }}">
+                                                data-benefits="{{ pkg.benefits|map(b => b.description)|join("\n") }}"
+                                                data-deliverables="{{ pkg.deliverables|map(d => d.description)|join("\n") }}"
+                                                data-needs-logo-print="{{ pkg.needs_logo_print ? "1" : "0" }}"
+                                                data-needs-logo-online="{{ pkg.needs_logo_online ? "1" : "0" }}">
                                             {{ pkg.name }} (ab {{ pkg.min_amount|number_format(2, ",", ".") }} €)
                                         </option>
                                     {% endfor %}
@@ -729,6 +846,35 @@
                                 <div class="form-text">Eine pro Zeile. Mit einem Paket kommt dessen Vorgabe hinein; anpassen geht jederzeit.</div>
                             </div>
                             <div class="col-12">
+                                <label for="sponsors-detail-deliverables" class="form-label">Leistungen des Sponsors</label>
+                                <textarea name="deliverables"
+                                          class="form-control"
+                                          rows="3"
+                                          data-sponsorship-deliverables
+                                          id="sponsors-detail-deliverables"></textarea>
+                                <div class="form-text">Was der Sponsor liefert, etwa Banner, Vertrag oder Sachleistung. Eine pro Zeile.</div>
+                            </div>
+                            <div class="col-12">
+                                <span class="form-label d-block">Logo gebraucht für</span>
+                                <input type="hidden" name="logo_needs" value="1">
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           name="needs_logo_print" value="1"
+                                           data-sponsorship-logo-print
+                                           id="sponsors-detail-logo-print">
+                                    <label class="form-check-label" for="sponsors-detail-logo-print">Druck (Plakat, Flyer, Programmheft)</label>
+                                </div>
+                                <div class="form-check form-check-inline">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           name="needs_logo_online" value="1"
+                                           data-sponsorship-logo-online
+                                           id="sponsors-detail-logo-online">
+                                    <label class="form-check-label" for="sponsors-detail-logo-online">online (Homepage, Social Media)</label>
+                                </div>
+                            </div>
+                            <div class="col-12">
                                 <label for="sponsors-detail-notes-v2" class="form-label">Notizen</label>
                                 <textarea name="notes" class="form-control" rows="2" id="sponsors-detail-notes-v2"></textarea>
                             </div>
@@ -783,6 +929,9 @@
                                             <option value="{{ pkg.id }}"
                                                     data-min-amount="{{ pkg.min_amount }}"
                                                     data-benefits="{{ pkg.benefits|map(b => b.description)|join("\n") }}"
+                                                    data-deliverables="{{ pkg.deliverables|map(d => d.description)|join("\n") }}"
+                                                    data-needs-logo-print="{{ pkg.needs_logo_print ? "1" : "0" }}"
+                                                    data-needs-logo-online="{{ pkg.needs_logo_online ? "1" : "0" }}"
                                                     {{ sp.package_id == pkg.id ? "selected" : "" }}>{{ pkg.name }} (ab {{ pkg.min_amount|number_format(2, ",", ".") }} €)
                                             </option>
                                         {% endfor %}
@@ -878,6 +1027,35 @@
                                               data-sponsorship-benefits
                                               id="sponsors-detail-benefits-v2-{{ loop.index }}">{{ sp.benefits|map(b => b.description)|join("\n") }}</textarea>
                                     <div class="form-text">Eine pro Zeile. Unveränderte Zeilen behalten ihren Haken.</div>
+                                </div>
+                                <div class="col-12">
+                                    <label for="sponsors-detail-deliverables-v2-{{ loop.index }}" class="form-label">Leistungen des Sponsors</label>
+                                    <textarea name="deliverables"
+                                              class="form-control"
+                                              rows="3"
+                                              data-sponsorship-deliverables
+                                              id="sponsors-detail-deliverables-v2-{{ loop.index }}">{{ sp.deliverables|map(d => d.description)|join("\n") }}</textarea>
+                                    <div class="form-text">Eine pro Zeile. Unveränderte Zeilen behalten ihren Haken.</div>
+                                </div>
+                                <div class="col-12">
+                                    <span class="form-label d-block">Logo gebraucht für</span>
+                                    <input type="hidden" name="logo_needs" value="1">
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               name="needs_logo_print" value="1"{{ sp.needs_logo_print ? " checked" : "" }}
+                                               data-sponsorship-logo-print
+                                               id="sponsors-detail-logo-print-v2-{{ loop.index }}">
+                                        <label class="form-check-label" for="sponsors-detail-logo-print-v2-{{ loop.index }}">Druck (Plakat, Flyer, Programmheft)</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input"
+                                               type="checkbox"
+                                               name="needs_logo_online" value="1"{{ sp.needs_logo_online ? " checked" : "" }}
+                                               data-sponsorship-logo-online
+                                               id="sponsors-detail-logo-online-v2-{{ loop.index }}">
+                                        <label class="form-check-label" for="sponsors-detail-logo-online-v2-{{ loop.index }}">online (Homepage, Social Media)</label>
+                                    </div>
                                 </div>
                                 <div class="col-12">
                                     <label for="sponsors-detail-notes-v3-{{ loop.index }}" class="form-label">Notizen</label>
@@ -1060,4 +1238,12 @@
 {% block scripts %}
     {{ parent() }}
     <script src="/js/sponsorship-form.js"></script>
+    <script src="/js/sponsor-form-reopen.js"></script>
+    <script src="/vendor/tom-select/js/tom-select.complete.min.js"></script>
+    <script src="/js/sponsor-category-select.js"></script>
 {% endblock scripts %}
+
+{% block styles %}
+    {{ parent() }}
+    <link rel="stylesheet" href="/vendor/tom-select/css/tom-select.bootstrap5.min.css">
+{% endblock styles %}

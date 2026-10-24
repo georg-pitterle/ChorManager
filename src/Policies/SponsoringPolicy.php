@@ -8,6 +8,7 @@ use App\Models\Project;
 use App\Models\Sponsor;
 use App\Models\SponsoringContact;
 use App\Models\Sponsorship;
+use App\Util\SponsorshipStatus;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -190,6 +191,42 @@ class SponsoringPolicy
     {
         return $this->canEditOwned($sponsor->created_by_user_id);
     }
+
+    /**
+     * Darf die Logo-Dateien dieses Sponsors hochladen, löschen und ansehen?
+     *
+     * Wer den Sponsor bearbeiten darf, ohnehin. Dazu die zuständige Person
+     * einer zugesagten Vereinbarung: Sie besorgt das Logo für Plakat und Flyer,
+     * und das Dashboard nennt sie unter "Logo fehlt". Ohne dieses Recht hätte
+     * sie das besorgte Logo weder ablegen noch prüfen können.
+     *
+     * Bewusst nur das Logo: Mediadaten und Rahmenverträge am Sponsor bleiben
+     * bei canSeeSponsorDetails(). Und nur bei einer Zusage - eine Anfrage oder
+     * eine abgeschlossene Vereinbarung braucht kein Logo mehr.
+     */
+    public function canManageLogo(Sponsor $sponsor): bool
+    {
+        if ($this->canEditSponsor($sponsor)) {
+            return true;
+        }
+
+        // Zuständigkeit erweitert nur den Zugang von Beitragenden, sie ersetzt
+        // ihn nicht - wie bei isAssignee(). Sonst bliebe das Logo über die
+        // zentrale Anhang-Route abrufbar, nachdem das Sponsoring-Recht entzogen
+        // wurde.
+        if (!$this->assignmentCounts()) {
+            return false;
+        }
+
+        $userId = $this->currentUserId();
+
+        return $userId !== null && Sponsorship::query()
+            ->where('sponsor_id', $sponsor->id)
+            ->where('status', SponsorshipStatus::ACCEPTED)
+            ->where('assigned_user_id', $userId)
+            ->exists();
+    }
+
 
     /**
      * Darf die Zusammenfassung dieses Kontakts gelesen werden? Dass es ihn gibt

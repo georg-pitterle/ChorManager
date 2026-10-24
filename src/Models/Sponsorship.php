@@ -29,9 +29,13 @@ class Sponsorship extends Model
         'start_date',
         'end_date',
         'notes',
+        'needs_logo_print',
+        'needs_logo_online',
     ];
 
     protected $casts = [
+        'needs_logo_print' => 'boolean',
+        'needs_logo_online' => 'boolean',
         'amount'     => 'decimal:2',
         'paid_at'    => 'date',
         'start_date' => 'date',
@@ -74,6 +78,14 @@ class Sponsorship extends Model
     public function benefits()
     {
         return $this->hasMany(SponsorshipBenefit::class, 'sponsorship_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    /**
+     * Was der Sponsor liefert, in der ausgehandelten Reihenfolge.
+     */
+    public function deliverables()
+    {
+        return $this->hasMany(SponsorshipDeliverable::class, 'sponsorship_id')->orderBy('sort_order')->orderBy('id');
     }
 
     public function contacts()
