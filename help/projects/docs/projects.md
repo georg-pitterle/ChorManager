@@ -18,6 +18,7 @@ Unter **Mitglieder & Projekte → Projekte** siehst du alle angelegten Projekte 
 
 - **Projektname** ist das einzige Pflichtfeld.
 - **Beschreibung**, **Startdatum** und **Enddatum** sind optional, helfen aber bei der Einordnung und tauchen in der Übersicht auf.
+- **Logo-Frist Druck** und **Logo-Frist online** erscheinen nur, wenn das Sponsoring-Modul eingeschaltet ist. Bis dahin sollen die Logos der Sponsoren dieses Projekts vorliegen – fürs Plakat früher, für Homepage und Social Media später. Die Sponsoring-Übersicht zeigt danach, von wem das Logo noch fehlt. Siehe [Sponsoring](sponsoring).
 
 Nach dem Speichern erscheint das Projekt sofort in der Liste und steht überall dort zur Auswahl, wo Projekte gebraucht werden (Termine, Newsletter, Auswertungen).
 

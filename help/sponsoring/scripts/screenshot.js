@@ -99,10 +99,18 @@ async function main() {
         await page.locator('.sponsoring-board').waitFor({ state: 'visible' });
         await shotCapped(page, '01-dashboard');
 
+        // 13. Dashboard: "Logo fehlt" samt aufgeklappten Logo-Fristen der Projekte
+        await page.locator('details.logo-deadline-settings').evaluate((el) => { el.open = true; });
+        await shotElement(
+            page.locator('section[aria-labelledby="sponsoring-logos-title"]'),
+            '13-dashboard-missing-logos'
+        );
+
         // 2. Sponsorenübersicht
         await page.goto(`${BASE_URL}/sponsoring/sponsors`, { waitUntil: 'networkidle' });
         await page.locator('#sponsorsTable').waitFor({ state: 'visible' });
-        await shot(page, '02-sponsors-list');
+        // Die Liste ist lang (Karten); Kopf, Filter und die ersten Einträge genügen.
+        await shotCapped(page, '02-sponsors-list', 1500);
 
         // 3. Modal: Neuer Sponsor
         await clickAndWaitForEvent(
@@ -112,6 +120,33 @@ async function main() {
             'shown.bs.modal'
         );
         await shot(page, '03-new-sponsor-modal', { fullPage: false });
+
+        // 14. Kategorie: Liste beim Öffnen, "neu anlegen" beim Tippen
+        await page.locator('#createSponsorModal .ts-control').first().click();
+        await page.locator('#createSponsorModal .ts-dropdown').first().waitFor({ state: 'visible' });
+        await page.keyboard.type('Ski');
+        await page.locator('#createSponsorModal .ts-dropdown .create').first().waitFor({ state: 'visible' });
+        await shot(page, '14-category-select', { fullPage: false });
+        await page.keyboard.press('Escape');
+
+        // 15. Dublettenwarnung: ähnlicher Name zu "Druckerei Klangfarbe" aus dem Seed.
+        //     Nichts wird angelegt - die Seite kommt mit dem Hinweis zurück.
+        await page.locator('#sponsors-index-name').fill('druckerei klangfarbe KG');
+        await Promise.all([
+            page.waitForURL((url) => url.pathname === '/sponsoring/sponsors', { waitUntil: 'networkidle' }),
+            page.locator('#createSponsorModal button[type="submit"]:not([name])').click(),
+        ]);
+        await page.locator('#createSponsorModal.show .sponsor-duplicate-warning').waitFor({ state: 'visible' });
+        // Der Dialog öffnet sich hier beim Laden von selbst, nicht per Klick: auf das
+        // Ende der Einblendung warten (Dialog ohne Verschiebung, Hintergrund abgedunkelt).
+        await page.waitForFunction(() => {
+            const dialog = document.querySelector('#createSponsorModal .modal-dialog');
+            const backdrop = document.querySelector('.modal-backdrop.show');
+            return dialog && backdrop
+                && getComputedStyle(dialog).transform === 'none'
+                && parseFloat(getComputedStyle(backdrop).opacity) >= 0.5;
+        });
+        await shot(page, '15-duplicate-warning', { fullPage: false });
         await clickAndWaitForEvent(
             page,
             page.locator('#createSponsorModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
@@ -132,8 +167,14 @@ async function main() {
         await page.locator('.sponsor-profile').waitFor({ state: 'visible' });
         await shotCapped(page, '04-sponsor-detail', 1300);
 
-        // 5. Eine Vereinbarung als Karte
+        // 5. Eine Vereinbarung als Karte - mit Gegenleistungen und Leistungen des Sponsors
         await shotElement(page.locator('.agreement-card').first(), '05-sponsor-detail-agreement');
+
+        // 16. Logo-Dateien des Sponsors mit Ablegefläche
+        await shotElement(
+            page.locator('section[aria-labelledby="sponsor-logo-title"]'),
+            '16-sponsor-logos'
+        );
 
         // 6. Modal: Neue Vereinbarung - mit Paket, damit die vorgeschlagenen
         //    Gegenleistungen zu sehen sind
@@ -148,6 +189,10 @@ async function main() {
         await packageSelect.selectOption(goldValue);
         await page.locator('#newSponsorshipModal [data-sponsorship-benefits]').scrollIntoViewIfNeeded();
         await shot(page, '06-new-agreement-modal', { fullPage: false });
+
+        // 17. Weiter unten: Leistungen des Sponsors und wofür das Logo gebraucht wird
+        await page.locator('#newSponsorshipModal [data-sponsorship-logo-online]').scrollIntoViewIfNeeded();
+        await shot(page, '17-new-agreement-deliverables', { fullPage: false });
         await clickAndWaitForEvent(
             page,
             page.locator('#newSponsorshipModal .btn-outline-secondary[data-bs-dismiss="modal"]'),

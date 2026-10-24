@@ -1,6 +1,6 @@
 # Sponsoren verwalten
 
-Diese Anleitung zeigt, wie du Sponsoren anlegst, Vereinbarungen mit ihren Gegenleistungen erfasst, Erbrachtes abhakst, Zahlungen vermerkst und Kontakte protokollierst. Sie setzt voraus, dass du bereits im [Sponsoring-Modul](sponsoring) bist.
+Diese Anleitung zeigt, wie du Sponsoren anlegst und ihnen Kategorien und Logos gibst, Vereinbarungen mit Gegenleistungen und Leistungen des Sponsors erfasst, Erbrachtes abhakst, Zahlungen vermerkst und Kontakte protokollierst. Sie setzt voraus, dass du bereits im [Sponsoring-Modul](sponsoring) bist.
 
 > **Berechtigung:** Für alles hier brauchst du das Recht **"Eigene Sponsoring-Vereinbarungen erfassen"** oder **"Sponsoring verwalten"**. Was das kleinere Recht bei fremden Einträgen verbirgt, steht unter [Wer darf was](sponsoring).
 
@@ -8,13 +8,14 @@ Diese Anleitung zeigt, wie du Sponsoren anlegst, Vereinbarungen mit ihren Gegenl
 
 Klicke in der Leiste oben auf **Sponsoren**. Die Liste zeigt je Sponsor:
 
+- unter dem Namen Typ, **Kategorie** und Kontaktperson; ein kleines Bild-Symbol neben dem Namen heißt: Es liegt mindestens ein Logo vor
 - den **Zustand** – abgeleitet aus den Vereinbarungen: "Anfrage läuft", "Zusage", "Absage", "Abgeschlossen", "Keine Vereinbarung" oder "Keine Anfragen erwünscht"; eine laufende Anfrage hat Vorrang vor einer früheren Zusage
 - das **Paket** der maßgeblichen Vereinbarung – einer Zusage vor einer laufenden Anfrage, sonst der jüngsten
 - die **nächste Frist**, also die früheste offene Wiedervorlage, mit Hinweis "überfällig"
 - mit dem Recht "Sponsoring verwalten" die Summe **Zugesagt**
 - Telefon und E-Mail zum direkten Anklicken
 
-Über die Tabellenleiste suchst du nach Namen, filterst nach Zustand und sortierst nach jeder dieser Spalten. **Öffnen** führt zur Seite des Sponsors.
+Über die Tabellenleiste suchst du nach Namen, filterst nach Zustand und nach Kategorie und sortierst nach den Spalten. **Öffnen** führt zur Seite des Sponsors.
 
 Diese Liste ist der Grund, warum jedes Mitglied mit Sponsoring-Zugang alle Sponsoren sieht: Vor einer Anfrage siehst du hier, wo bereits jemand angefragt hat – und musst dich nicht vorher abstimmen.
 
@@ -22,21 +23,48 @@ Diese Liste ist der Grund, warum jedes Mitglied mit Sponsoring-Zugang alle Spons
 
 ## 2. Neuen Sponsor anlegen
 
-Klicke oben rechts auf **Neuer Sponsor**. Im Dialog trägst du die Stammdaten ein: Typ (Organisation oder Firma, Einzelperson), Name, Kontaktperson, E-Mail, Telefon, Website und Adresse. Mit **Anlegen** wird der Sponsor gespeichert.
+Klicke oben rechts auf **Neuer Sponsor**. Im Dialog trägst du die Stammdaten ein: Typ (Organisation oder Firma, Einzelperson), Name, Kategorie, Kontaktperson, E-Mail, Telefon, Website und Adresse. Mit **Anlegen** wird der Sponsor gespeichert.
 
 Einen eigenen Status hat der Sponsor nicht – der ergibt sich aus seinen Vereinbarungen. Nur wenn jemand ausdrücklich nicht mehr angefragt werden möchte, schaltest du **"Keine Anfragen erwünscht"** ein; erst dann erscheint das Feld für die Begründung. Danach lassen sich für diesen Sponsor keine neuen Vereinbarungen und Kontakte mehr anlegen. Die Begründung bleibt erhalten, auch wenn du die Sperre später wieder aufhebst.
 
 ![Dialog "Neuer Sponsor"](images/sponsoring/03-new-sponsor-modal.png)
 
+### Kategorie
+
+Die **Kategorie** ordnet den Sponsor ein, etwa Gastronomie, Einzelhandel oder Kultur.
+Ein Klick auf das Feld öffnet die Liste aller vorhandenen Kategorien; beim Tippen
+wird sie gefiltert. Gibt es die Kategorie noch nicht, wählst du **„… neu anlegen“** –
+sie entsteht beim Speichern und steht danach allen zur Auswahl. Groß- und
+Kleinschreibung spielen dabei keine Rolle: „gastronomie“ landet bei „Gastronomie“.
+Über das kleine Kreuz im Feld entfernst du die Kategorie wieder.
+
+![Kategorie wählen oder neu anlegen](images/sponsoring/14-category-select.png)
+
+### Hinweis auf einen ähnlichen Sponsor
+
+Gibt es schon einen Sponsor mit sehr ähnlichem Namen, legt **Anlegen** nichts an.
+Der Dialog kommt mit deinen Eingaben zurück und nennt den vorhandenen Sponsor als Link.
+Als ähnlich gilt, was sich nur in Groß- und Kleinschreibung, Satzzeichen, Leerzeichen
+oder der Rechtsform unterscheidet – „Bäckerei Huber GmbH“, „bäckerei huber“ und
+„Bäckerei-Huber KG“ sind für den Chor-Manager derselbe Betrieb.
+
+Ist es wirklich derselbe, arbeite beim vorhandenen Sponsor weiter. Ist es ein
+anderer – etwa eine zweite Filiale –, klickst du **Trotzdem anlegen**. Dasselbe gilt,
+wenn du einen Sponsor umbenennst.
+
+![Hinweis auf einen ähnlich benannten Sponsor](images/sponsoring/15-duplicate-warning.png)
+
 ## 3. Die Seite eines Sponsors
 
 Die Seite liest sich von oben nach unten – ohne Reiter:
 
-1. **Kopf**: Name, Zustand und Typ. Rechts die Knöpfe **Kontakt protokollieren** und **Neue Vereinbarung**, unter **Mehr** das Bearbeiten der Stammdaten und – mit "Sponsoring verwalten" – das Löschen des Sponsors.
-2. **Steckbrief**: Kontaktperson, Telefon (anklickbar), E-Mail, Website, Adresse, die nächste offene Wiedervorlage und die Notizen zum Sponsor.
-3. **Vereinbarungen** – je Vereinbarung eine Karte, siehe Abschnitt 4.
-4. **Kontakthistorie** – alle Gespräche, die neuesten zuerst.
-5. **Anhänge zum Sponsor** – Logo, Mediadaten und alles, was zu keiner einzelnen Vereinbarung gehört. Neue Dateien ziehst du auf die gestrichelte Fläche oder klickst dort auf **auswählen**; jede zeigt ihren eigenen Fortschritt.
+1. **Kopf**: Name, Zustand und Typ. Rechts **Zur Liste** zurück zur Sponsorenliste, die Knöpfe **Kontakt protokollieren** und **Neue Vereinbarung**, unter **Mehr** das Bearbeiten der Stammdaten und – mit "Sponsoring verwalten" – das Löschen des Sponsors.
+2. **Springen zu**: Abkürzungen zu den Abschnitten weiter unten – Vereinbarungen, Kontakte, Logos und Anhänge, jeweils mit ihrer Anzahl.
+3. **Steckbrief**: Kategorie, Kontaktperson, Telefon (anklickbar), E-Mail, Website, Adresse, die nächste offene Wiedervorlage und die Notizen zum Sponsor.
+4. **Vereinbarungen** – je Vereinbarung eine Karte, siehe Abschnitt 4.
+5. **Kontakthistorie** – alle Gespräche, die neuesten zuerst.
+6. **Logos** – alle Logo-Dateien des Sponsors, siehe Abschnitt 5.
+7. **Anhänge zum Sponsor** – Mediadaten und alles, was zu keiner einzelnen Vereinbarung gehört. Neue Dateien ziehst du auf die gestrichelte Fläche oder klickst dort auf **auswählen**; jede zeigt ihren eigenen Fortschritt.
 
 ![Seite eines Sponsors](images/sponsoring/04-sponsor-detail.png)
 
@@ -54,10 +82,11 @@ Jede Vereinbarung ist eine Karte:
 - rechts der **Betrag** und darunter der Zahlungsstand: **"Bezahlt am …"** oder, bei einer Zusage ohne Zahlung, **"Zahlung offen"**
 - Zeitraum und zuständige Person
 - die **Gegenleistungen** als Abhakliste mit dem Stand "2 von 4 erbracht"
+- die **Leistungen des Sponsors** – was der Sponsor liefert, etwa Banner oder unterschriebener Vertrag – mit dem Stand "1 von 2 erhalten"
 - die **Notizen**, die **Belege** und die **Kontakte zu dieser Vereinbarung** – über **Kontakt protokollieren** in der Karte landet ein neuer Kontakt gleich bei der richtigen Vereinbarung
 - unten **Bearbeiten** und **Löschen**
 
-![Eine Vereinbarung mit Gegenleistungen](images/sponsoring/05-sponsor-detail-agreement.png)
+![Eine Vereinbarung mit Gegenleistungen und Leistungen des Sponsors](images/sponsoring/05-sponsor-detail-agreement.png)
 
 ### Gegenleistungen abhaken
 
@@ -65,29 +94,65 @@ Ein Klick auf eine Leistung hakt sie als erbracht ab; daneben erscheint das Datu
 
 Dieselben offenen Leistungen findest du auch auf der Übersicht unter **Offene Gegenleistungen** – dort über alle Sponsoren hinweg.
 
-## 5. Vereinbarung anlegen oder bearbeiten
+Die **Leistungen des Sponsors** hakst du genauso ab, als **erhalten** – etwa wenn das
+Banner übergeben oder der Vertrag unterschrieben zurück ist. Es dürfen dieselben
+Personen wie bei den Gegenleistungen. Was noch aussteht, sammelt die Übersicht unter
+**Offene Leistungen des Sponsors**.
 
-Klicke oben auf **Neue Vereinbarung**. Im Dialog erfasst du Paket, Status, Betrag, "Bezahlt am", Projekt, zuständige Person, Zeitraum, Gegenleistungen, Notizen und optional Belege (z. B. den unterschriebenen Vertrag als PDF). Mit **Anlegen** wird die Vereinbarung gespeichert.
+## 5. Logos
+
+Logos kommen in vielen Formaten und Varianten – als SVG, EPS oder PNG, in mehreren
+Farben, oft als ZIP vom Grafikbüro. Wer sie entgegennimmt, weiß meist nicht, welche
+davon der Grafiker für Plakat und Flyer braucht. Deshalb nimmt der Abschnitt
+**Logos** beliebig viele Dateien auf. Sie bleiben beim Sponsor, auch für spätere
+Vereinbarungen.
+
+![Logo-Dateien eines Sponsors](images/sponsoring/16-sponsor-logos.png)
+
+- **Hochladen**: Dateien auf die gestrichelte Fläche ziehen oder dort auf
+  **auswählen** klicken. Erlaubt sind Bilder (JPG, PNG, WebP, GIF, TIFF), SVG, PDF,
+  EPS, AI und ZIP, je Datei bis 50 MB. Bilder werden nicht verkleinert – der
+  Grafiker bekommt die Datei so, wie sie vom Sponsor kam.
+- **Ansehen**: Bei Bildern zeigt der Abschnitt eine kleine Vorschau. SVG, EPS, AI
+  und ZIP gibt es nur zum Herunterladen.
+- **Löschen**: über den Papierkorb neben der Datei. Eine neue Variante lädst du
+  einfach dazu; ersetzt wird nichts.
+
+Hochladen und löschen darf, wer den Sponsor bearbeiten darf – wer ihn angelegt hat
+oder das Recht "Sponsoring verwalten" hat –, und die **zuständige Person einer
+zugesagten Vereinbarung** dieses Sponsors. Alle anderen sehen nur, wie viele
+Logo-Dateien es gibt.
+
+Sobald ein Sponsor mindestens eine Logo-Datei hat, verschwindet er auf der Übersicht
+aus der Liste **Logo fehlt**.
+
+## 6. Vereinbarung anlegen oder bearbeiten
+
+Klicke oben auf **Neue Vereinbarung**. Im Dialog erfasst du Paket, Status, Betrag, "Bezahlt am", Projekt, zuständige Person, Zeitraum, Gegenleistungen, Leistungen des Sponsors, wofür das Logo gebraucht wird, Notizen und optional Belege (z. B. den unterschriebenen Vertrag als PDF). Mit **Anlegen** wird die Vereinbarung gespeichert.
 
 Einiges füllt der Dialog für dich vor – überschreiben kannst du alles:
 
-- **Paket**: Wählst du ein Paket, stehen seine Gegenleistungen im Feld **Gegenleistungen** und sein Mindestbetrag im Feld **Betrag**. Liegt der Betrag darunter, weist ein Hinweis darauf hin – speichern lässt er sich trotzdem, etwa bei einer Sachleistung.
+- **Paket**: Wählst du ein Paket, stehen seine Gegenleistungen im Feld **Gegenleistungen**, seine Vorgaben im Feld **Leistungen des Sponsors**, sein Mindestbetrag im Feld **Betrag** und seine Häkchen unter **Logo gebraucht für**. Liegt der Betrag unter dem Mindestbetrag, weist ein Hinweis darauf hin – speichern lässt er sich trotzdem, etwa bei einer Sachleistung.
 - **Projekt**: Der Zeitraum übernimmt den Zeitraum des Projekts.
 
 ![Dialog "Neue Vereinbarung" mit vorgeschlagenen Gegenleistungen](images/sponsoring/06-new-agreement-modal.png)
 
-Die **Gegenleistungen** trägst du eine pro Zeile ein. Sie gehören danach zur Vereinbarung: Ändert jemand später das Paket, bleibt die ausgehandelte Liste, wie sie ist. Leerst du das Feld bewusst, bekommt die Vereinbarung keine Gegenleistungen.
+Die **Gegenleistungen** und die **Leistungen des Sponsors** trägst du eine pro Zeile ein. Sie gehören danach zur Vereinbarung: Ändert jemand später das Paket, bleiben die ausgehandelten Listen, wie sie sind. Leerst du ein Feld bewusst, bekommt die Vereinbarung dort keine Einträge.
+
+Unter **Logo gebraucht für** kreuzt du an, ob das Logo für den **Druck** (Plakat, Flyer, Programmheft) oder **online** (Homepage, Social Media) gebraucht wird. Daraus ergibt sich die Frist in der Liste **Logo fehlt** auf der Übersicht.
+
+![Leistungen des Sponsors und Logo-Bedarf im Dialog "Neue Vereinbarung"](images/sponsoring/17-new-agreement-deliverables.png)
 
 **"Bezahlt am"** bleibt leer, bis das Geld da ist. Trägst du das Datum später über **Bearbeiten** nach, verschwindet die Zusage aus "Zahlung offen".
 
 Beim **Bearbeiten** gilt:
 
 - Ein leeres Datumsfeld bleibt leer – so lässt sich eine Vereinbarung auch unbefristet führen.
-- Leistungen, deren Text du nicht änderst, behalten ihren Haken. Neue Zeilen kommen offen hinzu, gestrichene verschwinden.
+- Leistungen, deren Text du nicht änderst, behalten ihren Haken – bei den Gegenleistungen wie bei den Leistungen des Sponsors. Neue Zeilen kommen offen hinzu, gestrichene verschwinden.
 
 Ohne das Recht "Sponsoring verwalten" bearbeitest du nur die Vereinbarungen, die du selbst angelegt hast. Die Projektauswahl bietet dir dann genau die Projekte an, die du verwenden darfst – also die gerade laufenden. Fremde Vereinbarungen tragen den Hinweis "Von jemand anderem angelegt"; bei ihnen siehst du statt Betrag, Zahlungsstand, Notizen und Belegen nur, dass es sie gibt.
 
-## 6. Kontakt protokollieren
+## 7. Kontakt protokollieren
 
 Die **Kontakthistorie** zeigt alle Gespräche mit dem Sponsor – Datum, Art, wer protokolliert hat und zu welcher Vereinbarung. Steht eine Wiedervorlage an, siehst du ihr Datum und bei Bedarf den Hinweis "überfällig" oder "heute"; mit **Erledigt** hakst du sie ab.
 
@@ -97,9 +162,9 @@ Die **Kontakthistorie** zeigt alle Gespräche mit dem Sponsor – Datum, Art, we
 
 ![Dialog "Kontakt protokollieren"](images/sponsoring/08-new-contact-modal.png)
 
-## 7. Anhänge zentral finden
+## 8. Anhänge zentral finden
 
-Über **Anhänge** in der Leiste oben kommst du zu einer Liste aller Dateien aus dem Sponsoring – Verträge und Angebote aus den Vereinbarungen sowie Logos und Unterlagen der Sponsoren. Dort suchst und sortierst du sie, ohne dich vorher durch die einzelnen Sponsoren klicken zu müssen. Je Zeile stehen zwei Knöpfe: die **Vorschau** öffnet die Datei in einem Fenster, der **Download** lädt sie herunter. Bei Dateien, die sich im Browser nicht anzeigen lassen – etwa Word- oder Excel-Dokumente – entfällt die Vorschau. Dieselben zwei Knöpfe findest du auch bei den Belegen und Anhängen auf der Seite eines Sponsors.
+Über **Anhänge** in der Leiste der Sponsoring-Seiten kommst du zu einer Liste aller Dateien aus dem Sponsoring – Verträge und Angebote aus den Vereinbarungen sowie Unterlagen der Sponsoren. Die Logos stehen nicht darin, sondern beim jeweiligen Sponsor im Abschnitt **Logos**. Dort suchst und sortierst du sie, ohne dich vorher durch die einzelnen Sponsoren klicken zu müssen. Je Zeile stehen zwei Knöpfe: die **Vorschau** öffnet die Datei in einem Fenster, der **Download** lädt sie herunter. Bei Dateien, die sich im Browser nicht anzeigen lassen – etwa Word- oder Excel-Dokumente – entfällt die Vorschau. Dieselben zwei Knöpfe findest du auch bei den Belegen und Anhängen auf der Seite eines Sponsors.
 
 ![Zentrale Anhangsammlung](images/sponsoring/10-attachments.png)
 
@@ -108,8 +173,9 @@ Die **Kontakthistorie** zeigt alle Gespräche mit dem Sponsor – Datum, Art, we
 - **Name ist Pflicht** und darf maximal 255 Zeichen lang sein.
 - **E-Mail und Website müssen gültig sein.** Als Website gilt nur eine Adresse, die mit `http://` oder `https://` beginnt.
 - **Bei einer Vereinbarung sind Sponsor und Betrag Pflichtfelder.** Beim Betrag kannst du Komma oder Punkt als Dezimaltrennzeichen verwenden (z. B. `1500,00` oder `1500.00`).
-- **Gegenleistungen:** eine pro Zeile, jede höchstens 255 Zeichen, höchstens 30 je Vereinbarung.
+- **Gegenleistungen und Leistungen des Sponsors:** eine pro Zeile, jede höchstens 255 Zeichen, höchstens 30 je Liste und Vereinbarung.
+- **Kategorie:** höchstens 100 Zeichen.
 - **Bei einem Kontakt sind Datum, Art und Zusammenfassung Pflichtfelder.** Die Zusammenfassung darf maximal 2000 Zeichen lang sein.
-- **Anhänge haben eine Größengrenze:** Bilder bis 2 MB, andere Dateien (z. B. PDF) bis 10 MB.
-- **Einen Sponsor löschen ist endgültig.** Dabei werden auch alle zugehörigen Vereinbarungen samt Gegenleistungen und Kontakte gelöscht. Löschen darf nur, wer das Recht "Sponsoring verwalten" hat.
+- **Anhänge haben eine Größengrenze:** Bilder bis 2 MB, andere Dateien (z. B. PDF) bis 10 MB. Logo-Dateien dürfen bis 50 MB groß sein.
+- **Einen Sponsor löschen ist endgültig.** Dabei werden auch alle zugehörigen Vereinbarungen samt Gegenleistungen, Kontakte, Anhänge und Logos gelöscht. Löschen darf nur, wer das Recht "Sponsoring verwalten" hat.
 - **Vereinbarungen zu abgeschlossenen Projekten** kann nur die Sponsoring-Verwaltung erfassen. Mit dem Recht "Eigene Sponsoring-Vereinbarungen erfassen" stehen in der Auswahl nur laufende Projekte – oder du lässt das Projekt leer.
