@@ -239,7 +239,13 @@ final class SponsoringPagesFeatureTest extends TestCase
         $source = (string) file_get_contents(dirname(__DIR__, 2) . '/templates/sponsoring/sponsors/detail.twig');
 
         $this->assertStringNotContainsString('sponsoring/partials/subnav.twig', $source);
-        $this->assertStringContainsString('class="breadcrumb', $source);
+        // Zurück wie auf der Termin-Detailseite: ein Knopf "Zur Liste", keine
+        // Brotkrumen - die Seite liegt nur eine Ebene unter der Liste.
+        $this->assertStringNotContainsString('class="breadcrumb', $source);
+        $this->assertMatchesRegularExpression(
+            '#<a href="/sponsoring/sponsors"\s+class="btn btn-outline-secondary"[^>]*>\s*<i class="bi bi-arrow-left[^"]*"[^>]*></i>\s*Zur Liste\s*</a>#',
+            $source
+        );
         $this->assertStringContainsString('class="sponsor-section-nav"', $source);
         foreach (['sponsor-agreements-title', 'sponsor-contacts-title', 'sponsor-logo-title', 'sponsor-attachments-title'] as $anchor) {
             $this->assertStringContainsString('anchor: "' . $anchor . '"', $source, $anchor);

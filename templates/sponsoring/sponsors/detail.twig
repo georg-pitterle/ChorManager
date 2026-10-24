@@ -18,17 +18,6 @@
 {% block page_header %}
     <section class="page-header">
         <div>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-1">
-                    <li class="breadcrumb-item">
-                        <a href="/sponsoring">Sponsoring</a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a href="/sponsoring/sponsors">Sponsoren</a>
-                    </li>
-                    <li class="breadcrumb-item active" aria-current="page">{{ sponsor.name }}</li>
-                </ol>
-            </nav>
             <h1 class="h2 mb-1">{{ sponsor.name }}</h1>
             <p class="text-muted mb-0 sponsor-head-meta">
                 <span class="badge {{ state_badges[sponsor_state] }}">{{ state_labels[sponsor_state] }}</span>
@@ -40,6 +29,13 @@
         </div>
         <div class="page-actions d-flex flex-column flex-sm-row align-items-stretch align-items-sm-center gap-2">
             {{ help.button("sponsoring-sponsors", "Sponsoren verwalten") }}
+            {# Zurück wie auf der Termin-Detailseite: Die Seite liegt eine Ebene unter
+               der Liste, dafür braucht es keine Brotkrumen. #}
+            <a href="/sponsoring/sponsors"
+               class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>
+                Zur Liste
+            </a>
             {% if not sponsor.requests_blocked %}
                 <button type="button"
                         class="btn btn-outline-secondary"
@@ -95,8 +91,8 @@
 
 {% block content %}
     {# Keine Bereichsreiter auf der Seite eines einzelnen Sponsors: Dort wirkten
-       "Pakete" und "Anhänge" wie Reiter dieses Sponsors. Zurück führt die
-       Brotkrumenleiste; die Sprungleiste erreicht die eigenen Abschnitte. #}
+       "Pakete" und "Anhänge" wie Reiter dieses Sponsors. Zurück führt der Knopf
+       "Zur Liste" im Kopf; die Sprungleiste erreicht die eigenen Abschnitte. #}
     {% set _section_links = [
         {anchor: "sponsor-agreements-title", label: "Vereinbarungen", count: sponsor.sponsorships|length},
         {anchor: "sponsor-contacts-title", label: "Kontakte", count: sponsor.contacts|length},
