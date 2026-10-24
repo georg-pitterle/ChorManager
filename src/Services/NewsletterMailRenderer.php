@@ -28,7 +28,9 @@ class NewsletterMailRenderer
      *     primary_strong: string,
      *     primary_tint: string,
      *     primary_edge: string,
-     *     logo_src: string
+     *     logo_src: string,
+     *     logo_width: int,
+     *     logo_height: int
      * }|null
      */
     private ?array $brandingCache = null;
@@ -170,7 +172,9 @@ class NewsletterMailRenderer
      *     primary_strong: string,
      *     primary_tint: string,
      *     primary_edge: string,
-     *     logo_src: string
+     *     logo_src: string,
+     *     logo_width: int,
+     *     logo_height: int
      * }
      */
     protected function resolveBranding(): array
@@ -189,7 +193,9 @@ class NewsletterMailRenderer
      *     primary_strong: string,
      *     primary_tint: string,
      *     primary_edge: string,
-     *     logo_src: string
+     *     logo_src: string,
+     *     logo_width: int,
+     *     logo_height: int
      * }
      */
     protected function fetchBranding(): array

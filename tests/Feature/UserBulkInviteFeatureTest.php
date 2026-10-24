@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\UserController;
+use App\Models\AppSetting;
 use App\Models\InvitationToken;
 use App\Models\MailQueue;
 use App\Models\Role;
@@ -39,6 +40,9 @@ final class UserBulkInviteFeatureTest extends TestCase
     /** @var list<int> */
     private array $enqueuedUserIds = [];
 
+    /** @var list<string> */
+    private array $enqueuedBodies = [];
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -47,6 +51,7 @@ final class UserBulkInviteFeatureTest extends TestCase
 
         $_SESSION = ['user_id' => 1, 'can_manage_users' => true, 'role_level' => 50];
         $this->enqueuedUserIds = [];
+        $this->enqueuedBodies = [];
     }
 
     protected function tearDown(): void
@@ -157,6 +162,30 @@ final class UserBulkInviteFeatureTest extends TestCase
         $this->assertSame('Keine Mitglieder ausgewählt.', $_SESSION['error'] ?? null);
     }
 
+    /**
+     * Die Einladung reichte die Markendaten einzeln an die Vorlage weiter und vergaß dabei
+     * die Logo-Maße. Der Kopf fiel auf das 56x56-Quadrat zurück und quetschte jedes nicht
+     * quadratische Logo - in allen anderen Mails stand es richtig.
+     */
+    public function testInvitationKeepsTheAspectRatioOfAWideLogo(): void
+    {
+        $image = imagecreatetruecolor(1200, 300);
+        self::assertNotFalse($image, 'GD konnte kein Testbild anlegen.');
+        ob_start();
+        imagepng($image);
+        AppSetting::query()->updateOrCreate(
+            ['setting_key' => 'app_logo'],
+            ['setting_value' => '', 'binary_content' => (string) ob_get_clean(), 'mime_type' => 'image/png']
+        );
+
+        $this->bulkInvite([(int) $this->createMember()->id], Twig::create(dirname(__DIR__, 2) . '/templates'));
+
+        $this->assertCount(1, $this->enqueuedBodies);
+        $this->assertStringContainsString('width="200"', $this->enqueuedBodies[0]);
+        $this->assertStringContainsString('height="50"', $this->enqueuedBodies[0]);
+        $this->assertStringNotContainsString('height:56px', $this->enqueuedBodies[0]);
+    }
+
     public function testTheRouteIsRegisteredInsideTheUserGroup(): void
     {
         $routes = (string) file_get_contents(dirname(__DIR__, 2) . '/src/Routes.php');
@@ -181,19 +210,20 @@ final class UserBulkInviteFeatureTest extends TestCase
     /**
      * @param list<int> $userIds
      */
-    private function bulkInvite(array $userIds): ResponseInterface
+    private function bulkInvite(array $userIds, ?Twig $view = null): ResponseInterface
     {
         $mailQueue = $this->createStub(MailQueueService::class);
         $mailQueue->method('enqueueInvitationMail')->willReturnCallback(
             function (string $recipientEmail, string $subject, string $bodyHtml, int $userId): MailQueue {
                 $this->enqueuedUserIds[] = $userId;
+                $this->enqueuedBodies[] = $bodyHtml;
 
                 return new MailQueue();
             }
         );
 
         $controller = new UserController(
-            $this->createStub(Twig::class),
+            $view ?? $this->createStub(Twig::class),
             new UserQuery(new NameFormatterService()),
             new UserPersistence(new NullLogger()),
             $this->createStub(ProjectPersistence::class),

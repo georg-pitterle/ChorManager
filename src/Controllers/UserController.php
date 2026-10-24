@@ -1182,18 +1182,14 @@ class UserController
                 ]);
             }
 
-            $htmlBody = $this->view->fetch('emails/invitation.twig', [
+            // Die Markendaten als Ganzes übergeben wie in den anderen Mails: Einzeln
+            // aufgezählt fehlten hier die Logo-Maße, und der Kopf quetschte das Logo ins Quadrat.
+            $htmlBody = $this->view->fetch('emails/invitation.twig', array_merge($branding, [
                 'user'        => $targetUser,
                 'invite_link' => $inviteLink,
-                'app_name' => $branding['app_name'],
-                'primary_color' => $branding['primary_color'],
-                'primary_strong' => $branding['primary_strong'],
-                'primary_tint' => $branding['primary_tint'],
-                'primary_edge' => $branding['primary_edge'],
-                'logo_src' => $branding['logo_src'],
                 'handoff_url' => $handoff['url'] ?? '',
                 'handoff_label' => $handoff['label'] ?? '',
-            ]);
+            ]));
 
             $this->mailQueueService->enqueueInvitationMail(
                 recipientEmail: $targetUser->email,
@@ -1238,7 +1234,9 @@ class UserController
      *     primary_strong: string,
      *     primary_tint: string,
      *     primary_edge: string,
-     *     logo_src: string
+     *     logo_src: string,
+     *     logo_width: int,
+     *     logo_height: int
      * }
      */
     private function resolveInvitationBranding(): array
