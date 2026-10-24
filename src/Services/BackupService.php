@@ -37,7 +37,15 @@ class BackupService
          * wären ohne diesen Teil nach einem Restore verloren. Ohne Angabe
          * sichert der Dienst wie bisher nur die Datenbank.
          */
-        private readonly ?FileBackupInterface $fileBackup = null
+        private readonly ?FileBackupInterface $fileBackup = null,
+        /**
+         * Kennungen, die als der eigene Mail-Schlüssel gelten. Derselbe Schlüssel
+         * trug vor dem Format v3 eine andere Kennung, und während einer Rotation
+         * bleibt der vorherige lesbar. Leer heißt: nur $mailKeyId.
+         *
+         * @var list<string>
+         */
+        private readonly array $acceptedMailKeyIds = []
     ) {
         if (!is_dir($this->backupDir)) {
             mkdir($this->backupDir, 0750, true);
@@ -80,11 +88,15 @@ class BackupService
 
             // Mit einem anderen MAIL_CREDENTIAL_KEY lassen sich die verschlüsselten
             // Mail-Zugangsdaten des Backups nach dem Restore nicht mehr lesen. Ist eine
-            // der beiden Kennungen unbekannt, lässt sich nichts sagen.
+            // der beiden Seiten unbekannt, lässt sich nichts sagen.
             $backupKey = $decoded['mail_key_id'] ?? null;
-            $decoded['mail_key_mismatch'] = $this->mailKeyId !== null
+            $accepted = $this->acceptedMailKeyIds;
+            if ($accepted === [] && $this->mailKeyId !== null) {
+                $accepted = [$this->mailKeyId];
+            }
+            $decoded['mail_key_mismatch'] = $accepted !== []
                 && is_string($backupKey)
-                && $backupKey !== $this->mailKeyId;
+                && !in_array($backupKey, $accepted, true);
 
             $entries[] = $decoded;
         }

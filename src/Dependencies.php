@@ -615,8 +615,11 @@ return function (ContainerBuilder $containerBuilder) {
             // fehlender oder ungültiger MAIL_CREDENTIAL_KEY darf das Backup
             // nicht blockieren, deshalb hier bewusst fail-open.
             $mailKeyId = null;
+            $acceptedMailKeyIds = [];
             try {
-                $mailKeyId = $c->get(MailCredentialCryptoService::class)->keyId();
+                $crypto = $c->get(MailCredentialCryptoService::class);
+                $mailKeyId = $crypto->keyId();
+                $acceptedMailKeyIds = $crypto->knownKeyIds();
             } catch (\Throwable) {
                 $mailKeyId = null;
             }
@@ -633,7 +636,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $mailKeyId,
                 $c->get(SessionInvalidationService::class),
                 null,
-                $c->get(FileBackupService::class)
+                $c->get(FileBackupService::class),
+                $acceptedMailKeyIds
             );
         },
         BackupPackageService::class => function (ContainerInterface $c) {

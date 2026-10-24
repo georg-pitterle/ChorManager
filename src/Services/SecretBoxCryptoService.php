@@ -85,6 +85,28 @@ class SecretBoxCryptoService
         return self::deriveKeyId($this->key, self::FORMAT_PREFIX);
     }
 
+    /**
+     * Alle Kennungen, unter denen Werte mit den geladenen Schlüsseln stehen können:
+     * aktiver und vorheriger Schlüssel, je in jedem lesbaren Format. Derselbe
+     * Schlüssel hatte im Format v2 eine andere Kennung als heute.
+     *
+     * @return list<string>
+     */
+    public function knownKeyIds(): array
+    {
+        $ids = [];
+        foreach ([$this->key, $this->previousKey] as $key) {
+            if ($key === null) {
+                continue;
+            }
+            foreach (self::KNOWN_FORMATS as $format) {
+                $ids[] = self::deriveKeyId($key, $format);
+            }
+        }
+
+        return array_values(array_unique($ids));
+    }
+
     public function hasPreviousKey(): bool
     {
         return $this->previousKey !== null;

@@ -383,4 +383,43 @@ final class BackupServiceTest extends TestCase
             'Neuestes zuerst: das ohne Schlüssel ist unbekannt, das mit fremdem Schlüssel weicht ab.'
         );
     }
+
+    public function testListDoesNotFlagAnotherKnownIdOfTheSameKey(): void
+    {
+        // Vor der Umstellung auf v3 trug dasselbe Backup die v2-Kennung des Schlüssels.
+        $this->makeService(mailKeyId: 'old0v2id')->create(BackupService::TYPE_MANUAL, null);
+        $service = new BackupService(
+            $this->dumpRunner,
+            new NullLogger(),
+            $this->backupDir,
+            5,
+            5,
+            true,
+            'chormanager_test',
+            'test-version',
+            'new0v3id',
+            acceptedMailKeyIds: ['new0v3id', 'old0v2id']
+        );
+
+        $this->assertFalse($service->list()[0]['mail_key_mismatch']);
+    }
+
+    public function testListFlagsKeyIdOutsideTheKnownIds(): void
+    {
+        $this->makeService(mailKeyId: 'foreign0')->create(BackupService::TYPE_MANUAL, null);
+        $service = new BackupService(
+            $this->dumpRunner,
+            new NullLogger(),
+            $this->backupDir,
+            5,
+            5,
+            true,
+            'chormanager_test',
+            'test-version',
+            'new0v3id',
+            acceptedMailKeyIds: ['new0v3id', 'old0v2id']
+        );
+
+        $this->assertTrue($service->list()[0]['mail_key_mismatch']);
+    }
 }

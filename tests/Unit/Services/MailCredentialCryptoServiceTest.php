@@ -275,4 +275,35 @@ class MailCredentialCryptoServiceTest extends TestCase
         $this->expectException(RuntimeException::class);
         new MailCredentialCryptoService();
     }
+
+    /**
+     * Ein Backup merkt sich die Kennung des Schlüssels, mit dem es entstand. Von vor
+     * der Umstellung auf v3 trägt es die v2-Kennung desselben Schlüssels - die darf
+     * nicht als fremder Schlüssel gelten.
+     */
+    public function testKnownKeyIdsCoverCurrentAndLegacyFormatOfTheActiveKey(): void
+    {
+        $service = new MailCredentialCryptoService();
+        $rawKey = (string) base64_decode((string) getenv(self::ENV_KEY), true);
+
+        $known = $service->knownKeyIds();
+
+        $this->assertContains($service->keyId(), $known);
+        $this->assertContains(substr(hash('sha256', $rawKey), 0, 8), $known);
+    }
+
+    public function testKnownKeyIdsIncludePreviousKeyAndExcludeForeignKeys(): void
+    {
+        $oldService = new MailCredentialCryptoService();
+        $oldKey = (string) getenv(self::ENV_KEY);
+        $this->setEnv(self::ENV_KEY, self::randomKey());
+        $this->setEnv(self::ENV_PREVIOUS_KEY, $oldKey);
+
+        $known = (new MailCredentialCryptoService())->knownKeyIds();
+
+        $this->assertContains($oldService->keyId(), $known);
+        $this->setEnv(self::ENV_PREVIOUS_KEY, null);
+        $this->setEnv(self::ENV_KEY, self::randomKey());
+        $this->assertNotContains((new MailCredentialCryptoService())->keyId(), $known);
+    }
 }

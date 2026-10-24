@@ -231,7 +231,23 @@ class FileBackupFeatureTest extends TestCase
         $this->assertInstanceOf(FileBackupService::class, $property->getValue($service));
     }
 
-    private const IMPORT_ID = 'backup_manual_20260101T000000Z_0badc0de';
+    public function testContainerPassesAllKnownMailKeyIdsToBackupService(): void
+    {
+        $builder = new \DI\ContainerBuilder();
+        (require dirname(__DIR__, 2) . '/src/Settings.php')($builder);
+        (require dirname(__DIR__, 2) . '/src/Dependencies.php')($builder);
+        $container = $builder->build();
+        $container->set(\Illuminate\Database\Capsule\Manager::class, \Tests\Unit\Bootstrap::getCapsule());
+
+        $known = $container->get(\App\Services\MailCredentialCryptoService::class)->knownKeyIds();
+        $service = $container->get(BackupService::class);
+
+        $property = new \ReflectionProperty(BackupService::class, 'acceptedMailKeyIds');
+        $this->assertCount(2, $known, 'Aktiver Schlüssel in v3 und v2.');
+        $this->assertSame($known, $property->getValue($service));
+    }
+
+    private const IMPORT_ID ='backup_manual_20260101T000000Z_0badc0de';
 
     private static function poolPath(string $seed): string
     {
