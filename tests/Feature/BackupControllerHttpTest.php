@@ -13,6 +13,7 @@ use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 use Tests\Unit\Services\Fakes\FakeDumpRunner;
+use Tests\Unit\Services\Fakes\FakeMigrationRunner;
 
 final class BackupControllerHttpTest extends TestCase
 {
@@ -99,6 +100,39 @@ final class BackupControllerHttpTest extends TestCase
 
         $this->assertRedirect($response, '/login');
         $this->assertArrayNotHasKey('user_id', $_SESSION);
+    }
+
+    public function testRestoreWithFailedMigrationNamesTheMigrationInTheFlash(): void
+    {
+        $migrations = new FakeMigrationRunner();
+        $migrations->failWith = new \RuntimeException('Table already exists');
+        $service = new BackupService(
+            new FakeDumpRunner(),
+            new NullLogger(),
+            $this->backupDir,
+            5,
+            5,
+            true,
+            'chormanager_test',
+            'test-version',
+            migrationRunner: $migrations
+        );
+        $controller = new BackupController(
+            $this->createStub(Twig::class),
+            $service,
+            new BackupPackageService($service, $this->backupDir, null, new NullLogger()),
+            new NullLogger()
+        );
+        $metadata = $service->create(BackupService::TYPE_MANUAL, 1);
+
+        $response = $controller->restore(
+            $this->makeRequest('POST', '/backups/' . $metadata['id'] . '/restore'),
+            $this->makeResponse(),
+            ['id' => $metadata['id']]
+        );
+
+        $this->assertRedirect($response, '/backups');
+        $this->assertStringContainsString('Migration', $_SESSION['error']);
     }
 
     public function testDeleteRemovesBackupAndRedirectsWithSuccessFlash(): void

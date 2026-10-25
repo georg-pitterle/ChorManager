@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Services\BackupLimitReachedException;
+use App\Services\BackupMigrationFailedException;
 use App\Services\BackupPackageService;
 use App\Services\BackupService;
 use App\Util\DownloadFileName;
@@ -69,6 +70,17 @@ class BackupController
 
         try {
             $this->backupService->restore($id);
+        } catch (BackupMigrationFailedException $exception) {
+            $this->logger->error('Backup restored, but the migration failed.', [
+                'event' => 'backup.restore.migration_failed',
+                'id' => $id,
+                'user_id' => $userId,
+                'exception' => $exception,
+            ]);
+            $_SESSION['error'] = 'Backup eingespielt, aber die Datenbank-Migration ist fehlgeschlagen. '
+                . 'Alle Anmeldungen wurden beendet; die Details stehen im Log.';
+
+            return $response->withHeader('Location', '/backups')->withStatus(302);
         } catch (\Throwable $exception) {
             $this->logger->error('Backup restore failed.', [
                 'event' => 'backup.restore.failed',

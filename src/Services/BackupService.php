@@ -45,7 +45,13 @@ class BackupService
          *
          * @var list<string>
          */
-        private readonly array $acceptedMailKeyIds = []
+        private readonly array $acceptedMailKeyIds = [],
+        /**
+         * Holt nach dem Einspielen die Migrationen nach, die jünger sind als das
+         * Backup. Ohne Angabe bleibt das Schema des Backups bis zum nächsten
+         * Containerstart bestehen.
+         */
+        private readonly ?MigrationRunnerInterface $migrationRunner = null
     ) {
         if (!is_dir($this->backupDir)) {
             mkdir($this->backupDir, 0750, true);
@@ -304,6 +310,23 @@ class BackupService
         // werden sie hier vollständig entwertet - Sitzungen und "Angemeldet bleiben"
         // gemeinsam, siehe SessionInvalidationService.
         $this->sessionInvalidation->invalidateAllLogins();
+
+        if ($this->migrationRunner !== null) {
+            try {
+                $this->migrationRunner->migrate();
+            } catch (\Throwable $exception) {
+                $this->logger->error('Migration after backup restore failed.', [
+                    'event' => 'backup.restore.migration_failed',
+                    'id' => $id,
+                    'exception' => $exception,
+                ]);
+                throw new BackupMigrationFailedException(
+                    'Migration after restore failed: ' . $exception->getMessage(),
+                    0,
+                    $exception
+                );
+            }
+        }
 
         $this->logger->info('Backup restore completed.', ['event' => 'backup.restore.completed', 'id' => $id]);
     }

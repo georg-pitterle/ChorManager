@@ -116,6 +116,7 @@ use App\Middleware\SecurityHeadersMiddleware;
 use App\Services\DumpRunnerInterface;
 use App\Services\FlashMessageService;
 use App\Services\MysqldumpRunner;
+use App\Services\PhinxMigrationRunner;
 use App\Services\MailBadgeService;
 use App\Services\MailBadgeViewService;
 use App\Services\Notifications\InAppNotificationStore;
@@ -637,7 +638,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(SessionInvalidationService::class),
                 null,
                 $c->get(FileBackupService::class),
-                $acceptedMailKeyIds
+                $acceptedMailKeyIds,
+                new PhinxMigrationRunner()
             );
         },
         BackupPackageService::class => function (ContainerInterface $c) {

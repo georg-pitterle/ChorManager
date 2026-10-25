@@ -15,6 +15,8 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Tests\Unit\Bootstrap;
 use Tests\Unit\Services\Fakes\FakeDumpRunner;
+use Tests\Unit\Services\Fakes\FakeMigrationRunner;
+use App\Services\BackupMigrationFailedException;
 
 final class BackupServiceTest extends TestCase
 {
@@ -421,5 +423,81 @@ final class BackupServiceTest extends TestCase
         );
 
         $this->assertTrue($service->list()[0]['mail_key_mismatch']);
+    }
+
+    private function makeServiceWithMigrations(
+        FakeMigrationRunner $migrations,
+        ?SessionInvalidationService $sessionInvalidation = null
+    ): BackupService {
+        return new BackupService(
+            $this->dumpRunner,
+            new NullLogger(),
+            $this->backupDir,
+            5,
+            5,
+            true,
+            'chormanager_test',
+            'test-version',
+            null,
+            $sessionInvalidation ?? new SessionInvalidationService(),
+            fn(): int => $this->clockSeconds,
+            null,
+            [],
+            $migrations
+        );
+    }
+
+    /**
+     * Anlass: Ein Backup stammt aus der Zeit vor einem Schema-Update. Ohne Migration
+     * liefe die Anwendung bis zum nächsten Containerstart auf dem alten Schema.
+     */
+    public function testRestoreRunsMigrationsAfterTheDatabaseWasRestored(): void
+    {
+        $migrations = new FakeMigrationRunner();
+        $service = $this->makeServiceWithMigrations($migrations);
+        $metadata = $service->create(BackupService::TYPE_MANUAL, 1);
+
+        $service->restore($metadata['id']);
+
+        $this->assertSame(1, $this->dumpRunner->restoreCallCount);
+        $this->assertSame(1, $migrations->callCount);
+    }
+
+    public function testRestoreWithoutMigrationRunnerStillWorks(): void
+    {
+        $service = $this->makeService();
+        $metadata = $service->create(BackupService::TYPE_MANUAL, 1);
+
+        $service->restore($metadata['id']);
+
+        $this->assertSame(1, $this->dumpRunner->restoreCallCount);
+    }
+
+    public function testFailedMigrationIsReportedAsItsOwnExceptionAndStillEndsAllLogins(): void
+    {
+        $migrations = new FakeMigrationRunner();
+        $migrations->failWith = new \RuntimeException('Table already exists');
+        $sessionInvalidation = $this->createMock(SessionInvalidationService::class);
+        $sessionInvalidation->expects($this->once())->method('invalidateAllLogins');
+        $service = $this->makeServiceWithMigrations($migrations, $sessionInvalidation);
+        $metadata = $service->create(BackupService::TYPE_MANUAL, 1);
+
+        $this->expectException(BackupMigrationFailedException::class);
+        $service->restore($metadata['id']);
+    }
+
+    public function testMigrationsDoNotRunWhenTheChecksumIsWrong(): void
+    {
+        $migrations = new FakeMigrationRunner();
+        $service = $this->makeServiceWithMigrations($migrations);
+        $metadata = $service->create(BackupService::TYPE_MANUAL, 1);
+        file_put_contents($this->backupDir . '/' . $metadata['id'] . '.sql.gz', 'manipuliert');
+
+        try {
+            $service->restore($metadata['id']);
+            $this->fail('Eine falsche Prüfsumme muss den Restore abbrechen.');
+        } catch (\RuntimeException) {
+            $this->assertSame(0, $migrations->callCount);
+        }
     }
 }
