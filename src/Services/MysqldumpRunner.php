@@ -129,12 +129,24 @@ final class MysqldumpRunner implements DumpRunnerInterface
             throw new \RuntimeException('Failed to start mysql restore process.');
         }
 
-        $in = $gzip ? gzopen($sourcePath, 'rb') : fopen($sourcePath, 'rb');
+        $in = $gzip ? @gzopen($sourcePath, 'rb') : @fopen($sourcePath, 'rb');
         if ($in === false) {
             fclose($pipes[0]);
             proc_close($process);
             unlink($stderrTmpPath);
             throw new \RuntimeException('Failed to open backup source file: ' . $sourcePath);
+        }
+
+        // Erst jetzt, mit geöffneter Quelle: Eine fehlende Datei darf die Datenbank nicht
+        // vorher leeren.
+        try {
+            $this->dropAllTables();
+        } catch (\Throwable $exception) {
+            $gzip ? gzclose($in) : fclose($in);
+            fclose($pipes[0]);
+            proc_close($process);
+            unlink($stderrTmpPath);
+            throw $exception;
         }
 
         // Wie beim Dump: Bleibt ein Teil der Anweisungen im Rohr stecken, spielt der
@@ -167,6 +179,35 @@ final class MysqldumpRunner implements DumpRunnerInterface
 
         if ($exitCode !== 0) {
             throw new \RuntimeException('mysql restore failed with exit code ' . $exitCode . ': ' . $errorOutput);
+        }
+    }
+
+    /**
+     * Leert die Datenbank vor dem Einspielen von Tabellen und Sichten.
+     *
+     * Der Dump ersetzt nur, was in ihm steht. Tabellen, die erst nach dem Backup
+     * entstanden sind (neue Migrationen), blieben sonst liegen, und Phinx scheiterte
+     * beim nächsten Start an "Table already exists", weil sein Protokoll im Backup
+     * älter ist als das Schema.
+     */
+    private function dropAllTables(): void
+    {
+        $pdo = new \PDO(
+            sprintf('mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4', $this->host, $this->port, $this->database),
+            $this->username,
+            $this->password,
+            [\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION]
+        );
+
+        $pdo->exec('SET FOREIGN_KEY_CHECKS=0');
+        try {
+            $objects = $pdo->query('SHOW FULL TABLES')->fetchAll(\PDO::FETCH_NUM);
+            foreach ($objects as [$name, $type]) {
+                $keyword = $type === 'VIEW' ? 'VIEW' : 'TABLE';
+                $pdo->exec(sprintf('DROP %s IF EXISTS `%s`', $keyword, str_replace('`', '``', (string) $name)));
+            }
+        } finally {
+            $pdo->exec('SET FOREIGN_KEY_CHECKS=1');
         }
     }
 

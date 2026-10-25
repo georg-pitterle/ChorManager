@@ -176,4 +176,63 @@ final class MysqldumpRunnerFeatureTest extends TestCase
 
         $this->assertSame('probe-before-restore', $marker);
     }
+
+    /**
+     * Anlass: Ein Restore nach einem Schema-Update ließ Tabellen liegen, die im Backup
+     * nicht stehen. Phinx hielt deren Migrationen für offen und scheiterte beim
+     * nächsten Start an "Table already exists" - die Anwendung kam nicht mehr hoch.
+     */
+    public function testRestoreRemovesTablesAndViewsThatAreNotPartOfTheBackup(): void
+    {
+        $runner = $this->makeRunner();
+        $runner->dump($this->tmpFile, true);
+
+        $this->connection->exec('CREATE TABLE backup_runner_leftover (id INT PRIMARY KEY)');
+        $this->connection->exec('CREATE VIEW backup_runner_leftover_view AS SELECT id FROM backup_runner_leftover');
+
+        try {
+            $runner->restore($this->tmpFile, true);
+
+            $names = $this->connection->query('SHOW FULL TABLES')->fetchAll(PDO::FETCH_COLUMN);
+            $this->assertSame(['backup_runner_probe'], $names);
+        } finally {
+            $this->connection->exec('DROP VIEW IF EXISTS backup_runner_leftover_view');
+            $this->connection->exec('DROP TABLE IF EXISTS backup_runner_leftover');
+        }
+    }
+
+    public function testRestoreWithForeignKeysDoesNotTripOverTheDropOrder(): void
+    {
+        $runner = $this->makeRunner();
+        $runner->dump($this->tmpFile, true);
+
+        $this->connection->exec('CREATE TABLE backup_runner_parent (id INT PRIMARY KEY)');
+        $this->connection->exec(
+            'CREATE TABLE backup_runner_child (id INT PRIMARY KEY, parent_id INT, '
+            . 'FOREIGN KEY (parent_id) REFERENCES backup_runner_parent (id))'
+        );
+
+        try {
+            $runner->restore($this->tmpFile, true);
+
+            $names = $this->connection->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN);
+            $this->assertSame(['backup_runner_probe'], $names);
+        } finally {
+            $this->connection->exec('DROP TABLE IF EXISTS backup_runner_child');
+            $this->connection->exec('DROP TABLE IF EXISTS backup_runner_parent');
+        }
+    }
+
+    public function testMissingBackupFileLeavesTheDatabaseUntouched(): void
+    {
+        $runner = $this->makeRunner();
+
+        try {
+            $runner->restore($this->tmpFile . '.missing', true);
+            $this->fail('Eine fehlende Datei muss den Restore abbrechen.');
+        } catch (\Throwable) {
+            $marker = $this->connection->query('SELECT marker FROM backup_runner_probe WHERE id = 1')->fetchColumn();
+            $this->assertSame('probe-before-restore', $marker);
+        }
+    }
 }
