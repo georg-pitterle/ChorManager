@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Util\RefererTarget;
 use App\Util\RequestFormat;
 use App\Util\SessionConfig;
 use App\Util\UploadFileCountGuard;
@@ -60,20 +61,18 @@ class UploadFileCountMiddleware implements MiddlewareInterface
     }
 
     /**
-     * Zurück auf die Seite, von der das Formular kam - aber nur innerhalb der
-     * eigenen Anwendung: aus dem Referer zählen allein Pfad und Abfrage. Ein Pfad
-     * mit `//` am Anfang wäre im Location-Kopf wieder eine fremde Adresse.
+     * Zurück auf die Seite, von der das Formular kam - oder auf die Startseite.
+     *
+     * Geprüft wird in `RefererTarget`, gemeinsam mit der CsrfMiddleware. Hier stand
+     * eine eigene, schwächere Abschrift: Sie ließ allein `/` am Anfang und `//`
+     * entscheiden und übersah damit `/\fremder.host`. Browser lesen den
+     * Rückwärtsschrägstrich einer Adresse wie einen Schrägstrich, im `Location`-Kopf
+     * wurde daraus also `//fremder.host` - ein offener Weiterleiter. Und erreichbar
+     * war er: Diese Middleware hängt bewusst außerhalb der CSRF-Prüfung, ein Formular
+     * fremder Herkunft kommt hier an.
      */
     private function backTarget(Request $request): string
     {
-        $parts = parse_url(trim($request->getHeaderLine('Referer')));
-        $path = is_array($parts) ? (string) ($parts['path'] ?? '') : '';
-        if (!str_starts_with($path, '/') || str_starts_with($path, '//')) {
-            return '/';
-        }
-
-        $query = isset($parts['query']) ? '?' . $parts['query'] : '';
-
-        return $path . $query;
+        return RefererTarget::resolve($request) ?? '/';
     }
 }

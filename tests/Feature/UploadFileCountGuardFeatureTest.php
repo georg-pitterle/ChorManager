@@ -88,7 +88,7 @@ class UploadFileCountGuardFeatureTest extends TestCase
         $logs = new TestHandler();
         $middleware = new UploadFileCountMiddleware(new Logger('test', [$logs]), true);
 
-        $request = $this->makeRequest('POST', '/song-library/7/attachments', [], [], [
+        $request = $this->makeRequest('POST', 'https://chor.example/song-library/7/attachments', [], [], [
             'Referer' => 'https://chor.example/song-library/7?tab=files',
         ]);
         $result = $middleware->process($request, $handler);
@@ -110,9 +110,21 @@ class UploadFileCountGuardFeatureTest extends TestCase
     {
         $middleware = new UploadFileCountMiddleware(new Logger('test'), true);
 
-        foreach (['', 'https://evil.example//evil.example/x', 'javascript:alert(1)'] as $referer) {
+        $referers = [
+            '',
+            'https://chor.example//evil.example/x',
+            // Browser lesen den Rückwärtsschrägstrich wie einen Schrägstrich: Aus
+            // `/\evil.example` wird im Location-Kopf `//evil.example`, also eine
+            // fremde Adresse. Diese Middleware läuft außerhalb der CSRF-Prüfung,
+            // ein fremdes Formular erreicht sie also.
+            'https://chor.example/\\evil.example/x',
+            'https://evil.example/tasks/3',
+            'javascript:alert(1)',
+        ];
+
+        foreach ($referers as $referer) {
             $headers = $referer === '' ? [] : ['Referer' => $referer];
-            $request = $this->makeRequest('POST', '/tasks/3/attachments', [], [], $headers);
+            $request = $this->makeRequest('POST', 'https://chor.example/tasks/3/attachments', [], [], $headers);
             $result = $middleware->process($request, $this->recordingHandler());
 
             $this->assertSame('/', $result->getHeaderLine('Location'), 'Referer: ' . $referer);

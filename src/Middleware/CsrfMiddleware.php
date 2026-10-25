@@ -7,8 +7,8 @@ namespace App\Middleware;
 use App\Services\Oidc\OidcEndpoints;
 use App\Services\RememberLoginRestoreService;
 use App\Util\Csrf;
+use App\Util\RefererTarget;
 use App\Util\RequestFormat;
-use App\Util\SafeRedirect;
 use App\Util\SessionConfig;
 use App\Util\SessionExpiredSignal;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -220,12 +220,12 @@ class CsrfMiddleware implements MiddlewareInterface
 
     /**
      * Wohin nach dem Ablauf der Sitzung - mit der Seite als Ziel, auf der das
-     * Formular stand. Ohne sicheres Ziel (siehe refererTarget()) bleibt es bei der
+     * Formular stand. Ohne sicheres Ziel (siehe `RefererTarget`) bleibt es bei der
      * nackten Anmeldeseite.
      */
     private function loginLocation(Request $request): string
     {
-        $target = $this->refererTarget($request);
+        $target = RefererTarget::resolve($request);
         if ($target === null || $target === '/login') {
             return '/login';
         }
@@ -263,52 +263,8 @@ class CsrfMiddleware implements MiddlewareInterface
         $_SESSION['warning'] = 'Deine Sitzung wurde erneuert. Bitte sende das Formular noch einmal ab.';
 
         return (new SlimResponse())
-            ->withHeader('Location', $this->refererTarget($request) ?? '/dashboard')
+            ->withHeader('Location', RefererTarget::resolve($request) ?? '/dashboard')
             ->withStatus(302);
-    }
-
-    /**
-     * Die Seite, von der abgeschickt wurde, als sicheres Ziel innerhalb der
-     * Anwendung - oder null.
-     *
-     * Der Pfad der abgewiesenen Anfrage taugt dafür nicht: Zu einem POST-Ziel wie
-     * `/profile/password` gehört gar keine Seite. Der Rückverweis des Browsers
-     * nennt dagegen genau die Seite, von der abgeschickt wurde - bei gleicher
-     * Herkunft schickt ihn der Browser vollständig mit, dafür sorgt die
-     * `Referrer-Policy` aus der SecurityHeadersMiddleware.
-     *
-     * Geprüft wird er doppelt: Die Herkunft muss die eigene sein, und der übrige
-     * Pfad muss `SafeRedirect` bestehen. Sonst wäre die Weiterleitung über einen
-     * gefälschten Rückverweis ein offener Weiterleiter.
-     *
-     * Lässt sich die Herkunft nicht vergleichen - kein Host in der Anfrage, oder
-     * ein Proxy, der den Host-Kopf umschreibt -, gibt es kein Ziel. Das ist eine
-     * Unbequemlichkeit, kein Schaden.
-     */
-    private function refererTarget(Request $request): ?string
-    {
-        $referer = trim($request->getHeaderLine('Referer'));
-        if ($referer === '') {
-            return null;
-        }
-
-        $parts = parse_url($referer);
-        if (!is_array($parts)) {
-            return null;
-        }
-
-        $uri = $request->getUri();
-        $refererHost = strtolower((string) ($parts['host'] ?? ''));
-        if ($refererHost !== '' && $refererHost !== strtolower($uri->getHost())) {
-            return null;
-        }
-
-        $target = (string) ($parts['path'] ?? '');
-        if (isset($parts['query']) && $parts['query'] !== '') {
-            $target .= '?' . $parts['query'];
-        }
-
-        return SafeRedirect::sanitize($target);
     }
 
     /**
