@@ -31,13 +31,18 @@ done
 # page while Docker restarts the container over and over. Without this event
 # that state is silent. The status is captured outside "if !", which would
 # swallow it through the negation.
+MIGRATE_OUTPUT="$(mktemp)"
 set +e
-php vendor/bin/phinx migrate
+php vendor/bin/phinx migrate > "${MIGRATE_OUTPUT}" 2>&1
 MIGRATE_STATUS=$?
 set -e
+cat "${MIGRATE_OUTPUT}"
 
 if [ "${MIGRATE_STATUS}" -ne 0 ]; then
-  log_boot_event app.boot.migration_failed "${MIGRATE_STATUS}"
+  # The cause is the first exception line of the Phinx output; the event carries it
+  # so the log line alone says what failed.
+  MIGRATE_DETAIL="$(grep -m1 -E '(Exception|Error):' "${MIGRATE_OUTPUT}" || true)"
+  log_boot_event app.boot.migration_failed "${MIGRATE_STATUS}" "${MIGRATE_DETAIL}"
   exit "${MIGRATE_STATUS}"
 fi
 

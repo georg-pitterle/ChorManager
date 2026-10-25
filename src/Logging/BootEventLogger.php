@@ -51,6 +51,8 @@ final class BootEventLogger
         ],
     ];
 
+    private const DETAIL_MAX_LENGTH = 500;
+
     public function __construct(private readonly LoggerInterface $logger)
     {
     }
@@ -77,7 +79,11 @@ final class BootEventLogger
         return array_keys(self::EVENTS);
     }
 
-    public function log(string $event, ?int $exitCode = null): void
+    /**
+     * @param string|null $detail Ursache in einer Zeile (z. B. die Phinx-Fehlermeldung); ohne sie nennt
+     *                            "app.boot.migration_failed" nur den Exit-Code, nicht den Grund.
+     */
+    public function log(string $event, ?int $exitCode = null, ?string $detail = null): void
     {
         if (!array_key_exists($event, self::EVENTS)) {
             throw new InvalidArgumentException(sprintf('Unbekanntes Boot-Ereignis: %s', $event));
@@ -88,6 +94,11 @@ final class BootEventLogger
         $context = ['event' => $event];
         if ($exitCode !== null) {
             $context['exit_code'] = $exitCode;
+        }
+
+        $detail = $detail === null ? '' : trim($detail);
+        if ($detail !== '') {
+            $context['detail'] = mb_substr($detail, 0, self::DETAIL_MAX_LENGTH);
         }
 
         $this->logger->log($level, $message, $context);

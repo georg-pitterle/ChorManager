@@ -361,7 +361,7 @@ The entrypoint writes its lifecycle into the same JSON log stream as the applica
 |----------------------------|----------|----------------------------------------------------------|
 | `app.boot.started`         | INFO     | Container start begun, waiting for the database.          |
 | `app.boot.db_wait_timeout` | CRITICAL | Database not reachable in time, start aborted.            |
-| `app.boot.migration_failed`| CRITICAL | Phinx migration failed, start aborted. Carries `exit_code`.|
+| `app.boot.migration_failed`| CRITICAL | Phinx migration failed, start aborted. Carries `exit_code` and `detail`.|
 | `app.boot.completed`       | INFO     | php-fpm accepts requests.                                 |
 
 These events ignore `APP_LOG_LEVEL` on purpose: they carry the alerting, and a restrictive log level would otherwise switch off start monitoring unnoticed.

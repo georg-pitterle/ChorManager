@@ -3,7 +3,7 @@
 /**
  * Schreibt ein Boot-Ereignis des Container-Entrypoints in den Log-Stream.
  *
- * Aufruf: php bin/log_boot_event.php <event> [exit-code]
+ * Aufruf: php bin/log_boot_event.php <event> [exit-code] [detail]
  *
  * Bewusst ein eigenes Skript statt eines echo im Entrypoint: die Zeile muss
  * exakt dieselbe JSON-Form haben wie alle uebrigen Logzeilen der Anwendung,
@@ -18,17 +18,18 @@ require_once __DIR__ . '/bootstrap_cli.php';
 
 $event = $argv[1] ?? '';
 $exitCode = isset($argv[2]) && $argv[2] !== '' ? (int) $argv[2] : null;
+$detail = $argv[3] ?? null;
 
 if ($event === '') {
     fwrite(STDERR, sprintf(
-        "Aufruf: php bin/log_boot_event.php <event> [exit-code]\nBekannte Ereignisse: %s\n",
+        "Aufruf: php bin/log_boot_event.php <event> [exit-code] [detail]\nBekannte Ereignisse: %s\n",
         implode(', ', BootEventLogger::events())
     ));
     exit(2);
 }
 
 try {
-    BootEventLogger::create()->log($event, $exitCode);
+    BootEventLogger::create()->log($event, $exitCode, $detail);
 } catch (InvalidArgumentException $exception) {
     fwrite(STDERR, sprintf(
         "%s\nBekannte Ereignisse: %s\n",

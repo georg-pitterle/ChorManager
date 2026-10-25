@@ -54,6 +54,36 @@ class BootEventLoggerFeatureTest extends TestCase
         $this->assertSame(3, $payload['context']['exit_code'] ?? null);
     }
 
+    public function testMigrationFailureCarriesTheCauseAsDetail(): void
+    {
+        $detail = "PDOException: SQLSTATE[42S01]: Base table or view already exists: 1050 Table 'x' already exists";
+
+        BootEventLogger::create()->log('app.boot.migration_failed', 1, $detail);
+
+        $payload = $this->readSingleLine();
+
+        $this->assertSame($detail, $payload['context']['detail'] ?? null);
+        $this->assertSame(1, $payload['context']['exit_code'] ?? null);
+    }
+
+    public function testDetailIsTruncatedToOneReadableLine(): void
+    {
+        BootEventLogger::create()->log('app.boot.migration_failed', 1, str_repeat('ä', 900));
+
+        $payload = $this->readSingleLine();
+
+        $this->assertSame(500, mb_strlen((string) ($payload['context']['detail'] ?? '')));
+    }
+
+    public function testEmptyDetailIsLeftOut(): void
+    {
+        BootEventLogger::create()->log('app.boot.migration_failed', 1, '  ');
+
+        $payload = $this->readSingleLine();
+
+        $this->assertArrayNotHasKey('detail', $payload['context']);
+    }
+
     public function testDatabaseWaitTimeoutIsLoggedAsCritical(): void
     {
         BootEventLogger::create()->log('app.boot.db_wait_timeout');
