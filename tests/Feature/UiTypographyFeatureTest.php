@@ -149,7 +149,9 @@ class UiTypographyFeatureTest extends TestCase
 
     /**
      * Über dem Seitentitel steht keine Kleinüberschrift mehr (früher der Menüabschnitt in
-     * Großbuchstaben). Wo eine Seite einen Weg zurück braucht, ist das eine Brotkrumenleiste.
+     * Großbuchstaben). Wo eine Seite einen Weg zurück braucht, ist das ein
+     * Zurück-Knopf im Seitenkopf, bei tiefen Hierarchien eine Brotkrumenleiste (siehe
+     * DESIGN.md, Navigation).
      */
     public function testPageTitlesHaveNoEyebrow(): void
     {

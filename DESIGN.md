@@ -230,7 +230,7 @@ Eine Rundung für alles Eckige: 0,375rem (`--app-radius`) – Karten, Knöpfe, F
 - Immer scrollbar, nie zentriert, Dialogfuß mit Abbrechen und Hauptaktion. Lösch-Dialoge nur, wenn sie Folgen erklären; sonst Bestätigung per `data-confirm`. Kopf ohne rote Füllung.
 
 ### Navigation
-- Dunkle Topbar mit Markenname in Vereinsfarbe und 3px-Unterkante; Seitenleiste mit gedämpften Gruppenlabels, aktiver Eintrag in Vereinsfarbe auf leicht getönter Fläche. Detailseiten tragen eine Brotkrumenleiste, keine Kleinüberschrift.
+- Dunkle Topbar mit Markenname in Vereinsfarbe und 3px-Unterkante; Seitenleiste mit gedämpften Gruppenlabels, aktiver Eintrag in Vereinsfarbe auf leicht getönter Fläche. Detailseiten führen über einen grauen Zurück-Knopf im Seitenkopf zur Übersicht (`btn-outline-secondary` mit `bi-arrow-left`, z. B. „Zur Liste“, „Alle Listen“), keine Kleinüberschrift. Eine Brotkrumenleiste nur bei tiefen Hierarchien mit mehr als einer Ebene über der Seite (etwa Ordner in der Dateiverwaltung).
 
 ## Do's and Don'ts
 
