@@ -81,7 +81,7 @@ class NewsletterMailRenderer
 
         return $this->view->fetch('emails/newsletter.twig', array_merge($branding, [
             'subject' => $subject,
-            'content_html' => $this->inlineContentClasses($contentHtml, (string) $branding['primary_strong']),
+            'content_html' => $this->prepareContent($contentHtml, (string) $branding['primary_strong'], $baseUrl),
             'eyebrow_label' => $eyebrowLabel,
             'browse_url' => $browseUrl,
             'include_browse_link' => $includeBrowseLink,
@@ -90,7 +90,8 @@ class NewsletterMailRenderer
     }
 
     /**
-     * Übersetzt die erlaubten Gestaltungsklassen in Inline-Styles.
+     * Bereitet den Inhalt für den Mailrahmen auf: übersetzt die Gestaltungsklassen in
+     * Inline-Styles und macht relative Verweise absolut.
      *
      * E-Mail-Programme werten Klassen aus einem style-Block nur unzuverlässig aus, Outlook
      * verwirft ihn teilweise ganz. Im Mailinhalt muss die Gestaltung deshalb am Element selbst
@@ -99,8 +100,13 @@ class NewsletterMailRenderer
      *
      * Das class-Attribut bleibt erhalten, damit die Vorschau im Browser dieselben Angriffspunkte
      * behält und ein bereits gesetztes style-Attribut nicht überschrieben wird.
+     *
+     * Relative Verweise (`../../events/5`, `/events/5`) hat der Editor früher gegen die Seite
+     * aufgelöst, auf der er lief. Weder die Mail noch der Vorschau-Rahmen hat eine solche Seite,
+     * der Link wäre dort tot. Sie werden deshalb gegen die Basisadresse aufgelöst; überzählige
+     * `..` enden am Wurzelpfad, wie es auch der Browser hält.
      */
-    private function inlineContentClasses(string $contentHtml, string $brandColor): string
+    private function prepareContent(string $contentHtml, string $brandColor, string $baseUrl): string
     {
         if (trim($contentHtml) === '') {
             return $contentHtml;
@@ -128,7 +134,17 @@ class NewsletterMailRenderer
 
         $elements = $document->getElementsByTagName('*');
         foreach ($elements as $element) {
-            if (!$element instanceof DOMElement || !$element->hasAttribute('class')) {
+            if (!$element instanceof DOMElement) {
+                continue;
+            }
+
+            foreach (['href', 'src'] as $attribute) {
+                if ($element->hasAttribute($attribute)) {
+                    $element->setAttribute($attribute, self::absoluteUrl($element->getAttribute($attribute), $baseUrl));
+                }
+            }
+
+            if (!$element->hasAttribute('class')) {
                 continue;
             }
 
@@ -157,6 +173,43 @@ class NewsletterMailRenderer
         }
 
         return $rendered;
+    }
+
+    /**
+     * Löst einen relativen Verweis gegen die Basisadresse auf. Alles mit Schema (`https:`,
+     * `mailto:`, `cid:`, `data:` ...), protokollrelative Adressen und reine Anker bleiben
+     * unverändert.
+     */
+    private static function absoluteUrl(string $url, string $baseUrl): string
+    {
+        $trimmed = trim($url);
+        $isUntouched = $trimmed === ''
+            || str_starts_with($trimmed, '#')
+            || str_starts_with($trimmed, '//')
+            || preg_match('/^[a-z][a-z0-9+.-]*:/i', $trimmed) === 1;
+        if ($isUntouched) {
+            return $url;
+        }
+
+        $suffixPosition = strcspn($trimmed, '?#');
+        $path = substr($trimmed, 0, $suffixPosition);
+        $suffix = substr($trimmed, $suffixPosition);
+
+        $segments = [];
+        foreach (explode('/', $path) as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+            if ($segment === '..') {
+                array_pop($segments);
+                continue;
+            }
+            $segments[] = $segment;
+        }
+
+        $trailingSlash = str_ends_with($path, '/') && $segments !== [] ? '/' : '';
+
+        return rtrim($baseUrl, '/') . '/' . implode('/', $segments) . $trailingSlash . $suffix;
     }
 
     /**

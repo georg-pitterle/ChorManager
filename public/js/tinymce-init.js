@@ -128,6 +128,15 @@ function initTinymceEditors(root) {
             style_formats_merge: true,
             style_formats: placeholderSource ? contentStyleFormats : undefined,
             promotion: false,
+            // TinyMCE kürzt Links auf die eigene Anwendung standardmäßig zu Pfaden relativ zur
+            // Editorseite (../../events/5). Auf jeder anderen Seite zeigen sie dann ins Leere.
+            // Gespeichert wird deshalb wurzelrelativ (/events/5): unabhängig von der Editorseite
+            // und ohne Host, damit die Links einen Umzug der Anwendung überstehen. Früher
+            // gespeicherte Pfade löst die Wurzel als Bezugspunkt beim nächsten Bearbeiten richtig
+            // auf. Den Host für Mail und Vorschau setzt NewsletterMailRenderer beim Rendern ein.
+            document_base_url: window.location.origin + '/',
+            relative_urls: false,
+            remove_script_host: true,
             setup: function (editor) {
                 editor.on('change', function () {
                     tinymce.triggerSave();
