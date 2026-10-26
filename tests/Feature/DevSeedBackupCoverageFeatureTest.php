@@ -13,7 +13,8 @@ final class DevSeedBackupCoverageFeatureTest extends TestCase
         $content = file_get_contents(dirname(__DIR__, 2) . '/src/Services/DevSeedService.php');
 
         $this->assertIsString($content);
-        $this->assertStringContainsString("'can_manage_backups' => 1,", $content);
+        // Das Backup-Recht hält der Seed-Admin wie jedes Recht - siehe DevSeedAdminRoleFeatureTest.
+        $this->assertStringContainsString('array_fill_keys(Role::PERMISSIONS, 1)', $content);
         $this->assertStringContainsString("'backups' => 0,", $content);
         $this->assertStringContainsString('function seedBackups', $content);
         $this->assertStringContainsString('BackupService', $content);

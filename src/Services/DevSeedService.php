@@ -398,35 +398,39 @@ class DevSeedService
 
     private function seedRoles(): array
     {
-        $definitions = [
+        $definitions = $this->roleDefinitions();
+
+        // Nur drei der sieben Rollen bekommen eine Gruppe in der angeschlossenen
+        // Anwendung. Die übrigen bleiben bewusst ohne: Nur so ist im Dev-Stand
+        // beides zu sehen - zugeordnet und nicht zugeordnet - und es fällt auf,
+        // wenn ein Rollenname doch einmal ersatzweise hinausginge.
+        $roles = [];
+        foreach ($definitions as $roleData) {
+            $role = Role::updateOrCreate(['name' => $roleData['name']], $roleData);
+            $roles[$role->name] = $role;
+            if ($role->wasRecentlyCreated) {
+                $this->report['counts']['roles']++;
+            }
+        }
+
+        return $roles;
+    }
+
+    /**
+     * Die Seed-Rollen. Der Admin hält jedes Recht aus Role::PERMISSIONS, auch
+     * jedes künftige: Seine Rechte standen vorher einzeln hier, und zwei neuere
+     * fehlten darin - als Admin waren deren Seiten im Dev-Stand nicht zu sehen.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function roleDefinitions(): array
+    {
+        return [
             [
                 'name' => 'Admin',
                 'hierarchy_level' => 100,
                 'external_group' => 'admin',
-                'can_manage_users' => 1,
-                'can_manage_roles' => 1,
-                'can_edit_users' => 1,
-                'can_manage_attendance_all' => 1,
-                'can_manage_events' => 1,
-                'can_manage_project_members' => 1,
-                'can_read_finances' => 1,
-                'can_manage_finances' => 1,
-                'can_manage_budget' => 1,
-                'can_manage_master_data' => 1,
-                'can_manage_sponsoring' => 1,
-                'can_create_own_sponsorships' => 1,
-                'can_manage_song_library' => 1,
-                'can_manage_newsletters' => 1,
-                'can_manage_mail_queue' => 1,
-                'can_manage_tasks' => 1,
-                'can_manage_sheet_archive' => 1,
-                'can_manage_backups' => 1,
-                'can_manage_files' => 1,
-                'can_manage_storage' => 1,
-                'can_manage_own_voice_group' => 1,
-                'can_assign_own_voice_group_to_project' => 0,
-                'can_keep_voice_group_lists' => 0,
-            ],
+            ] + array_fill_keys(Role::PERMISSIONS, 1),
             [
                 'name' => 'Vorstand',
                 'hierarchy_level' => 80,
@@ -568,21 +572,6 @@ class DevSeedService
                 'can_keep_voice_group_lists' => 0,
             ],
         ];
-
-        // Nur drei der sieben Rollen bekommen eine Gruppe in der angeschlossenen
-        // Anwendung. Die übrigen bleiben bewusst ohne: Nur so ist im Dev-Stand
-        // beides zu sehen - zugeordnet und nicht zugeordnet - und es fällt auf,
-        // wenn ein Rollenname doch einmal ersatzweise hinausginge.
-        $roles = [];
-        foreach ($definitions as $roleData) {
-            $role = Role::updateOrCreate(['name' => $roleData['name']], $roleData);
-            $roles[$role->name] = $role;
-            if ($role->wasRecentlyCreated) {
-                $this->report['counts']['roles']++;
-            }
-        }
-
-        return $roles;
     }
 
     private function seedVoiceGroups(): array

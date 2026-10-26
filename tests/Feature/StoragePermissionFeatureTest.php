@@ -88,7 +88,8 @@ final class StoragePermissionFeatureTest extends TestCase
         $seed = (string) file_get_contents(dirname(__DIR__, 2) . '/src/Services/DevSeedService.php');
 
         $this->assertStringContainsString("'can_manage_storage' => 1", $setup);
-        $this->assertStringContainsString("'can_manage_storage' => 1", $seed);
+        // Der Seed-Admin hält jedes Recht - siehe DevSeedAdminRoleFeatureTest.
+        $this->assertStringContainsString('array_fill_keys(Role::PERMISSIONS, 1)', $seed);
     }
 
     public function testGateLetsTheRightThroughAndStopsOthers(): void

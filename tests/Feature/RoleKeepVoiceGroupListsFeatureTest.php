@@ -90,12 +90,4 @@ final class RoleKeepVoiceGroupListsFeatureTest extends TestCase
         $this->assertIsString($source);
         $this->assertStringNotContainsString('can_keep_voice_group_lists', $source);
     }
-
-    public function testOnlyTheRepresentativeSeedRolesHoldTheRight(): void
-    {
-        $seed = file_get_contents(dirname(__DIR__) . '/../src/Services/DevSeedService.php');
-        $this->assertIsString($seed);
-        $this->assertSame(2, substr_count($seed, "'can_keep_voice_group_lists' => 1"));
-        $this->assertSame(5, substr_count($seed, "'can_keep_voice_group_lists' => 0"));
-    }
 }

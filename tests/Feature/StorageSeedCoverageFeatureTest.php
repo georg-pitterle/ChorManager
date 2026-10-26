@@ -17,7 +17,8 @@ final class StorageSeedCoverageFeatureTest extends TestCase
     {
         $seed = (string) file_get_contents(dirname(__DIR__, 2) . '/src/Services/DevSeedService.php');
 
-        $this->assertStringContainsString("'can_manage_storage' => 1", $seed);
+        // Das Speicherplatz-Recht hält der Seed-Admin wie jedes Recht - siehe DevSeedAdminRoleFeatureTest.
+        $this->assertStringContainsString('array_fill_keys(Role::PERMISSIONS, 1)', $seed);
         $this->assertGreaterThanOrEqual(
             2,
             substr_count($seed, "'Ave verum corpus - Partitur.pdf'"),
