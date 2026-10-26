@@ -11,8 +11,18 @@
         </properties>
     </rule>
 
+    <!--
+        Phinx findet eine Migration über den Dateinamen und erwartet die Klasse
+        im globalen Namensraum. Die Regel ist dort also nicht erfüllbar - alles
+        andere aus PSR-12 gilt für Migrationen wie für den übrigen Code.
+    -->
+    <rule ref="PSR1.Classes.ClassDeclaration.MissingNamespace">
+        <exclude-pattern>db/migrations/*</exclude-pattern>
+    </rule>
+
     <!-- Directories to check -->
     <file>src/</file>
+    <file>db/</file>
     <file>public/index.php</file>
 
     <!-- Exclude vendor directory -->

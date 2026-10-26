@@ -1,8 +1,9 @@
 <?php
 return [
+    // Kein 'seeds'-Pfad: Geseedet wird über bin/dev_seed.php, nicht über
+    // phinx seed:run. Der Eintrag zeigte auf ein db/seeds, das es nie gab.
     'paths' => [
-        'migrations' => 'db/migrations',
-        'seeds' => 'db/seeds'
+        'migrations' => 'db/migrations'
     ],
     'environments' => [
         'default_migration_table' => 'phinxlog',

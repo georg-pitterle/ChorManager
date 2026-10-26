@@ -32,11 +32,19 @@ final class MoveSponsorLogosToOwnAttachments extends AbstractMigration
 
     public function up(): void
     {
+        // `a.entity_id = s.id` steht mit in der Bedingung, obwohl die Spalte
+        // schon über `a.id` verbunden ist: Zeigte eine Verknüpfung auf den
+        // Anhang eines *anderen* Sponsors, würde dessen Datei sonst zum Logo
+        // des verweisenden Sponsors umgeschrieben. Die Prüfung darunter findet
+        // so eine Verknüpfung und bricht ab - dann aber erst, nachdem der
+        // fremde Anhang schon angefasst wäre. Dass die Transaktion von Phinx
+        // das zurücknimmt, ist richtig und soll die Absicht nicht ersetzen.
         $this->execute(
             "UPDATE attachments a
              JOIN sponsors s ON s.logo_attachment_id = a.id
              SET a.entity_type = 'sponsor_logo'
-             WHERE a.entity_type = 'sponsor'"
+             WHERE a.entity_type = 'sponsor'
+               AND a.entity_id = s.id"
         );
 
         // Prüfung vor dem Entfernen der Spalte: Jede Verknüpfung muss jetzt
