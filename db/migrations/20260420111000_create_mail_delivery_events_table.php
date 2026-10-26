@@ -4,9 +4,20 @@ declare(strict_types=1);
 
 use Phinx\Migration\AbstractMigration;
 
+/**
+ * Zustellereignisse zu einer Mail: Rückläufer (DSN) und Webhook-Meldungen.
+ *
+ * `up()` und `down()` statt `change()`: Phinx spielt ein `change()` beim
+ * Rückbau verkehrt herum nach und erzeugt aus dem `create()` selbst ein
+ * `drop()`. Davor lässt sich keine Zählabfrage setzen - und was hier steht,
+ * liefert der Anbieter nicht erneut: Welche Adresse unzustellbar ist, wäre
+ * nach dem Rückbau nur noch durch einen neuen Versand herauszufinden.
+ * `/phinx-migration` verlangt die Prüfung ausdrücklich auch im eigenen
+ * `down()`.
+ */
 final class CreateMailDeliveryEventsTable extends AbstractMigration
 {
-    public function change(): void
+    public function up(): void
     {
         $this->table('mail_delivery_events')
             ->addColumn('mail_queue_id', 'biginteger', ['signed' => false])
@@ -29,5 +40,25 @@ final class CreateMailDeliveryEventsTable extends AbstractMigration
                 ['delete' => 'CASCADE', 'update' => 'CASCADE']
             )
             ->create();
+    }
+
+    public function down(): void
+    {
+        // Prüfung vor dem Löschen: Die Tabelle ist mit dieser Migration
+        // entstanden, ihr Inhalt aber im Betrieb und nirgends sonst. Eine
+        // frische Installation ist leer und wird nicht aufgehalten.
+        $rowsLeft = (int) ($this->fetchRow(
+            'SELECT COUNT(*) AS rows_left FROM mail_delivery_events'
+        )['rows_left'] ?? 0);
+
+        if ($rowsLeft > 0) {
+            throw new RuntimeException(sprintf(
+                'Rückbau abgebrochen: mail_delivery_events enthält %d Zustellereignis(se), die mit der '
+                    . 'Tabelle unwiederbringlich weg wären. Diese zuerst bewusst selbst entfernen.',
+                $rowsLeft
+            ));
+        }
+
+        $this->table('mail_delivery_events')->drop()->update();
     }
 }

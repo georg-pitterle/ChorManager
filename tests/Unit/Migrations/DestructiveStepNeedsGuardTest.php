@@ -196,6 +196,47 @@ final class DestructiveStepNeedsGuardTest extends TestCase
     }
 
     /**
+     * Eine reversible Migration (`change()`) darf keine Tabelle anlegen.
+     *
+     * Phinx spielt `change()` beim Rückbau verkehrt herum nach: Aus `create()`
+     * wird ein `drop()`, das Phinx selbst erzeugt. In der Migration steht es
+     * nirgends, also lässt sich davor auch keine Zählabfrage setzen - und der
+     * Test oben sieht es nicht, weil er nach dem Wortlaut im Rumpf sucht. Eine
+     * gefüllte Tabelle ist damit still weg; nachgestellt mit einer
+     * Wegwerf-Migration: Tabelle anlegen, eine Zeile hineinschreiben,
+     * `phinx rollback` - die Zeile ist fort, ohne Abbruch und ohne Meldung.
+     *
+     * `/phinx-migration` verlangt vor jedem `drop()` auf eine Tabelle eine
+     * Zählabfrage, ausdrücklich auch im eigenen `down()`. Wer eine Tabelle
+     * anlegt, schreibt deshalb `up()` und `down()` aus und setzt die Prüfung in
+     * das `down()`.
+     *
+     * Spalten darf `change()` weiter anlegen: Deren Rücknahme nimmt nur die
+     * eigene Erzeugung zurück und ist nach derselben Vorgabe ausgenommen.
+     */
+    #[DataProvider('migrationFileProvider')]
+    public function testReversibleMigrationCreatesNoTable(string $file): void
+    {
+        $raw = file_get_contents($file);
+        self::assertIsString($raw, 'Migration nicht lesbar: ' . $file);
+
+        $bodies = $this->methodBodies($file, $this->withoutComments($raw));
+
+        $this->assertSame(
+            [],
+            array_keys($this->tablesCreatedIn($bodies['change'] ?? '')),
+            sprintf(
+                '%s legt in change() eine Tabelle an. Beim Rückbau erzeugt Phinx daraus ein '
+                    . 'drop(), vor dem keine Zählabfrage stehen kann - der Inhalt ist still weg. '
+                    . 'change() in up() und down() auftrennen und die Prüfung in das down() '
+                    . 'setzen. Muster: 20261005090000_create_user_notifications. '
+                    . 'Siehe /phinx-migration.',
+                basename($file)
+            )
+        );
+    }
+
+    /**
      * Ersetzt jeden Kommentar durch Leerzeichen gleicher Länge. Zeilennummern
      * und Zeichenpositionen bleiben damit gültig, der Inhalt verschwindet.
      *

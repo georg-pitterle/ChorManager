@@ -9,7 +9,7 @@ use Phinx\Migration\AbstractMigration;
  * Zielgruppen-Filter. Jede alte Freigabe wird ein Filter mit genau einer
  * Bedingung (all_members: keine Bedingung) - an den Rechten ändert sich nichts.
  *
- * Reihenfolge nach instructions/database.md: Spalte anlegen, befüllen, prüfen,
+ * Reihenfolge nach /phinx-migration: Spalte anlegen, befüllen, prüfen,
  * erst dann alte Spalten entfernen.
  */
 final class MoveFileSharesToAudienceFilters extends AbstractMigration
