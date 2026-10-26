@@ -20,6 +20,7 @@ use App\Controllers\SponsorController;
 use App\Controllers\SponsoringDashboardController;
 use App\Controllers\TaskController;
 use App\Controllers\UserNotificationController;
+use App\Controllers\HelpController;
 use App\Queries\ProjectQuery;
 use App\Services\HtmlSanitizer;
 use App\Queries\UserQuery;
@@ -437,6 +438,10 @@ return function (ContainerBuilder $containerBuilder) {
         InAppNotificationStore::class => \DI\autowire(),
         NotificationBadgeViewService::class => \DI\autowire(),
         UserNotificationController::class => \DI\autowire(),
+        // Die Hilfe filtert ihre Themen nach den Modulen; ein Array-Parameter löst
+        // PHP-DI nicht selbst auf.
+        HelpController::class => static fn (ContainerInterface $c): HelpController
+            => new HelpController($c->get(Twig::class), null, $c->get('settings')),
         // Der Logger ist im Konstruktor optional (die Tests kommen ohne aus), und
         // optionale Parameter füllt PHP-DI nicht aus dem Container.
         SponsoringDashboardController::class => function (ContainerInterface $c): SponsoringDashboardController {

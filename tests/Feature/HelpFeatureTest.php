@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\HelpController;
+use App\Help\HelpCatalog;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
 use Twig\TwigFunction;
@@ -48,6 +49,7 @@ class HelpFeatureTest extends TestCase
 
     protected function tearDown(): void
     {
+        $_SESSION = [];
         $this->removeDirectory($this->docsDir);
         parent::tearDown();
     }
@@ -70,9 +72,21 @@ class HelpFeatureTest extends TestCase
         rmdir($dir);
     }
 
-    private function controller(): HelpController
+    /**
+     * @param array<string,bool> $modules
+     */
+    private function controller(array $modules = []): HelpController
     {
-        return new HelpController($this->createTwig(), $this->docsDir);
+        $catalog = new HelpCatalog($this->docsDir, [
+            'alpha-guide'  => ['section' => 'start'],
+            'no-heading'   => ['section' => 'start'],
+            'modul-a'      => ['menu' => ['/events']],
+            'modul-a-eins' => ['menu' => ['/events']],
+            'modul-a-zwei' => ['menu' => ['/roles']],
+            'sponsoring'   => ['menu' => ['/sponsoring']],
+        ]);
+
+        return new HelpController($this->createTwig(), $this->docsDir, ['modules' => $modules], $catalog);
     }
 
     /**
@@ -130,68 +144,113 @@ class HelpFeatureTest extends TestCase
         $this->assertStringContainsString('<p>Inhalt <strong>fett</strong>.</p>', (string) $response->getBody());
     }
 
-    public function testIndexListsGuidesWithTitleFromH1AndFallbackForMissingHeading(): void
+    public function testIndexListsVisibleTopicsUnderGroupLabelsWithTitleFromH1AndFallback(): void
     {
-        $controller = $this->controller();
-        $request = $this->makeRequest('GET', '/help');
-
-        $response = $controller->index($request, $this->makeResponse());
+        $response = $this->controller()->index($this->makeRequest('GET', '/help'), $this->makeResponse());
         $body = (string) $response->getBody();
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertStringContainsString('Sponsoring – Anleitung', $body);
+        $this->assertStringContainsString('Erste Schritte', $body);
+        $this->assertStringContainsString('Termine', $body);
         $this->assertStringContainsString('Alpha Guide', $body);
-        $this->assertStringContainsString('/help/sponsoring', $body);
-        $this->assertStringContainsString('/help/alpha-guide', $body);
+        $this->assertStringContainsString('href="/help/alpha-guide"', $body);
+        $this->assertStringContainsString('href="/help/modul-a-eins"', $body);
         // Fallback title derived from slug when the file has no H1 heading.
         $this->assertStringContainsString('No Heading', $body);
     }
 
-    public function testIndexGroupsGuidesSharingSlugPrefixIntoOneCollapsibleCategory(): void
+    public function testIndexHidesTopicsWhoseModuleIsOffOrWhoseRightIsMissing(): void
     {
-        $controller = $this->controller();
-        $request = $this->makeRequest('GET', '/help');
+        $body = (string) $this->controller()->index($this->makeRequest('GET', '/help'), $this->makeResponse())->getBody();
 
-        $response = $controller->index($request, $this->makeResponse());
-        $body = (string) $response->getBody();
-
-        $this->assertSame(200, $response->getStatusCode());
-        // "modul-a.md" is the category root; "modul-a-eins.md" / "modul-a-zwei.md" are its children.
-        $this->assertStringContainsString('id="help-category-collapse-modul-a"', $body);
-        $this->assertStringContainsString('Modul A', $body);
-        $this->assertStringContainsString('/help/modul-a-eins', $body);
-        $this->assertStringContainsString('/help/modul-a-zwei', $body);
+        $this->assertStringNotContainsString('href="/help/sponsoring"', $body);
+        $this->assertStringNotContainsString('href="/help/modul-a-zwei"', $body);
     }
 
-    public function testIndexRendersGuideWithoutSiblingsAsPlainLinkNotAccordion(): void
+    public function testIndexShowsTopicOnceModuleAndRightAreThere(): void
     {
-        $controller = $this->controller();
-        $request = $this->makeRequest('GET', '/help');
+        $_SESSION = ['can_manage_sponsoring' => true, 'can_manage_roles' => true];
 
-        $response = $controller->index($request, $this->makeResponse());
-        $body = (string) $response->getBody();
+        $body = (string) $this->controller(['sponsoring' => true])
+            ->index($this->makeRequest('GET', '/help'), $this->makeResponse())
+            ->getBody();
 
-        // alpha-guide.md has no "alpha-guide-*.md" siblings, so it is a single-page
-        // category and must render as a direct link, not a collapsible group.
-        $this->assertStringContainsString('/help/alpha-guide', $body);
-        $this->assertStringNotContainsString('id="help-category-collapse-alpha-guide"', $body);
+        $this->assertStringContainsString('href="/help/sponsoring"', $body);
+        $this->assertStringContainsString('href="/help/modul-a-zwei"', $body);
     }
 
-    public function testRealDocsSponsoringFamilyGroupsIntoOneCategory(): void
+    public function testIndexRendersOpenListsInsteadOfAccordionAndKeepsTheFlatStyle(): void
     {
-        // Integration check: the naming convention behind docs/sponsoring.md,
-        // docs/sponsoring-sponsors.md and docs/sponsoring-packages.md must produce a
-        // single collapsible "Sponsoring" category (the user's example case).
+        $body = (string) $this->controller()->index($this->makeRequest('GET', '/help'), $this->makeResponse())->getBody();
+
+        $this->assertStringNotContainsString('accordion', $body);
+        $this->assertStringNotContainsString('shadow-sm', $body);
+        // Der Untertitel nennt weder die Marke (White Label) noch Technikbegriffe.
+        $this->assertStringNotContainsString('im Chor-Manager', $body);
+        $this->assertStringNotContainsString('die Module', $body);
+    }
+
+    public function testIndexOffersAFilterFieldThatOnlyTheScriptReveals(): void
+    {
+        $body = (string) $this->controller()->index($this->makeRequest('GET', '/help'), $this->makeResponse())->getBody();
+
+        $this->assertMatchesRegularExpression('/<div[^>]*data-help-filter[^>]*hidden/', $body);
+        $this->assertStringContainsString('<script src="/js/help-index.js"></script>', $body);
+        $this->assertStringContainsString('data-help-topic', $body);
+    }
+
+    public function testIndexShowsFrequentQuestionsLinkingToVisibleTopics(): void
+    {
         $controller = new HelpController($this->createTwig());
-        $request = $this->makeRequest('GET', '/help');
 
-        $response = $controller->index($request, $this->makeResponse());
-        $body = (string) $response->getBody();
+        $body = (string) $controller->index($this->makeRequest('GET', '/help'), $this->makeResponse())->getBody();
+
+        $this->assertStringContainsString('Häufige Fragen', $body);
+        $this->assertStringContainsString('href="/help/navigation"', $body);
+        $this->assertStringNotContainsString('href="/help/finance"', $body);
+    }
+
+    public function testIndexShowsMutedTextWhenNoTopicIsVisible(): void
+    {
+        $catalog = new HelpCatalog($this->docsDir, ['alpha-guide' => ['section' => 'start', 'modules' => ['finance']]]);
+        $controller = new HelpController($this->createTwig(), $this->docsDir, [], $catalog);
+
+        $body = (string) $controller->index($this->makeRequest('GET', '/help'), $this->makeResponse())->getBody();
+
+        $this->assertStringContainsString('Für dich gibt es hier gerade keine Anleitungen.', $body);
+        $this->assertStringNotContainsString('class="card', $body);
+    }
+
+    public function testRealDocsShowSponsoringFamilyToSponsoringManagers(): void
+    {
+        $_SESSION = ['can_manage_sponsoring' => true];
+        $controller = new HelpController($this->createTwig(), null, ['modules' => ['sponsoring' => true]]);
+
+        $body = (string) $controller->index($this->makeRequest('GET', '/help'), $this->makeResponse())->getBody();
+
+        $this->assertStringContainsString('href="/help/sponsoring-sponsors"', $body);
+        $this->assertStringContainsString('href="/help/sponsoring-packages"', $body);
+    }
+
+    public function testTopicsJsonListsVisibleTopicsForTheQuickSearch(): void
+    {
+        $_SESSION = ['can_manage_sponsoring' => true];
+
+        $response = $this->controller(['sponsoring' => true])
+            ->topics($this->makeRequest('GET', '/help/topics.json'), $this->makeResponse());
+        $data = json_decode((string) $response->getBody(), true);
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertStringContainsString('id="help-category-collapse-sponsoring"', $body);
-        $this->assertStringContainsString('/help/sponsoring-sponsors', $body);
-        $this->assertStringContainsString('/help/sponsoring-packages', $body);
+        $this->assertStringStartsWith('application/json', $response->getHeaderLine('Content-Type'));
+        $urls = array_column($data, 'url');
+        $this->assertContains('/help/sponsoring', $urls);
+        $this->assertContains('/help/alpha-guide', $urls);
+        $this->assertNotContains('/help/modul-a-zwei', $urls);
+
+        $sponsoring = $data[array_search('/help/sponsoring', $urls, true)];
+        $this->assertSame('Sponsoring – Anleitung', $sponsoring['title']);
+        $this->assertSame('Finanzen', $sponsoring['group']);
+        $this->assertIsArray($sponsoring['keywords']);
     }
 
     public function testShowRendersMarkdownAsHtmlWithTitleFromH1(): void
@@ -203,7 +262,9 @@ class HelpFeatureTest extends TestCase
         $body = (string) $response->getBody();
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertStringContainsString('<h1>Alpha Guide</h1>', $body);
+        // Der Titel steht einmal im Seitenkopf, nicht noch einmal als erste Zeile im Text.
+        $this->assertStringContainsString('<h1 class="h2 mb-1">Alpha Guide</h1>', $body);
+        $this->assertStringNotContainsString('<h1>Alpha Guide</h1>', $body);
         $this->assertStringContainsString('<strong>fett</strong>', $body);
     }
 
@@ -227,7 +288,24 @@ class HelpFeatureTest extends TestCase
 
         $response = $controller->show($request, $this->makeResponse(), ['slug' => 'does-not-exist']);
 
+        $body = (string) $response->getBody();
         $this->assertSame(404, $response->getStatusCode());
+        $this->assertStringContainsString('Anleitung nicht gefunden', $body);
+        $this->assertMatchesRegularExpression('/<a href="\/help" class="btn btn-outline-secondary">/', $body);
+    }
+
+    public function testShowHasBackButtonButNoBreadcrumbAndAHairlineCard(): void
+    {
+        $response = $this->controller()->show(
+            $this->makeRequest('GET', '/help/alpha-guide'),
+            $this->makeResponse(),
+            ['slug' => 'alpha-guide']
+        );
+        $body = (string) $response->getBody();
+
+        $this->assertStringNotContainsString('breadcrumb', $body);
+        $this->assertStringNotContainsString('shadow-sm', $body);
+        $this->assertMatchesRegularExpression('/<a href="\/help" class="btn btn-outline-secondary">/', $body);
     }
 
     public function testShowRejectsPathTraversalInSlug(): void
@@ -284,6 +362,7 @@ class HelpFeatureTest extends TestCase
         $this->assertStringContainsString("'/help'", $routesContent);
         $this->assertStringContainsString('/help/{slug:', $routesContent);
         $this->assertStringContainsString('/help/images/{file:', $routesContent);
+        $this->assertStringContainsString("'/help/topics.json'", $routesContent);
     }
 
     public function testNavigationBuilderIncludesHelpLink(): void

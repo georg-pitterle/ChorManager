@@ -3,6 +3,7 @@
  *
  * Datenquelle sind die gerenderten Leistenlinks: was der NavigationBuilder für diese
  * Rolle nicht ausgibt, steht nicht im HTML und kann deshalb auch nicht gefunden werden.
+ * Dazu kommen die Hilfethemen aus /help/topics.json, die der Server ebenso filtert.
  * Die Suchlogik selbst liegt in navigation-search-rank.js.
  */
 document.addEventListener('DOMContentLoaded', function () {
@@ -20,6 +21,8 @@ document.addEventListener('DOMContentLoaded', function () {
     var RECENT_KEY = 'chormanager.nav.recent';
 
     var entries = [];
+    var helpEntries = [];
+    var helpRequested = false;
     var shown = [];
     var selected = 0;
     var returnFocus = null;
@@ -36,6 +39,41 @@ document.addEventListener('DOMContentLoaded', function () {
                 keywords: (link.getAttribute('data-nav-keywords') || '').split('|').filter(Boolean),
             };
         });
+    }
+
+    /**
+     * Hilfethemen kommen nicht aus der Leiste, sondern vom Server - gefiltert nach
+     * denselben Rechten und Modulen. Geladen wird erst beim ersten Öffnen der Suche;
+     * schlägt das fehl, sucht die Suche eben nur in den Seiten.
+     */
+    function loadHelpEntries() {
+        if (helpRequested) {
+            return;
+        }
+        helpRequested = true;
+        fetch('/help/topics.json', { headers: { Accept: 'application/json' }, credentials: 'same-origin' })
+            .then(function (response) {
+                return response.ok ? response.json() : [];
+            })
+            .then(function (topics) {
+                helpEntries = topics.map(function (topic) {
+                    return {
+                        label: topic.title,
+                        url: topic.url,
+                        icon: 'bi-question-circle',
+                        // Nur "Hilfe": mit dem Gruppennamen träfe "noten" jedes Thema
+                        // unter "Noten & Dateien", auch den Papierkorb.
+                        section: 'Hilfe',
+                        keywords: topic.keywords,
+                    };
+                });
+                if (modalElement.classList.contains('show') && input.value.trim() !== '') {
+                    render();
+                }
+            })
+            .catch(function () {
+                helpEntries = [];
+            });
     }
 
     function recentEntries() {
@@ -56,7 +94,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function groups() {
         if (input.value.trim() !== '') {
-            return [{ title: 'Treffer', hits: rank.rankNavigationEntries(entries, input.value) }];
+            return [
+                { title: 'Seiten', hits: rank.rankNavigationEntries(entries, input.value) },
+                { title: 'Anleitungen', hits: rank.rankNavigationEntries(helpEntries, input.value) },
+            ];
         }
         var result = [];
         var recent = recentEntries();
@@ -149,6 +190,7 @@ document.addEventListener('DOMContentLoaded', function () {
             offcanvas.hide();
         }
         entries = readEntries();
+        loadHelpEntries();
         input.value = '';
         selected = 0;
         render();

@@ -79,6 +79,8 @@ Ist das Feld leer, siehst du oben die Seiten, die du **zuletzt besucht** hast, d
 
 Tippst du los, filtert die Liste sofort. Gesucht wird im Namen der Seite, im Abschnitt und in **Stichwörtern** – deshalb findet **kassabuch** die **Kassa**, auch wenn das Wort im Menü nicht vorkommt. Groß- und Kleinschreibung spielen keine Rolle.
 
+Unter den Seiten stehen passende **Anleitungen** aus der Hilfe – **absage** findet so auch die Anleitung zu Zu- und Absagen.
+
 ![Treffer über ein Stichwort](images/navigation/03-search-keyword.png)
 
 - **↑** und **↓** wählen einen Treffer aus.
@@ -87,6 +89,6 @@ Tippst du los, filtert die Liste sofort. Gesucht wird im Namen der Seite, im Abs
 
 ## Häufige Stolperfallen
 
-- **Die Suche findet Seiten, keine Inhalte.** Mitglieder, Termine, Stücke oder Dateien suchst du auf der jeweiligen Seite – etwa die Dateien über das Suchfeld in **Dateien**.
+- **Die Suche findet Seiten und Anleitungen, keine Inhalte.** Mitglieder, Termine, Stücke oder Dateien suchst du auf der jeweiligen Seite – etwa die Dateien über das Suchfeld in **Dateien**.
 - **Ein Menüpunkt fehlt.** Dann fehlt deiner Rolle das passende Recht, oder das Modul ist in eurer Installation ausgeschaltet. Was du in der Seitenleiste nicht siehst, findet auch die Schnellsuche nicht.
 - **Strg + K im Texteditor** – schreibst du gerade einen Newsletter oder eine Beschreibung, gehört die Tastenkombination dem Editor (Link einfügen). Klicke dann auf **Seite suchen …**.

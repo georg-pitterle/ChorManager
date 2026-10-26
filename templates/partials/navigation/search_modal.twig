@@ -1,5 +1,6 @@
 {# Schnellsuche (Strg+K). Die Trefferliste baut navigation-search.js aus den Links der
-   Seitenleiste - gefunden wird damit nur, was die Rolle ohnehin sehen darf. #}
+   Seitenleiste und den Hilfethemen (/help/topics.json) - gefunden wird damit nur, was
+   die Rolle ohnehin sehen darf. #}
 <div class="modal fade nav-search"
      id="nav-search-modal"
      tabindex="-1"
@@ -13,7 +14,7 @@
                 <input type="text"
                        class="nav-search__input"
                        id="nav-search-input"
-                       placeholder="Seite oder Stichwort suchen …"
+                       placeholder="Seite, Anleitung oder Stichwort suchen …"
                        autocomplete="off"
                        spellcheck="false"
                        role="combobox"
@@ -27,7 +28,7 @@
                     id="nav-search-results"
                     role="listbox"
                     aria-label="Suchergebnisse"></ul>
-                <p class="nav-search__empty d-none" data-nav-search-empty>Keine Seite gefunden.</p>
+                <p class="nav-search__empty d-none" data-nav-search-empty>Nichts gefunden.</p>
             </div>
             <div class="nav-search__footer">
                 <span><kbd>↑</kbd> <kbd>↓</kbd> auswählen</span>

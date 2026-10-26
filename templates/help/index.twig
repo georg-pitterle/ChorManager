@@ -7,68 +7,79 @@
 {% block page_header %}
     <section class="page-header">
         <div>
-            <h1 class="h2 mb-1">Hilfe &amp; Anleitungen</h1>
-            <p class="text-muted mb-0">Schritt-für-Schritt-Anleitungen für die Module im Chor-Manager.</p>
+            <h1 class="h2 mb-1">Hilfe</h1>
+            <p class="text-muted mb-0">Anleitungen zu allen Bereichen, die du nutzen kannst.</p>
         </div>
     </section>
 {% endblock page_header %}
 
+{# Die Themen ordnet HelpCatalog wie die Seitenleiste und filtert sie nach Rechten und
+   Modulen. Das Suchfeld blendet help-index.js ein; ohne Skript bleibt die volle Liste. #}
 {% block content %}
     <div class="dashboard-shell">
-        <section class="dashboard-section dashboard-section--context" aria-labelledby="help-guides-title">
-            <div class="dashboard-section-head">
-                <h2 class="dashboard-section-title" id="help-guides-title">Anleitungen</h2>
-                <p class="dashboard-section-lead mb-0">Wähle eine Kategorie, um die passenden Anleitungen zu öffnen.</p>
+        {% if groups|length > 0 %}
+            <div class="help-filter" data-help-filter hidden>
+                <label class="form-label" for="help-filter-input">Anleitung suchen</label>
+                <input type="search"
+                       class="form-control"
+                       id="help-filter-input"
+                       placeholder="z. B. Absage, Noten, Newsletter"
+                       autocomplete="off"
+                       spellcheck="false">
             </div>
 
-            {% if categories|length > 0 %}
-                <div class="accordion" id="helpCategoriesAccordion">
-                    {% for category in categories %}
-                        {% if category.items|length > 1 %}
-                            <div class="accordion-item mb-3 border-0 shadow-sm">
-                                <h2 class="accordion-header" id="help-category-heading-{{ category.slug }}">
-                                    <button class="accordion-button collapsed"
-                                            type="button"
-                                            data-bs-toggle="collapse"
-                                            data-bs-target="#help-category-collapse-{{ category.slug }}"
-                                            aria-expanded="false"
-                                            aria-controls="help-category-collapse-{{ category.slug }}">
-                                        <i class="bi bi-folder2 me-2"></i>
-                                        <span class="fw-semibold">{{ category.title }}</span>
-                                    </button>
-                                </h2>
-                                <div class="accordion-collapse collapse"
-                                     id="help-category-collapse-{{ category.slug }}"
-                                     aria-labelledby="help-category-heading-{{ category.slug }}">
-                                    <div class="accordion-body p-0">
-                                        <ul class="list-group list-group-flush">
-                                            {% for item in category.items %}
-                                                <li class="list-group-item">
-                                                    <a href="/help/{{ item.slug }}" class="text-decoration-none stretched-link">
-                                                        <i class="bi bi-file-text me-2 text-primary"></i>{{ item.title }}
-                                                    </a>
-                                                </li>
-                                            {% endfor %}
-                                        </ul>
-                                    </div>
-                                </div>
+            {% if questions|length > 0 %}
+                <section class="dashboard-section dashboard-section--flat"
+                         aria-labelledby="help-questions-title"
+                         data-help-questions>
+                    <div class="dashboard-section-head">
+                        <h2 class="dashboard-section-title" id="help-questions-title">Häufige Fragen</h2>
+                    </div>
+                    <ul class="help-questions">
+                        {% for entry in questions %}
+                            <li>
+                                <a href="/help/{{ entry.slug }}" class="help-question">
+                                    <span>{{ entry.question }}</span>
+                                    <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                </section>
+            {% endif %}
+
+            <section class="dashboard-section dashboard-section--flat" aria-labelledby="help-topics-title">
+                <div class="dashboard-section-head">
+                    <h2 class="dashboard-section-title" id="help-topics-title">Alle Anleitungen</h2>
+                </div>
+                <div class="help-groups">
+                    {% for group in groups %}
+                        <div class="help-group" data-help-group>
+                            <h3 class="group-label" id="help-group-{{ group.key }}">{{ group.title }}</h3>
+                            <div class="list-group help-topics" aria-labelledby="help-group-{{ group.key }}">
+                                {% for topic in group.topics %}
+                                    {% set _search_text = [topic.title]|merge(topic.keywords)|join(" ") %}
+                                    <a href="/help/{{ topic.slug }}"
+                                       class="list-group-item list-group-item-action help-topic"
+                                       data-help-topic
+                                       data-help-search="{{ _search_text }}">{{ topic.title }}</a>
+                                {% endfor %}
                             </div>
-                        {% else %}
-                            <a href="/help/{{ category.slug }}"
-                               class="card border-0 shadow-sm mb-3 text-decoration-none help-guide-card">
-                                <div class="card-body d-flex align-items-center">
-                                    <i class="bi bi-file-text fs-5 text-primary me-3"></i>
-                                    <span class="fw-semibold text-body">{{ category.title }}</span>
-                                </div>
-                            </a>
-                        {% endif %}
+                        </div>
                     {% endfor %}
                 </div>
-            {% else %}
-                <div class="card border-0 shadow-sm">
-                    <div class="card-body text-muted">Aktuell sind keine Anleitungen verfügbar.</div>
-                </div>
-            {% endif %}
-        </section>
+                <p class="text-muted mb-0 d-none" data-help-filter-empty>
+                    Keine Anleitung gefunden. Versuch es mit einem anderen Wort.
+                </p>
+            </section>
+        {% else %}
+            <p class="text-muted mb-0">
+                Für dich gibt es hier gerade keine Anleitungen. Fehlt dir etwas, frag den Administrator.
+            </p>
+        {% endif %}
     </div>
 {% endblock content %}
+
+{% block scripts %}
+    <script src="{{ asset_path('/js/help-index.js') }}"></script>
+{% endblock scripts %}

@@ -1,4 +1,4 @@
-# Anmeldung an Nextcloud mit dem ChorManager-Konto
+# Anmeldung an Nextcloud ohne zweites Passwort
 
 ChorManager kann als Anmeldedienst für andere Anwendungen auftreten. Wer in ChorManager
 angemeldet ist, kommt damit per Klick in die Nextcloud des Chores — ohne zweites Passwort

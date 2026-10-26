@@ -367,9 +367,11 @@ return function (App $app) {
                 )->add(new RoleMiddleware(requiresFilesManagement: true));
             }
 
-            // Help pages (Markdown guides under help/) - accessible for all logged-in users,
-            // independent of tenant modules/roles.
+            // Help pages (Markdown guides under help/) - accessible for all logged-in users.
+            // Die Übersicht und die Themenliste der Schnellsuche zeigen nur, was Rolle und
+            // Module erlauben (HelpCatalog); einzelne Anleitungen bleiben per Link erreichbar.
             $group->get('/help', [HelpController::class, 'index']);
+            $group->get('/help/topics.json', [HelpController::class, 'topics']);
             $group->get(
                 // Ohne svg - die Begründung steht an HelpController::IMAGE_MIME_TYPES.
                 '/help/images/{file:[A-Za-z0-9_\-\/]+\.(?:png|jpg|jpeg|gif|webp)}',

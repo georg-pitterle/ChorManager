@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Help\HelpCatalog;
+use App\Navigation\NavigationContext;
 use Parsedown;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -34,84 +36,63 @@ class HelpController
 
     private Twig $view;
     private string $helpDir;
+    private HelpCatalog $catalog;
 
-    public function __construct(Twig $view, ?string $helpDir = null)
-    {
+    /** @var array<string,mixed> */
+    private array $settings;
+
+    /**
+     * @param array<string,mixed> $settings App-Einstellungen; gebraucht werden die Module
+     */
+    public function __construct(
+        Twig $view,
+        ?string $helpDir = null,
+        array $settings = [],
+        ?HelpCatalog $catalog = null
+    ) {
         $this->view = $view;
         $this->helpDir = $helpDir ?? dirname(__DIR__, 2) . '/help';
+        $this->settings = $settings;
+        $this->catalog = $catalog ?? new HelpCatalog($this->helpDir);
     }
 
     public function index(Request $request, Response $response): Response
     {
-        $guides = [];
-        foreach (glob($this->helpDir . '/*/docs/*.md') ?: [] as $path) {
-            $slug = basename($path, '.md');
-            $guides[$slug] = [
-                'slug'  => $slug,
-                'title' => $this->extractTitle($path, $slug),
-            ];
-        }
+        $context = $this->navigationContext($request);
 
         return $this->view->render($response, 'help/index.twig', [
-            'categories' => $this->groupIntoCategories($guides),
+            'groups'     => $this->catalog->groups($context),
+            'questions'  => $this->catalog->frequentQuestions($context),
             'active_nav' => 'help',
         ]);
     }
 
     /**
-     * Groups the flat docs/*.md guides into categories by naming convention:
-     * "foo.md" is a category root, "foo-bar.md" is grouped under it as a child.
-     * A guide with no root of its own becomes a single-page category.
-     *
-     * @param array<string,array{slug:string,title:string}> $guides
-     * @return array<int,array{slug:string,title:string,items:array<int,array{slug:string,title:string}>}>
+     * Die sichtbaren Themen für die Schnellsuche. Sie lädt die Liste erst, wenn
+     * jemand sucht - so liest nicht jede Seite die Hilfedateien.
      */
-    private function groupIntoCategories(array $guides): array
+    public function topics(Request $request, Response $response): Response
     {
-        $slugs = array_keys($guides);
+        $topics = array_map(
+            static fn(array $topic): array => [
+                'title'    => $topic['title'],
+                'url'      => '/help/' . $topic['slug'],
+                'group'    => $topic['group'],
+                'keywords' => $topic['keywords'],
+            ],
+            $this->catalog->topics($this->navigationContext($request))
+        );
 
-        $rootOf = [];
-        foreach ($slugs as $slug) {
-            $bestRoot = null;
-            foreach ($slugs as $candidate) {
-                if ($candidate === $slug || !str_starts_with($slug, $candidate . '-')) {
-                    continue;
-                }
+        $response->getBody()->write((string) json_encode($topics, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
 
-                if ($bestRoot === null || strlen($candidate) > strlen($bestRoot)) {
-                    $bestRoot = $candidate;
-                }
-            }
+        return $response
+            ->withHeader('Content-Type', 'application/json; charset=utf-8')
+            ->withHeader('Cache-Control', 'private, no-store');
+    }
 
-            $rootOf[$slug] = $bestRoot ?? $slug;
-        }
-
-        $categories = [];
-        foreach ($slugs as $slug) {
-            $root = $rootOf[$slug];
-            $categories[$root]['slug'] = $root;
-            $categories[$root]['title'] = $guides[$root]['title'];
-            $categories[$root]['items'][] = $guides[$slug];
-        }
-
-        ksort($categories);
-
-        foreach ($categories as $root => &$category) {
-            usort($category['items'], static function (array $a, array $b) use ($root): int {
-                if ($a['slug'] === $root) {
-                    return -1;
-                }
-
-                if ($b['slug'] === $root) {
-                    return 1;
-                }
-
-                return $a['slug'] <=> $b['slug'];
-            });
-        }
-        unset($category);
-
-        return array_values($categories);
+    private function navigationContext(Request $request): NavigationContext
+    {
+        return NavigationContext::fromSession($_SESSION ?? [], $this->settings, $request->getUri()->getPath(), 'help');
     }
 
     public function show(Request $request, Response $response, array $args): Response
@@ -119,16 +100,21 @@ class HelpController
         $path = $this->resolveDocPath((string) ($args['slug'] ?? ''));
 
         if ($path === null) {
-            $response->getBody()->write('Hilfeseite nicht gefunden.');
-            return $response->withStatus(404);
+            return $this->view
+                ->render($response, 'help/not_found.twig', ['active_nav' => 'help'])
+                ->withStatus(404);
         }
 
         $parsedown = new Parsedown();
         $parsedown->setSafeMode(true);
 
+        // Der Titel steht im Seitenkopf; die Überschrift in der ersten Zeile der Datei
+        // würde ihn direkt darunter ein zweites Mal zeigen.
+        $markdown = (string) preg_replace('/\A#\s+.+\R?/', '', (string) file_get_contents($path));
+
         return $this->view->render($response, 'help/show.twig', [
-            'title'        => $this->extractTitle($path, basename($path, '.md')),
-            'content_html' => $this->labelTableCells($parsedown->text((string) file_get_contents($path))),
+            'title'        => HelpCatalog::titleFromFile($path, basename($path, '.md')),
+            'content_html' => $this->labelTableCells($parsedown->text($markdown)),
             'active_nav'   => 'help',
         ]);
     }
@@ -232,16 +218,5 @@ class HelpController
         }
 
         return null;
-    }
-
-    private function extractTitle(string $path, string $fallbackSlug): string
-    {
-        $content = (string) file_get_contents($path);
-
-        if (preg_match('/^#\s+(.+)$/m', $content, $matches)) {
-            return trim($matches[1]);
-        }
-
-        return ucwords(str_replace('-', ' ', $fallbackSlug));
     }
 }

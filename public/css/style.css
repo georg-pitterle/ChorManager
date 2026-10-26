@@ -2803,15 +2803,72 @@ a:hover {
     }
 }
 
-/* Hilfe / How-To-Anleitungen */
-.help-guide-card {
-    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, border-color 0.2s ease;
+/* Hilfe / How-To-Anleitungen. Die Übersicht ist eine offene Liste je Gruppe der
+   Seitenleiste; flach wie der Rest, Rückmeldung auf Hover nur über Fläche und Kontur. */
+.help-filter {
+    max-width: 28rem;
+    margin-bottom: 2rem;
 }
 
-.help-guide-card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
-    border-color: color-mix(in srgb, var(--theme-primary, #E8A817) 40%, var(--theme-border));
+.help-questions {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.help-question {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    height: 100%;
+    min-height: 3.25rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--theme-border);
+    border-radius: var(--app-radius);
+    background: var(--theme-surface);
+    color: var(--theme-text);
+    font-weight: 600;
+    text-decoration: none;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.help-question .bi {
+    flex: 0 0 auto;
+    color: var(--theme-primary-strong);
+}
+
+.help-question:hover,
+.help-question:focus-visible {
+    border-color: var(--theme-primary);
+    background: rgba(var(--theme-primary-rgb), 0.06);
+    color: var(--theme-text);
+}
+
+.help-groups {
+    columns: 3 18rem;
+    column-gap: 1.5rem;
+}
+
+.help-group {
+    break-inside: avoid;
+    margin-bottom: 1.5rem;
+}
+
+.help-topic {
+    display: flex;
+    align-items: center;
+    min-height: 2.75rem;
+    color: var(--theme-text);
+}
+
+.help-topic:hover,
+.help-topic:focus-visible {
+    background: rgba(var(--theme-primary-rgb), 0.06);
+    color: var(--theme-primary-strong);
 }
 
 .markdown-content h1,
@@ -2825,6 +2882,14 @@ a:hover {
 .markdown-content h2:first-child,
 .markdown-content h3:first-child {
     margin-top: 0;
+}
+
+/* Fließtext auf Lesebreite - am Desktop liefen Zeilen sonst über 150 Zeichen.
+   Tabellen und Bilder nutzen weiter die volle Breite. */
+.markdown-content p,
+.markdown-content li,
+.markdown-content blockquote {
+    max-width: 75ch;
 }
 
 .markdown-content img {

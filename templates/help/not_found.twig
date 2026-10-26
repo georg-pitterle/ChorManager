@@ -1,0 +1,25 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    Anleitung nicht gefunden - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <h1 class="h2 mb-1">Anleitung nicht gefunden</h1>
+            <p class="text-muted mb-0">Diese Anleitung gibt es nicht oder nicht mehr.</p>
+        </div>
+        <div class="page-actions">
+            <a href="/help" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1"></i> Zur Übersicht
+            </a>
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    <div class="dashboard-shell">
+        <p class="text-muted mb-0">In der Übersicht findest du alle Anleitungen, die du nutzen kannst.</p>
+    </div>
+{% endblock content %}
