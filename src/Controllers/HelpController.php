@@ -128,7 +128,7 @@ class HelpController
 
         return $this->view->render($response, 'help/show.twig', [
             'title'        => $this->extractTitle($path, basename($path, '.md')),
-            'content_html' => $parsedown->text((string) file_get_contents($path)),
+            'content_html' => $this->labelTableCells($parsedown->text((string) file_get_contents($path))),
             'active_nav'   => 'help',
         ]);
     }
@@ -166,6 +166,51 @@ class HelpController
         return $response
             ->withHeader('Content-Type', $mimeType)
             ->withHeader('Cache-Control', 'public, max-age=86400');
+    }
+
+    /**
+     * Schreibt an jede Tabellenzelle ihre Spaltenüberschrift als `data-label` und
+     * fasst jede Tabelle in einen Rahmen, der notfalls seitwärts scrollt.
+     *
+     * Auf schmalen Bildschirmen stapelt das Stylesheet jede Zeile zu einem Block,
+     * und die Überschrift steht dann als Beschriftung über dem Zellinhalt - ohne
+     * sie wüsste man im gestapelten Block nicht mehr, welcher Wert welcher ist.
+     * Dokumente ohne Tabelle bleiben Byte für Byte, wie Parsedown sie liefert.
+     */
+    private function labelTableCells(string $html): string
+    {
+        if (!str_contains($html, '<table')) {
+            return $html;
+        }
+
+        $document = \Dom\HTMLDocument::createFromString(
+            '<!DOCTYPE html><html><body>' . $html . '</body></html>',
+            LIBXML_NOERROR
+        );
+
+        foreach ($document->querySelectorAll('table') as $table) {
+            $frame = $document->createElement('div');
+            $frame->setAttribute('class', 'markdown-table');
+            $table->before($frame);
+            $frame->append($table);
+
+            $labels = [];
+            foreach ($table->querySelectorAll('thead th') as $header) {
+                $labels[] = trim($header->textContent);
+            }
+
+            foreach ($table->querySelectorAll('tbody tr') as $row) {
+                $index = 0;
+                foreach ($row->children as $cell) {
+                    $label = $labels[$index++] ?? '';
+                    if ($label !== '') {
+                        $cell->setAttribute('data-label', $label);
+                    }
+                }
+            }
+        }
+
+        return $document->body->innerHTML;
     }
 
     private function resolveDocPath(string $slug): ?string

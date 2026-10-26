@@ -2835,9 +2835,23 @@ a:hover {
     margin: 0.5rem 0 1.25rem;
 }
 
+/* Hilfetabellen: Der Rahmen scrollt notfalls seitwärts, damit nichts aus der Karte läuft.
+   Ist die Karte schmal (Handy), stapelt sich jede Zeile zu einem Block - die erste Zelle
+   wird zum Titel, jede weitere bekommt ihre Spaltenüberschrift als Beschriftung
+   (data-label, gesetzt vom HelpController). Container statt Viewport, weil auf dem
+   Tablet links noch die Seitenleiste steht. */
+.markdown-content {
+    container-type: inline-size;
+}
+
+.markdown-table {
+    max-width: 100%;
+    overflow-x: auto;
+    margin-bottom: 1.25rem;
+}
+
 .markdown-content table {
     width: 100%;
-    margin-bottom: 1.25rem;
 }
 
 .markdown-content table,
@@ -2846,6 +2860,68 @@ a:hover {
     border: 1px solid var(--theme-border);
     border-collapse: collapse;
     padding: 0.5rem 0.75rem;
+}
+
+.markdown-content td {
+    overflow-wrap: break-word;
+}
+
+@container (max-width: 36rem) {
+    .markdown-content table,
+    .markdown-content tbody,
+    .markdown-content tr,
+    .markdown-content td {
+        display: block;
+        width: 100%;
+    }
+
+    .markdown-content table {
+        border: 0;
+    }
+
+    /* Überschriften stehen jetzt an jeder Zelle; für Screenreader bleibt der Kopf erhalten. */
+    .markdown-content thead {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .markdown-content tr {
+        border: 1px solid var(--theme-border);
+        border-radius: var(--app-radius);
+        padding: 0.75rem 0.875rem;
+    }
+
+    .markdown-content tr + tr {
+        margin-top: 0.625rem;
+    }
+
+    .markdown-content td {
+        border: 0;
+        padding: 0;
+    }
+
+    .markdown-content td + td {
+        margin-top: 0.5rem;
+    }
+
+    .markdown-content td:first-child {
+        font-weight: 600;
+    }
+
+    .markdown-content td + td[data-label]::before {
+        content: attr(data-label);
+        display: block;
+        margin-bottom: 0.125rem;
+        font-size: var(--font-size-label);
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--theme-text-muted);
+    }
 }
 
 /* Hinweis- und Zitatblock: getönte Fläche mit Haarlinie, kein seitlicher Farbbalken. */

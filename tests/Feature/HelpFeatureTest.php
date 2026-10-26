@@ -98,6 +98,38 @@ class HelpFeatureTest extends TestCase
         return $twig;
     }
 
+    public function testShowLabelsTableCellsWithTheirColumnHeaderForStackedMobileLayout(): void
+    {
+        file_put_contents(
+            $this->docsDir . '/alpha-guide/docs/alpha-guide.md',
+            "# Alpha Guide\n\n| Abschnitt | Was du siehst |\n|---|---|\n| **Handlungsbedarf** | Termine & Mails |\n"
+        );
+
+        $response = $this->controller()->show(
+            $this->makeRequest('GET', '/help/alpha-guide'),
+            $this->makeResponse(),
+            ['slug' => 'alpha-guide']
+        );
+        $body = (string) $response->getBody();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringContainsString('<div class="markdown-table"><table>', $body);
+        $this->assertStringContainsString('<td data-label="Abschnitt"><strong>Handlungsbedarf</strong></td>', $body);
+        $this->assertStringContainsString('<td data-label="Was du siehst">Termine &amp; Mails</td>', $body);
+        $this->assertStringContainsString('Alpha Guide', $body);
+    }
+
+    public function testShowLeavesDocumentsWithoutTablesUnchanged(): void
+    {
+        $response = $this->controller()->show(
+            $this->makeRequest('GET', '/help/alpha-guide'),
+            $this->makeResponse(),
+            ['slug' => 'alpha-guide']
+        );
+
+        $this->assertStringContainsString('<p>Inhalt <strong>fett</strong>.</p>', (string) $response->getBody());
+    }
+
     public function testIndexListsGuidesWithTitleFromH1AndFallbackForMissingHeading(): void
     {
         $controller = $this->controller();
