@@ -64,6 +64,8 @@ class HelpButtonFeatureTest extends TestCase
         'sponsoring/packages/index'     => 'sponsoring-packages',
         'sponsoring/sponsors/index'     => 'sponsoring-sponsors',
         'sponsoring/sponsors/detail'    => 'sponsoring-sponsors',
+        'voice_group_lists/index'       => 'voice-group-lists',
+        'voice_group_lists/show'        => 'voice-group-lists',
     ];
 
     private static function root(): string

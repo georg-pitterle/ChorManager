@@ -1,4 +1,5 @@
 {% extends "layout.twig" %}
+{% import "macros/help.twig" as help %}
 
 {% block title %}
     {{ list.title }} - Stimmgruppen-Listen - {{ app_settings.app_name|default("Chor-Manager") }}
@@ -18,6 +19,7 @@
             <p class="text-muted mb-0">{{ voice_group.name }} · {{ member_total }} Mitglieder</p>
         </div>
         <div class="page-actions">
+            {{ help.button("voice-group-lists", "Stimmgruppen-Listen") }}
             {# Zurück wie auf den übrigen Detailseiten: ein Knopf, keine Brotkrumen. #}
             <a href="/voice-group-lists"
                class="btn btn-outline-secondary">

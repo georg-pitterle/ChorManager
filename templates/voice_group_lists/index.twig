@@ -1,4 +1,5 @@
 {% extends "layout.twig" %}
+{% import "macros/help.twig" as help %}
 
 {% block title %}
     Stimmgruppen-Listen - {{ app_settings.app_name|default("Chor-Manager") }}
@@ -13,16 +14,17 @@
                 Die Mitglieder selbst sehen diese Listen nicht.
             </p>
         </div>
-        {% if voice_groups|length > 0 %}
-            <div class="page-actions">
+        <div class="page-actions">
+            {{ help.button("voice-group-lists", "Stimmgruppen-Listen") }}
+            {% if voice_groups|length > 0 %}
                 <button type="button"
                         class="btn btn-primary"
                         data-bs-toggle="modal"
                         data-bs-target="#newListModal">
                     Neue Liste
                 </button>
-            </div>
-        {% endif %}
+            {% endif %}
+        </div>
     </section>
 {% endblock page_header %}
 

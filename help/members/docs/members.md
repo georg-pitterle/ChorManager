@@ -17,6 +17,9 @@ ein und archivierst Personen, die den Chor verlassen haben.
 >
 > Siehst du den Menüpunkt nicht, frag den Administrator unter **Administration → Rollen & Rechte**.
 
+Wer für die eigene Stimmgruppe Listen mit Häkchen und Notizen führen will (z. B. wer den
+Mitgliedsbeitrag bezahlt hat), findet das unter [Stimmgruppen-Listen](voice-group-lists).
+
 ## 1. Mitgliederübersicht
 
 Klickpfad: **Mitglieder & Projekte → Mitglieder**.
