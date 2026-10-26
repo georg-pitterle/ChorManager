@@ -1,0 +1,51 @@
+<div class="modal fade" id="newListModal" tabindex="-1" aria-labelledby="newListModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <form action="/voice-group-lists" method="post" class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="newListModalTitle">Neue Liste</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" for="new-list-title">Titel</label>
+                    <input type="text"
+                           class="form-control"
+                           id="new-list-title"
+                           name="title"
+                           maxlength="255"
+                           placeholder="z. B. Sommerkonzert 2027"
+                           required>
+                </div>
+                {% if voice_groups|length > 1 %}
+                    <div class="mb-3">
+                        <label class="form-label" for="new-list-voice-group">Stimmgruppe</label>
+                        <select class="form-select" id="new-list-voice-group" name="voice_group_id" required>
+                            {% for voice_group in voice_groups %}
+                                <option value="{{ voice_group.id }}">{{ voice_group.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+                <div>
+                    <label class="form-label" for="new-list-project">Projekt</label>
+                    <select class="form-select" id="new-list-project" name="project_id">
+                        <option value="">Ohne Projekt</option>
+                        {% for project in projects %}
+                            <option value="{{ project.id }}" {{ project.id == current_project_id ? "selected" : "" }}>
+                                {{ project.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">
+                        Mit Projekt stehen nur die Projektmitglieder der Stimmgruppe in der Liste,
+                        ohne Projekt alle Mitglieder der Stimmgruppe.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="submit" class="btn btn-primary">Anlegen</button>
+            </div>
+        </form>
+    </div>
+</div>

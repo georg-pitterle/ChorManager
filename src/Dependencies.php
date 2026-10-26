@@ -143,7 +143,10 @@ use App\Policies\NewsletterPolicy;
 use App\Policies\ProjectMemberPolicy;
 use App\Controllers\SponsorPackageController;
 use App\Controllers\SponsorshipController;
+use App\Controllers\VoiceGroupListController;
 use App\Policies\SponsoringPolicy;
+use App\Policies\VoiceGroupListPolicy;
+use App\Services\VoiceGroupListRows;
 use App\Services\AttachmentAccessRegistry;
 use App\Services\AttendanceScopeService;
 use App\Services\AttachmentResponseFactory;
@@ -548,6 +551,15 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(LoggerInterface::class)
             );
         },
+        VoiceGroupListController::class => function (ContainerInterface $c) {
+            return new VoiceGroupListController(
+                $c->get(Twig::class),
+                $c->get(VoiceGroupListPolicy::class),
+                new VoiceGroupListRows(),
+                $c->get(NameFormatterService::class),
+                $c->get(LoggerInterface::class)
+            );
+        },
         SponsorPackageController::class => function (ContainerInterface $c) {
             return new SponsorPackageController(
                 $c->get(Twig::class),
@@ -822,6 +834,7 @@ return function (ContainerBuilder $containerBuilder) {
         // Aufgelöst wird erst beim ersten Zugriff eines Controllers, also nach
         // dem Start der Sitzung - derselbe Zeitpunkt wie zuvor im Konstruktor.
         ProjectMemberPolicy::class => static fn (): ProjectMemberPolicy => new ProjectMemberPolicy($_SESSION),
+        VoiceGroupListPolicy::class => static fn (): VoiceGroupListPolicy => new VoiceGroupListPolicy($_SESSION),
         SponsoringPolicy::class => static fn (): SponsoringPolicy => new SponsoringPolicy($_SESSION),
         EntityAttachmentService::class => \DI\autowire(),
         EntityCleanupService::class => \DI\autowire(),

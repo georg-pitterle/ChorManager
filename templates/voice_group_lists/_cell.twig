@@ -1,0 +1,50 @@
+{% set cell_label = column.label ~ ": " ~ member|person_name %}
+<div class="voice-group-list-cell" data-vgl-cell="{{ column.id }}-{{ member.id }}">
+    {% if is_archived %}
+        {% if column.isCheckbox() %}
+            <span class="voice-group-list-tick is-static" title="{{ tooltip }}">
+                <i class="bi {{ entry ? "bi-check-square-fill text-success" : "bi-square text-muted" }}"></i>
+            </span>
+            <span class="voice-group-list-cell__by" data-vgl-by>{{ tooltip }}</span>
+        {% else %}
+            <span title="{{ tooltip }}">{{ entry ? entry.note : "" }}</span>
+        {% endif %}
+    {% elseif column.isCheckbox() %}
+        {# Der Knopf deckt am Handy die ganze Zeile der Karte ab (stretched-link): Mit dem #}
+        {# Daumen trifft man die Zeile, nicht das Kästchen. #}
+        <form action="/voice-group-lists/columns/{{ column.id }}/entries/{{ member.id }}"
+              method="post"
+              class="m-0"
+              data-vgl-entry="checkbox">
+            <input type="hidden" name="checked" value="{{ entry ? "0" : "1" }}">
+            <button type="submit"
+                    class="btn btn-link stretched-link voice-group-list-tick"
+                    title="{{ tooltip }}"
+                    aria-pressed="{{ entry ? "true" : "false" }}"
+                    aria-label="{{ cell_label }}">
+                <i class="bi {{ entry ? "bi-check-square-fill text-success" : "bi-square text-muted" }}"></i>
+            </button>
+        </form>
+        <span class="voice-group-list-cell__by" data-vgl-by>{{ tooltip }}</span>
+    {% else %}
+        <form action="/voice-group-lists/columns/{{ column.id }}/entries/{{ member.id }}"
+              method="post"
+              class="m-0 voice-group-list-note-form"
+              data-vgl-entry="note">
+            <input type="text"
+                   class="form-control form-control-sm voice-group-list-note"
+                   name="note"
+                   maxlength="{{ note_max_length }}"
+                   value="{{ entry ? entry.note : "" }}"
+                   title="{{ tooltip }}"
+                   aria-label="{{ cell_label }}">
+            <button type="submit"
+                    class="btn btn-sm btn-outline-secondary voice-group-list-note-save"
+                    aria-label="Notiz speichern">
+                <i class="bi bi-check-lg"></i>
+            </button>
+        </form>
+    {% endif %}
+    <div class="voice-group-list-cell__status" data-vgl-status role="status"></div>
+    <div class="small text-danger" data-vgl-error role="status"></div>
+</div>

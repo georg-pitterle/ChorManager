@@ -85,6 +85,7 @@ class RoleController
             'can_manage_own_voice_group' => isset($data['can_manage_own_voice_group']) ? 1 : 0,
             'can_assign_own_voice_group_to_project' =>
                 isset($data['can_assign_own_voice_group_to_project']) ? 1 : 0,
+            'can_keep_voice_group_lists' => isset($data['can_keep_voice_group_lists']) ? 1 : 0,
         ];
 
         if ($modules === null) {
@@ -375,7 +376,8 @@ class RoleController
                 'can_manage_storage' => $permissions['can_manage_storage'],
                 'can_manage_own_voice_group' => $permissions['can_manage_own_voice_group'],
                 'can_assign_own_voice_group_to_project' =>
-                    $permissions['can_assign_own_voice_group_to_project']
+                    $permissions['can_assign_own_voice_group_to_project'],
+                'can_keep_voice_group_lists' => $permissions['can_keep_voice_group_lists']
             ]);
             $_SESSION['success'] = 'Rolle erfolgreich angelegt.';
 
@@ -487,7 +489,8 @@ class RoleController
                 'can_manage_storage' => $permissions['can_manage_storage'],
                 'can_manage_own_voice_group' => $permissions['can_manage_own_voice_group'],
                 'can_assign_own_voice_group_to_project' =>
-                    $permissions['can_assign_own_voice_group_to_project']
+                    $permissions['can_assign_own_voice_group_to_project'],
+                'can_keep_voice_group_lists' => $permissions['can_keep_voice_group_lists']
             ]);
             $_SESSION['success'] = 'Rolle erfolgreich aktualisiert.';
 

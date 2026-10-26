@@ -1,0 +1,50 @@
+{# Spaltenpflege ist selten: eingeklappt unter der Arbeitstabelle. Ohne Spalte gibt es #}
+{# noch nichts abzuhaken - dann steht der Bereich offen. #}
+<details class="surface-card card border-0 mb-4 voice-group-list-columns" {{ columns|length == 0 ? "open" : "" }}>
+    <summary class="card-body voice-group-list-columns__summary">
+        <i class="bi bi-chevron-right voice-group-list-columns__chevron" aria-hidden="true"></i>
+        Spalten verwalten
+        <span class="text-muted">({{ columns|length }})</span>
+    </summary>
+    <div class="card-body pt-0">
+        {% if columns|length > 0 %}
+            <ul class="list-group mb-4">
+                {% for column in columns %}
+                    <li class="list-group-item">
+                        {{ include("voice_group_lists/_column_tools.twig", {
+                            column: column,
+                            position: loop.index,
+                            column_count: loop.length,
+                        }) }}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p class="text-muted">Noch keine Spalte. Legen Sie die erste Frage an, z. B. „Beitrag bezahlt“.</p>
+        {% endif %}
+
+        <form action="/voice-group-lists/{{ list.id }}/columns" method="post" class="row g-2 align-items-start">
+            <div class="col-12 col-md-6">
+                <label class="form-label" for="new-column-label">Neue Frage</label>
+                <input type="text"
+                       class="form-control"
+                       id="new-column-label"
+                       name="label"
+                       maxlength="255"
+                       placeholder="z. B. Beitrag bezahlt"
+                       required>
+            </div>
+            <div class="col-12 col-md-3">
+                <label class="form-label" for="new-column-type">Art</label>
+                <select class="form-select" id="new-column-type" name="type" aria-describedby="new-column-type-help">
+                    <option value="checkbox">Häkchen (erledigt / offen)</option>
+                    <option value="note">Notiz (freier Text)</option>
+                </select>
+                <div class="form-text" id="new-column-type-help">Die Art lässt sich später nicht mehr ändern.</div>
+            </div>
+            <div class="col-12 col-md-auto voice-group-list-columns__submit">
+                <button type="submit" class="btn btn-primary w-100">Hinzufügen</button>
+            </div>
+        </form>
+    </div>
+</details>

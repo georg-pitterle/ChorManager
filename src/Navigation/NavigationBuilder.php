@@ -272,6 +272,15 @@ final class NavigationBuilder
                                 $c->can('can_manage_users') || $c->can('can_manage_own_voice_group'),
                         ],
                         [
+                            'label' => 'Stimmgruppen-Listen',
+                            'url' => '/voice-group-lists',
+                            'icon' => 'bi-card-checklist',
+                            'keywords' => ['checkliste', 'notizen', 'mitgliedsbeitrag', 'stimmvertretung'],
+                            'prefixes' => ['/voice-group-lists'],
+                            'navKeys' => ['voice_group_lists'],
+                            'visible' => static fn(NavigationContext $c): bool => $c->can('can_keep_voice_group_lists'),
+                        ],
+                        [
                             'label' => 'Projekte',
                             'url' => '/projects',
                             'icon' => 'bi-folder-fill',

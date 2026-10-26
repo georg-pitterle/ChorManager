@@ -34,6 +34,7 @@ final class RolePermissionCatalog
                 'module' => null,
             ],
             ['key' => 'can_manage_own_voice_group', 'label' => 'Eigene Stimmgruppe verwalten', 'module' => null],
+            ['key' => 'can_keep_voice_group_lists', 'label' => 'Stimmgruppen-Listen führen', 'module' => null],
         ]],
         ['label' => 'Finanzen', 'permissions' => [
             ['key' => 'can_read_finances', 'label' => 'Finanzen nur lesen', 'module' => 'finance'],

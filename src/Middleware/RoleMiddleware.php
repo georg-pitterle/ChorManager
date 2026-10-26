@@ -161,6 +161,11 @@ class RoleMiddleware implements MiddlewareInterface
             'logged_permission' => 'can_manage_own_voice_group',
             'message' => 'Zugriff verweigert: Sie haben keine Berechtigung für diese Aktion.',
         ],
+        'requiresVoiceGroupLists' => [
+            'permissions' => ['can_keep_voice_group_lists'],
+            'logged_permission' => 'can_keep_voice_group_lists',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung für die Stimmgruppen-Listen.',
+        ],
         'requiresUserManagement' => [
             'permissions' => ['can_manage_users'],
             'logged_permission' => 'can_manage_users',
@@ -217,6 +222,7 @@ class RoleMiddleware implements MiddlewareInterface
         bool $requiresUserManagement = false,
         bool $requiresFilesManagement = false,
         bool $requiresStorageManagement = false,
+        bool $requiresVoiceGroupLists = false,
         ?LoggerInterface $logger = null
     ) {
         $requestedGates = [
@@ -241,6 +247,7 @@ class RoleMiddleware implements MiddlewareInterface
             'requiresUserManagement' => $requiresUserManagement,
             'requiresFilesManagement' => $requiresFilesManagement,
             'requiresStorageManagement' => $requiresStorageManagement,
+            'requiresVoiceGroupLists' => $requiresVoiceGroupLists,
         ];
 
         // Über self::GATES laufen, nicht über $requestedGates: So bestimmt die

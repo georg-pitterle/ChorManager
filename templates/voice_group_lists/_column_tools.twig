@@ -1,0 +1,70 @@
+{# Jede Zeile sagt, was sie tut. "Nach vorne/hinten" statt Pfeilen: In der Tabelle #}
+{# heißt vorne links, in der Kartenansicht am Handy oben - links/rechts stimmte dort nicht. #}
+{# Die ganze Zeile klappt auf; der Knopf rechts zeigt, dass sie das tut. #}
+<details class="voice-group-list-column-tools">
+    <summary class="voice-group-list-column-tools__summary">
+        <span>
+            {{ column.label }}
+            <span class="text-muted">· {{ column.isCheckbox() ? "Häkchen" : "Notiz" }}</span>
+        </span>
+        <span class="btn btn-sm btn-outline-secondary voice-group-list-column-tools__toggle">
+            <span class="voice-group-list-column-tools__when-closed">
+                <i class="bi bi-pencil" aria-hidden="true"></i> Bearbeiten
+            </span>
+            <span class="voice-group-list-column-tools__when-open">
+                <i class="bi bi-x-lg" aria-hidden="true"></i> Schließen
+            </span>
+        </span>
+    </summary>
+    <div class="voice-group-list-column-tools__body">
+        <form action="/voice-group-lists/columns/{{ column.id }}" method="post" class="voice-group-list-column-tools__row">
+            <label class="form-label mb-0" for="column-label-{{ column.id }}">Name</label>
+            <div class="d-flex gap-2 flex-grow-1">
+                <input type="text"
+                       class="form-control form-control-sm"
+                       id="column-label-{{ column.id }}"
+                       name="label"
+                       maxlength="255"
+                       value="{{ column.label }}"
+                       required>
+                <button type="submit" class="btn btn-sm btn-outline-secondary">Umbenennen</button>
+            </div>
+        </form>
+
+        {% if column_count > 1 %}
+            <div class="voice-group-list-column-tools__row">
+                <span class="voice-group-list-column-tools__label">
+                    Reihenfolge: Position {{ position }} von {{ column_count }}
+                </span>
+                <div class="d-flex flex-wrap gap-2">
+                    {% if position > 1 %}
+                        <form action="/voice-group-lists/columns/{{ column.id }}/move" method="post">
+                            <input type="hidden" name="direction" value="up">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-arrow-bar-left" aria-hidden="true"></i> Nach vorne
+                            </button>
+                        </form>
+                    {% endif %}
+                    {% if position < column_count %}
+                        <form action="/voice-group-lists/columns/{{ column.id }}/move" method="post">
+                            <input type="hidden" name="direction" value="down">
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-arrow-bar-right" aria-hidden="true"></i> Nach hinten
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="voice-group-list-column-tools__row">
+            <form action="/voice-group-lists/columns/{{ column.id }}/delete"
+                  method="post"
+                  data-confirm="Spalte „{{ column.label }}“ samt allen Einträgen löschen?">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-trash" aria-hidden="true"></i> Spalte löschen
+                </button>
+            </form>
+        </div>
+    </div>
+</details>

@@ -1,0 +1,74 @@
+{# Die Table-Engine bringt die Kartenansicht am Handy und die Namenssuche. Sie blendet #}
+{# Zeilen nur aus und ordnet sie um; die Formulare in den Zellen bleiben dieselben. #}
+<div class="surface-card card border-0 mb-4 table-shell"
+     data-table-engine="true"
+     data-table-id="voice_group_lists.show"
+     data-default-view="auto"
+     data-default-page-size="500"
+     data-page-size-options="500"
+     data-count-one="Mitglied"
+     data-count-many="Mitglieder"
+     data-count-of="Mitgliedern">
+    {{ include("partials/table_toolbar.twig") }}
+    <div class="card-body p-0">
+        {% if members|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0 table-responsive-cards voice-group-list-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th scope="col"
+                                class="voice-group-list-table__name"
+                                data-sort-key="member_name"
+                                data-sort-type="text">Name</th>
+                            <th scope="col"
+                                class="voice-group-list-table__sub-voice"
+                                data-sort-key="sub_voice"
+                                data-sort-type="text">Teilstimme</th>
+                            {% for column in columns %}
+                                <th scope="col">{{ column.label }}</th>
+                            {% endfor %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in members %}
+                            {% set member = row.user %}
+                            <tr data-sort-member_name="{{ member|person_name|lower }}"
+                                data-sort-sub_voice="{{ row.sub_voice_name|default("")|lower }}">
+                                <td data-label="Name" data-card-title>
+                                    {{ member|person_name }}
+                                    {% if row.sub_voice_name %}
+                                        <span class="voice-group-list-table__card-sub-voice">{{ row.sub_voice_name }}</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Teilstimme" class="voice-group-list-table__sub-voice">
+                                    {{ row.sub_voice_name|default("-") }}
+                                </td>
+                                {% for column in columns %}
+                                    {% if column.isCheckbox() %}
+                                        <td data-label="{{ column.label }}" class="voice-group-list-table__tick-cell">
+                                            {{ include("voice_group_lists/_cell.twig", {
+                                                entry: entries[column.id][member.id]|default(null),
+                                                tooltip: tooltips[column.id][member.id]|default(""),
+                                            }) }}
+                                        </td>
+                                    {% else %}
+                                        <td data-label="{{ column.label }}" data-card-block>
+                                            {{ include("voice_group_lists/_cell.twig", {
+                                                entry: entries[column.id][member.id]|default(null),
+                                                tooltip: tooltips[column.id][member.id]|default(""),
+                                            }) }}
+                                        </td>
+                                    {% endif %}
+                                {% endfor %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% elseif open_column %}
+            <p class="text-center text-muted py-5 mb-0">Bei „{{ open_column.label }}“ ist niemand mehr offen.</p>
+        {% else %}
+            <p class="text-center text-muted py-5 mb-0">In dieser Liste steht derzeit niemand.</p>
+        {% endif %}
+    </div>
+</div>

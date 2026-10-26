@@ -54,6 +54,7 @@ use App\Models\WebdavAccessToken;
 use App\Services\BackupService;
 use App\Services\CalendarSubscriptionService;
 use App\Services\WebdavAccessService;
+use App\Services\VoiceGroupListRows;
 use App\Services\Oidc\AccessTokenService;
 use App\Services\Oidc\OidcSigningKeyService;
 use App\Services\SecretBoxCryptoService;
@@ -61,6 +62,9 @@ use App\Services\Oidc\AuthorizationCodeService;
 use App\Services\Oidc\OidcClientService;
 use App\Services\FinanceJournalService;
 use App\Models\Setting;
+use App\Models\VoiceGroupList;
+use App\Models\VoiceGroupListColumn;
+use App\Models\VoiceGroupListEntry;
 use App\Models\Song;
 use App\Models\SongResource;
 use App\Models\Sponsor;
@@ -215,6 +219,9 @@ class DevSeedService
                 'sponsor_categories' => 0,
                 'sponsor_package_deliverables' => 0,
                 'sponsorship_deliverables' => 0,
+                'voice_group_lists' => 0,
+                'voice_group_list_columns' => 0,
+                'voice_group_list_entries' => 0,
                 'project_logo_deadlines' => 0,
                 'sponsorships' => 0,
                 'sponsorship_benefits' => 0,
@@ -275,6 +282,7 @@ class DevSeedService
 
             $projects = $this->seedProjects($years);
             $projectMembers = $this->seedProjectMembers($projects, $users['active'], $users['archived']);
+            $this->seedVoiceGroupLists($voiceData, $projects);
             $categories = $this->seedCategories();
             $songs = $this->seedSongs($users['active']);
             $this->seedSongCategoryAssignments($songs, $categories);
@@ -417,6 +425,7 @@ class DevSeedService
                 'can_manage_storage' => 1,
                 'can_manage_own_voice_group' => 1,
                 'can_assign_own_voice_group_to_project' => 0,
+                'can_keep_voice_group_lists' => 0,
             ],
             [
                 'name' => 'Vorstand',
@@ -440,6 +449,7 @@ class DevSeedService
                 'can_manage_sheet_archive' => 0,
                 'can_manage_own_voice_group' => 1,
                 'can_assign_own_voice_group_to_project' => 0,
+                'can_keep_voice_group_lists' => 0,
             ],
             [
                 'name' => 'Kassier',
@@ -463,6 +473,7 @@ class DevSeedService
                 'can_manage_sheet_archive' => 0,
                 'can_manage_own_voice_group' => 1,
                 'can_assign_own_voice_group_to_project' => 0,
+                'can_keep_voice_group_lists' => 0,
             ],
             [
                 'name' => 'Chorleitung',
@@ -485,6 +496,7 @@ class DevSeedService
                 'can_manage_sheet_archive' => 1,
                 'can_manage_own_voice_group' => 1,
                 'can_assign_own_voice_group_to_project' => 0,
+                'can_keep_voice_group_lists' => 0,
             ],
             [
                 'name' => 'Stimmvertretung',
@@ -507,6 +519,7 @@ class DevSeedService
                 'can_manage_sheet_archive' => 0,
                 'can_manage_own_voice_group' => 1,
                 'can_assign_own_voice_group_to_project' => 1,
+                'can_keep_voice_group_lists' => 1,
             ],
             [
                 'name' => 'Ersatzvertretung',
@@ -529,6 +542,7 @@ class DevSeedService
                 'can_manage_sheet_archive' => 0,
                 'can_manage_own_voice_group' => 1,
                 'can_assign_own_voice_group_to_project' => 1,
+                'can_keep_voice_group_lists' => 1,
             ],
             [
                 'name' => 'Mitglied',
@@ -551,6 +565,7 @@ class DevSeedService
                 'can_manage_sheet_archive' => 0,
                 'can_manage_own_voice_group' => 0,
                 'can_assign_own_voice_group_to_project' => 0,
+                'can_keep_voice_group_lists' => 0,
             ],
         ];
 
@@ -914,6 +929,120 @@ class DevSeedService
         }
 
         return $projectMembers;
+    }
+
+    /**
+     * Stimmgruppen-Listen für Sopran und Alt: je eine zum jüngsten Projekt
+     * (Häkchen "Beitrag bezahlt", Notiz "Kleidergröße", etwa zur Hälfte
+     * ausgefüllt), je eine ohne Projekt ("Notenausgabe") und beim Sopran
+     * zusätzlich eine archivierte. So ist in Dev beides zu sehen - offen und
+     * erledigt, laufend und abgeschlossen.
+     *
+     * Bei append bleibt eine schon vorhandene Liste gleichen Titels stehen.
+     *
+     * @param array{groups: array<string, VoiceGroup>} $voiceData
+     * @param array<Project> $projects
+     */
+    private function seedVoiceGroupLists(array $voiceData, array $projects): void
+    {
+        $latestProject = null;
+        foreach ($projects as $project) {
+            if ($latestProject === null || $project->start_date > $latestProject->start_date) {
+                $latestProject = $project;
+            }
+        }
+
+        foreach (['Sopran', 'Alt'] as $groupName) {
+            $group = $voiceData['groups'][$groupName] ?? null;
+            if ($group === null) {
+                continue;
+            }
+
+            $definitions = [
+                [
+                    'title' => $latestProject !== null ? (string) $latestProject->name : 'Konzertprojekt',
+                    'project' => $latestProject,
+                    'archived_at' => null,
+                    'columns' => [
+                        ['Beitrag bezahlt', VoiceGroupListColumn::TYPE_CHECKBOX],
+                        ['Kleidergröße', VoiceGroupListColumn::TYPE_NOTE],
+                    ],
+                ],
+                [
+                    'title' => 'Notenausgabe',
+                    'project' => null,
+                    'archived_at' => null,
+                    'columns' => [['Noten erhalten', VoiceGroupListColumn::TYPE_CHECKBOX]],
+                ],
+            ];
+            if ($groupName === 'Sopran') {
+                $definitions[] = [
+                    'title' => 'Weihnachtsfeier Vorjahr',
+                    'project' => null,
+                    'archived_at' => Carbon::now()->subMonths(10),
+                    'columns' => [['Zusage', VoiceGroupListColumn::TYPE_CHECKBOX]],
+                ];
+            }
+
+            foreach ($definitions as $definition) {
+                $this->seedVoiceGroupList($group, $definition);
+            }
+        }
+    }
+
+    /**
+     * @param array{
+     *     title: string,
+     *     project: ?Project,
+     *     archived_at: ?Carbon,
+     *     columns: list<array{0: string, 1: string}>
+     * } $definition
+     */
+    private function seedVoiceGroupList(VoiceGroup $group, array $definition): void
+    {
+        if (VoiceGroupList::where('voice_group_id', $group->id)->where('title', $definition['title'])->exists()) {
+            return;
+        }
+
+        $list = VoiceGroupList::create([
+            'voice_group_id' => $group->id,
+            'title' => $definition['title'],
+            'project_id' => $definition['project']?->id,
+            'archived_at' => $definition['archived_at'],
+        ]);
+        $this->report['counts']['voice_group_lists']++;
+
+        $members = (new VoiceGroupListRows())->memberIds($list);
+        $editor = $members[0] ?? null;
+        $sizes = ['XS', 'S', 'M', 'L', 'XL'];
+
+        foreach ($definition['columns'] as $position => [$label, $type]) {
+            $column = VoiceGroupListColumn::create([
+                'list_id' => $list->id,
+                'label' => $label,
+                'type' => $type,
+                'sort_order' => $position,
+            ]);
+            $this->report['counts']['voice_group_list_columns']++;
+
+            foreach ($members as $index => $userId) {
+                // Etwa die Hälfte ausgefüllt, damit "nur offene" etwas zu zeigen hat.
+                if ($index % 2 === 1) {
+                    continue;
+                }
+
+                VoiceGroupListEntry::create([
+                    'column_id' => $column->id,
+                    'user_id' => $userId,
+                    'checked_at' => $type === VoiceGroupListColumn::TYPE_CHECKBOX
+                        ? Carbon::now()->subDays(1 + $index)
+                        : null,
+                    'note' => $type === VoiceGroupListColumn::TYPE_NOTE ? $sizes[$index % count($sizes)] : null,
+                    'updated_by_user_id' => $editor,
+                ]);
+                $this->report['counts']['voice_group_list_entries']++;
+            }
+        }
     }
 
     /**

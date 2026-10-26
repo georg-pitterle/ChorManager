@@ -68,6 +68,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 setCheckedIfPresent('edit_can_manage_storage', this.getAttribute('data-storage') === '1');
                 setCheckedIfPresent('edit_can_manage_own_voice_group', this.getAttribute('data-own-voice-group') === '1');
                 setCheckedIfPresent('edit_can_assign_own_voice_group_to_project', this.getAttribute('data-assign-own-voice-group-project') === '1');
+                setCheckedIfPresent('edit_can_keep_voice_group_lists', this.getAttribute('data-keep-voice-group-lists') === '1');
             });
         });
     }

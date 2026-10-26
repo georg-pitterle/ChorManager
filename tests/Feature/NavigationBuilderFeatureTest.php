@@ -431,4 +431,33 @@ class NavigationBuilderFeatureTest extends TestCase
 
         $this->assertTrue($this->entry($tree, '/events')['active']);
     }
+
+    public function testVoiceGroupListsAreVisibleOnlyWithTheirOwnRight(): void
+    {
+        $entry = $this->entry($this->build(['can_keep_voice_group_lists' => true]), '/voice-group-lists');
+        $this->assertNotNull($entry);
+        $this->assertSame('Stimmgruppen-Listen', $entry['label']);
+        $this->assertSame('people', $this->sectionOf($this->build(['can_keep_voice_group_lists' => true]), '/voice-group-lists'));
+
+        $this->assertNull($this->entry($this->build(['can_manage_own_voice_group' => true]), '/voice-group-lists'));
+        $this->assertNull($this->entry($this->build(['can_manage_users' => true]), '/voice-group-lists'));
+    }
+
+    /**
+     * @param array<int,array<string,mixed>> $tree
+     */
+    private function sectionOf(array $tree, string $url): ?string
+    {
+        foreach ($tree as $node) {
+            if ($node['type'] !== 'section') {
+                continue;
+            }
+            foreach ($this->entries([$node]) as $entry) {
+                if ($entry['url'] === $url) {
+                    return (string) $node['key'];
+                }
+            }
+        }
+        return null;
+    }
 }

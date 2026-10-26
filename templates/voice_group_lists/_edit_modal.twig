@@ -1,0 +1,38 @@
+<div class="modal fade" id="editListModal" tabindex="-1" aria-labelledby="editListModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+        <form action="/voice-group-lists/{{ list.id }}" method="post" class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title h5" id="editListModalTitle">Liste bearbeiten</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label" for="edit-list-title">Titel</label>
+                    <input type="text"
+                           class="form-control"
+                           id="edit-list-title"
+                           name="title"
+                           maxlength="255"
+                           value="{{ list.title }}"
+                           required>
+                </div>
+                <div>
+                    <label class="form-label" for="edit-list-project">Projekt</label>
+                    <select class="form-select" id="edit-list-project" name="project_id">
+                        <option value="">Ohne Projekt</option>
+                        {% for candidate in projects %}
+                            <option value="{{ candidate.id }}" {{ candidate.id == list.project_id ? "selected" : "" }}>
+                                {{ candidate.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                    <div class="form-text">Mit Projekt stehen nur die Projektmitglieder der Stimmgruppe in der Liste.</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="submit" class="btn btn-primary">Speichern</button>
+            </div>
+        </form>
+    </div>
+</div>

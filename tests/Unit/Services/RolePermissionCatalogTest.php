@@ -57,7 +57,7 @@ final class RolePermissionCatalogTest extends TestCase
             ['key' => 'can_manage_events', 'label' => 'Termine verwalten'],
             $groups[0]['permissions'][3]
         );
-        $this->assertCount(22, array_merge(...array_column($groups, 'permissions')));
+        $this->assertCount(23, array_merge(...array_column($groups, 'permissions')));
     }
 
     public function testMissingModuleFlagHidesPermission(): void
@@ -83,7 +83,7 @@ final class RolePermissionCatalogTest extends TestCase
             'key'
         );
 
-        $this->assertCount(13, $keys);
+        $this->assertCount(14, $keys);
         $this->assertContains('can_manage_song_library', $keys);
         $this->assertNotContains('can_read_finances', $keys);
     }

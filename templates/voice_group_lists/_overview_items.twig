@@ -1,0 +1,33 @@
+{# Je Liste: Titel, Projekt (nur wenn es anders heißt als die Liste) und der Stand der #}
+{# ersten Häkchen-Spalte. Geprüft wird project_id, nicht project: Bei fehlendem Projekt #}
+{# griff Twig sonst zur Methode project(), und die ist immer wahr. #}
+<ul class="list-group voice-group-list-overview">
+    {% for list in items %}
+        {% set summary = summaries[list.id]|default(null) %}
+        {% set project_name = list.project_id ? list.project.name : null %}
+        <li class="list-group-item list-group-item-action position-relative">
+            <div class="voice-group-list-overview__main">
+                <a href="/voice-group-lists/{{ list.id }}"
+                   class="stretched-link voice-group-list-overview__title">{{ list.title }}</a>
+                <span class="voice-group-list-overview__meta">
+                    {% if project_name is null %}
+                        Ohne Projekt
+                    {% elseif project_name != list.title %}
+                        Projekt: {{ project_name }}
+                    {% else %}
+                        Liste zum Projekt
+                    {% endif %}
+                </span>
+            </div>
+            <span class="voice-group-list-overview__state">
+                {% if summary is null %}
+                    <span class="text-muted">Noch keine Häkchen-Spalte</span>
+                {% elseif summary.total > 0 and summary.done == summary.total %}
+                    <span class="text-success">{{ summary.label }}: alle erledigt</span>
+                {% else %}
+                    {{ summary.label }} {{ summary.done }} / {{ summary.total }}
+                {% endif %}
+            </span>
+        </li>
+    {% endfor %}
+</ul>

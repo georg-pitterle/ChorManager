@@ -1,0 +1,96 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    {{ list.title }} - Stimmgruppen-Listen - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <h1 class="h2 mb-1 mt-2">{{ list.title }}</h1>
+            <p class="mb-1">
+                {% if project %}
+                    Projekt: <strong>{{ project.name }}</strong>
+                {% else %}
+                    Ohne Projekt – alle Mitglieder der Stimmgruppe
+                {% endif %}
+            </p>
+            <p class="text-muted mb-0">{{ voice_group.name }} · {{ member_total }} Mitglieder</p>
+        </div>
+        <div class="page-actions">
+            {# Zurück wie auf den übrigen Detailseiten: ein Knopf, keine Brotkrumen. #}
+            <a href="/voice-group-lists"
+               class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>
+                Alle Listen
+            </a>
+            {% if is_archived %}
+                <form action="/voice-group-lists/{{ list.id }}/restore" method="post">
+                    <button type="submit" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-counterclockwise"></i> Zurückholen
+                    </button>
+                </form>
+            {% endif %}
+            {# Wer die Liste zum Abhaken öffnet, braucht diese Aktionen fast nie: Sie #}
+            {# liegen hinter einem Knopf statt vor dem ersten Mitglied. #}
+            <div class="dropdown">
+                <button type="button"
+                        class="btn btn-outline-secondary dropdown-toggle w-100"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false">
+                    Liste verwalten
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    {% if not is_archived %}
+                        <li>
+                            <button type="button"
+                                    class="dropdown-item"
+                                    data-bs-toggle="modal"
+                                    data-bs-target="#editListModal">
+                                <i class="bi bi-pencil me-2" aria-hidden="true"></i>Titel und Projekt ändern
+                            </button>
+                        </li>
+                        <li>
+                            <form action="/voice-group-lists/{{ list.id }}/archive" method="post">
+                                <button type="submit" class="dropdown-item">
+                                    <i class="bi bi-archive me-2" aria-hidden="true"></i>Archivieren
+                                </button>
+                            </form>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                    {% endif %}
+                    <li>
+                        <form action="/voice-group-lists/{{ list.id }}/delete"
+                              method="post"
+                              data-confirm="Liste „{{ list.title }}“ samt allen Häkchen und Notizen löschen?">
+                            <button type="submit" class="dropdown-item text-danger">
+                                <i class="bi bi-trash me-2" aria-hidden="true"></i>Liste löschen
+                            </button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    {% if is_archived %}
+        <div class="alert alert-info">
+            Archiviert – nur lesbar. Zum Weiterarbeiten oben „Zurückholen“.
+        </div>
+    {% endif %}
+
+    {{ include("voice_group_lists/_progress.twig") }}
+
+    {{ include("voice_group_lists/_table.twig") }}
+
+    {% if not is_archived %}
+        {{ include("voice_group_lists/_column_form.twig") }}
+        {{ include("voice_group_lists/_edit_modal.twig") }}
+    {% endif %}
+{% endblock content %}
+
+{% block scripts %}
+    <script src="{{ asset_path("/js/voice-group-lists.js") }}"></script>
+{% endblock scripts %}

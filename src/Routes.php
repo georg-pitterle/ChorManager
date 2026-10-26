@@ -19,6 +19,7 @@ use App\Controllers\RegistrationController;
 use App\Controllers\EvaluationController;
 use App\Controllers\RoleController;
 use App\Controllers\VoiceGroupController;
+use App\Controllers\VoiceGroupListController;
 use App\Controllers\FinanceAccountController;
 use App\Controllers\FinanceController;
 use App\Controllers\MailBadgeController;
@@ -245,6 +246,28 @@ return function (App $app) {
                     $userGroup->post('/{id:[0-9]+}/invite', [UserController::class, 'invite']);
                 }
             )->add(new RoleMiddleware(allowVoiceGroupReps: true)); // allow manage_users OR can_manage_own_voice_group
+
+            // Stimmgruppen-Listen: welche Liste jemand sieht, entscheidet VoiceGroupListPolicy.
+            $group->group(
+                '/voice-group-lists',
+                function (RouteCollectorProxy $listGroup) {
+                    $listGroup->get('', [VoiceGroupListController::class, 'index']);
+                    $listGroup->post('', [VoiceGroupListController::class, 'create']);
+                    $listGroup->get('/{id:[0-9]+}', [VoiceGroupListController::class, 'show']);
+                    $listGroup->post('/{id:[0-9]+}', [VoiceGroupListController::class, 'update']);
+                    $listGroup->post('/{id:[0-9]+}/archive', [VoiceGroupListController::class, 'archive']);
+                    $listGroup->post('/{id:[0-9]+}/restore', [VoiceGroupListController::class, 'restore']);
+                    $listGroup->post('/{id:[0-9]+}/delete', [VoiceGroupListController::class, 'delete']);
+                    $listGroup->post('/{id:[0-9]+}/columns', [VoiceGroupListController::class, 'addColumn']);
+                    $listGroup->post('/columns/{column_id:[0-9]+}', [VoiceGroupListController::class, 'renameColumn']);
+                    $listGroup->post('/columns/{column_id:[0-9]+}/move', [VoiceGroupListController::class, 'moveColumn']);
+                    $listGroup->post('/columns/{column_id:[0-9]+}/delete', [VoiceGroupListController::class, 'deleteColumn']);
+                    $listGroup->post(
+                        '/columns/{column_id:[0-9]+}/entries/{user_id:[0-9]+}',
+                        [VoiceGroupListController::class, 'saveEntry']
+                    );
+                }
+            )->add(new RoleMiddleware(requiresVoiceGroupLists: true));
 
             // Trefferzahl einer Zielgruppen-Zeile; wer sie abfragen darf, prüft der Controller.
             $group->post('/audience-preview', [AudiencePreviewController::class, 'preview']);

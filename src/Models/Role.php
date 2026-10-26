@@ -53,6 +53,7 @@ class Role extends Model
         'can_manage_storage',
         'can_manage_own_voice_group',
         'can_assign_own_voice_group_to_project',
+        'can_keep_voice_group_lists',
     ];
 
     /**

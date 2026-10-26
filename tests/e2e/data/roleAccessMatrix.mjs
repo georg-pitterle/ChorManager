@@ -14,6 +14,7 @@ export const PROTECTED_ROUTES = [
     { path: '/admin/mail-queue', requires: ['can_manage_mail_queue'] },
     { path: '/backups', requires: ['can_manage_backups'] },
     { path: '/storage', requires: ['can_manage_storage'] },
+    { path: '/voice-group-lists', requires: ['can_keep_voice_group_lists'] },
 ];
 
 // Ein Passwort für alle Test-Mitglieder (wird nach dem Anlegen direkt in der DB gesetzt, siehe

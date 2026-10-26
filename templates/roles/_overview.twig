@@ -96,7 +96,8 @@
                                         data-files="{{ role.can_manage_files ? "1" : "0" }}"
                                         data-storage="{{ role.can_manage_storage ? "1" : "0" }}"
                                         data-own-voice-group="{{ role.can_manage_own_voice_group ? "1" : "0" }}"
-                                        data-assign-own-voice-group-project="{{ assign_own_voice_group }}">
+                                        data-assign-own-voice-group-project="{{ assign_own_voice_group }}"
+                                        data-keep-voice-group-lists="{{ role.can_keep_voice_group_lists ? "1" : "0" }}">
                                     <i class="bi bi-pencil"></i> Bearbeiten
                                 </button>
                                 {% if role.assigned_users_count == 0 %}

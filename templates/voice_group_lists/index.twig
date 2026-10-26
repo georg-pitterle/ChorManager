@@ -1,0 +1,61 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    Stimmgruppen-Listen - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <h1 class="h2 mb-1 mt-2">Stimmgruppen-Listen</h1>
+            <p class="text-muted mb-0">
+                Eigene Listen für die Stimmgruppe, z. B. wer den Mitgliedsbeitrag bezahlt hat.
+                Die Mitglieder selbst sehen diese Listen nicht.
+            </p>
+        </div>
+        {% if voice_groups|length > 0 %}
+            <div class="page-actions">
+                <button type="button"
+                        class="btn btn-primary"
+                        data-bs-toggle="modal"
+                        data-bs-target="#newListModal">
+                    Neue Liste
+                </button>
+            </div>
+        {% endif %}
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    {% if voice_groups|length == 0 %}
+        <div class="alert alert-info">
+            Sie gehören keiner Stimmgruppe an. Listen gibt es nur für die eigene Stimmgruppe.
+        </div>
+    {% endif %}
+
+    {% for section in sections %}
+        <section class="voice-group-list-section">
+            {% if sections|length > 1 %}
+                <h2 class="dashboard-section-title">{{ section.voice_group.name }}</h2>
+            {% endif %}
+            {% if section.lists|length > 0 %}
+                {{ include("voice_group_lists/_overview_items.twig", {items: section.lists}) }}
+            {% else %}
+                <p class="text-muted">
+                    Noch keine Liste. Über „Neue Liste“ legen Sie die erste an, z. B. für das laufende Projekt.
+                </p>
+            {% endif %}
+
+            {% if section.archived|length > 0 %}
+                <details class="voice-group-list-archive">
+                    <summary class="text-muted">Archiviert ({{ section.archived|length }})</summary>
+                    {{ include("voice_group_lists/_overview_items.twig", {items: section.archived}) }}
+                </details>
+            {% endif %}
+        </section>
+    {% endfor %}
+
+    {% if voice_groups|length > 0 %}
+        {{ include("voice_group_lists/_new_list_modal.twig") }}
+    {% endif %}
+{% endblock content %}

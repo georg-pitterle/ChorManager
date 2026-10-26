@@ -1,0 +1,42 @@
+{# Wer fehlt noch? Steht über der Tabelle und bleibt am Handy beim Scrollen oben - im #}
+{# Tabellenkopf war die Antwort in der Kartenansicht unsichtbar. #}
+{% set tick_columns = columns|filter(c => c.isCheckbox()) %}
+{% if tick_columns|length > 0 %}
+    <div class="voice-group-list-progress">
+        {% for column in tick_columns %}
+            {% set column_progress = progress[column.id] %}
+            {% set percent = column_progress.total > 0 ? (column_progress.done * 100 / column_progress.total)|round : 0 %}
+            {% set is_open_filter = open_column and open_column.id == column.id %}
+            {% set is_done = column_progress.total > 0 and column_progress.done == column_progress.total %}
+            <div class="voice-group-list-progress__item" data-vgl-progress-item="{{ column.id }}">
+                <div class="voice-group-list-progress__head">
+                    <span class="voice-group-list-progress__label">{{ column.label }}</span>
+                    <span class="voice-group-list-progress__count">
+                        {% if is_open_filter %}
+                            {{ column_progress.total - column_progress.done }} von {{ column_progress.total }} offen
+                        {% else %}
+                            <span data-vgl-progress="{{ column.id }}">{{ column_progress.done }} / {{ column_progress.total }}</span>
+                            <span class="text-success" data-vgl-done="{{ column.id }}" {{ is_done ? "" : "hidden" }}>· Alle erledigt</span>
+                        {% endif %}
+                    </span>
+                    {% if is_open_filter %}
+                        <a href="/voice-group-lists/{{ list.id }}" class="btn btn-sm btn-outline-secondary">Alle zeigen</a>
+                    {% elseif not is_done %}
+                        <a href="/voice-group-lists/{{ list.id }}?open={{ column.id }}"
+                           class="btn btn-sm btn-outline-secondary">Nur offene zeigen</a>
+                    {% endif %}
+                </div>
+                <div class="progress voice-group-list-progress__bar"
+                     role="progressbar"
+                     aria-label="{{ column.label }}"
+                     aria-valuenow="{{ percent }}"
+                     aria-valuemin="0"
+                     aria-valuemax="100">
+                    <div class="progress-bar progress-bar-dynamic bg-success"
+                         data-vgl-progress-bar="{{ column.id }}"
+                         style="--progress-value: {{ percent }}%"></div>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}

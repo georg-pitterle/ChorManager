@@ -5189,3 +5189,322 @@ a:hover {
 .users-table tbody tr:has(.user-row-select:checked) > * {
     --bs-table-bg-state: color-mix(in srgb, var(--theme-primary) 12%, var(--theme-surface, #fff)) !important;
 }
+
+/* ---------------------------------------------------------------------------
+   Stimmgruppen-Listen. Die Hauptaufgabe ist Abhaken, oft am Handy in der Probe:
+   Das Häkchen ist das größte Ziel der Karte, der Fortschritt bleibt sichtbar.
+   --------------------------------------------------------------------------- */
+.voice-group-list-section + .voice-group-list-section {
+    margin-top: 2rem;
+}
+
+.voice-group-list-archive {
+    margin-top: 1rem;
+}
+
+.voice-group-list-archive > summary {
+    min-height: 2.75rem;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.voice-group-list-overview .list-group-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+    padding: 0.75rem 1rem;
+}
+
+.voice-group-list-overview__main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.voice-group-list-overview__title {
+    color: var(--theme-text);
+    text-decoration: none;
+}
+
+.voice-group-list-overview__meta,
+.voice-group-list-overview__state {
+    font-size: var(--font-size-small);
+    color: var(--theme-text-muted);
+}
+
+.voice-group-list-overview__state {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Fortschritt je Häkchen-Spalte über der Tabelle. */
+.voice-group-list-progress {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+    gap: 0.75rem 1.5rem;
+    margin-bottom: 1rem;
+    padding: 0.75rem 1rem;
+    background: var(--theme-surface, #fff);
+    border: 1px solid var(--theme-border);
+    border-radius: var(--app-radius);
+}
+
+.voice-group-list-progress__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.75rem;
+}
+
+.voice-group-list-progress__count {
+    margin-right: auto;
+    font-size: var(--font-size-small);
+    color: var(--theme-text-muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.voice-group-list-progress__bar {
+    height: 0.375rem;
+    margin-top: 0.5rem;
+}
+
+/* Am Handy bleibt "Wer fehlt noch?" beim Scrollen durch 30 Karten oben stehen. */
+@media (max-width: 767.98px) {
+    .voice-group-list-progress {
+        position: sticky;
+        top: var(--app-topbar-height);
+        z-index: 5;
+    }
+}
+
+/* Tabelle: Name und Teilstimme schmal, damit Häkchen und Notizen Platz haben. */
+.voice-group-list-table__name {
+    width: 14rem;
+}
+
+.voice-group-list-table__sub-voice {
+    width: 8rem;
+}
+
+.voice-group-list-table__card-sub-voice {
+    display: none;
+}
+
+.voice-group-list-table > tbody > tr > td {
+    vertical-align: middle;
+}
+
+/* Der Knopf trägt "stretched-link": Die Zelle - in der Karte die ganze Zeile - ist
+   das Ziel, nicht das Kästchen. */
+.voice-group-list-table__tick-cell {
+    position: relative;
+}
+
+.voice-group-list-cell {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0 0.5rem;
+}
+
+.voice-group-list-tick {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    padding: 0;
+    font-size: 1.5rem;
+    line-height: 1;
+    text-decoration: none;
+}
+
+.voice-group-list-tick.is-static {
+    min-height: 0;
+}
+
+.voice-group-list-cell.is-saved .voice-group-list-tick i {
+    animation: voice-group-list-tick-pop 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes voice-group-list-tick-pop {
+    from {
+        transform: scale(1.3);
+    }
+
+    to {
+        transform: scale(1);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .voice-group-list-cell.is-saved .voice-group-list-tick i {
+        animation: none;
+    }
+}
+
+.voice-group-list-cell__by {
+    display: none;
+    font-size: var(--font-size-meta);
+    color: var(--theme-text-muted);
+}
+
+.voice-group-list-cell__status {
+    font-size: var(--font-size-meta);
+    color: var(--bs-success-text-emphasis);
+}
+
+.voice-group-list-cell__status:empty,
+.voice-group-list-cell [data-vgl-error]:empty {
+    display: none;
+}
+
+.voice-group-list-note-form {
+    display: flex;
+    gap: 0.25rem;
+    width: 100%;
+}
+
+.voice-group-list-note {
+    flex: 1 1 auto;
+    min-width: 6rem;
+}
+
+/* Mit Skript speichert die Notiz beim Verlassen des Feldes; der Knopf erscheint nur,
+   solange etwas ungespeichert ist. Ohne Skript bleibt er immer da. */
+html[data-vgl-ready] .voice-group-list-note-form:not(.is-dirty) .voice-group-list-note-save {
+    visibility: hidden;
+}
+
+/* Kartenansicht: kompakt - Teilstimme unter dem Namen, wer abgehakt hat unter dem
+   Kästchen (einen Tooltip gibt es am Handy nicht). */
+[data-table-engine="true"][data-active-view="cards"] .voice-group-list-table td.voice-group-list-table__sub-voice {
+    display: none;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .voice-group-list-table__card-sub-voice {
+    display: block;
+    font-size: var(--font-size-meta);
+    font-weight: 400;
+    color: var(--theme-text-muted);
+}
+
+/* In der Häkchen-Zeile löst sich der Zell-Container auf: Kästchen neben der
+   Beschriftung, "Abgehakt von …" darunter über die volle Breite. */
+[data-table-engine="true"][data-active-view="cards"] .voice-group-list-table__tick-cell .voice-group-list-cell {
+    display: contents;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .voice-group-list-table td[data-card-block] .voice-group-list-cell {
+    width: 100%;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .voice-group-list-cell__by:not(:empty) {
+    display: block;
+    width: 100%;
+    text-align: right;
+}
+
+[data-table-engine="true"][data-active-view="cards"] .voice-group-list-table__tick-cell:active {
+    background: color-mix(in srgb, var(--theme-primary) 10%, transparent);
+}
+
+/* Aufklapp-Zeilen: das Dreieck des Browsers weicht einem echten Knopf bzw. Pfeil. */
+.voice-group-list-column-tools > summary,
+.voice-group-list-columns > summary {
+    list-style: none;
+}
+
+.voice-group-list-column-tools > summary::-webkit-details-marker,
+.voice-group-list-columns > summary::-webkit-details-marker {
+    display: none;
+}
+
+.voice-group-list-column-tools__summary {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    min-height: 2.75rem;
+    cursor: pointer;
+}
+
+.voice-group-list-column-tools__summary > span:first-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Der Knopf ist nur Anzeige - geklickt wird die ganze Zeile. */
+.voice-group-list-column-tools__toggle {
+    flex-shrink: 0;
+    pointer-events: none;
+}
+
+.voice-group-list-column-tools__summary:hover .voice-group-list-column-tools__toggle {
+    color: var(--bs-btn-hover-color);
+    background-color: var(--bs-btn-hover-bg);
+    border-color: var(--bs-btn-hover-border-color);
+}
+
+.voice-group-list-column-tools__when-open,
+.voice-group-list-column-tools[open] .voice-group-list-column-tools__when-closed {
+    display: none;
+}
+
+.voice-group-list-column-tools[open] .voice-group-list-column-tools__when-open {
+    display: inline;
+}
+
+.voice-group-list-columns__chevron {
+    font-size: var(--font-size-small);
+    transition: transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.voice-group-list-columns[open] > summary .voice-group-list-columns__chevron {
+    transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .voice-group-list-columns__chevron {
+        transition: none;
+    }
+}
+
+.voice-group-list-column-tools__body {
+    display: grid;
+    gap: 0.75rem;
+    padding: 0.5rem 0 0.25rem;
+}
+
+.voice-group-list-column-tools__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+}
+
+.voice-group-list-column-tools__row > .form-label,
+.voice-group-list-column-tools__label {
+    min-width: 5rem;
+    font-size: var(--font-size-small);
+    color: var(--theme-text-muted);
+}
+
+.voice-group-list-columns > summary {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-height: 2.75rem;
+    font-size: var(--font-size-title);
+    font-weight: 600;
+    cursor: pointer;
+}
+
+@media (min-width: 768px) {
+    .voice-group-list-columns__submit {
+        padding-top: 2rem;
+    }
+}
