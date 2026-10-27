@@ -93,7 +93,7 @@ trait MailDeliveryIngest
      */
     private function ingestText(mixed $value): string
     {
-        return is_scalar($value) ? trim((string) $value) : '';
+        return is_scalar($value) ? trim((string) $value) : ''; // input:checked
     }
 
     /**

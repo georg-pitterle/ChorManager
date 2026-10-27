@@ -16,6 +16,7 @@ use App\Services\Files\FileManagementException;
 use App\Services\Files\FileService;
 use App\Services\Files\FileShareService;
 use App\Util\AppUrlResolver;
+use App\Util\InputValidator;
 use Carbon\Carbon;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -126,7 +127,7 @@ final class FileDetailController
         $body = $request->getParsedBody();
         $label = self::field($body, 'label');
         $expires = self::field($body, 'expires_at');
-        $password = is_array($body) ? (string) ($body['password'] ?? '') : '';
+        $password = is_array($body) ? InputValidator::asString($body['password'] ?? null) : '';
         $baseUrl = AppUrlResolver::resolveBaseUrl($request);
 
         return $this->formAction(

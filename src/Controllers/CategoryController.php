@@ -104,11 +104,11 @@ class CategoryController
 
     private function parseSortOrder(mixed $value): ?int
     {
-        if ($value === null || trim((string) $value) === '') {
+        $stringValue = trim(InputValidator::asString($value));
+        if ($stringValue === '') {
             return 0;
         }
 
-        $stringValue = trim((string) $value);
         if (!ctype_digit($stringValue)) {
             return null;
         }

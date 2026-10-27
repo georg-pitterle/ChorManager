@@ -139,16 +139,16 @@ class ProfileController
     private function mailboxViewFromOldInput(array $data): array
     {
         return [
-            'imap_host' => trim((string)($data['imap_host'] ?? '')),
-            'imap_port' => trim((string)($data['imap_port'] ?? '')),
-            'imap_encryption' => trim((string)($data['imap_encryption'] ?? '')),
-            'imap_username' => trim((string)($data['imap_username'] ?? '')),
+            'imap_host' => trim(InputValidator::asString($data['imap_host'] ?? null)),
+            'imap_port' => trim(InputValidator::asString($data['imap_port'] ?? null)),
+            'imap_encryption' => trim(InputValidator::asString($data['imap_encryption'] ?? null)),
+            'imap_username' => trim(InputValidator::asString($data['imap_username'] ?? null)),
             'imap_enabled' => $this->isCheckboxChecked($data, 'imap_enabled'),
             'mail_badge_enabled' => $this->isCheckboxChecked($data, 'mail_badge_enabled'),
-            'smtp_host' => trim((string)($data['smtp_host'] ?? '')),
-            'smtp_port' => trim((string)($data['smtp_port'] ?? '')),
-            'smtp_encryption' => trim((string)($data['smtp_encryption'] ?? '')),
-            'external_webmail_url' => trim((string)($data['external_webmail_url'] ?? '')),
+            'smtp_host' => trim(InputValidator::asString($data['smtp_host'] ?? null)),
+            'smtp_port' => trim(InputValidator::asString($data['smtp_port'] ?? null)),
+            'smtp_encryption' => trim(InputValidator::asString($data['smtp_encryption'] ?? null)),
+            'external_webmail_url' => trim(InputValidator::asString($data['external_webmail_url'] ?? null)),
         ];
     }
 
@@ -239,8 +239,8 @@ class ProfileController
         $userId = (int)$_SESSION['user_id'];
         $data = (array)$request->getParsedBody();
 
-        $feed = (string)($data['calendar_task_feed'] ?? '');
-        $format = (string)($data['calendar_task_format'] ?? '');
+        $feed = InputValidator::asString($data['calendar_task_feed'] ?? null);
+        $format = InputValidator::asString($data['calendar_task_format'] ?? null);
 
         if (!in_array($feed, User::CALENDAR_TASK_FEEDS, true)) {
             $_SESSION['error'] = 'Ungültige Auswahl für die Aufgaben im Kalender.';
@@ -403,16 +403,16 @@ class ProfileController
         $userId = (int)$_SESSION['user_id'];
         $data = (array)$request->getParsedBody();
 
-        $imapHost = trim((string)($data['imap_host'] ?? ''));
-        $imapPortRaw = trim((string)($data['imap_port'] ?? ''));
-        $imapEncryption = trim((string)($data['imap_encryption'] ?? ''));
-        $imapUsername = trim((string)($data['imap_username'] ?? ''));
-        $imapPassword = (string)($data['imap_password'] ?? '');
-        $smtpHost = trim((string)($data['smtp_host'] ?? ''));
-        $smtpPortRaw = trim((string)($data['smtp_port'] ?? ''));
-        $smtpEncryption = trim((string)($data['smtp_encryption'] ?? ''));
+        $imapHost = trim(InputValidator::asString($data['imap_host'] ?? null));
+        $imapPortRaw = trim(InputValidator::asString($data['imap_port'] ?? null));
+        $imapEncryption = trim(InputValidator::asString($data['imap_encryption'] ?? null));
+        $imapUsername = trim(InputValidator::asString($data['imap_username'] ?? null));
+        $imapPassword = InputValidator::asString($data['imap_password'] ?? null);
+        $smtpHost = trim(InputValidator::asString($data['smtp_host'] ?? null));
+        $smtpPortRaw = trim(InputValidator::asString($data['smtp_port'] ?? null));
+        $smtpEncryption = trim(InputValidator::asString($data['smtp_encryption'] ?? null));
         $hasExternalWebmailUrl = array_key_exists('external_webmail_url', $data);
-        $externalWebmailUrl = $hasExternalWebmailUrl ? trim((string)$data['external_webmail_url']) : '';
+        $externalWebmailUrl = $hasExternalWebmailUrl ? trim(InputValidator::asString($data['external_webmail_url'])) : '';
 
         $error = $this->validateMailboxConnectionFields($imapHost, $imapPortRaw, $imapEncryption);
         if ($error === null && ($imapUsername === '' || strlen($imapUsername) > 255)) {
@@ -530,9 +530,9 @@ class ProfileController
             $_SESSION['mailbox_form_old'] = array_diff_key($data, ['imap_password' => true]);
         }
 
-        $imapHost = trim((string)($data['imap_host'] ?? ''));
-        $imapPortRaw = trim((string)($data['imap_port'] ?? ''));
-        $imapEncryption = trim((string)($data['imap_encryption'] ?? ''));
+        $imapHost = trim(InputValidator::asString($data['imap_host'] ?? null));
+        $imapPortRaw = trim(InputValidator::asString($data['imap_port'] ?? null));
+        $imapEncryption = trim(InputValidator::asString($data['imap_encryption'] ?? null));
 
         $error = $this->validateMailboxConnectionFields($imapHost, $imapPortRaw, $imapEncryption);
         if ($error !== null) {

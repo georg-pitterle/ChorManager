@@ -17,6 +17,7 @@ use App\Services\Office\OfficeSettings;
 use App\Services\Office\OfficeTokenService;
 use App\Services\Office\WopiAccess;
 use App\Services\Office\WopiTimestamp;
+use App\Util\InputValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -169,7 +170,7 @@ final class WopiController
         int $requiredLevel,
         \Closure $action
     ): Response {
-        $plain = (string) ($request->getQueryParams()['access_token'] ?? '');
+        $plain = InputValidator::asString($request->getQueryParams()['access_token'] ?? null);
         $token = $this->tokens->resolve($plain, $fileId);
         $user = $token === null ? null : User::find($token->user_id);
         $actor = $user === null ? null : FileActor::forUser($user);

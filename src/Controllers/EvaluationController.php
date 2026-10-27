@@ -17,6 +17,7 @@ use App\Policies\ProjectMemberPolicy;
 use App\Queries\ProjectQuery;
 use App\Services\EventAudienceService;
 use App\Services\NameFormatterService;
+use App\Util\InputValidator;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Psr\Log\LoggerInterface;
@@ -338,7 +339,7 @@ class EvaluationController
 
     public function registrations(Request $request, Response $response): Response
     {
-        $includePast = (string) ($request->getQueryParams()['include_past'] ?? '') === '1';
+        $includePast = InputValidator::asString($request->getQueryParams()['include_past'] ?? null) === '1';
 
         $userId = (int) ($_SESSION['user_id'] ?? 0);
         $audienceService = new EventAudienceService();

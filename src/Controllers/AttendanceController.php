@@ -82,7 +82,7 @@ class AttendanceController
     {
         $routeEventId = isset($args['event_id']) ? (int) $args['event_id'] : null;
         $queryParams = $request->getQueryParams();
-        $queryEventId = isset($queryParams['event_id']) && is_numeric((string) $queryParams['event_id'])
+        $queryEventId = isset($queryParams['event_id']) && is_numeric(InputValidator::asString($queryParams['event_id']))
             ? (int) $queryParams['event_id']
             : null;
 
@@ -334,7 +334,7 @@ class AttendanceController
         foreach ($attendances as $rawUserId => $rawStatus) {
             $userId = (int) $rawUserId;
             $status = is_string($rawStatus) ? $rawStatus : '';
-            $note = mb_substr(trim((string) ($notes[$userId] ?? '')), 0, 255);
+            $note = mb_substr(trim(InputValidator::asString($notes[$userId] ?? null)), 0, 255);
 
             if ($status === Attendance::STATUS_UNKNOWN) {
                 if ($note === '') {

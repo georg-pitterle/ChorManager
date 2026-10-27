@@ -11,6 +11,7 @@ use App\Services\Files\FileShareService;
 use App\Services\RateLimiterService;
 use App\Util\AttachmentPreview;
 use App\Util\ClientIpResolver;
+use App\Util\InputValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -72,7 +73,7 @@ final class PublicFileLinkController
         $key = 'files:public-link:' . (int) $link->id . ':' . ClientIpResolver::resolve($request);
         $limit = $this->rateLimiter->hit($key, self::MAX_PASSWORD_ATTEMPTS, self::PASSWORD_WINDOW_SECONDS);
         $body = $request->getParsedBody();
-        $password = is_array($body) ? (string) ($body['password'] ?? '') : '';
+        $password = is_array($body) ? InputValidator::asString($body['password'] ?? null) : '';
 
         if (!$limit['allowed']) {
             $this->logger->warning('Public file link password blocked by rate limit.', [

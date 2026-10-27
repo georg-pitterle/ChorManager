@@ -9,6 +9,7 @@ use App\Services\Audience\AudienceDescriber;
 use App\Services\Audience\AudienceFormInput;
 use App\Services\Files\FileActor;
 use App\Services\Files\FileManagementException;
+use App\Util\InputValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 
 /**
@@ -120,6 +121,6 @@ trait FileControllerSupport
      */
     private static function field($body, string $key): string
     {
-        return is_array($body) ? trim((string) ($body[$key] ?? '')) : '';
+        return is_array($body) ? trim(InputValidator::asString($body[$key] ?? null)) : '';
     }
 }

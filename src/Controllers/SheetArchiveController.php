@@ -6,6 +6,7 @@ namespace App\Controllers;
 
 use App\Models\Song;
 use App\Services\SheetArchiveService;
+use App\Util\InputValidator;
 use Psr\Container\ContainerInterface;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -155,7 +156,7 @@ class SheetArchiveController
         }
 
         if (is_int($value) || is_float($value)) {
-            return (string) $value;
+            return (string) $value; // input:checked
         }
 
         return null;

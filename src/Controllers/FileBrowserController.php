@@ -15,6 +15,7 @@ use App\Services\Files\FileFavoriteService;
 use App\Services\Files\FileQuotaService;
 use App\Services\Files\FileSearchService;
 use App\Services\Files\FileService;
+use App\Util\InputValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -118,7 +119,7 @@ final class FileBrowserController
     public function search(Request $request, Response $response): Response
     {
         $actor = $this->actor();
-        $term = trim((string) ($request->getQueryParams()['q'] ?? ''));
+        $term = trim(InputValidator::asString($request->getQueryParams()['q'] ?? null));
 
         return $this->view->render($response, 'files/search.twig', [
             'term' => $term,

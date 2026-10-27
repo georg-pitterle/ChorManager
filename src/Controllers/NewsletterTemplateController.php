@@ -242,7 +242,7 @@ class NewsletterTemplateController
             return $response->withStatus(404);
         }
 
-        $isModal = ((string) ($request->getQueryParams()['modal'] ?? '0')) === '1';
+        $isModal = InputValidator::asString($request->getQueryParams()['modal'] ?? null) === '1';
 
         return $this->view->render($response, 'newsletters/templates_edit.twig', [
             'template' => $template,

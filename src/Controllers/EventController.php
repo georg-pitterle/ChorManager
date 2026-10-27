@@ -1811,7 +1811,7 @@ class EventController
 
         $selected = [];
         foreach ($value as $candidate) {
-            $group = strtolower(trim((string) $candidate));
+            $group = strtolower(trim(InputValidator::asString($candidate)));
             if (in_array($group, self::SERIES_FIELD_GROUPS, true)) {
                 $selected[$group] = true;
             }
@@ -1826,7 +1826,7 @@ class EventController
             return 'weekly';
         }
 
-        $candidate = strtolower(trim((string) $value));
+        $candidate = strtolower(trim(InputValidator::asString($value)));
 
         return in_array($candidate, self::SERIES_FREQUENCIES, true) ? $candidate : null;
     }
@@ -1838,7 +1838,7 @@ class EventController
      */
     private static function normalizeRecurrenceInterval(mixed $value): ?int
     {
-        $candidate = trim((string) ($value ?? ''));
+        $candidate = trim(InputValidator::asString($value));
         if ($candidate === '') {
             return 1;
         }

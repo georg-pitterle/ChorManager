@@ -321,9 +321,9 @@ class AppSettingController
         return $response->withHeader('Location', '/settings')->withStatus(302);
     }
 
-    public static function normalizePrimaryColor(?string $value): string
+    public static function normalizePrimaryColor(mixed $value): string
     {
-        $candidate = strtoupper(trim((string) $value));
+        $candidate = strtoupper(trim(InputValidator::asString($value)));
 
         if ($candidate === '') {
             return self::DEFAULT_PRIMARY_COLOR;
@@ -549,30 +549,30 @@ class AppSettingController
         return false;
     }
 
-    private static function normalizeMailQueueTriggerMode(?string $value): string
+    private static function normalizeMailQueueTriggerMode(mixed $value): string
     {
-        $candidate = strtolower(trim((string) $value));
+        $candidate = strtolower(trim(InputValidator::asString($value)));
         $allowed = ['cron', 'opportunistic', 'hybrid'];
 
         return in_array($candidate, $allowed, true) ? $candidate : 'hybrid';
     }
 
-    private static function normalizePositiveInteger(?string $value, int $default): int
+    private static function normalizePositiveInteger(mixed $value, int $default): int
     {
-        $parsed = filter_var($value, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+        $parsed = filter_var(InputValidator::asString($value), FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
 
         return $parsed !== false ? (int) $parsed : $default;
     }
 
-    public static function normalizeLogLevel(?string $value): string
+    public static function normalizeLogLevel(mixed $value): string
     {
-        $candidate = strtoupper(trim((string) $value));
+        $candidate = strtoupper(trim(InputValidator::asString($value)));
 
         return in_array($candidate, self::LOG_LEVELS, true) ? $candidate : 'INFO';
     }
 
-    public static function normalizeBooleanFlag(?string $value): string
+    public static function normalizeBooleanFlag(mixed $value): string
     {
-        return in_array(strtolower(trim((string) $value)), ['1', 'on', 'true', 'yes'], true) ? '1' : '0';
+        return in_array(strtolower(trim(InputValidator::asString($value))), ['1', 'on', 'true', 'yes'], true) ? '1' : '0';
     }
 }

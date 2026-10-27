@@ -297,8 +297,8 @@ class SponsorshipController
                 'amount'           => $normalizedAmount,
                 'paid_at'          => $paidAt,
                 'status'           => $status,
-                'start_date'       => !empty($data['start_date']) ? (string) $data['start_date'] : null,
-                'end_date'         => !empty($data['end_date']) ? (string) $data['end_date'] : null,
+                'start_date'       => InputValidator::asString($data['start_date'] ?? null) ?: null,
+                'end_date'         => InputValidator::asString($data['end_date'] ?? null) ?: null,
                 'notes'            => trim(InputValidator::asString($data['notes'] ?? null)) ?: null,
                 ]);
 
@@ -629,8 +629,8 @@ class SponsorshipController
      */
     private function prefillPeriodFromProject(array $data, ?int $projectId): array
     {
-        $startDate = !empty($data['start_date']) ? (string) $data['start_date'] : null;
-        $endDate   = !empty($data['end_date']) ? (string) $data['end_date'] : null;
+        $startDate = InputValidator::asString($data['start_date'] ?? null) ?: null;
+        $endDate   = InputValidator::asString($data['end_date'] ?? null) ?: null;
 
         if (($startDate !== null && $endDate !== null) || $projectId === null) {
             return ['start_date' => $startDate, 'end_date' => $endDate];

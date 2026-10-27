@@ -7,6 +7,7 @@ namespace App\Controllers;
 use App\Models\Project;
 use App\Models\ProjectSongAssignment;
 use App\Models\Song;
+use App\Util\InputValidator;
 use App\Util\SafeRedirect;
 use Illuminate\Database\QueryException;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -112,7 +113,7 @@ class ProjectSongAssignmentController
 
     private function normalizeNote(mixed $value): ?string
     {
-        $note = trim((string) ($value ?? ''));
+        $note = trim(InputValidator::asString($value));
         return $note === '' ? null : $note;
     }
 

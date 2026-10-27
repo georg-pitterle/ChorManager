@@ -589,7 +589,9 @@ class TaskController
         $oldPriority = $task->priority;
         $oldAssignedIds = $this->assigneeIds($task);
         $oldDescription = trim((string) $task->description);
-        $descriptionInput = array_key_exists('description', $data) ? (string) $data['description'] : $task->description;
+        $descriptionInput = array_key_exists('description', $data)
+            ? InputValidator::asString($data['description'])
+            : $task->description;
         $description = $this->htmlSanitizer->sanitizeTaskHtml($descriptionInput);
 
         // Parse and validate dates

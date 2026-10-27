@@ -619,7 +619,7 @@ class SponsorController
 
     private function normalizeOptionalText(mixed $value): ?string
     {
-        $normalized = trim((string) ($value ?? ''));
+        $normalized = trim(InputValidator::asString($value));
         return $normalized !== '' ? $normalized : null;
     }
 
@@ -645,6 +645,7 @@ class SponsorController
             return $fail('Der Name ist zu lang (max. 255 Zeichen).');
         }
 
+        $type          = InputValidator::asString($data['type'] ?? null);
         $contactPerson = $this->normalizeOptionalText($data['contact_person'] ?? null);
         $email         = $this->normalizeOptionalText($data['email'] ?? null);
         $phone         = $this->normalizeOptionalText($data['phone'] ?? null);
@@ -694,9 +695,7 @@ class SponsorController
         return [
             'error' => null,
             'values' => [
-                'type'           => in_array(InputValidator::asString($data['type'] ?? null), ['organization', 'person'], true)
-                    ? (string) $data['type']
-                    : 'organization',
+                'type'           => in_array($type, ['organization', 'person'], true) ? $type : 'organization',
                 'category_id'    => $category['id'],
                 'name'           => $name,
                 'contact_person' => $contactPerson,

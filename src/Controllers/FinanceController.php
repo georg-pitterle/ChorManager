@@ -657,7 +657,7 @@ class FinanceController
                 continue;
             }
 
-            $groupName = trim((string) ($postedGroups[$index] ?? ''));
+            $groupName = trim(InputValidator::asString($postedGroups[$index] ?? null));
             $row['group_name'] = $groupName !== '' ? $groupName : null;
             $queued[] = $row;
         }
