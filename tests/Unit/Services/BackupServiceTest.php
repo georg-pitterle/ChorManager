@@ -99,6 +99,42 @@ final class BackupServiceTest extends TestCase
         $this->assertSame(1, $this->dumpRunner->dumpCallCount);
     }
 
+    /**
+     * Ein Abgleich nach außen (rclone), der mitten in einen Dump fällt, darf unter
+     * dem endgültigen Namen keine halbe Datei finden - er würde sie übertragen.
+     */
+    public function testDumpOnlyAppearsUnderItsFinalNameOnceItIsComplete(): void
+    {
+        $finalNamesWhileDumping = null;
+        $this->dumpRunner->whileDumping = function () use (&$finalNamesWhileDumping): void {
+            $finalNamesWhileDumping = glob($this->backupDir . '/backup_*.sql.gz') ?: [];
+        };
+
+        $metadata = $this->makeService()->create(BackupService::TYPE_MANUAL, null);
+
+        $this->assertSame([], $finalNamesWhileDumping);
+        $this->assertSame(
+            [$this->backupDir . '/' . $metadata['id'] . '.sql.gz'],
+            glob($this->backupDir . '/backup_*.sql.gz')
+        );
+    }
+
+    public function testFailedDumpLeavesNoFileBehind(): void
+    {
+        $this->dumpRunner->whileDumping = function (): void {
+            throw new \RuntimeException('mysqldump abgebrochen');
+        };
+
+        try {
+            $this->makeService()->create(BackupService::TYPE_MANUAL, null);
+            $this->fail('Ein abgebrochener Dump muss als Fehler ankommen.');
+        } catch (\RuntimeException $exception) {
+            $this->assertSame('mysqldump abgebrochen', $exception->getMessage());
+        }
+
+        $this->assertSame([], glob($this->backupDir . '/*') ?: []);
+    }
+
     public function testManualBackupBlocksWhenLimitReached(): void
     {
         $service = $this->makeService(maxManual: 1);

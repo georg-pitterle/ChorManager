@@ -156,17 +156,26 @@ class BackupService
         $base = sprintf('backup_%s_%s_%s', $type, gmdate('Ymd\THis\Z', $now), bin2hex(random_bytes(4)));
         $dataPath = $this->backupDir . '/' . $base . ($this->gzip ? '.sql.gz' : '.sql');
         $metaPath = $this->backupDir . '/' . $base . '.json';
+        // Der Dump entsteht unter einem Zwischennamen und bekommt seinen endgültigen
+        // erst, wenn er vollständig ist. Ein Abgleich nach außen (rclone), der in
+        // einen laufenden Dump fällt, überträgt so nie eine halbe Datei als Backup.
+        $partialPath = $dataPath . '.partial';
 
         $this->logger->debug('Starting backup creation.', ['event' => 'backup.create.start', 'type' => $type]);
 
         $fileStats = null;
         try {
             $preparedFiles = $this->fileBackup?->prepare($this->backupDir) ?? [];
-            $this->dumpRunner->dump($dataPath, $this->gzip);
+            $this->dumpRunner->dump($partialPath, $this->gzip);
+            if (!rename($partialPath, $dataPath)) {
+                throw new \RuntimeException('Could not move the finished dump into place: ' . $dataPath);
+            }
             $fileStats = $this->fileBackup?->finalize($this->backupDir, $base, $preparedFiles);
         } catch (\Throwable $exception) {
-            if (file_exists($dataPath)) {
-                unlink($dataPath);
+            foreach ([$partialPath, $dataPath] as $path) {
+                if (file_exists($path)) {
+                    unlink($path);
+                }
             }
             // Ein halbes Backup ist schlimmer als keins: ohne passendes Manifest
             // fehlten beim Restore die Dateien, ohne es zu merken.

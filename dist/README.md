@@ -468,6 +468,15 @@ Upgrading a stack that predates the volume: the existing backups are inside the
 old container and are lost on redeploy. Download the ones you want to keep
 **before** applying the new compose file.
 
+### Copying backups off the host
+
+The volume can be synced as is, e.g. with `rclone copy` from
+`/var/lib/docker/volumes/<stack>_backup_data/_data/`. A dump is written as
+`<id>.sql.gz.partial` and only renamed to `<id>.sql.gz` once it is complete, so a
+sync that runs during a backup never picks up a half-written dump under its final
+name. Exclude the in-progress files with `--exclude "*.partial"`; otherwise
+`rclone copy` would leave them behind on the target.
+
 ### Restoring a downloaded backup
 
 The download only yields the `.sql.gz` dump, not its `.json` metadata sidecar,
