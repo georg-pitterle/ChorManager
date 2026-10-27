@@ -104,6 +104,16 @@ class MailBadgeService
                 throw new MailBadgeRefreshException('encryption_required');
             }
 
+            if (self::isReservedExampleHost($host)) {
+                $this->logger->debug('Mail badge refresh skipped for a reserved example host.', [
+                    'event' => 'mail_badge.refresh.skipped',
+                    'user_id' => $account->user_id,
+                    'imap_host' => $host,
+                ]);
+
+                return false;
+            }
+
             try {
                 $validatedIp = OutboundConnectionGuard::resolvePublicIp($host);
             } catch (BlockedHostException $exception) {
@@ -371,6 +381,18 @@ class MailBadgeService
         }
 
         throw new MailBadgeRefreshException('status_failed', ['detail' => 'too_many_lines']);
+    }
+
+    /**
+     * Reservierte Beispiel-Namen nach RFC 2606/6761, wie sie die Seed-Daten eintragen.
+     * Sie lösen nie auf; ein Versuch brächte nur eine Warnung, die nach einem Fehler im
+     * Betrieb aussieht.
+     */
+    private static function isReservedExampleHost(string $host): bool
+    {
+        $host = rtrim(strtolower(trim($host)), '.');
+
+        return preg_match('/(^|\.)(example\.(com|net|org)|example|invalid|test)$/', $host) === 1;
     }
 
     /**

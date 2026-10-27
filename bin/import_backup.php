@@ -3,11 +3,17 @@
 declare(strict_types=1);
 
 use App\Commands\ImportBackupCommand;
+use App\Util\RootPrivilegeDrop;
 use DI\ContainerBuilder;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Symfony\Component\Console\Application;
 
 require __DIR__ . '/../vendor/autoload.php';
+
+// Als root (docker exec ohne -u) gehörte alles, was der Befehl anlegt, root - die
+// Web-App konnte den Datei-Pool danach nicht mehr lesen. Deshalb vor allem anderen
+// auf den Benutzer von PHP-FPM wechseln. Das Paket muss dann für www-data lesbar sein.
+RootPrivilegeDrop::enforceForCli();
 
 $containerBuilder = new ContainerBuilder();
 $settings = require __DIR__ . '/../src/Settings.php';

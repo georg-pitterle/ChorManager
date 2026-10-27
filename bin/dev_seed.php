@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 use App\Services\DevSeedService;
 use App\Util\CliBootstrap;
+use App\Util\RootPrivilegeDrop;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 require __DIR__ . '/bootstrap_cli.php';
+
+// Der Seed füllt Dateiablage und Backup-Pool. Auf einer Demo-Instanz per docker exec
+// als root gestartet, gehörte beides danach root und war für die Web-App unlesbar.
+RootPrivilegeDrop::enforceForCli();
 
 $options = [
     'mode' => 'append',

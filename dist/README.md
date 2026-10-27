@@ -455,6 +455,15 @@ list. The entrypoint runs `mkdir -p` plus `chown -R www-data:www-data` on that
 path at every start, so a freshly created (root-owned) volume needs no manual
 preparation.
 
+The console commands that write into `BACKUP_DIR` or the file storage
+(`bin/create_backup.php`, `bin/import_backup.php`, `bin/dev_seed.php` on a demo
+instance) switch to `www-data` on their own when started as root, e.g. via a plain
+`docker exec`. Anything they write therefore stays readable for the application. A package handed to `bin/import_backup.php` must be readable by
+`www-data`. If the storage page reports "Permission denied" for a path below
+`BACKUP_DIR`, files from an older root run are still there; restarting `app`
+fixes the ownership of `BACKUP_DIR` and `FILES_STORAGE_PATH`, as does a manual
+`chown -R www-data:www-data` on both paths.
+
 Upgrading a stack that predates the volume: the existing backups are inside the
 old container and are lost on redeploy. Download the ones you want to keep
 **before** applying the new compose file.

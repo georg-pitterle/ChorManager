@@ -209,6 +209,66 @@ class MailBadgeServiceTest extends TestCase
     }
 
     /**
+     * Die Seed-Daten tragen `imap.example.org` ein. Reservierte Beispiel-Namen (RFC 2606/6761)
+     * lösen nie auf; jeder Abgleich einer geseedeten Instanz endete deshalb in einer Warnung,
+     * die nach einem Fehler im Betrieb aussah. Solche Hosts werden gar nicht erst versucht:
+     * keine Verbindung, keine Warnung, der zwischengespeicherte Stand bleibt.
+     */
+    public function testRefreshSkipsReservedExampleHostsWithoutWarning(): void
+    {
+        $hosts = ['imap.example.org', 'example.com', 'mail.example.net', 'IMAP.Example.ORG.', 'mx.chor.test',
+            'imap.invalid', 'host.example'];
+        foreach ($hosts as $host) {
+            $logger = $this->recordingLogger();
+            $connected = false;
+            $crypto = new MailCredentialCryptoService();
+            $service = new MailBadgeService($crypto, $logger, 1, function () use (&$connected) {
+                $connected = true;
+                throw new \RuntimeException('Darf nicht verbinden.');
+            });
+
+            $account = $this->accountWithEncryption($crypto, 'ssl');
+            $account->imap_host = $host;
+
+            $this->assertFalse($service->refresh($account), 'Host: ' . $host);
+            $this->assertFalse($connected, 'Host: ' . $host);
+            $this->assertSame(7, $account->mail_last_unseen_count);
+            $warnings = array_filter(
+                $logger->records ?? [],
+                static fn (array $context): bool => ($context['event'] ?? null) === 'mail_badge.refresh.failed'
+            );
+            $this->assertSame([], $warnings, 'Host: ' . $host);
+        }
+    }
+
+    /**
+     * Nur der reservierte Name selbst und seine Unterdomänen - ein Host, der bloß so
+     * ähnlich heißt, ist ein echter Server und wird weiter abgefragt.
+     */
+    public function testRefreshStillTriesHostsThatMerelyResembleExampleDomains(): void
+    {
+        foreach (['notexample.org', 'example.org.at', 'imap.mytest.at'] as $host) {
+            $logger = $this->recordingLogger();
+            // Ob der Name auflöst oder nicht: Beide Wege enden in einer Warnung. Der
+            // eingesetzte Server schließt sofort, damit nichts übers Netz geht.
+            $service = new MailBadgeService(
+                new MailCredentialCryptoService(),
+                $logger,
+                1,
+                $this->scriptedServer([], true)
+            );
+            $account = $this->accountWithEncryption(new MailCredentialCryptoService(), 'ssl');
+            $account->imap_host = $host;
+
+            $this->assertFalse($service->refresh($account));
+            $this->assertNotSame([], array_filter(
+                $logger->records ?? [],
+                static fn (array $context): bool => ($context['event'] ?? null) === 'mail_badge.refresh.failed'
+            ), 'Host: ' . $host);
+        }
+    }
+
+    /**
      * Ein Verbindungsfehler trägt die Meldung des Betriebssystems mit - nur sie
      * unterscheidet "abgewiesen" von "nicht erreichbar".
      */
