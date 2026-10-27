@@ -351,34 +351,16 @@ class RoleController
         $permissions = $this->withoutPermissions($permissions, $cappedPermissions);
 
         try {
+            // Die Rechte kommen als Ganzes dazu: Ihre Schlüssel sind die
+            // Spaltennamen, und `Role::PERMISSIONS` ist die eine Liste, aus der
+            // sich auch `$fillable` und `casts()` ableiten. Zuvor stand sie hier
+            // und in update() ein zweites und drittes Mal ausgeschrieben - ein
+            // neues Recht war damit erst gespeichert, wenn es an drei Stellen
+            // nachgetragen war.
             $role = Role::create([
                 'name' => $name,
                 'hierarchy_level' => $hierarchyLevel,
-                'can_manage_users' => $permissions['can_manage_users'],
-                'can_manage_roles' => $permissions['can_manage_roles'],
-                'can_edit_users' => $permissions['can_edit_users'],
-                'can_manage_attendance_all' => $permissions['can_manage_attendance_all'],
-                'can_manage_events' => $permissions['can_manage_events'],
-                'can_manage_project_members' => $permissions['can_manage_project_members'],
-                'can_read_finances' => $permissions['can_read_finances'],
-                'can_manage_finances' => $permissions['can_manage_finances'],
-                'can_manage_master_data' => $permissions['can_manage_master_data'],
-                'can_manage_sponsoring' => $permissions['can_manage_sponsoring'],
-                'can_create_own_sponsorships' => $permissions['can_create_own_sponsorships'],
-                'can_manage_song_library' => $permissions['can_manage_song_library'],
-                'can_manage_newsletters' => $permissions['can_manage_newsletters'],
-                'can_manage_mail_queue' => $permissions['can_manage_mail_queue'],
-                'can_manage_sheet_archive' => $permissions['can_manage_sheet_archive'],
-                'can_manage_budget' => $permissions['can_manage_budget'],
-                'can_manage_tasks' => $permissions['can_manage_tasks'],
-                'can_manage_backups' => $permissions['can_manage_backups'],
-                'can_manage_files' => $permissions['can_manage_files'],
-                'can_manage_storage' => $permissions['can_manage_storage'],
-                'can_manage_own_voice_group' => $permissions['can_manage_own_voice_group'],
-                'can_assign_own_voice_group_to_project' =>
-                    $permissions['can_assign_own_voice_group_to_project'],
-                'can_keep_voice_group_lists' => $permissions['can_keep_voice_group_lists']
-            ]);
+            ] + $permissions);
             $_SESSION['success'] = 'Rolle erfolgreich angelegt.';
 
             $this->logger->info('Role created.', [
@@ -467,31 +449,7 @@ class RoleController
             $role->update([
                 'name' => $name,
                 'hierarchy_level' => $hierarchyLevel,
-                'can_manage_users' => $permissions['can_manage_users'],
-                'can_manage_roles' => $permissions['can_manage_roles'],
-                'can_edit_users' => $permissions['can_edit_users'],
-                'can_manage_attendance_all' => $permissions['can_manage_attendance_all'],
-                'can_manage_events' => $permissions['can_manage_events'],
-                'can_manage_project_members' => $permissions['can_manage_project_members'],
-                'can_read_finances' => $permissions['can_read_finances'],
-                'can_manage_finances' => $permissions['can_manage_finances'],
-                'can_manage_master_data' => $permissions['can_manage_master_data'],
-                'can_manage_sponsoring' => $permissions['can_manage_sponsoring'],
-                'can_create_own_sponsorships' => $permissions['can_create_own_sponsorships'],
-                'can_manage_song_library' => $permissions['can_manage_song_library'],
-                'can_manage_newsletters' => $permissions['can_manage_newsletters'],
-                'can_manage_mail_queue' => $permissions['can_manage_mail_queue'],
-                'can_manage_sheet_archive' => $permissions['can_manage_sheet_archive'],
-                'can_manage_budget' => $permissions['can_manage_budget'],
-                'can_manage_tasks' => $permissions['can_manage_tasks'],
-                'can_manage_backups' => $permissions['can_manage_backups'],
-                'can_manage_files' => $permissions['can_manage_files'],
-                'can_manage_storage' => $permissions['can_manage_storage'],
-                'can_manage_own_voice_group' => $permissions['can_manage_own_voice_group'],
-                'can_assign_own_voice_group_to_project' =>
-                    $permissions['can_assign_own_voice_group_to_project'],
-                'can_keep_voice_group_lists' => $permissions['can_keep_voice_group_lists']
-            ]);
+            ] + $permissions);
             $_SESSION['success'] = 'Rolle erfolgreich aktualisiert.';
 
             $diff = self::permissionDiff($permissionsBefore, $permissionsAfter);

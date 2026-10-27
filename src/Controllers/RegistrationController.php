@@ -26,6 +26,14 @@ class RegistrationController
     /** Formularwert, mit dem eine Antwort - eigene oder vertretene - wieder auf "offen" gesetzt wird. */
     private const STATUS_OPEN = 'open';
 
+    /**
+     * So viel fasst `event_registrations.note`. Gekappt statt abgewiesen, wie in
+     * der Anwesenheitsliste (AttendanceController::buildAttendanceChanges): Das
+     * Formular begrenzt das Feld ohnehin auf dieselbe Zahl, und im
+     * Vertretungsformular nähme eine abgewiesene Zeile die ganze Liste mit.
+     */
+    private const NOTE_MAX_LENGTH = 255;
+
     public function __construct(
         private readonly Twig $view,
         private readonly AttendanceScopeService $scopeService,
@@ -261,7 +269,7 @@ class RegistrationController
 
         $data = (array) $request->getParsedBody();
         $status = InputValidator::asString($data['status'] ?? null);
-        $note = trim(InputValidator::asString($data['note'] ?? null));
+        $note = $this->boundedNote($data['note'] ?? null);
 
         if ($status === self::STATUS_OPEN) {
             return $this->withdrawOwnRegistration($response, $event, $userId, $expectsJson);
@@ -491,7 +499,10 @@ class RegistrationController
 
             foreach ($registrations as $rawUserId => $status) {
                 $targetUserId = (int) $rawUserId;
-                $status = (string) $status;
+                // Über InputValidator, nicht per (string): `registration[7][]=yes`
+                // kommt als Array an und ergäbe die Zeichenkette "Array" samt
+                // PHP-Warnung. Abgewiesen wird die Zeile ohnehin.
+                $status = InputValidator::asString($status);
 
                 // "Offen" ist der Ausgangszustand und wird durch das Fehlen einer
                 // Zeile abgebildet - die Statusspalte kennt nur yes/no/maybe. Ohne
@@ -506,7 +517,7 @@ class RegistrationController
                     continue;
                 }
 
-                $note = trim((string) ($notes[$rawUserId] ?? ''));
+                $note = $this->boundedNote($notes[$rawUserId] ?? null);
 
                 EventRegistration::updateOrCreate(
                     ['event_id' => (int) $event->id, 'user_id' => $targetUserId],
@@ -536,6 +547,20 @@ class RegistrationController
         return $response
             ->withHeader('Location', '/registrations/' . $event->id)
             ->withStatus(302);
+    }
+
+    /**
+     * Eine Begründung, wie sie in die Spalte passt: ohne Rand, höchstens
+     * NOTE_MAX_LENGTH Zeichen, und nur aus einem Textfeld.
+     *
+     * Ohne diese Grenze lief ein längerer Wert in die Spaltenbreite: MariaDB
+     * wies die Zeile ab, und der Aufrufer sah statt eines Hinweises die
+     * allgemeine Fehlermeldung - im Vertretungsformular samt Rücknahme aller
+     * übrigen Einträge derselben Liste.
+     */
+    private function boundedNote(mixed $raw): string
+    {
+        return mb_substr(trim(InputValidator::asString($raw)), 0, self::NOTE_MAX_LENGTH);
     }
 
     /**
