@@ -7,20 +7,30 @@ function setCheckedIfPresent(id, checked) {
     }
 }
 
-function syncFinancePermissionPair(readCheckbox, writeCheckbox) {
-    if (!readCheckbox || !writeCheckbox) {
+// Ein Vollrecht schließt sein kleineres ein (Role::IMPLIED_PERMISSIONS, und
+// seit dem Review-Lauf 56 setzt RoleController beide Paare auch in die Spalte).
+// Die Häkchen folgen dem, damit die Maske nicht etwas anderes zeigt als
+// gespeichert wird: Wer das Vollrecht setzt, bekommt das kleinere mit; wer das
+// kleinere wegnimmt, verliert das Vollrecht.
+//
+// Zuvor hieß das syncFinancePermissionPair und war nur auf die Finanzen
+// gelegt. Beim Sponsoring ließ sich "eigene Patenschaften anlegen" deshalb
+// abwählen, obwohl "Sponsoring verwalten" stehen blieb - gespeichert wurde es
+// danach doch, und die Maske hatte das Gegenteil versprochen.
+function syncImpliedPermissionPair(impliedCheckbox, fullCheckbox) {
+    if (!impliedCheckbox || !fullCheckbox) {
         return;
     }
 
-    writeCheckbox.addEventListener('change', function () {
-        if (writeCheckbox.checked) {
-            readCheckbox.checked = true;
+    fullCheckbox.addEventListener('change', function () {
+        if (fullCheckbox.checked) {
+            impliedCheckbox.checked = true;
         }
     });
 
-    readCheckbox.addEventListener('change', function () {
-        if (!readCheckbox.checked) {
-            writeCheckbox.checked = false;
+    impliedCheckbox.addEventListener('change', function () {
+        if (!impliedCheckbox.checked) {
+            fullCheckbox.checked = false;
         }
     });
 }
@@ -29,14 +39,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const editButtons = document.querySelectorAll('.edit-role-btn');
     const editForm = document.getElementById('editRoleForm');
 
-    syncFinancePermissionPair(
-        document.getElementById('can_read_finances'),
-        document.getElementById('can_manage_finances')
-    );
-    syncFinancePermissionPair(
-        document.getElementById('edit_can_read_finances'),
-        document.getElementById('edit_can_manage_finances')
-    );
+    [
+        ['can_read_finances', 'can_manage_finances'],
+        ['can_create_own_sponsorships', 'can_manage_sponsoring']
+    ].forEach(function (pair) {
+        ['', 'edit_'].forEach(function (prefix) {
+            syncImpliedPermissionPair(
+                document.getElementById(prefix + pair[0]),
+                document.getElementById(prefix + pair[1])
+            );
+        });
+    });
 
     if (editForm) {
         editButtons.forEach(button => {

@@ -59,8 +59,6 @@ class RoleController
         ?array $modules = null,
         array $existing = []
     ): array {
-        $canReadFinances = isset($data['can_read_finances']) || isset($data['can_manage_finances']);
-
         $flags = [
             'can_manage_users' => isset($data['can_manage_users']) ? 1 : 0,
             'can_manage_roles' => isset($data['can_manage_roles']) ? 1 : 0,
@@ -68,7 +66,7 @@ class RoleController
             'can_manage_attendance_all' => isset($data['can_manage_attendance_all']) ? 1 : 0,
             'can_manage_events' => isset($data['can_manage_events']) ? 1 : 0,
             'can_manage_project_members' => isset($data['can_manage_project_members']) ? 1 : 0,
-            'can_read_finances' => $canReadFinances ? 1 : 0,
+            'can_read_finances' => isset($data['can_read_finances']) ? 1 : 0,
             'can_manage_finances' => isset($data['can_manage_finances']) ? 1 : 0,
             'can_manage_master_data' => isset($data['can_manage_master_data']) ? 1 : 0,
             'can_manage_sponsoring' => isset($data['can_manage_sponsoring']) ? 1 : 0,
@@ -87,6 +85,27 @@ class RoleController
                 isset($data['can_assign_own_voice_group_to_project']) ? 1 : 0,
             'can_keep_voice_group_lists' => isset($data['can_keep_voice_group_lists']) ? 1 : 0,
         ];
+
+        // Ein Vollrecht zieht sein kleineres Recht mit - aus
+        // `Role::IMPLIED_PERMISSIONS`, derselben Liste, aus der SessionAuthService
+        // die Sitzung füllt. Zuvor stand hier nur das Finanz-Paar handgeschrieben:
+        // Eine Rolle mit "Sponsoring verwalten" hielt "eigene Patenschaften
+        // anlegen" im Betrieb, in ihrer Spalte stand es nicht - und die
+        // Rechte-Matrix liest die Spalte. Die Anzeige widersprach damit dem, was
+        // gilt, und zwar nur bei einem der beiden Paare.
+        //
+        // Vor dem Modul-Tor unten, nicht danach: Ein Recht eines abgeschalteten
+        // Moduls behält seinen gespeicherten Wert, und diese Regel soll ihn nicht
+        // überschreiben.
+        foreach (Role::IMPLIED_PERMISSIONS as $full => $impliedPermissions) {
+            if (($flags[$full] ?? 0) !== 1) {
+                continue;
+            }
+
+            foreach ($impliedPermissions as $implied) {
+                $flags[$implied] = 1;
+            }
+        }
 
         if ($modules === null) {
             return $flags;

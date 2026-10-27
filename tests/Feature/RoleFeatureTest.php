@@ -147,13 +147,21 @@ class RoleFeatureTest extends TestCase
         $this->assertStringNotContainsString('Liedbibliothek verwalten', $template);
     }
 
+    /**
+     * Die Kopplung heißt seit Lauf 56 syncImpliedPermissionPair und liegt auf
+     * beiden Paaren aus Role::IMPLIED_PERMISSIONS statt nur auf den Finanzen. Was
+     * sie tut, bleibt dasselbe: Das Vollrecht zieht das kleinere mit. Dass auch
+     * das Sponsoring-Paar gekoppelt ist, hält RoleImpliedPermissionsFeatureTest
+     * fest.
+     */
     public function testRolesScriptKeepsFinanceWriteCheckboxDependentOnFinanceRead(): void
     {
         $script = file_get_contents(dirname(__DIR__) . '/../public/js/roles.js');
 
         $this->assertIsString($script);
-        $this->assertStringContainsString('function syncFinancePermissionPair', $script);
-        $this->assertStringContainsString('readCheckbox.checked = true;', $script);
+        $this->assertStringContainsString('function syncImpliedPermissionPair', $script);
+        $this->assertStringContainsString('impliedCheckbox.checked = true;', $script);
+        $this->assertStringContainsString("['can_read_finances', 'can_manage_finances']", $script);
     }
 
     public function testRolesSupportMailQueuePermission(): void
