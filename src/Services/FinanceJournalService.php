@@ -258,7 +258,7 @@ class FinanceJournalService
 
         return match ($field) {
             'type' => $value === Finance::TYPE_INCOME ? 'Eingang' : 'Ausgang',
-            'payment_method' => $value === 'cash' ? 'Bar' : 'Überweisung',
+            'payment_method' => $value === Finance::PAYMENT_METHOD_CASH ? 'Bar' : 'Überweisung',
             'finance_account_id' => $this->accountName((int) $value),
             'finance_group_id' => $this->groupName((int) $value),
             'invoice_date', 'payment_date' => $this->formatDate($value),

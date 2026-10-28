@@ -235,4 +235,32 @@ final class MysqldumpRunnerFeatureTest extends TestCase
             $this->assertSame('probe-before-restore', $marker);
         }
     }
+
+    /**
+     * Ein beschädigtes Archiv muss den Restore abbrechen, nicht auf der Stelle treten.
+     *
+     * Anlass: Bei einem Lesefehler gibt `gzread()` dauerhaft `false` zurück, während
+     * `gzeof()` weiter `false` meldet - die Leseschleife lief damit endlos, mit voller
+     * CPU-Last und nachdem alle Tabellen schon gelöscht waren. Dass ein solches Archiv
+     * die Prüfsumme des Backups passieren muss, macht den Fall selten; er darf aber
+     * nicht in einer Schleife enden, aus der nur noch das Zeitlimit herausführt.
+     */
+    public function testRestoreStopsOnACorruptArchiveInsteadOfSpinning(): void
+    {
+        $runner = $this->makeRunner();
+        $archive = (string) gzencode(str_repeat("SELECT 1;\n", 2000));
+        // Der Kopf bleibt heil, damit gzopen() gelingt; der Rumpf ist unlesbar.
+        $archive[30] = chr(ord($archive[30]) ^ 0xff);
+        file_put_contents($this->tmpFile, $archive);
+
+        $started = microtime(true);
+        try {
+            $runner->restore($this->tmpFile, true);
+            $this->fail('Ein beschädigtes Archiv muss den Restore abbrechen.');
+        } catch (\RuntimeException $exception) {
+            $this->assertStringContainsString('restore is incomplete', $exception->getMessage());
+        }
+
+        $this->assertLessThan(10.0, microtime(true) - $started, 'Der Restore drehte sich im Kreis.');
+    }
 }

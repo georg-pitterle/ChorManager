@@ -88,7 +88,7 @@ final class FinanceReportPdfService
                 ($f->payment_date ?? $f->invoice_date)->format('d.m.Y'),
                 (int) $f->running_number,
                 (string) $f->description,
-                $f->payment_method === 'cash' ? 'Bar' : 'Bank',
+                $f->payment_method === Finance::PAYMENT_METHOD_CASH ? 'Bar' : 'Bank',
                 $isIncome ? (float) $f->amount : 0.0,
                 $isIncome ? 0.0 : (float) $f->amount,
             );

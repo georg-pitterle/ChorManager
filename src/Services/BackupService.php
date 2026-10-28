@@ -71,7 +71,9 @@ class BackupService
         $entries = [];
 
         foreach (glob($this->backupDir . '/*.json') ?: [] as $metaPath) {
-            if (str_ends_with($metaPath, '.files.json')) {
+            // glob() liefert auch Verzeichnisse mit passendem Namen; file_get_contents()
+            // bekäme darauf nur eine Notiz ins Protokoll und einen leeren Inhalt zurück.
+            if (!is_file($metaPath) || str_ends_with($metaPath, '.files.json')) {
                 continue;
             }
             $decoded = json_decode((string) file_get_contents($metaPath), true);
@@ -171,9 +173,18 @@ class BackupService
                 throw new \RuntimeException('Could not move the finished dump into place: ' . $dataPath);
             }
             $fileStats = $this->fileBackup?->finalize($this->backupDir, $base, $preparedFiles);
+            $metadata = $this->buildMetadata($base, $type, $userId, $now, $dataPath, $fileStats);
+            // Die Metadaten stehen unter demselben Schutz wie der Dump: Ohne sie zeigt
+            // list() das Backup nicht, und weil die Rotation nur zählt, was dort steht,
+            // räumt sie den Dump auch nie wieder weg - er bliebe für immer liegen.
+            if (@file_put_contents($metaPath, (string) json_encode($metadata, JSON_PRETTY_PRINT)) === false) {
+                throw new \RuntimeException('Could not write backup metadata: ' . $base);
+            }
         } catch (\Throwable $exception) {
-            foreach ([$partialPath, $dataPath] as $path) {
-                if (file_exists($path)) {
+            // Nur reguläre Dateien: Liegt an der Stelle der Metadaten etwas anderes,
+            // gehört es nicht diesem Lauf.
+            foreach ([$partialPath, $dataPath, $metaPath] as $path) {
+                if (is_file($path)) {
                     unlink($path);
                 }
             }
@@ -190,6 +201,28 @@ class BackupService
             throw $exception;
         }
 
+        $this->logger->info('Backup created.', [
+            'event' => 'backup.create.completed',
+            'type' => $type,
+            'id' => $base,
+            'size' => $metadata['size'],
+        ]);
+
+        return $metadata;
+    }
+
+    /**
+     * @param array{count: int, bytes: int, missing: int}|null $fileStats
+     * @return array<string, mixed>
+     */
+    private function buildMetadata(
+        string $base,
+        string $type,
+        ?int $userId,
+        int $now,
+        string $dataPath,
+        ?array $fileStats
+    ): array {
         $metadata = [
             'id' => $base,
             'type' => $type,
@@ -207,15 +240,6 @@ class BackupService
             $metadata['files_bytes'] = $fileStats['bytes'];
             $metadata['files_missing'] = $fileStats['missing'];
         }
-
-        file_put_contents($metaPath, (string) json_encode($metadata, JSON_PRETTY_PRINT));
-
-        $this->logger->info('Backup created.', [
-            'event' => 'backup.create.completed',
-            'type' => $type,
-            'id' => $base,
-            'size' => $metadata['size'],
-        ]);
 
         return $metadata;
     }

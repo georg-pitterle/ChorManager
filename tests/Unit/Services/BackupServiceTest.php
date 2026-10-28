@@ -52,7 +52,7 @@ final class BackupServiceTest extends TestCase
         }
 
         foreach (glob($this->backupDir . '/*') ?: [] as $file) {
-            unlink($file);
+            is_dir($file) ? rmdir($file) : unlink($file);
         }
         if (is_dir($this->backupDir)) {
             rmdir($this->backupDir);
@@ -133,6 +133,38 @@ final class BackupServiceTest extends TestCase
         }
 
         $this->assertSame([], glob($this->backupDir . '/*') ?: []);
+    }
+
+    /**
+     * Ohne Metadaten ist ein Backup kein Backup: `list()` zeigt es nicht, und weil die
+     * Rotation nur zählt, was dort steht, räumt sie den Dump auch nie wieder weg. Er
+     * bliebe für immer liegen und füllte den Datenträger. Scheitert das Schreiben der
+     * Metadaten - typischerweise eine volle Platte -, muss der Lauf deshalb genauso
+     * aufräumen wie ein abgebrochener Dump.
+     *
+     * Im Test belegt ein Verzeichnis den Platz der Metadaten-Datei; file_put_contents()
+     * scheitert daran so wie an einem vollen Datenträger.
+     */
+    public function testUnwritableMetadataLeavesNoOrphanedDumpBehind(): void
+    {
+        $this->dumpRunner->whileDumping = function (string $destinationPath): void {
+            $base = basename($destinationPath, '.sql.gz.partial');
+            mkdir(dirname($destinationPath) . '/' . $base . '.json');
+        };
+
+        $failure = null;
+        try {
+            $this->makeService()->create(BackupService::TYPE_MANUAL, null);
+        } catch (\RuntimeException $caught) {
+            $failure = $caught;
+        }
+
+        $this->assertNotNull($failure, 'Nicht schreibbare Metadaten müssen als Fehler ankommen.');
+        $this->assertStringContainsString('metadata', $failure->getMessage());
+
+        $this->assertSame([], glob($this->backupDir . '/backup_*.sql.gz') ?: []);
+        $this->assertSame([], glob($this->backupDir . '/backup_*.partial') ?: []);
+        $this->assertSame([], $this->makeService()->list());
     }
 
     public function testManualBackupBlocksWhenLimitReached(): void

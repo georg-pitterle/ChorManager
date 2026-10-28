@@ -1971,7 +1971,7 @@ class DevSeedService
 
             // Bargeld bewegt sich in kleinen Beträgen (Kartenverkauf, Verpflegung);
             // vierstellige Summen laufen über die Bank.
-            if ($paymentMethod === 'cash') {
+            if ($paymentMethod === Finance::PAYMENT_METHOD_CASH) {
                 $amount = $isIncome
                     ? mt_rand(500, 30000) / 100
                     : mt_rand(500, 25000) / 100;
@@ -1996,7 +1996,7 @@ class DevSeedService
                 'type' => $isIncome ? 'income' : 'expense',
                 'amount' => $amount,
                 'payment_method' => $paymentMethod,
-                'finance_account_id' => $accounts[$paymentMethod === 'cash' ? 'cash' : 'bank']->id,
+                'finance_account_id' => $accounts[$paymentMethod === Finance::PAYMENT_METHOD_CASH ? 'cash' : 'bank']->id,
                 'import_hash' => $isImported
                     ? hash('sha256', 'seed-bank-statement-' . $runningNumber)
                     : null,

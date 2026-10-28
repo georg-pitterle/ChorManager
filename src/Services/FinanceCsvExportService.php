@@ -75,7 +75,7 @@ class FinanceCsvExportService
             $finance->type === Finance::TYPE_INCOME ? 'Eingang' : 'Ausgang',
             $this->money((string) $finance->amount, $finance->type === Finance::TYPE_EXPENSE),
             self::neutralizeFormula((string) ($finance->financeAccount->name ?? '')),
-            $finance->payment_method === 'cash' ? 'Bar' : 'Überweisung',
+            $finance->payment_method === Finance::PAYMENT_METHOD_CASH ? 'Bar' : 'Überweisung',
             $finance->reversalOf?->running_number === null
                 ? ''
                 : (string) $finance->reversalOf->running_number,

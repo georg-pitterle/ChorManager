@@ -60,10 +60,18 @@ final class MysqldumpRunner implements DumpRunnerInterface
         // danach und wiese die abgeschnittene Datei als unversehrt aus; beim
         // Einspielen käme nur ein Teil der Datenbank zurück, ohne dass irgendwo
         // ein Fehler stünde. Deshalb wird jeder Schreibvorgang geprüft.
-        $writeError = null;
+        $transferError = null;
         while (!feof($pipes[1])) {
-            $chunk = fread($pipes[1], 8192);
-            if ($chunk === false || $chunk === '') {
+            // Unterdrückt wie beim Schreiben unten: Der Rückgabewert wird selbst geprüft.
+            $chunk = @fread($pipes[1], 8192);
+            // Ein Lesefehler ist kein Dateiende. Wird er wie "noch nichts da" behandelt,
+            // endet der Lauf mit einem abgeschnittenen Dump - und die Prüfsumme, die
+            // erst danach entsteht, weist ihn als unversehrt aus.
+            if ($chunk === false) {
+                $transferError = 'Failed to read the dump from mysqldump: ' . self::lastErrorMessage();
+                break;
+            }
+            if ($chunk === '') {
                 continue;
             }
 
@@ -72,7 +80,7 @@ final class MysqldumpRunner implements DumpRunnerInterface
             // Meldung im Fehlerprotokoll zu landen.
             $written = $gzip ? @gzwrite($out, $chunk) : @fwrite($out, $chunk);
             if ($written === false || $written < strlen($chunk)) {
-                $writeError = 'Failed to write the full dump to ' . $destinationPath
+                $transferError = 'Failed to write the full dump to ' . $destinationPath
                     . ': ' . self::lastErrorMessage();
                 break;
             }
@@ -85,15 +93,15 @@ final class MysqldumpRunner implements DumpRunnerInterface
         $errorOutput = (string) file_get_contents($stderrTmpPath);
         unlink($stderrTmpPath);
 
-        if ($exitCode !== 0 || $writeError !== null) {
+        if ($exitCode !== 0 || $transferError !== null) {
             // Nur eine reguläre Datei wegräumen: Zeigt das Ziel auf ein Gerät,
             // gehört es nicht dieser Klasse und darf nicht gelöscht werden.
             if (is_file($destinationPath)) {
                 unlink($destinationPath);
             }
 
-            if ($writeError !== null) {
-                throw new \RuntimeException($writeError);
+            if ($transferError !== null) {
+                throw new \RuntimeException($transferError);
             }
 
             throw new \RuntimeException('mysqldump failed with exit code ' . $exitCode . ': ' . $errorOutput);
@@ -151,16 +159,27 @@ final class MysqldumpRunner implements DumpRunnerInterface
 
         // Wie beim Dump: Bleibt ein Teil der Anweisungen im Rohr stecken, spielt der
         // Lauf nur einen Ausschnitt ein. `mysql` kann dabei durchaus mit 0 enden.
-        $writeError = null;
+        $transferError = null;
         while (!($gzip ? gzeof($in) : feof($in))) {
-            $chunk = $gzip ? gzread($in, 8192) : fread($in, 8192);
-            if ($chunk === false || $chunk === '') {
+            // Unterdrückt, weil der Rückgabewert selbst geprüft wird; die Begründung von
+            // PHP wandert in die Ausnahme statt als lose Meldung ins Fehlerprotokoll.
+            $chunk = $gzip ? @gzread($in, 8192) : @fread($in, 8192);
+            // Ein Lesefehler muss die Schleife beenden: Bei einem beschädigten Archiv
+            // gibt gzread() dauerhaft false zurück, während gzeof() weiter false meldet.
+            // Übergangen drehte sich der Lauf hier endlos - mit voller CPU-Last und
+            // nachdem alle Tabellen schon gelöscht waren.
+            if ($chunk === false) {
+                $transferError = 'Failed to read the backup file, the restore is incomplete: '
+                    . self::lastErrorMessage();
+                break;
+            }
+            if ($chunk === '') {
                 continue;
             }
 
             $written = @fwrite($pipes[0], $chunk);
             if ($written === false || $written < strlen($chunk)) {
-                $writeError = 'Failed to stream the full backup into mysql, the restore is incomplete: '
+                $transferError = 'Failed to stream the full backup into mysql, the restore is incomplete: '
                     . self::lastErrorMessage();
                 break;
             }
@@ -173,8 +192,8 @@ final class MysqldumpRunner implements DumpRunnerInterface
         $errorOutput = (string) file_get_contents($stderrTmpPath);
         unlink($stderrTmpPath);
 
-        if ($writeError !== null) {
-            throw new \RuntimeException($writeError);
+        if ($transferError !== null) {
+            throw new \RuntimeException($transferError);
         }
 
         if ($exitCode !== 0) {
