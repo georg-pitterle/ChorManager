@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Commands;
 
-use App\Services\BackupImportLockedException;
+use App\Services\BackupLockedException;
 use App\Services\BackupPackageService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -37,7 +37,7 @@ class ImportBackupCommand extends Command
     {
         try {
             $results = $this->packages->importAll();
-        } catch (BackupImportLockedException) {
+        } catch (BackupLockedException) {
             $output->writeln('<error>Eine andere Übernahme läuft gerade.</error>');
 
             return Command::FAILURE;

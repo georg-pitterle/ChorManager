@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Commands\ImportBackupCommand;
+use App\Services\BackupLock;
 use App\Services\BackupPackageService;
 use App\Services\BackupService;
 use PHPUnit\Framework\TestCase;
@@ -46,7 +47,7 @@ final class ImportBackupCommandFeatureTest extends TestCase
 
     private function packages(string $dir): BackupPackageService
     {
-        return new BackupPackageService($this->backups($dir), $dir, null, new NullLogger());
+        return new BackupPackageService($this->backups($dir), $dir, null, new NullLogger(), new BackupLock($dir));
     }
 
     private function tester(): CommandTester
@@ -108,7 +109,7 @@ final class ImportBackupCommandFeatureTest extends TestCase
     {
         $this->waitingPackage();
         $tester = $this->tester();
-        $lock = fopen($this->targetDir . '/.import.lock', 'c');
+        $lock = fopen($this->targetDir . '/' . BackupLock::LOCK_FILE, 'c');
         flock($lock, LOCK_EX);
 
         try {

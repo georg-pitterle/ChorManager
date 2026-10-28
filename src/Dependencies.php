@@ -94,6 +94,7 @@ use App\Services\NotificationReminderService;
 use App\Services\PasswordPolicyService;
 use App\Services\NotificationService;
 use App\Services\RegistrationReminderService;
+use App\Services\BackupLock;
 use App\Services\BackupPackageService;
 use App\Services\BackupService;
 use App\Commands\PurgeFileTrashCommand;
@@ -626,6 +627,12 @@ return function (ContainerBuilder $containerBuilder) {
                 EnvHelper::read('DB_PASSWORD', 'db')
             );
         },
+        // Eine Definition, ein Objekt: Erstellen, Löschen und Übernehmen müssen
+        // dieselbe Sperre in der Hand haben, und das Mitzählen verschachtelter
+        // Läufe (create() ruft beim Rotieren delete()) hängt daran.
+        BackupLock::class => function (ContainerInterface $c) {
+            return new BackupLock($c->get('settings')['backup']['dir']);
+        },
         BackupService::class => function (ContainerInterface $c) {
             $backupSettings = $c->get('settings')['backup'];
 
@@ -656,7 +663,8 @@ return function (ContainerBuilder $containerBuilder) {
                 null,
                 $c->get(FileBackupService::class),
                 $acceptedMailKeyIds,
-                new PhinxMigrationRunner()
+                new PhinxMigrationRunner(),
+                $c->get(BackupLock::class)
             );
         },
         BackupPackageService::class => function (ContainerInterface $c) {
@@ -664,7 +672,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(BackupService::class),
                 $c->get('settings')['backup']['dir'],
                 $c->get(FileBackupService::class),
-                $c->get(LoggerInterface::class)
+                $c->get(LoggerInterface::class),
+                $c->get(BackupLock::class)
             );
         },
         BackupController::class => \DI\autowire(),

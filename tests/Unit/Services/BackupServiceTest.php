@@ -7,6 +7,8 @@ namespace Tests\Unit\Services;
 use App\Models\RememberLogin;
 use App\Models\User;
 use App\Services\BackupLimitReachedException;
+use App\Services\BackupLock;
+use App\Services\BackupLockedException;
 use App\Services\BackupService;
 use App\Services\SessionInvalidationService;
 use App\Util\PasswordHasher;
@@ -51,8 +53,10 @@ final class BackupServiceTest extends TestCase
             $connection->rollBack();
         }
 
-        foreach (glob($this->backupDir . '/*') ?: [] as $file) {
-            is_dir($file) ? rmdir($file) : unlink($file);
+        // scandir statt glob: Die Sperrdatei .backup.lock beginnt mit einem Punkt.
+        foreach (array_diff(scandir($this->backupDir) ?: [], ['.', '..']) as $entry) {
+            $path = $this->backupDir . '/' . $entry;
+            is_dir($path) ? rmdir($path) : unlink($path);
         }
         if (is_dir($this->backupDir)) {
             rmdir($this->backupDir);
@@ -61,8 +65,12 @@ final class BackupServiceTest extends TestCase
         parent::tearDown();
     }
 
-    private function makeService(int $maxManual = 5, int $maxAuto = 5, ?string $mailKeyId = null): BackupService
-    {
+    private function makeService(
+        int $maxManual = 5,
+        int $maxAuto = 5,
+        ?string $mailKeyId = null,
+        ?BackupLock $lock = null
+    ): BackupService {
         return new BackupService(
             $this->dumpRunner,
             new NullLogger(),
@@ -74,7 +82,11 @@ final class BackupServiceTest extends TestCase
             'test-version',
             $mailKeyId,
             new SessionInvalidationService(),
-            fn(): int => $this->clockSeconds
+            fn(): int => $this->clockSeconds,
+            null,
+            [],
+            null,
+            $lock
         );
     }
 
@@ -165,6 +177,91 @@ final class BackupServiceTest extends TestCase
         $this->assertSame([], glob($this->backupDir . '/backup_*.sql.gz') ?: []);
         $this->assertSame([], glob($this->backupDir . '/backup_*.partial') ?: []);
         $this->assertSame([], $this->makeService()->list());
+    }
+
+    /**
+     * Zwei Backup-Vorgänge gleichzeitig greifen in denselben Datei-Pool: Räumt der
+     * eine nach einem Abbruch auf, nimmt er dem anderen die Dateien weg, die dieser
+     * gerade in sein Manifest schreibt. Das Ergebnis wäre ein Backup ohne Dateien,
+     * zu sehen erst beim Restore. Wer die Sperre nicht bekommt, wird deshalb
+     * abgewiesen statt zu warten.
+     */
+    public function testCreateIsTurnedAwayWhileAnotherRunHoldsTheLock(): void
+    {
+        $service = $this->makeService(lock: new BackupLock($this->backupDir));
+        $foreign = $this->holdLockFromOutside();
+
+        try {
+            $this->expectException(BackupLockedException::class);
+            $service->create(BackupService::TYPE_MANUAL, null);
+        } finally {
+            flock($foreign, LOCK_UN);
+            fclose($foreign);
+        }
+    }
+
+    public function testCreateWritesNothingWhileTheLockIsHeld(): void
+    {
+        $service = $this->makeService(lock: new BackupLock($this->backupDir));
+        $foreign = $this->holdLockFromOutside();
+
+        try {
+            $service->create(BackupService::TYPE_MANUAL, null);
+        } catch (BackupLockedException) {
+            // erwartet
+        } finally {
+            flock($foreign, LOCK_UN);
+            fclose($foreign);
+        }
+
+        $this->assertSame(0, $this->dumpRunner->dumpCallCount, 'Der Dump darf gar nicht erst anlaufen.');
+        $this->assertSame([], glob($this->backupDir . '/backup_*') ?: []);
+    }
+
+    public function testDeleteIsTurnedAwayWhileAnotherRunHoldsTheLock(): void
+    {
+        $lock = new BackupLock($this->backupDir);
+        $metadata = $this->makeService(lock: $lock)->create(BackupService::TYPE_MANUAL, null);
+        $foreign = $this->holdLockFromOutside();
+
+        try {
+            $this->expectException(BackupLockedException::class);
+            $this->makeService(lock: $lock)->delete((string) $metadata['id']);
+        } finally {
+            flock($foreign, LOCK_UN);
+            fclose($foreign);
+            $this->assertFileExists($this->backupDir . '/' . $metadata['id'] . '.json');
+        }
+    }
+
+    /**
+     * create() löscht beim Rotieren selbst, und `flock()` hängt an der geöffneten
+     * Datei, nicht am Prozess: Ohne Mitzählen stünde die Erstellung sich hier selbst
+     * im Weg und jedes Auto-Backup an der Obergrenze wäre gescheitert.
+     */
+    public function testRotationInsideCreateDoesNotBlockOnItsOwnLock(): void
+    {
+        $lock = new BackupLock($this->backupDir);
+        $first = $this->makeService(maxAuto: 1, lock: $lock)->create(BackupService::TYPE_AUTO, null);
+        $this->advanceClock();
+
+        $second = $this->makeService(maxAuto: 1, lock: $lock)->create(BackupService::TYPE_AUTO, null);
+
+        $this->assertFileDoesNotExist($this->backupDir . '/' . $first['id'] . '.json');
+        $this->assertFileExists($this->backupDir . '/' . $second['id'] . '.json');
+    }
+
+    /** @return resource */
+    private function holdLockFromOutside()
+    {
+        if (!is_dir($this->backupDir)) {
+            mkdir($this->backupDir, 0750, true);
+        }
+        $handle = fopen($this->backupDir . '/' . BackupLock::LOCK_FILE, 'c');
+        $this->assertIsResource($handle);
+        $this->assertTrue(flock($handle, LOCK_EX | LOCK_NB));
+
+        return $handle;
     }
 
     public function testManualBackupBlocksWhenLimitReached(): void

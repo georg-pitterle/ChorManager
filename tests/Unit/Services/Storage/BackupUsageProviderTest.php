@@ -58,7 +58,7 @@ final class BackupUsageProviderTest extends TestCase
     {
         $this->put('backup_manual_20261001T100000Z_0123abcd.zip', 300);
         $this->put('backup_auto_20261002T030000Z_89abcdef.zip.failed', 40);
-        $this->put('.import.lock', 0);
+        $this->put('.backup.lock', 0);
 
         $node = (new BackupUsageProvider($this->dir))->usage();
 

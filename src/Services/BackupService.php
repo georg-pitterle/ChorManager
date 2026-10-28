@@ -51,7 +51,13 @@ class BackupService
          * Backup. Ohne Angabe bleibt das Schema des Backups bis zum nächsten
          * Containerstart bestehen.
          */
-        private readonly ?MigrationRunnerInterface $migrationRunner = null
+        private readonly ?MigrationRunnerInterface $migrationRunner = null,
+        /**
+         * Sperre gegen gleichzeitige Backup-Vorgänge, geteilt mit der
+         * Paket-Übernahme. Ohne Angabe laufen Erstellen und Löschen ungesichert -
+         * im Test der Regelfall, weil dort immer nur ein Vorgang läuft.
+         */
+        private readonly ?BackupLock $lock = null
     ) {
         if (!is_dir($this->backupDir)) {
             mkdir($this->backupDir, 0750, true);
@@ -116,8 +122,17 @@ class BackupService
 
     /**
      * @return array<string,mixed>
+     * @throws BackupLockedException wenn ein anderer Backup-Vorgang läuft
      */
     public function create(string $type, ?int $userId): array
+    {
+        return $this->withLock(fn(): array => $this->createUnderLock($type, $userId));
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    private function createUnderLock(string $type, ?int $userId): array
     {
         if (!in_array($type, [self::TYPE_MANUAL, self::TYPE_AUTO], true)) {
             throw new \InvalidArgumentException('type must be "manual" or "auto"');
@@ -244,7 +259,19 @@ class BackupService
         return $metadata;
     }
 
+    /**
+     * @throws BackupLockedException wenn ein anderer Backup-Vorgang läuft
+     */
     public function delete(string $id): void
+    {
+        // Verschachtelt, wenn create() beim Rotieren hier hereinkommt - BackupLock
+        // zählt solche Läufe mit, statt die Erstellung sich selbst aussperren zu lassen.
+        $this->withLock(function () use ($id): void {
+            $this->deleteUnderLock($id);
+        });
+    }
+
+    private function deleteUnderLock(string $id): void
     {
         $this->assertValidId($id);
 
@@ -263,6 +290,16 @@ class BackupService
         $this->fileBackup?->forget($this->backupDir, $id);
 
         $this->logger->info('Backup deleted.', ['event' => 'backup.delete', 'id' => $id]);
+    }
+
+    /**
+     * @template TResult
+     * @param \Closure(): TResult $work
+     * @return TResult
+     */
+    private function withLock(\Closure $work): mixed
+    {
+        return $this->lock === null ? $work() : $this->lock->run($work);
     }
 
     /**

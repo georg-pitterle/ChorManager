@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\User;
 use App\Models\VoiceGroupList;
+use App\Models\VoiceGroupListColumn;
 use App\Models\VoiceGroupListEntry;
 
 /**
@@ -103,26 +104,92 @@ class VoiceGroupListRows
     /**
      * Fortschritt je Häkchen-Spalte, gezählt über die aktuellen Zeilen.
      *
+     * Eine Abfrage für alle Spalten, nicht eine je Spalte: Die Ansicht zeigt sie
+     * ohnehin alle zusammen, und bei fünf Spalten waren das fünf Abfragen für
+     * einen Seitenaufbau.
+     *
      * @param list<int>|null $memberIds schon berechnete Zeilen, sonst neu ermittelt
      * @return array<int, array{done: int, total: int}>
      */
     public function progress(VoiceGroupList $list, ?array $memberIds = null): array
     {
         $memberIds ??= $this->memberIds($list);
-        $progress = [];
 
+        $columnIds = [];
         foreach ($list->columns()->get() as $column) {
-            if (!$column->isCheckbox()) {
-                continue;
+            if ($column->isCheckbox()) {
+                $columnIds[] = (int) $column->id;
             }
+        }
+        if ($columnIds === []) {
+            return [];
+        }
 
-            $done = $memberIds === [] ? 0 : $column->entries()
-                ->whereIn('user_id', $memberIds)
-                ->whereNotNull('checked_at')
-                ->count();
-            $progress[(int) $column->id] = ['done' => $done, 'total' => count($memberIds)];
+        $done = $this->checkedCounts($columnIds, $memberIds);
+
+        $progress = [];
+        foreach ($columnIds as $columnId) {
+            $progress[$columnId] = ['done' => $done[$columnId] ?? 0, 'total' => count($memberIds)];
         }
 
         return $progress;
+    }
+
+    /**
+     * Fortschritt einer einzelnen Spalte, null für eine Spalte ohne Häkchen.
+     *
+     * Für die Stellen, die genau eine Spalte brauchen - sie ließen zuvor den Stand
+     * aller Spalten berechnen und warfen alles bis auf einen Eintrag weg.
+     *
+     * @param list<int>|null $memberIds schon berechnete Zeilen, sonst neu ermittelt
+     * @return array{done: int, total: int}|null
+     */
+    public function progressFor(
+        VoiceGroupList $list,
+        VoiceGroupListColumn $column,
+        ?array $memberIds = null
+    ): ?array {
+        if (!$column->isCheckbox()) {
+            return null;
+        }
+
+        $memberIds ??= $this->memberIds($list);
+        $columnId = (int) $column->id;
+
+        return [
+            'done' => $this->checkedCounts([$columnId], $memberIds)[$columnId] ?? 0,
+            'total' => count($memberIds),
+        ];
+    }
+
+    /**
+     * Gesetzte Häkchen je Spalte, gezählt über die angegebenen Zeilen.
+     *
+     * @param list<int> $columnIds
+     * @param list<int> $memberIds
+     * @return array<int, int>
+     */
+    private function checkedCounts(array $columnIds, array $memberIds): array
+    {
+        if ($columnIds === [] || $memberIds === []) {
+            return [];
+        }
+
+        $query = VoiceGroupListEntry::query()
+            ->whereIn('column_id', $columnIds)
+            ->whereIn('user_id', $memberIds)
+            ->whereNotNull('checked_at');
+
+        // Eine Spalte braucht kein Gruppieren; die Ansicht mit allen Spalten schon.
+        if (count($columnIds) === 1) {
+            return [$columnIds[0] => $query->count()];
+        }
+
+        $counts = [];
+        foreach ($query->groupBy('column_id')->selectRaw('column_id, COUNT(*) as checked')->get() as $row) {
+            $counts[(int) $row->column_id] = (int) $row->checked;
+        }
+
+        return $counts;
     }
 }

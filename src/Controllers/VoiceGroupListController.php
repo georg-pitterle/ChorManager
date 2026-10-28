@@ -439,7 +439,7 @@ class VoiceGroupListController
             return $this->redirect($response, '/voice-group-lists/' . $list->id);
         }
 
-        $progress = $column->isCheckbox() ? ($this->rows->progress($list)[(int) $column->id] ?? null) : null;
+        $progress = $this->rows->progressFor($list, $column);
         $response->getBody()->write((string) json_encode([
             'ok' => true,
             'column_id' => (int) $column->id,
@@ -465,7 +465,7 @@ class VoiceGroupListController
             return null;
         }
 
-        $progress = $this->rows->progress($list)[(int) $column->id] ?? ['done' => 0, 'total' => 0];
+        $progress = $this->rows->progressFor($list, $column) ?? ['done' => 0, 'total' => 0];
 
         return ['label' => (string) $column->label] + $progress;
     }

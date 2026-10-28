@@ -25,8 +25,10 @@ use Psr\Log\LoggerInterface;
 final class BackupPackageService
 {
     private const PACKAGE_SUFFIX = '.zip';
+
+    /** Ab wann ein Paket im Arbeitsverzeichnis als liegengeblieben gilt. */
+    private const STALE_PACKAGE_SECONDS = 86400;
     private const FAILED_SUFFIX = '.zip.failed';
-    private const LOCK_FILE = '.import.lock';
     private const FIXED_ENTRIES = ['backup.json', 'manifest.json', 'database.sql.gz', 'database.sql'];
 
     private const REASON_EXISTS = 'Kennung existiert bereits.';
@@ -38,7 +40,14 @@ final class BackupPackageService
         private readonly BackupService $backups,
         private readonly string $backupDir,
         private readonly ?FileBackupInterface $fileBackup,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        /**
+         * Dieselbe Sperre, die auch BackupService nimmt - sonst liefe eine
+         * Übernahme gegen eine Backup-Erstellung, und beide greifen in den
+         * gemeinsamen Datei-Pool. Verpflichtend, weil die Übernahme schon vor
+         * der gemeinsamen Sperre nie ohne eine lief.
+         */
+        private readonly BackupLock $lock
     ) {
     }
 
@@ -53,7 +62,9 @@ final class BackupPackageService
         $metaPath = $this->backupDir . '/' . $id . '.json';
         $contents = $this->fileBackup?->packageContents($this->backupDir, $id);
 
-        $path = sys_get_temp_dir() . '/' . $id . '_' . bin2hex(random_bytes(4)) . '.zip';
+        $workDir = self::workDir();
+        $this->sweepStalePackages($workDir);
+        $path = $workDir . '/' . $id . '_' . bin2hex(random_bytes(4)) . '.zip';
         $zip = new \ZipArchive();
         try {
             if ($zip->open($path, \ZipArchive::CREATE | \ZipArchive::EXCL) !== true) {
@@ -111,15 +122,7 @@ final class BackupPackageService
      */
     public function importAll(): array
     {
-        $lock = fopen($this->backupDir . '/' . self::LOCK_FILE, 'c');
-        if ($lock === false || !flock($lock, LOCK_EX | LOCK_NB)) {
-            if ($lock !== false) {
-                fclose($lock);
-            }
-            throw new BackupImportLockedException('Another backup import is running.');
-        }
-
-        try {
+        $work = function (): array {
             $results = [];
             foreach ($this->packageNames(self::PACKAGE_SUFFIX) as $name) {
                 $id = substr($name, 0, -strlen(self::PACKAGE_SUFFIX));
@@ -127,10 +130,9 @@ final class BackupPackageService
             }
 
             return $results;
-        } finally {
-            flock($lock, LOCK_UN);
-            fclose($lock);
-        }
+        };
+
+        return $this->lock->run($work);
     }
 
     private function importOne(string $id): ?string
@@ -321,6 +323,59 @@ final class BackupPackageService
         sort($names);
 
         return $names;
+    }
+
+    /**
+     * Wo das Paket entsteht: `var/tmp` im Projekt.
+     *
+     * Es wiegt so viel wie Dump und Dateiverwaltung zusammen - das Größte, was
+     * diese Anwendung schreibt. In sys_get_temp_dir() lag es an derselben Stelle,
+     * die der HTMLPurifier-Zwischenspeicher und die Rate-Limit-Zähler aus guten
+     * Gründen verlassen haben (HtmlSanitizer::cacheDir(),
+     * RateLimiterService::defaultStoreDir()): Das Temp-Verzeichnis gehört
+     * niemandem, liegt je nach Aufruf woanders, wird von aufräumenden
+     * Systemdiensten geleert - und ist es ein tmpfs, liegt das ganze Paket im
+     * Arbeitsspeicher. `var/` gehört zur Anwendung und steht schon in
+     * `.gitignore`.
+     *
+     * Lässt sich das Verzeichnis nicht anlegen oder nicht beschreiben, bleibt es
+     * beim Temp-Verzeichnis: Ein Download, der daran scheitert, wäre schlechter
+     * als einer vom alten Platz.
+     */
+    private static function workDir(): string
+    {
+        $workDir = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'tmp';
+        if (!is_dir($workDir) && !@mkdir($workDir, 0750, true) && !is_dir($workDir)) {
+            return sys_get_temp_dir();
+        }
+
+        return is_writable($workDir) ? $workDir : sys_get_temp_dir();
+    }
+
+    /**
+     * Liegengebliebene Pakete aus früheren Downloads wegräumen.
+     *
+     * Der Controller entfernt das Paket, sobald er es geöffnet hat; bricht der
+     * Request vorher ab, bleibt es liegen. In sys_get_temp_dir() nahm das der
+     * Systemdienst mit, in var/ nimmt es niemand mit - und ein Paket wiegt so viel
+     * wie ein ganzes Backup. Angefasst wird nur, was dieser Dienst selbst gebaut
+     * haben kann, und nur, wenn es einen Tag alt ist: Ein frisches Paket kann der
+     * Download sein, der gerade läuft.
+     */
+    private function sweepStalePackages(string $workDir): void
+    {
+        $deadline = time() - self::STALE_PACKAGE_SECONDS;
+        foreach (glob($workDir . '/backup_*_*' . self::PACKAGE_SUFFIX) ?: [] as $path) {
+            if (!is_file($path) || filemtime($path) > $deadline) {
+                continue;
+            }
+            if (@unlink($path)) {
+                $this->logger->info('Stale backup package removed.', [
+                    'event' => 'backup.package.swept',
+                    'name' => basename($path),
+                ]);
+            }
+        }
     }
 
     private function addStored(\ZipArchive $zip, string $source, string $name): void

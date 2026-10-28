@@ -7,7 +7,8 @@ namespace Tests\Feature;
 use App\Models\FileFolderShare as Share;
 use App\Models\FileVersion;
 use App\Models\StoredFile;
-use App\Services\BackupImportLockedException;
+use App\Services\BackupLock;
+use App\Services\BackupLockedException;
 use App\Services\BackupPackageService;
 use App\Services\BackupService;
 use App\Services\Files\FileAccessService;
@@ -101,7 +102,8 @@ class BackupPackageFeatureTest extends TestCase
             $backups,
             $dir ?? $this->backupDir,
             $withFiles ? new FileBackupService($this->storage(), new NullLogger()) : null,
-            new NullLogger()
+            new NullLogger(),
+            new BackupLock($dir ?? $this->backupDir)
         );
     }
 
@@ -191,6 +193,59 @@ class BackupPackageFeatureTest extends TestCase
             $this->assertSame(\ZipArchive::CM_STORE, $stat['comp_method'], (string) $stat['name']);
         }
         $zip->close();
+    }
+
+    /**
+     * Das Paket wiegt so viel wie Dump und Dateiverwaltung zusammen - das Größte,
+     * was die Anwendung schreibt. In sys_get_temp_dir() lag es bisher dort, wo auch
+     * der HTMLPurifier-Zwischenspeicher und die Rate-Limit-Zähler lagen, bevor die
+     * aus guten Gründen nach var/ gewandert sind: Das Temp-Verzeichnis gehört
+     * niemandem, kann je nach Aufruf woanders liegen, wird von Systemdiensten
+     * geleert - und ist als tmpfs der Arbeitsspeicher.
+     */
+    public function testPackageIsBuiltInsideTheProjectsVarDirectory(): void
+    {
+        $backups = $this->backups();
+        $meta = $backups->create(BackupService::TYPE_MANUAL, null);
+
+        $package = $this->packages($backups)->build($meta['id']);
+        $this->tempFiles[] = $package['path'];
+
+        $expectedDir = dirname(__DIR__, 2) . '/var/tmp';
+        $this->assertSame($expectedDir, dirname($package['path']));
+        $this->assertFileExists($package['path']);
+    }
+
+    /**
+     * In sys_get_temp_dir() räumte der Systemdienst liegengebliebene Pakete weg;
+     * in var/ tut das niemand. Bricht ein Download ab, bevor der Controller die
+     * Datei entfernt, bliebe sie dort für immer - in der Größe eines ganzen
+     * Backups. Der nächste Paketbau nimmt deshalb die alten mit.
+     */
+    public function testStalePackagesAreSweptOnTheNextBuild(): void
+    {
+        $backups = $this->backups();
+        $meta = $backups->create(BackupService::TYPE_MANUAL, null);
+
+        $firstPackage = $this->packages($backups)->build($meta['id']);
+        $stale = dirname($firstPackage['path']) . '/backup_manual_20200101T000000Z_0badc0de_abcdabcd.zip';
+        $fresh = dirname($firstPackage['path']) . '/backup_manual_20200102T000000Z_0badc0de_12341234.zip';
+        $foreign = dirname($firstPackage['path']) . '/fremde-datei.zip';
+        foreach ([$stale, $fresh, $foreign] as $file) {
+            file_put_contents($file, 'alt');
+            $this->tempFiles[] = $file;
+        }
+        touch($stale, time() - 2 * 86400);
+        touch($foreign, time() - 2 * 86400);
+
+        $secondPackage = $this->packages($backups)->build($meta['id']);
+        $this->tempFiles[] = $firstPackage['path'];
+        $this->tempFiles[] = $secondPackage['path'];
+
+        $this->assertFileDoesNotExist($stale, 'Das liegengebliebene Paket muss weg sein.');
+        $this->assertFileExists($fresh, 'Ein frisches Paket kann ein laufender Download sein.');
+        $this->assertFileExists($foreign, 'Fremde Dateien gehören nicht diesem Dienst.');
+        $this->assertFileExists($firstPackage['path'], 'Das eben gebaute Paket bleibt.');
     }
 
     public function testBuildRejectsUnknownBackup(): void
@@ -491,11 +546,11 @@ class BackupPackageFeatureTest extends TestCase
     public function testImportThrowsWhenLockIsHeld(): void
     {
         $this->packageInTarget();
-        $lock = fopen($this->targetDir() . '/.import.lock', 'c');
+        $lock = fopen($this->targetDir() . '/' . BackupLock::LOCK_FILE, 'c');
         flock($lock, LOCK_EX);
 
         try {
-            $this->expectException(BackupImportLockedException::class);
+            $this->expectException(BackupLockedException::class);
             $this->targetPackages()->importAll();
         } finally {
             flock($lock, LOCK_UN);

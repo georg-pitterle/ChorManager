@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Services\BackupLimitReachedException;
+use App\Services\BackupLockedException;
 use App\Services\BackupMigrationFailedException;
 use App\Services\BackupPackageService;
 use App\Services\BackupService;
@@ -18,6 +19,15 @@ use Slim\Views\Twig;
 
 class BackupController
 {
+    /**
+     * Backup-Vorgänge laufen nicht gegeneinander (BackupLock). Gewartet wird nicht:
+     * Ein Backup dauert Minuten, und ein Web-Request, der so lange wartet, läuft in
+     * sein Zeitlimit statt in eine Antwort. Die Meldung sagt deshalb, dass es sich
+     * gleich wieder versuchen lässt.
+     */
+    private const BUSY_MESSAGE = 'Es läuft gerade schon ein Backup-Vorgang. '
+        . 'Bitte in einem Augenblick erneut versuchen.';
+
     public function __construct(
         private readonly Twig $view,
         private readonly BackupService $backupService,
@@ -51,6 +61,10 @@ class BackupController
             $_SESSION['success'] = 'Backup erfolgreich erstellt.';
         } catch (BackupLimitReachedException $exception) {
             $_SESSION['error'] = $exception->getMessage();
+        } catch (BackupLockedException) {
+            // Kein Protokolleintrag: Das ist kein Fehler, sondern zwei Vorgänge
+            // zur selben Zeit - etwa der nächtliche Lauf und dieser Klick.
+            $_SESSION['error'] = self::BUSY_MESSAGE;
         } catch (\Throwable $exception) {
             $this->logger->error('Manual backup creation failed.', [
                 'event' => 'backup.create.failed',
@@ -115,6 +129,8 @@ class BackupController
         try {
             $this->backupService->delete($id);
             $_SESSION['success'] = 'Backup gelöscht.';
+        } catch (BackupLockedException) {
+            $_SESSION['error'] = self::BUSY_MESSAGE;
         } catch (\Throwable $exception) {
             $this->logger->error('Backup delete failed.', [
                 'event' => 'backup.delete.failed',
@@ -154,6 +170,9 @@ class BackupController
 
         $stream = fopen($package['path'], 'rb');
         if ($stream === false) {
+            // Das gebaute Paket gleich wieder weg: Seit es in var/ entsteht, räumt
+            // kein Systemdienst mehr hinter einem gescheiterten Download auf.
+            @unlink($package['path']);
             $response->getBody()->write('Backup nicht gefunden.');
             return $response->withStatus(404);
         }

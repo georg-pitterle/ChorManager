@@ -164,6 +164,104 @@ final class VoiceGroupListRowsFeatureTest extends TestCase
         $this->assertSame(['Sopran 1', 'Sopran 1', 'Sopran 2', null], array_column($rows, 'sub_voice_name'));
     }
 
+    /**
+     * Der Fortschritt stellte je Häkchen-Spalte eine eigene COUNT-Abfrage. Bei fünf
+     * Spalten waren das fünf Abfragen für eine Ansicht, die sie alle zugleich zeigt.
+     */
+    public function testProgressTakesOneQueryForAllColumns(): void
+    {
+        $group = $this->makeVoiceGroup();
+        $member = $this->makeMember($group);
+        $list = $this->makeList($group);
+        $first = $this->makeColumn($list);
+        $second = $this->makeColumn($list, VoiceGroupListColumn::TYPE_CHECKBOX, 'Noten da', 1);
+        $third = $this->makeColumn($list, VoiceGroupListColumn::TYPE_CHECKBOX, 'Bezahlt', 2);
+        $this->makeColumn($list, VoiceGroupListColumn::TYPE_NOTE, 'Kleidergröße', 3);
+        $this->tick($second, $member);
+
+        $progress = null;
+        $queries = $this->entryQueriesDuring(function () use ($list, &$progress): void {
+            $progress = $this->rows->progress($list);
+        });
+
+        $this->assertCount(1, $queries, 'Der Fortschritt aller Spalten braucht eine Abfrage.');
+        $this->assertSame(['done' => 0, 'total' => 1], $progress[(int) $first->id]);
+        $this->assertSame(['done' => 1, 'total' => 1], $progress[(int) $second->id]);
+        $this->assertSame(['done' => 0, 'total' => 1], $progress[(int) $third->id]);
+    }
+
+    /**
+     * Zwei Stellen im Controller brauchten den Stand genau einer Spalte und ließen
+     * dafür den aller Spalten berechnen.
+     */
+    public function testProgressForASingleColumnAsksOnlyForThatColumn(): void
+    {
+        $group = $this->makeVoiceGroup();
+        $ticked = $this->makeMember($group);
+        $this->makeMember($group);
+        $list = $this->makeList($group);
+        $column = $this->makeColumn($list);
+        $other = $this->makeColumn($list, VoiceGroupListColumn::TYPE_CHECKBOX, 'Noten da', 1);
+        $this->tick($column, $ticked);
+
+        $single = null;
+        $queries = $this->entryQueriesDuring(function () use ($list, $column, &$single): void {
+            $single = $this->rows->progressFor($list, $column);
+        });
+
+        $this->assertSame(['done' => 1, 'total' => 2], $single);
+        $this->assertCount(1, $queries);
+        // Der Einzelfall zählt eine Spalte, er gruppiert nicht über alle.
+        $this->assertStringNotContainsString('group by', strtolower($queries[0]));
+        $this->assertNotNull($other->id);
+    }
+
+    /**
+     * Eine Spalte ohne Häkchen hat keinen Fortschritt - sonst zählte eine
+     * Notizspalte Häkchen, die es bei ihr nicht gibt.
+     */
+    public function testProgressForANoteColumnIsNull(): void
+    {
+        $group = $this->makeVoiceGroup();
+        $this->makeMember($group);
+        $list = $this->makeList($group);
+        $note = $this->makeColumn($list, VoiceGroupListColumn::TYPE_NOTE, 'Kleidergröße');
+
+        $this->assertNull($this->rows->progressFor($list, $note));
+    }
+
+    /**
+     * Abfragen gegen die Einträge-Tabelle während eines Aufrufs; die Zeilen- und
+     * Spaltenabfragen davor interessieren hier nicht.
+     *
+     * @return list<string>
+     */
+    private function entryQueriesDuring(callable $run): array
+    {
+        $connection = Capsule::connection();
+        $connection->flushQueryLog();
+        $connection->enableQueryLog();
+
+        try {
+            $run();
+            $log = $connection->getQueryLog();
+        } finally {
+            $connection->disableQueryLog();
+            $connection->flushQueryLog();
+        }
+
+        $queries = [];
+        foreach ($log as $entry) {
+            $sql = (string) ($entry['query'] ?? '');
+            if (!str_contains($sql, '`voice_group_list_entries`')) {
+                continue;
+            }
+            $queries[] = $sql;
+        }
+
+        return $queries;
+    }
+
     private function tick(VoiceGroupListColumn $column, User $member): VoiceGroupListEntry
     {
         return VoiceGroupListEntry::create([

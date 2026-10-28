@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Controllers\BackupController;
 use App\Models\AppSetting;
+use App\Services\BackupLock;
 use App\Services\BackupPackageService;
 use App\Services\BackupService;
 use PHPUnit\Framework\TestCase;
@@ -44,7 +45,13 @@ final class BackupControllerHttpTest extends TestCase
         $this->controller = new BackupController(
             $twig,
             $this->backupService,
-            new BackupPackageService($this->backupService, $this->backupDir, null, new NullLogger()),
+            new BackupPackageService(
+                $this->backupService,
+                $this->backupDir,
+                null,
+                new NullLogger(),
+                new BackupLock($this->backupDir)
+            ),
             new NullLogger()
         );
 
@@ -120,7 +127,13 @@ final class BackupControllerHttpTest extends TestCase
         $controller = new BackupController(
             $this->createStub(Twig::class),
             $service,
-            new BackupPackageService($service, $this->backupDir, null, new NullLogger()),
+            new BackupPackageService(
+                $service,
+                $this->backupDir,
+                null,
+                new NullLogger(),
+                new BackupLock($this->backupDir)
+            ),
             new NullLogger()
         );
         $metadata = $service->create(BackupService::TYPE_MANUAL, 1);
@@ -205,7 +218,13 @@ final class BackupControllerHttpTest extends TestCase
         $controller = new BackupController(
             new Twig($loader),
             $service,
-            new BackupPackageService($service, $this->backupDir, null, new NullLogger()),
+            new BackupPackageService(
+                $service,
+                $this->backupDir,
+                null,
+                new NullLogger(),
+                new BackupLock($this->backupDir)
+            ),
             new NullLogger()
         );
 

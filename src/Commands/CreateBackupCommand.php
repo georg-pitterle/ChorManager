@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Commands;
 
+use App\Services\BackupLockedException;
 use App\Services\BackupService;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Console\Command\Command;
@@ -51,6 +52,17 @@ class CreateBackupCommand extends Command
             }
 
             return Command::SUCCESS;
+        } catch (BackupLockedException $exception) {
+            // Kein `error`: Gleichzeitigkeit ist kein Defekt, und als Fehler
+            // protokolliert stünde das morgen in der Loganalyse wie einer. Der
+            // Rückgabewert bleibt FAILURE - in diesem Lauf entstand kein Backup.
+            $this->logger->warning('CLI backup skipped, another backup run holds the lock.', [
+                'event' => 'backup.create.skipped',
+                'type' => $type,
+            ]);
+            $output->writeln('<comment>Es läuft gerade schon ein Backup-Vorgang.</comment>');
+
+            return Command::FAILURE;
         } catch (\Throwable $exception) {
             $this->logger->error('CLI backup creation failed.', [
                 'event' => 'backup.create.failed',
