@@ -179,7 +179,7 @@ final class PasswordResetConsumptionRateLimitFeatureTest extends TestCase
         ]);
         PasswordReset::create([
             'email' => $email,
-            'token' => PasswordHasher::hash($token),
+            'token_hash' => PasswordHasher::hash($token),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 

@@ -20,17 +20,20 @@ class PasswordReset extends Model
 
     protected $fillable = [
         'email',
-        'token',
+        'token_hash',
         'created_at'
     ];
 
     /**
      * In der Spalte steht nicht der Token des Zurücksetzen-Links, sondern sein
-     * bcrypt-Hash (`PasswordHasher::hash()` beim Anlegen,
-     * `password_verify()` beim Einlösen) - der Klartext verlässt die Mail nie.
-     * Der Hash taugt aber zum Abgleich gegen einen geratenen Token und hat
-     * deshalb in Logs, Fehlerausgaben und JSON-Antworten nichts verloren;
-     * gleiche Grenze wie bei `InvitationToken::$hidden`.
+     * bcrypt-Hash (`PasswordHasher::hash()` beim Anlegen, `password_verify()`
+     * beim Einlösen) - der Klartext verlässt die Mail nie. Seit 20261029121000
+     * sagt der Spaltenname das auch; vorher hieß sie `token` und las sich wie
+     * ein Klartextspeicher.
+     *
+     * Der Hash taugt zum Abgleich gegen einen geratenen Token und hat deshalb
+     * in Logs, Fehlerausgaben und JSON-Antworten nichts verloren; gleiche
+     * Grenze wie bei `InvitationToken::$hidden`.
      *
      * Der Abgleich in PasswordResetController liest die Eigenschaft direkt und
      * bleibt davon unberührt.
@@ -38,7 +41,7 @@ class PasswordReset extends Model
      * @var list<string>
      */
     protected $hidden = [
-        'token',
+        'token_hash',
     ];
 
     protected $casts = [

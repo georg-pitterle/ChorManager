@@ -11,13 +11,15 @@ use PHPUnit\Framework\TestCase;
 /**
  * Die Art einer Liedquelle trägt einen Namen, keine verstreute Zeichenkette.
  *
- * `song_resources.resource_type` ist ein `varchar(32)` und kein ENUM - es gibt
- * also keine Grenze, gegen die ein Wert stehen könnte. Gleiche Lage wie bei
- * `Attendance::SUPPORTED_STATUSES`, solange `attendance.status` noch ein
- * `varchar(50)` war: Ein Tippfehler landet als eigene Art in der Tabelle, ohne
- * dass etwas auffällt.
+ * Dass die Werte zum ENUM der Spalte passen, hält ModelSchemaConsistencyTest
+ * fest, seit 20261029120000 aus dem `varchar(32)` ein ENUM gemacht hat. Hier
+ * steht das, was daneben gilt: dass die Art ein Bezeichner ist, dass Filter und
+ * Sortierung in der Beziehung stehen, und dass niemand den Wert wieder
+ * ausschreibt - gleiche Aufteilung wie zwischen TaskStatusValuesTest und dem
+ * Schema-Wächter.
  *
- * Beide Richtungen schweigen dabei. Ein Vertipper in einer Schreibstelle
+ * Solange die Spalte ein `varchar(32)` war, gab es keine Grenze, gegen die ein
+ * Wert hätte stehen können, und beide Richtungen schwiegen. Ein Vertipper in einer Schreibstelle
  * (SongLibraryController::storeLinkResource) legt eine Quelle an, die keine
  * Leseseite je findet; einer in `Song::linkResources()` liefert eine leere
  * Liste. Der Wert stand an sechs Stellen als `'link'` da - im Modell, dreimal im

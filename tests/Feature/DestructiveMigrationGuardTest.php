@@ -12,6 +12,7 @@ use CreateFinanceAccounts;
 use CreateFinanceGroupsAndLink;
 use DropEventsProjectId;
 use RequireKnownAttendanceStatus;
+use RequireKnownSongResourceType;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
@@ -26,6 +27,7 @@ require_once dirname(__DIR__, 2) . '/db/migrations/20260826120000_allow_lock_ent
 require_once dirname(__DIR__, 2) . '/db/migrations/20261005090100_add_channel_to_user_notification_settings.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20261022120000_require_known_attendance_status.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20261022130000_use_english_task_status_values.php';
+require_once dirname(__DIR__, 2) . '/db/migrations/20261029120000_require_known_song_resource_type.php';
 
 /**
  * Fünf Migrationen führen einen Schritt aus, der Daten unwiederbringlich
@@ -53,6 +55,7 @@ final class DestructiveMigrationGuardTest extends TestCase
     private const ACCOUNTS_TABLE = 'test_guard_finance_accounts';
     private const ATTENDANCE_TABLE = 'test_guard_attendance';
     private const TASKS_TABLE = 'test_guard_tasks';
+    private const SONG_RESOURCES_TABLE = 'test_guard_song_resources';
 
     protected function setUp(): void
     {
@@ -165,6 +168,17 @@ final class DestructiveMigrationGuardTest extends TestCase
                 PRIMARY KEY (id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
             self::ATTENDANCE_TABLE
+        ));
+
+        // Gleiche Begründung wie oben: varchar, damit die Prüfung die Art
+        // findet, die das ENUM nicht mehr zulassen würde.
+        Capsule::connection()->statement(sprintf(
+            'CREATE TABLE %s (
+                id int(11) NOT NULL AUTO_INCREMENT,
+                resource_type varchar(32) NOT NULL,
+                PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
+            self::SONG_RESOURCES_TABLE
         ));
 
         Capsule::connection()->statement(sprintf(
@@ -510,6 +524,39 @@ final class DestructiveMigrationGuardTest extends TestCase
     }
 
     /**
+     * 20261029120000 verengt `song_resources.resource_type` auf ein ENUM mit
+     * dem einzigen Wert `link`. Jede andere Art würde das ALTER zur leeren
+     * Zeichenkette machen, und die Quelle hinge danach an keiner Art mehr.
+     */
+    public function testSongResourceGuardFindsTheTypeOutsideTheEnum(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (resource_type) VALUES ('link'), ('link'), ('lnik')",
+            self::SONG_RESOURCES_TABLE
+        ));
+
+        $this->assertSame(1, $this->countFrom(
+            RequireKnownSongResourceType::UNKNOWN_TYPES_SQL,
+            ['song_resources' => self::SONG_RESOURCES_TABLE],
+            'unknown_types'
+        ));
+    }
+
+    public function testSongResourceGuardStaysQuietWhenEveryTypeIsKnown(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (resource_type) VALUES ('link'), ('link')",
+            self::SONG_RESOURCES_TABLE
+        ));
+
+        $this->assertSame(0, $this->countFrom(
+            RequireKnownSongResourceType::UNKNOWN_TYPES_SQL,
+            ['song_resources' => self::SONG_RESOURCES_TABLE],
+            'unknown_types'
+        ));
+    }
+
+    /**
      * 20261022130000 schreibt Zustand und Dringlichkeit der Aufgaben auf
      * englische Bezeichner um. Was die Zuordnung nicht kennt, überlebt das
      * UPDATE unverändert und wird vom folgenden ENUM zur leeren Zeichenkette.
@@ -570,6 +617,7 @@ final class DestructiveMigrationGuardTest extends TestCase
             self::ACCOUNTS_TABLE,
             self::ATTENDANCE_TABLE,
             self::TASKS_TABLE,
+            self::SONG_RESOURCES_TABLE,
         ];
 
         foreach ($tables as $table) {

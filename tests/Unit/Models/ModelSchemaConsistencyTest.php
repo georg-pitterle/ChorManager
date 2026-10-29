@@ -47,6 +47,11 @@ final class ModelSchemaConsistencyTest extends TestCase
      * hätte Newsletter und Termine an einen anderen Kreis geschickt als
      * eingestellt.
      *
+     * `RESOURCE_TYPES` kam mit 20261029120000 dazu: Bis dahin war
+     * `song_resources.resource_type` ein `varchar(32)`, und die Liste konnte
+     * nichts spiegeln. Der Name heißt deshalb nicht `TYPES` - das hätte eine
+     * Spalte `type` behauptet, die es hier nicht gibt.
+     *
      * `MailQueue::SUPPORTED_MAIL_TYPES` fehlt hier bewusst: Es hat mit
      * MailQueueMailTypesTest einen eigenen Wächter, der zusätzlich die Labels
      * prüft.
@@ -63,6 +68,7 @@ final class ModelSchemaConsistencyTest extends TestCase
         'TYPES' => 'type',
         'PAYMENT_METHODS' => 'payment_method',
         'PRIORITIES' => 'priority',
+        'RESOURCE_TYPES' => 'resource_type',
     ];
 
     /** @var array<string, list<string>>|null */

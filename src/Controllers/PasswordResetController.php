@@ -140,7 +140,7 @@ class PasswordResetController
 
         PasswordReset::create([
             'email' => $email,
-            'token' => PasswordHasher::hash($token),
+            'token_hash' => PasswordHasher::hash($token),
             'created_at' => date('Y-m-d H:i:s')
         ]);
 
@@ -304,7 +304,7 @@ class PasswordResetController
 
         // Try password_resets table first (forgot-password flow)
         $resetRecord = PasswordReset::where('email', $email)->first();
-        if ($resetRecord && password_verify($token, $resetRecord->token)) {
+        if ($resetRecord && password_verify($token, $resetRecord->token_hash)) {
             $createdAt = strtotime((string) $resetRecord->created_at);
             if (time() - $createdAt > 7200) {
                 PasswordReset::where('email', $email)->delete();

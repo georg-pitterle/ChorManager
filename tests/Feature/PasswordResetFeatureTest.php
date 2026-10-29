@@ -82,7 +82,7 @@ class PasswordResetFeatureTest extends TestCase
     {
         $reset = PasswordReset::create([
             'email' => 'reset-key-' . bin2hex(random_bytes(4)) . '@example.test',
-            'token' => bin2hex(random_bytes(16)),
+            'token_hash' => bin2hex(random_bytes(16)),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -286,7 +286,7 @@ class PasswordResetFeatureTest extends TestCase
         $token = bin2hex(random_bytes(32));
         PasswordReset::create([
             'email' => $email,
-            'token' => PasswordHasher::hash($token),
+            'token_hash' => PasswordHasher::hash($token),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
@@ -407,7 +407,7 @@ class PasswordResetFeatureTest extends TestCase
         $token = bin2hex(random_bytes(32));
         PasswordReset::create([
             'email' => $email,
-            'token' => PasswordHasher::hash($token),
+            'token_hash' => PasswordHasher::hash($token),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 

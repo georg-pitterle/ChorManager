@@ -2277,7 +2277,7 @@ class DevSeedService
                 ['email' => $user->email],
                 [
                     'email' => $user->email,
-                    'token' => PasswordHasher::hash($tokenValue),
+                    'token_hash' => PasswordHasher::hash($tokenValue),
                     'created_at' => $createdAt->format('Y-m-d H:i:s'),
                 ]
             );

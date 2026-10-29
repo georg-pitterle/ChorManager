@@ -46,7 +46,7 @@ final class SecretAttributesAreHiddenTest extends TestCase
         return [
             'Angemeldet bleiben' => [RememberLogin::class, 'token_hash', 'hash-wert'],
             'Einladung' => [InvitationToken::class, 'token_hash', 'hash-wert'],
-            'Passwort zurücksetzen' => [PasswordReset::class, 'token', 'klartext-token'],
+            'Passwort zurücksetzen' => [PasswordReset::class, 'token_hash', 'hash-wert'],
             // Seit 20260901122000 gibt es beim Kalender-Abo keinen Klartext mehr.
             // Der Hash bleibt schützenswert: Er taugt zum Abgleich gegen eine
             // geratene Adresse und hat in Ausgaben nichts verloren.

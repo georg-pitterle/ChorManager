@@ -71,7 +71,7 @@ class PasswordChangeRevokesRememberTokensFeatureTest extends TestCase
         $token = bin2hex(random_bytes(32));
         PasswordReset::create([
             'email' => $user->email,
-            'token' => PasswordHasher::hash($token),
+            'token_hash' => PasswordHasher::hash($token),
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
