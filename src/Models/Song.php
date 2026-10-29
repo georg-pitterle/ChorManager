@@ -63,7 +63,7 @@ class Song extends Model
     public function linkResources()
     {
         return $this->hasMany(SongResource::class, 'song_id', 'id')
-            ->where('resource_type', 'link')
+            ->where('resource_type', SongResource::TYPE_LINK)
             ->orderBy('title', 'asc');
     }
 

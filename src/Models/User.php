@@ -191,9 +191,15 @@ class User extends Model
         return $this->hasMany(Comment::class, 'user_id', 'id');
     }
 
+    /**
+     * Was diese Person getan hat, das Neueste zuerst. `id` bricht den
+     * Gleichstand aus demselben Grund wie bei `Task::activities()`.
+     */
     public function activities()
     {
-        return $this->hasMany(Activity::class, 'user_id', 'id')->orderBy('created_at', 'desc');
+        return $this->hasMany(Activity::class, 'user_id', 'id')
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc');
     }
 
     public function mailAccount()

@@ -106,9 +106,10 @@ class DownloadController
                 'assignedSongs.attachments' => function ($query) {
                     $query->orderBy('original_name', 'asc');
                 },
-                'assignedSongs.linkResources' => function ($query) {
-                    $query->where('resource_type', 'link')->orderBy('title', 'asc');
-                }
+                // Ohne eigenen Verschluss: Filter und Sortierung stehen in
+                // Song::linkResources(). Hier wiederholten sie sich wortgleich
+                // und hätten eine Änderung an der Beziehung still überstimmt.
+                'assignedSongs.linkResources',
             ])
             ->distinct()
             ->chronological()

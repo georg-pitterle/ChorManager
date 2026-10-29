@@ -25,9 +25,15 @@ class PasswordReset extends Model
     ];
 
     /**
-     * Der Token ist der Zurücksetzen-Link selbst und darf nicht mitserialisiert
-     * werden. Der Abgleich in PasswordResetController liest die Eigenschaft
-     * direkt und bleibt davon unberührt.
+     * In der Spalte steht nicht der Token des Zurücksetzen-Links, sondern sein
+     * bcrypt-Hash (`PasswordHasher::hash()` beim Anlegen,
+     * `password_verify()` beim Einlösen) - der Klartext verlässt die Mail nie.
+     * Der Hash taugt aber zum Abgleich gegen einen geratenen Token und hat
+     * deshalb in Logs, Fehlerausgaben und JSON-Antworten nichts verloren;
+     * gleiche Grenze wie bei `InvitationToken::$hidden`.
+     *
+     * Der Abgleich in PasswordResetController liest die Eigenschaft direkt und
+     * bleibt davon unberührt.
      *
      * @var list<string>
      */

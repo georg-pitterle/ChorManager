@@ -213,10 +213,23 @@ class Task extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    /**
+     * Der Verlauf, der neueste Eintrag zuerst. `id` bricht den Gleichstand -
+     * gleiche Begründung wie bei `HasEntityComments::comments()`:
+     * `activities.created_at` ist ein `timestamp` und steht auf Sekunden genau.
+     *
+     * Hier wog der fehlende zweite Schlüssel schwerer als bei den Notizen:
+     * `projects/task_detail.twig` dreht die Beziehung mit `|reverse` wieder um.
+     * Zwei Einträge derselben Sekunde kamen aus der Datenbank in
+     * Einfügereihenfolge zurück - also schon entgegen der zugesicherten -, und
+     * `|reverse` stellte sie dann endgültig verkehrt in den Verlauf: "Status
+     * geändert" vor "Aufgabe erstellt".
+     */
     public function activities()
     {
         return $this->hasMany(Activity::class, 'entity_id')
             ->where('entity_type', self::ENTITY_TYPE)
-            ->orderBy('created_at', 'desc');
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc');
     }
 }

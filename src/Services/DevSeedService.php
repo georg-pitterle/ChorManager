@@ -4358,7 +4358,7 @@ class DevSeedService
             $resource = SongResource::firstOrCreate(
                 [
                     'song_id' => $song->id,
-                    'resource_type' => 'link',
+                    'resource_type' => SongResource::TYPE_LINK,
                     'title' => $entry['title'] . ' ' . $song->title . ' ' . $slot,
                 ],
                 [

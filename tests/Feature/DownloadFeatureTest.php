@@ -57,12 +57,18 @@ class DownloadFeatureTest extends TestCase
         $this->assertStringContainsString('Links', $template);
     }
 
+    /**
+     * Die Downloadseite lädt die Links vorab. Gleiche Begründung wie bei
+     * SongResourceFeatureTest::testSongDetailLoadsLinkResources: Filter und
+     * Sortierung stehen in `Song::linkResources()`, nicht in einem
+     * Lade-Verschluss, den dieser Test im Wortlaut festhält.
+     */
     public function testDownloadControllerLoadsSongLinkResources(): void
     {
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/DownloadController.php');
 
         $this->assertIsString($controllerContent);
-        $this->assertStringContainsString("'assignedSongs.linkResources' => function (" . '$' . "query)", $controllerContent);
-        $this->assertStringContainsString("$" . "query->where('resource_type', 'link')", $controllerContent);
+        $this->assertStringContainsString("'assignedSongs.linkResources',", $controllerContent);
+        $this->assertStringNotContainsString("'assignedSongs.linkResources' => function (", $controllerContent);
     }
 }

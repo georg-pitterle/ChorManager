@@ -107,13 +107,23 @@ class SongResourceFeatureTest extends TestCase
         $this->assertSame('Link nicht gefunden.', $_SESSION['error']);
     }
 
+    /**
+     * Die Detailseite lädt die Links vorab - sonst holt die Vorlage sie je Lied
+     * einzeln nach.
+     *
+     * Geprüft wird nur, dass die Beziehung im `with()` steht. Vorher stand hier
+     * der Wortlaut eines eigenen Lade-Verschlusses samt
+     * `where('resource_type', 'link')`; der wiederholte Filter und Sortierung
+     * aus `Song::linkResources()` wortgleich, und dieser Test hielt die
+     * Dopplung fest. Wo sie hingehört, prüft SongResourceTypeTest.
+     */
     public function testSongDetailLoadsLinkResources(): void
     {
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/SongLibraryController.php');
 
         $this->assertIsString($controllerContent);
-        $this->assertStringContainsString("'linkResources' => function (" . '$' . "query)", $controllerContent);
-        $this->assertStringContainsString("$" . "query->where('resource_type', 'link')", $controllerContent);
+        $this->assertStringContainsString("'linkResources',", $controllerContent);
+        $this->assertStringNotContainsString("'linkResources' => function (", $controllerContent);
     }
 
     public function testSongDetailTemplateContainsLinkManagementForms(): void

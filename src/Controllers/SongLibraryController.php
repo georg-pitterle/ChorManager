@@ -118,9 +118,9 @@ class SongLibraryController
             'attachments' => function ($query) {
                 $query->orderBy('original_name', 'asc');
             },
-            'linkResources' => function ($query) {
-                $query->where('resource_type', 'link')->orderBy('title', 'asc');
-            },
+            // Ohne eigenen Verschluss: Filter und Sortierung stehen in
+            // Song::linkResources().
+            'linkResources',
             'projectAssignments.project',
             'sheetArchive.lineItems' => function ($query) {
                 $query->orderBy('sort_order', 'asc');
@@ -343,7 +343,7 @@ class SongLibraryController
 
         SongResource::create([
             'song_id' => $songId,
-            'resource_type' => 'link',
+            'resource_type' => SongResource::TYPE_LINK,
             'title' => $payload['title'],
             'description' => $payload['description'],
             'url' => $payload['url'],
@@ -359,7 +359,7 @@ class SongLibraryController
         $resourceId = (int) ($args['resource_id'] ?? 0);
 
         $resource = SongResource::find($resourceId);
-        if (!$resource || (int) $resource->song_id !== $songId || $resource->resource_type !== 'link') {
+        if (!$resource || (int) $resource->song_id !== $songId || $resource->resource_type !== SongResource::TYPE_LINK) {
             $_SESSION['error'] = 'Link nicht gefunden.';
             return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
         }
@@ -386,7 +386,7 @@ class SongLibraryController
         $resourceId = (int) ($args['resource_id'] ?? 0);
 
         $resource = SongResource::find($resourceId);
-        if (!$resource || (int) $resource->song_id !== $songId || $resource->resource_type !== 'link') {
+        if (!$resource || (int) $resource->song_id !== $songId || $resource->resource_type !== SongResource::TYPE_LINK) {
             $_SESSION['error'] = 'Link nicht gefunden.';
             return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
         }
