@@ -137,7 +137,7 @@
                 ändern. Name, E-Mail-Adresse, Rollen und Stimmgruppen bleiben, wie sie sind.
             </div>
         {% endif %}
-        {% if (can_manage_project_members or can_edit_users) and projects|length > 0 %}
+        {% if can_edit_projects and projects|length > 0 %}
             {% set _today = "now"|date("Y-m-d") %}
             {% set _past_projects = projects|filter(p => p.end_date and p.end_date|date("Y-m-d") < _today) %}
             {% set _current_projects = projects|filter(p => p not in _past_projects) %}

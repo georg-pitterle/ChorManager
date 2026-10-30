@@ -93,11 +93,19 @@ class UserEditPolicy
      * eines archivierten Mitglieds ließ sich zwar nicht mehr öffnen, ein direkt
      * abgesetzter POST auf /users/{id} schrieb die Projektzuordnung aber
      * weiterhin.
+     *
+     * Beide Rechte stehen hier, weil beide schreiben dürfen: can_edit_users
+     * lag dafür zuletzt noch als rohes Sitzungsflag neben dieser Stufe in
+     * UserController::update() (`$canEditGlobal || $canEditProjects`), während
+     * das Formular die Kästchen nach einer dritten Regel freischaltete. Drei
+     * Quellen für eine Frage, und sie liefen auseinander: Eine Stimmvertretung
+     * sah die Kästchen, klickte sie an und bekam "Mitglied erfolgreich
+     * aktualisiert." zu lesen - geschrieben wurde die Zuordnung nicht.
      */
     public function canEditProjects(User $target): bool
     {
         return $this->passesBaseGuards($target)
-            && $this->canManageProjectMembers;
+            && ($this->canManageProjectMembers || $this->canEditUsers);
     }
 
     /**

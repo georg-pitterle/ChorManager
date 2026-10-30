@@ -218,15 +218,15 @@ class SponsoringPolicy
             return false;
         }
 
-        $userId = $this->currentUserId();
-
-        return $userId !== null && Sponsorship::query()
+        // Ohne die Kennung käme assignmentCounts() nicht bis hierher - es verlangt
+        // sie selbst. Die zweite Prüfung auf null stand trotzdem hier und las wie
+        // ein offener Fall, den es nicht gibt.
+        return Sponsorship::query()
             ->where('sponsor_id', $sponsor->id)
             ->where('status', SponsorshipStatus::ACCEPTED)
-            ->where('assigned_user_id', $userId)
+            ->where('assigned_user_id', $this->userId)
             ->exists();
     }
-
 
     /**
      * Darf die Zusammenfassung dieses Kontakts gelesen werden? Dass es ihn gibt
@@ -299,8 +299,9 @@ class SponsoringPolicy
 
         $userId = $this->userId;
         // Dieselbe Bedingung wie in canCompleteFollowUp() - sie steht dafür in
-        // assignmentCounts(). Trifft sie nicht zu, bleibt `user_id = 0`, und
-        // das trifft auf keine Zeile zu.
+        // assignmentCounts(). Trifft sie nicht zu, bleibt allein `user_id =
+        // $userId`, also die eigenen Einträge; ohne Anmeldung ist das die 0 und
+        // trifft auf keine Zeile zu.
         $includeAssigned = $this->assignmentCounts();
 
         return $query->where(function ($sub) use ($userId, $includeAssigned): void {

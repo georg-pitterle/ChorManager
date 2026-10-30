@@ -346,7 +346,6 @@ class UserController
 
     public function update(Request $request, Response $response, array $args): Response
     {
-        $canEditGlobal = $_SESSION['can_edit_users'] ?? false;
         $canManageUsers = $_SESSION['can_manage_users'] ?? false;
         $userLevel = $_SESSION['role_level'] ?? 0;
         $myVgs = $_SESSION['voice_group_ids'] ?? [];
@@ -554,7 +553,13 @@ class UserController
 
             // can_manage_project_members reicht projektübergreifend, deshalb wird die
             // Projektauswahl hier nicht mehr auf die eigenen Projekte gefiltert.
-            if ($canEditGlobal || $canEditProjects) {
+            //
+            // Beide schreibenden Rechte stehen jetzt in canEditProjects(); das rohe
+            // `can_edit_users` aus der Sitzung lag hier zuvor als zweite Bedingung
+            // daneben, und editForm() schaltete die Kästchen nach einer dritten Regel
+            // frei. Nur noch eine Quelle - sonst zeigt das Formular ein Feld, das das
+            // Speichern still verwirft.
+            if ($canEditProjects) {
                 $this->projectPersistence->setUserProjects($userId, $projectIds);
             }
 
@@ -609,8 +614,6 @@ class UserController
         $canManageUsers = $_SESSION['can_manage_users'] ?? false;
         $userLevel = $_SESSION['role_level'] ?? 0;
         $myVgs = $_SESSION['voice_group_ids'] ?? [];
-        $canEditUsers = (bool) ($_SESSION['can_edit_users'] ?? false);
-        $canManageProjectMembers = $_SESSION['can_manage_project_members'] ?? false;
         // Deckt sich mit der Schreibprüfung in update(): ohne dieses Recht zeigt das
         // Formular nur die Projektzuordnung, damit niemand Felder ausfüllt, die beim
         // Speichern stillschweigend verworfen würden.
@@ -624,7 +627,6 @@ class UserController
         if (!$canManageUsers) {
             $roles = $roles->filter(fn($r) => $r->hierarchy_level < $userLevel);
             $voiceGroups = $voiceGroups->filter(fn($vg) => in_array($vg->id, $myVgs));
-            $canEditUsers = true;
         }
 
         $targetUser->project_ids = $targetUser->projects->pluck('id')->toArray();
@@ -645,13 +647,16 @@ class UserController
             'voice_groups' => $voiceGroups->values(),
             'sub_voices' => $subVoices,
             'projects' => $projects,
-            'can_edit_users' => $canEditUsers,
             'can_edit_profile' => $canEditProfile,
             // Adresse und Einladung hängen an der Mitgliederverwaltung, nicht am
             // Bearbeiten-Recht: siehe UserEditPolicy::canEditEmail().
             'can_edit_email' => $this->userEditPolicy->canEditEmail($targetUser),
             'can_invite' => (bool) $canManageUsers,
-            'can_manage_project_members' => $canManageProjectMembers,
+            // Dieselbe Antwort, die update() vor dem Schreiben einholt. Zuvor stand
+            // hier `can_edit_users`, und zwar auf `true` gesetzt für jede Sitzung ohne
+            // can_manage_users: die Projekt-Kästchen standen damit auch einer
+            // Stimmvertretung offen, deren Speichern sie stillschweigend verwarf.
+            'can_edit_projects' => $this->userEditPolicy->canEditProjects($targetUser),
             'edit_state' => $editState,
             'default_role_ids' => $this->defaultRoleIds($roles, $this->minimalRoleLevel()),
         ]);

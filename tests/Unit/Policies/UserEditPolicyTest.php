@@ -263,6 +263,44 @@ final class UserEditPolicyTest extends TestCase
         $this->assertFalse($this->policy($session)->canEditProjects($this->makeUser(7, [1], 1, [50])));
     }
 
+    /**
+     * Auch das Bearbeiten-Recht schreibt die Projektzuordnung. Es lag dafür bis
+     * Lauf 59 als rohes Sitzungsflag neben dieser Stufe in
+     * UserController::update(), und das Formular schaltete die Kästchen nach einer
+     * dritten Regel frei - mit dem Ergebnis, dass eine Stimmvertretung sie sah,
+     * anklickte und das Speichern sie stillschweigend verwarf.
+     */
+    public function testUserEditorMayEditProjectsOfActiveMember(): void
+    {
+        $session = [
+            'can_edit_users' => true,
+            'can_manage_project_members' => false,
+            'voice_group_ids' => [],
+        ];
+
+        $this->assertTrue($this->policy($session)->canEditProjects($this->makeUser(7, [1])));
+        // Die Basisprüfungen gelten auch auf diesem Weg.
+        $this->assertFalse($this->policy($session)->canEditProjects($this->makeUser(7, [1], 0)));
+    }
+
+    /**
+     * Die eigene Stimmgruppe allein trägt die Projektzuordnung nicht - genau der
+     * Fall, in dem das Formular die Kästchen zuvor trotzdem anbot.
+     */
+    public function testVoiceGroupManagerMayNotEditProjects(): void
+    {
+        $session = [
+            'can_edit_users' => false,
+            'can_manage_project_members' => false,
+            'can_manage_own_voice_group' => true,
+            'voice_group_ids' => [1],
+        ];
+
+        $this->assertFalse($this->policy($session)->canEditProjects($this->makeUser(7, [1])));
+        // Bearbeiten darf sie das Mitglied trotzdem - nur eben nicht die Projekte.
+        $this->assertTrue($this->policy($session)->canEditProfile($this->makeUser(7, [1])));
+    }
+
     public function testWithoutProjectMemberRightNoProjectEditing(): void
     {
         $session = [

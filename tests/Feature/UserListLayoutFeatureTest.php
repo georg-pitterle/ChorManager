@@ -217,11 +217,13 @@ final class UserListLayoutFeatureTest extends TestCase
             'voice_groups' => [],
             'sub_voices' => [],
             'projects' => new \Illuminate\Database\Eloquent\Collection([$current, $open, $past]),
-            'can_edit_users' => true,
             'can_edit_profile' => true,
             'can_edit_email' => true,
             'can_invite' => false,
-            'can_manage_project_members' => true,
+            // Die Projekt-Kästchen hängen an genau der Antwort, die update() vor dem
+            // Schreiben einholt (UserEditPolicy::canEditProjects()). Vorher las die
+            // Vorlage `can_manage_project_members or can_edit_users` selbst.
+            'can_edit_projects' => true,
             'edit_state' => [],
         ]);
 
