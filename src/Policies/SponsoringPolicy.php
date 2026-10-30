@@ -139,15 +139,28 @@ class SponsoringPolicy
     }
 
     /**
-     * Darf eine Gegenleistung dieser Vereinbarung abgehakt werden?
+     * Darf eine Gegenleistung des Vereins abgehakt werden?
      *
-     * Wer die Vereinbarung ändern darf, ohnehin. Dazu die zuständige Person:
-     * Sie bringt das Logo ins Programmheft oder legt die Freikarten zurück -
+     * Nur mit dem Vollrecht, auch beim Zurücknehmen: Die Gegenleistungen - etwa
+     * die Übergabe der Logos an Grafik und Webdesign - erbringt das
+     * Sponsoring-Team. Urheber und zuständige Person sehen die Liste, setzen den
+     * Haken aber nicht selbst.
+     */
+    public function canTickBenefits(): bool
+    {
+        return $this->canManageSponsoring;
+    }
+
+    /**
+     * Darf eine Leistung des Sponsors abgehakt werden?
+     *
+     * Wer den Vorgang ändern darf, ohnehin. Dazu die zuständige Person: Dass der
+     * Sponsor sein Material bringt, verantwortet das Mitglied, das ihn betreut -
      * dieselbe schmale Erweiterung wie bei canCompleteFollowUp(). Alle
      * Beitragenden abhaken zu lassen bleibt ausgeschlossen, sonst wäre der Haken
      * keine Aussage mehr darüber, wer sich darum gekümmert hat.
      */
-    public function canTickBenefits(Sponsorship $sponsorship): bool
+    public function canTickDeliverables(Sponsorship $sponsorship): bool
     {
         if ($this->canEditSponsorship($sponsorship)) {
             return true;
@@ -162,18 +175,12 @@ class SponsoringPolicy
      * Der Urheber ohnehin. Dazu die zuständige Person: Sie erfüllt die Zusage -
      * Logo ins Programmheft, Freikarten zurücklegen - und muss dafür wissen,
      * was vereinbart wurde, und die Vertragsdatei öffnen können. Zuvor hing
-     * beides allein am Urheber, und die Zuständigkeit reichte nur zum Abhaken
-     * der Gegenleistungen: Diese Person sollte eine Zusage einhalten, deren
-     * Inhalt ihr verdeckt blieb.
+     * beides allein am Urheber: Die zuständige Person sollte eine Zusage
+     * einhalten, deren Inhalt ihr verdeckt blieb.
      *
      * Dass "sehen" damit weiter reicht als "ändern" (canEditSponsorship() bleibt
      * beim Urheber), ist die Absicht und kein Versehen: Den Betrag abtippen darf
      * weiterhin nur, wer die Vereinbarung geführt hat.
-     *
-     * Die Bedingung ist jetzt dieselbe wie bei canTickBenefits(), und das bleibt
-     * trotzdem eine eigene Frage: "sehen" und "abhaken" sind zwei
-     * Entscheidungen, und wer eine davon später lockert, soll nicht ungewollt
-     * die andere mitlockern.
      *
      * Die Gesamtsummen folgen dem nicht - sie lassen sich keiner Urheberschaft
      * und keiner Zuständigkeit zuordnen, siehe canSeeFinancialTotals().
@@ -452,7 +459,7 @@ class SponsoringPolicy
      * Zuständige?
      *
      * Die Frage steht an zwei Entscheidungen - Wiedervorlage abhaken
-     * (canCompleteFollowUp()) und Gegenleistung abhaken (canTickBenefits()) -
+     * (canCompleteFollowUp()) und Leistung des Sponsors abhaken (canTickDeliverables()) -
      * und war dort Zeile für Zeile dieselbe. Die Entscheidungen bleiben
      * getrennt: jede beantwortet weiterhin selbst, wem sie darüber hinaus
      * zustimmt. Nur ihre gemeinsame Teilfrage steht jetzt an einer Stelle.

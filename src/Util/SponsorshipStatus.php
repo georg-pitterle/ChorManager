@@ -29,6 +29,15 @@ final class SponsorshipStatus
      */
     public const OPEN = [self::REQUESTED, self::REMINDED];
 
+    /**
+     * Vorgänge, um die sich gerade jemand kümmern muss: laufende Anfragen und
+     * Zusagen, deren Gegenleistungen noch ausstehen. Nur für sie ist eine
+     * fehlende Zuständigkeit eine Lücke.
+     *
+     * @var list<string>
+     */
+    public const ONGOING = [self::REQUESTED, self::REMINDED, self::ACCEPTED];
+
     /** @var array<string, string> */
     private const LABELS = [
         self::REQUESTED => 'Angefragt',

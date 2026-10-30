@@ -223,7 +223,7 @@ class SponsoringContactController
         }
 
         if ($sponsorshipId !== null && !$this->isSponsorshipLinkedToSponsor($sponsorshipId, $sponsorId)) {
-            return $fail('Ungültige Vereinbarung für diesen Sponsor.');
+            return $fail('Ungültiger Vorgang für diesen Sponsor.');
         }
 
         return [

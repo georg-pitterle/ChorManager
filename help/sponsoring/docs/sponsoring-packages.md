@@ -1,6 +1,6 @@
 # Sponsoring-Pakete verwalten
 
-Sponsoring-Pakete sind Vorlagen wie Bronze, Silber, Gold oder Hauptsponsor: Sie legen fest, ab welchem Betrag ein Sponsor welche **Gegenleistungen** bekommt, was er selbst liefert und wofür sein Logo gebraucht wird. Wählst du bei einer neuen Vereinbarung ein Paket, schlägt der Dialog all das samt Mindestbetrag vor. Diese Anleitung setzt voraus, dass du bereits im [Sponsoring-Modul](sponsoring) bist.
+Sponsoring-Pakete sind Vorlagen wie Bronze, Silber, Gold oder Hauptsponsor: Sie legen fest, ab welchem Betrag ein Sponsor welche **Gegenleistungen** bekommt, was er selbst liefert und wofür sein Logo gebraucht wird. Wählst du bei einem neuen Vorgang ein Paket, schlägt der Dialog all das samt Mindestbetrag vor. Diese Anleitung setzt voraus, dass du bereits im [Sponsoring-Modul](sponsoring) bist.
 
 > **Berechtigung:** Ansehen kann die Pakete jeder mit Sponsoring-Zugang. Anlegen, ändern und löschen geht nur mit dem Recht **"Sponsoring verwalten"**.
 
@@ -25,11 +25,11 @@ Im Dialog trägst du ein:
 
 ![Dialog "Paket bearbeiten"](images/sponsoring/12-edit-package-modal.png)
 
-Änderst du ein Paket, gilt das nur für **künftige** Vereinbarungen. Bestehende Vereinbarungen behalten ihre eigenen Listen und Häkchen – was mit einem Sponsor ausgehandelt ist, ändert sich nicht, weil jemand später das Paket überarbeitet.
+Änderst du ein Paket, gilt das nur für **künftige** Vorgänge. Bestehende Vorgänge behalten ihre eigenen Listen und Häkchen – was mit einem Sponsor ausgehandelt ist, ändert sich nicht, weil jemand später das Paket überarbeitet.
 
 ## Häufige Stolperfallen
 
 - **Name ist Pflicht.**
 - **Mindestbetrag** akzeptiert Komma oder Punkt als Dezimaltrennzeichen (z. B. `2500,00` oder `2500.00`). Leer heißt "kein Mindestbetrag".
 - **Gegenleistungen und Leistungen des Sponsors:** eine pro Zeile, jede höchstens 255 Zeichen, höchstens 30 je Liste.
-- **Ein Paket lässt sich nicht löschen, solange noch Vereinbarungen damit verknüpft sind.** Entferne zuerst das Paket aus den betroffenen Vereinbarungen oder lösche diese.
+- **Ein Paket lässt sich nicht löschen, solange noch Vorgänge damit verknüpft sind.** Entferne zuerst das Paket aus den betroffenen Vorgängen oder lösche diese.

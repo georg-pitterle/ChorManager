@@ -207,7 +207,7 @@ class SponsorPackageController
         try {
             $package = SponsorPackage::findOrFail($id);
             if ($package->sponsorships()->count() > 0) {
-                $_SESSION['error'] = 'Das Paket kann nicht gelöscht werden, da noch Vereinbarungen damit verknüpft sind.';
+                $_SESSION['error'] = 'Das Paket kann nicht gelöscht werden, da noch Vorgänge damit verknüpft sind.';
                 return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
             }
             $package->delete();

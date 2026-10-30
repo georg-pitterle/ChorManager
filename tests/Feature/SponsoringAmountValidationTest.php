@@ -145,7 +145,7 @@ final class SponsoringAmountValidationTest extends TestCase
         $sponsorship = Sponsorship::where('sponsor_id', $this->sponsor->id)->firstOrFail();
         $this->assertSame('declined', $sponsorship->status);
         $this->assertSame(0.0, (float) $sponsorship->amount);
-        $this->assertSame('Vereinbarung angelegt.', $_SESSION['success']);
+        $this->assertSame('Vorgang angelegt.', $_SESSION['success']);
     }
 
     public function testClearingTheAmountOnUpdateStoresZero(): void
@@ -165,7 +165,7 @@ final class SponsoringAmountValidationTest extends TestCase
 
         $sponsorship->refresh();
         $this->assertSame(0.0, (float) $sponsorship->amount);
-        $this->assertSame('Vereinbarung gespeichert.', $_SESSION['success']);
+        $this->assertSame('Vorgang gespeichert.', $_SESSION['success']);
     }
 
     public function testPackageMinAmountIsNormalizedAndValidated(): void

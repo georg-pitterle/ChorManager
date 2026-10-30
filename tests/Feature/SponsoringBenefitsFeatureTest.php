@@ -243,19 +243,83 @@ final class SponsoringBenefitsFeatureTest extends TestCase
     }
 
     /**
-     * Die Leistung erbringt oft die zuständige Person - dieselbe Erweiterung wie
-     * beim Abhaken einer Wiedervorlage.
+     * Abhaken bleibt dem Recht "Sponsoring verwalten" vorbehalten. Die
+     * zuständige Person sieht die Liste, setzt den Haken aber nicht selbst.
      */
-    public function testTheAssignedPersonMayTickOffABenefit(): void
+    public function testTheAssignedPersonMayNotTickOffABenefit(): void
     {
         $sponsor = $this->makeSponsor();
         $sponsorship = $this->makeSponsorship($sponsor, (int) $this->manager->id, (int) $this->assignee->id);
         $benefit = $sponsorship->benefits()->create(['description' => 'Banner im Saal', 'sort_order' => 0]);
 
         $this->loginAsContributor($this->assignee);
-        $this->toggle($benefit, '1');
+        $response = $this->toggle($benefit, '1');
 
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertNull($benefit->fresh()->delivered_at);
+    }
+
+    public function testTheCreatorMayNotTickOffABenefitEither(): void
+    {
+        $sponsor = $this->makeSponsor();
+        $sponsorship = $this->makeSponsorship($sponsor, (int) $this->contributor->id, (int) $this->assignee->id);
+        $benefit = $sponsorship->benefits()->create(['description' => 'Banner im Saal', 'sort_order' => 0]);
+
+        $this->loginAsContributor($this->contributor);
+        $response = $this->toggle($benefit, '1');
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertNull($benefit->fresh()->delivered_at);
+    }
+
+    public function testContributorsCannotUntickABenefit(): void
+    {
+        $sponsor = $this->makeSponsor();
+        $sponsorship = $this->makeSponsorship($sponsor, (int) $this->contributor->id, (int) $this->contributor->id);
+        $benefit = $sponsorship->benefits()->create(['description' => 'Banner im Saal', 'sort_order' => 0]);
+        $benefit->update(['delivered_at' => '2026-09-01']);
+
+        $this->loginAsContributor($this->contributor);
+        $response = $this->toggle($benefit, '0');
+
+        $this->assertSame(403, $response->getStatusCode());
         $this->assertNotNull($benefit->fresh()->delivered_at);
+    }
+
+    public function testTheCreatorSeesTheListWithoutTickButton(): void
+    {
+        $sponsor = $this->makeSponsor();
+        $sponsorship = $this->makeSponsorship($sponsor, (int) $this->contributor->id, (int) $this->assignee->id);
+        $sponsorship->benefits()->create(['description' => 'Banner im Saal', 'sort_order' => 0]);
+
+        $this->loginAsContributor($this->contributor);
+        $html = $this->renderSponsorDetail($sponsor);
+
+        $this->assertStringContainsString('Banner im Saal', $html);
+        $this->assertStringNotContainsString('benefit-toggle', $html);
+    }
+
+    public function testTheAssignedPersonGetsTheTickButtonForDeliverablesOnly(): void
+    {
+        $sponsor = $this->makeSponsor();
+        $sponsorship = $this->makeSponsorship($sponsor, (int) $this->manager->id, (int) $this->assignee->id);
+        $sponsorship->benefits()->create(['description' => 'Banner im Saal', 'sort_order' => 0]);
+        $sponsorship->deliverables()->create(['description' => 'Logo als Datei', 'sort_order' => 0]);
+
+        $this->loginAsContributor($this->assignee);
+        $html = $this->renderSponsorDetail($sponsor);
+
+        $this->assertStringContainsString('action="/sponsoring/sponsorship-deliverables/', $html);
+        $this->assertStringNotContainsString('action="/sponsoring/sponsorship-benefits/', $html);
+    }
+
+    public function testTheManagerSeesTheTickButton(): void
+    {
+        $sponsor = $this->makeSponsor();
+        $sponsorship = $this->makeSponsorship($sponsor, (int) $this->contributor->id, (int) $this->assignee->id);
+        $sponsorship->benefits()->create(['description' => 'Banner im Saal', 'sort_order' => 0]);
+
+        $this->assertStringContainsString('benefit-toggle', $this->renderSponsorDetail($sponsor));
     }
 
     public function testAnUninvolvedContributorMayNotTickOffABenefit(): void

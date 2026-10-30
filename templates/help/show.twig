@@ -18,13 +18,23 @@
 {% endblock page_header %}
 
 {% block content %}
-    <div class="dashboard-shell">
-        <section class="dashboard-section dashboard-section--context">
-            <div class="card">
+    <div class="help-page">
+        <div class="help-layout">
+            <article class="card help-article">
                 <div class="card-body markdown-content">
                     {{ content_html|raw }}
                 </div>
-            </div>
-        </section>
+            </article>
+            {% if toc %}
+                <nav class="help-toc" aria-labelledby="help-toc-title">
+                    <h2 class="group-label" id="help-toc-title">Auf dieser Seite</h2>
+                    <ul>
+                        {% for section in toc %}
+                            <li><a href="#{{ section.id }}">{{ section.label }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </nav>
+            {% endif %}
+        </div>
     </div>
 {% endblock content %}

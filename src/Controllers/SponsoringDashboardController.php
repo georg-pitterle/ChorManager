@@ -11,6 +11,7 @@ use App\Controllers\ProjectController;
 use App\Models\Project;
 use App\Models\Sponsorship;
 use App\Models\SponsoringContact;
+use App\Models\User;
 use App\Policies\SponsoringPolicy;
 use App\Services\NameFormatterService;
 use App\Util\LogoDeadline;
@@ -82,7 +83,7 @@ class SponsoringDashboardController
             ->where('follow_up_date', '<=', $in7Days);
 
         $upcomingFollowUps = $this->policy->restrictFollowUpsToOwnWorkload($followUpQuery)
-            ->with(['sponsor', 'user', 'sponsorship.package', 'sponsorship.project'])
+            ->with(['sponsor', 'user', 'sponsorship.package', 'sponsorship.project', 'sponsorship.assignedUser'])
             ->orderBy('follow_up_date')
             ->get()
             ->map(fn(SponsoringContact $contact): array => $this->mapUpcomingFollowUp($contact, $today))
@@ -107,6 +108,8 @@ class SponsoringDashboardController
             ->all();
 
         $seesTotals = $this->policy->canSeeFinancialTotals();
+        $canManageAll = $this->policy->canManageAll();
+        $unassigned = $canManageAll ? $this->unassignedSponsorships() : [];
 
         return $this->view->render($response, 'sponsoring/dashboard.twig', [
             'total_active'      => $totalActive,
@@ -118,8 +121,13 @@ class SponsoringDashboardController
             'total_amount'      => $seesTotals ? $totalAmount : null,
             'requested_amount'  => $seesTotals ? $requestedAmount : null,
             'unpaid_amount'     => $seesTotals ? $unpaidAmount : null,
+            'can_manage_all'    => $canManageAll,
+            'unassigned'        => $unassigned,
+            // Die Auswahl steht in jeder Zeile, die Liste der Personen wird nur
+            // gebraucht, wenn es überhaupt eine Zeile gibt.
+            'assignable_users'  => $unassigned !== [] ? User::withSponsoringAccess()->orderBy('last_name')->get() : [],
             'missing_logos'     => $this->missingLogos(),
-            'logo_deadline_projects' => $this->policy->canManageAll() ? $this->logoDeadlineProjects() : [],
+            'logo_deadline_projects' => $canManageAll ? $this->logoDeadlineProjects() : [],
             'open_benefits'     => $this->openBenefits(),
             'open_deliverables' => $this->openDeliverables(),
             'unpaid'            => $seesTotals ? $this->unpaidCommitments() : [],
@@ -129,6 +137,56 @@ class SponsoringDashboardController
             'recent_contacts'   => $recentContacts,
             'active_nav'        => 'sponsoring',
         ]);
+    }
+
+    /**
+     * Laufende Vorgänge, um die sich niemand kümmert - Zusagen zuerst, denn da
+     * schuldet der Verein schon etwas. Nur für das Vollrecht: Die Zeile führt
+     * zum Zuweisen, und das darf nur das Sponsoring-Team.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function unassignedSponsorships(): array
+    {
+        $statusLabels = SponsorshipStatus::labels();
+        $statusBadges = SponsorshipStatus::badgeClasses();
+
+        return Sponsorship::with(['sponsor', 'project', 'package', 'assignedUser'])
+            ->withoutActiveAssignee()
+            ->get()
+            ->sortBy([
+                static fn (Sponsorship $a, Sponsorship $b): int => ($b->status === SponsorshipStatus::ACCEPTED)
+                    <=> ($a->status === SponsorshipStatus::ACCEPTED),
+                static fn (Sponsorship $a, Sponsorship $b): int => (string) $a->sponsor?->name
+                    <=> (string) $b->sponsor?->name,
+            ])
+            ->map(fn (Sponsorship $sponsorship): array => [
+                'sponsor_name' => $sponsorship->sponsor ? (string) $sponsorship->sponsor->name : '-',
+                'sponsor_url' => '/sponsoring/sponsors/' . $sponsorship->sponsor_id . '#agreement-' . $sponsorship->id,
+                'project_name' => $sponsorship->project ? (string) $sponsorship->project->name : 'Ohne Projekt',
+                'package_name' => $sponsorship->package ? (string) $sponsorship->package->name : null,
+                'package_badge' => $sponsorship->package?->badge_class,
+                'status_label' => $statusLabels[$sponsorship->status] ?? 'Unbekannt',
+                'status_badge' => $statusBadges[$sponsorship->status] ?? 'text-bg-secondary',
+                'former_assignee_name' => $sponsorship->assignedUser !== null
+                    ? $this->nameFormatter->formatPerson($sponsorship->assignedUser)
+                    : null,
+                'assign_url' => '/sponsoring/sponsorships/' . $sponsorship->id . '/assignee',
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Wer sich um den Vorgang kümmert, oder null. Eine archivierte Person zählt
+     * als niemand, wie in SponsorResponsibility: Beitragende sehen "Ohne
+     * Zuständigkeit" nicht und hielten den Vorgang sonst für versorgt.
+     */
+    private function assigneeName(?Sponsorship $sponsorship): ?string
+    {
+        $person = $sponsorship?->assignedUser;
+
+        return $person !== null && $person->is_active ? $this->nameFormatter->formatPerson($person) : null;
     }
 
     /** Ab wie vielen Tagen vor der Frist eine Zeile als "bald" gilt. */
@@ -187,9 +245,9 @@ class SponsoringDashboardController
                 },
             ];
 
-            if ($sponsorship->assignedUser !== null) {
-                $assignees[$row['sponsor_id']][(int) $sponsorship->assignedUser->id]
-                    = $this->nameFormatter->formatPerson($sponsorship->assignedUser);
+            $assigneeName = $this->assigneeName($sponsorship);
+            if ($assigneeName !== null) {
+                $assignees[$row['sponsor_id']][(int) $sponsorship->assigned_user_id] = $assigneeName;
             }
 
             $current = $bySponsor[$row['sponsor_id']] ?? null;
@@ -274,8 +332,8 @@ class SponsoringDashboardController
      * Liste, die vor jedem Konzert gebraucht wird: Welche Logos gehören ins
      * Programmheft, wer bekommt Freikarten?
      *
-     * Für alle mit Sponsoring-Zugang, wie die Leistungen selbst. Abhaken darf je
-     * Vereinbarung, wen die Policy lässt; das steht an jeder Zeile.
+     * Für alle mit Sponsoring-Zugang, wie die Leistungen selbst. Abhaken darf nur
+     * das Vollrecht; das steht an jeder Zeile.
      *
      * Sortiert nach dem Ende der Vereinbarung: was bald vorbei ist, muss zuerst
      * erledigt sein. Ohne Enddatum ganz hinten.
@@ -290,7 +348,8 @@ class SponsoringDashboardController
     /**
      * Zugesagte Vereinbarungen, bei denen vom Sponsor noch etwas aussteht -
      * Banner, Vertrag, Sachleistung. Aufgebaut wie openBenefits(), auch in
-     * Sichtbarkeit und Sortierung.
+     * Sichtbarkeit und Sortierung; abhaken dürfen hier aber Urheber und
+     * zuständige Person (SponsoringPolicy::canTickDeliverables()).
      *
      * @return list<array<string, mixed>>
      */
@@ -309,6 +368,7 @@ class SponsoringDashboardController
             'sponsor',
             'project',
             'package',
+            'assignedUser',
             $relation => $open,
         ])
             ->where('status', SponsorshipStatus::ACCEPTED)
@@ -318,7 +378,9 @@ class SponsoringDashboardController
 
         $rows = [];
         foreach ($sponsorships as $sponsorship) {
-            $mayTick = $this->policy->canTickBenefits($sponsorship);
+            $mayTick = $relation === 'deliverables'
+                ? $this->policy->canTickDeliverables($sponsorship)
+                : $this->policy->canTickBenefits();
             $rows[] = [
                 'sponsor_name' => $sponsorship->sponsor ? (string) $sponsorship->sponsor->name : '-',
                 'sponsor_url' => '/sponsoring/sponsors/' . $sponsorship->sponsor_id,
@@ -326,6 +388,7 @@ class SponsoringDashboardController
                 'package_name' => $sponsorship->package ? (string) $sponsorship->package->name : null,
                 'package_badge' => $sponsorship->package?->badge_class,
                 'end_date_display' => $sponsorship->end_date?->format('d.m.Y'),
+                'assignee_name' => $this->assigneeName($sponsorship),
                 'benefits' => $sponsorship->{$relation}
                     ->map(static fn ($line): array => [
                         'id' => (int) $line->id,
@@ -352,16 +415,17 @@ class SponsoringDashboardController
     {
         // Eine reine Sachleistung (0 €) wartet auf kein Geld und stünde sonst
         // für immer in der Liste.
-        return Sponsorship::with(['sponsor', 'project'])
+        return Sponsorship::with(['sponsor', 'project', 'assignedUser'])
             ->where('status', SponsorshipStatus::ACCEPTED)
             ->whereNull('paid_at')
             ->where('amount', '>', 0)
             ->orderByRaw('start_date IS NULL, start_date')
             ->get()
-            ->map(static fn (Sponsorship $sponsorship): array => [
+            ->map(fn (Sponsorship $sponsorship): array => [
                 'sponsor_name' => $sponsorship->sponsor ? (string) $sponsorship->sponsor->name : '-',
                 'sponsor_url' => '/sponsoring/sponsors/' . $sponsorship->sponsor_id,
                 'project_name' => $sponsorship->project ? (string) $sponsorship->project->name : 'Ohne Projekt',
+                'assignee_name' => $this->assigneeName($sponsorship),
                 'amount' => (float) $sponsorship->amount,
             ])
             ->values()
@@ -435,6 +499,7 @@ class SponsoringDashboardController
             'agreement_amount_display' => $amountDisplay,
             'agreement_amount_sort' => $amount,
             'agreement_status_label' => $statusLabel,
+            'assignee_name' => $this->assigneeName($sponsorship),
             'owner_name' => $ownerName,
             'owner_name_sort' => mb_strtolower($ownerName),
             'is_overdue' => $followUpDateSort !== '' && $followUpDateSort <= $todayIso,

@@ -101,7 +101,7 @@ class SponsoringContactHierarchyFeatureTest extends TestCase
         $template = file_get_contents(dirname(__DIR__, 2) . '/templates/sponsoring/sponsors/detail.twig');
 
         $this->assertIsString($template);
-        $this->assertStringContainsString('Kontakte zu dieser Vereinbarung', $template);
+        $this->assertStringContainsString('Kontakte zu diesem Vorgang', $template);
         $this->assertStringContainsString('data-contact-sponsorship=', $template);
         // Die Spalte zeigt Projekt und Paket statt der nackten Datensatz-Nummer.
         $this->assertStringNotContainsString("'#' ~ contact.sponsorship.id", $template);

@@ -7,19 +7,24 @@ import {
     CATEGORY_SPONSOR,
     DEADLINE_FLOW,
     LOGO_FLOW,
+    RESPONSIBILITY_FLOW,
+    TICK_FLOW,
     displayDate,
     isoDate,
 } from '../data/sponsoring.mjs';
 import {
+    assignFromDashboard,
     createPackage,
     createSponsor,
     createSponsorship,
+    filterSponsorsByAssignee,
     missingLogoRows,
     openSponsor,
     setLogoDeadlines,
     sponsoringModuleEnabled,
     submitNewSponsor,
     tickLine,
+    unassignedRow,
     uploadThroughDropzone,
 } from '../steps/sponsoring.mjs';
 import { ADMIN } from '../data/fixtures.mjs';
@@ -204,4 +209,87 @@ test('Zuständige einer Zusage pflegen die Logos, sehen aber keine anderen Anhä
     } finally {
         await context.close();
     }
+});
+
+test('Ohne Zuständigkeit: Lücke finden, direkt zuweisen, in der Liste wiederfinden', async ({ page }) => {
+    const { member, outsider, sponsor } = RESPONSIBILITY_FLOW;
+    await createRole(page, { name: RESPONSIBILITY_FLOW.role, permissions: ['can_create_own_sponsorships'] });
+    await createMember(page, member);
+    await createMember(page, outsider);
+    await createSponsor(page, sponsor);
+    await createSponsorship(page, { amount: RESPONSIBILITY_FLOW.amount });
+
+    const listRow = page.locator('#sponsorsTable tbody tr', { hasText: sponsor.name });
+
+    // Die Lücke steht in der Liste, und der Filter "Niemand" findet sie.
+    await filterSponsorsByAssignee(page, 'Niemand');
+    await expect(listRow).toBeVisible();
+    await expect(listRow.locator('td[data-label="Zuständig"]')).toContainText('niemand');
+
+    // Auf der Übersicht stehen nur Personen zur Wahl, die den Vorgang auch sähen.
+    await page.goto('/sponsoring');
+    const options = unassignedRow(page, sponsor.name).locator('select[name="assigned_user_id"] option');
+    await expect(options.filter({ hasText: member.lastName })).toHaveCount(1);
+    await expect(options.filter({ hasText: outsider.lastName })).toHaveCount(0);
+
+    await assignFromDashboard(page, sponsor.name, member.lastName);
+    await expect(page.locator('.alert-success')).toContainText(`für ${sponsor.name} zuständig`);
+    await expect(unassignedRow(page, sponsor.name)).toHaveCount(0);
+
+    // Danach zählt der Sponsor nicht mehr als Lücke, sondern steht bei der Person.
+    await filterSponsorsByAssignee(page, 'Niemand');
+    await expect(listRow).toBeHidden();
+    await filterSponsorsByAssignee(page, member.lastName);
+    await expect(listRow).toBeVisible();
+    await expect(listRow.locator('td[data-label="Zuständig"]')).toContainText(member.lastName);
+});
+
+test('Gegenleistungen hakt das Team ab, das Material des Sponsors auch die zuständige Person', async ({ page, browser }) => {
+    const { member, sponsor } = TICK_FLOW;
+    const [benefit] = TICK_FLOW.package.benefits;
+    const [deliverable] = TICK_FLOW.package.deliverables;
+
+    await createRole(page, { name: TICK_FLOW.role, permissions: ['can_create_own_sponsorships'] });
+    await createMember(page, member);
+    await setMemberPassword(member.email, TICK_FLOW.password);
+    await createPackage(page, TICK_FLOW.package);
+    await createSponsor(page, sponsor);
+    await createSponsorship(page, {
+        packageName: TICK_FLOW.package.name,
+        amount: TICK_FLOW.amount,
+        assigneeLastName: member.lastName,
+    });
+
+    const sponsorUrl = new URL(page.url()).pathname;
+    const benefitAction = await page.locator('form.benefit-form', { hasText: benefit }).getAttribute('action');
+
+    const context = await newBrowserContext(browser);
+    await context.clearCookies();
+    const assigneePage = await context.newPage();
+    try {
+        await login(assigneePage, { email: member.email, password: TICK_FLOW.password });
+        await assigneePage.goto(sponsorUrl);
+        await assigneePage.locator('.sponsor-profile').waitFor({ state: 'visible' });
+
+        // Die Gegenleistung ist zu sehen, aber nicht abzuhaken.
+        await expect(assigneePage.locator('.benefit-static', { hasText: benefit })).toBeVisible();
+        await expect(assigneePage.locator('button.benefit-toggle', { hasText: benefit })).toHaveCount(0);
+
+        // Auch nicht am Knopf vorbei. Das Token gehört dazu: Ohne wäre die Antwort
+        // ebenfalls 403, aber von der CSRF-Prüfung statt von der Rechteprüfung.
+        const token = await assigneePage.getAttribute('meta[name="csrf-token"]', 'content');
+        const refused = await assigneePage.request.post(benefitAction, { form: { _csrf: token, delivered: '1' } });
+        expect(refused.status()).toBe(403);
+        expect(await refused.text()).not.toContain('CSRF');
+
+        await tickLine(assigneePage, deliverable);
+        await expect(assigneePage.locator('.agreement-card').first()).toContainText('1 von 1 erhalten');
+    } finally {
+        await context.close();
+    }
+
+    await page.goto(sponsorUrl);
+    await expect(page.locator('.agreement-card').first()).toContainText('0 von 1 erbracht');
+    await tickLine(page, benefit);
+    await expect(page.locator('.agreement-card').first()).toContainText('1 von 1 erbracht');
 });

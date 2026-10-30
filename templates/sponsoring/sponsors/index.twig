@@ -47,22 +47,24 @@
         </div>
     {% endif %}
 
+    {% set _assignee_options = [{value: "none", label: "Niemand"}]|merge(assignee_filter_users|map(person => {value: person.id ~ "", label: person|person_name})) %}
     <div class="dashboard-shell">
         <section class="dashboard-section dashboard-section--context"
                  aria-labelledby="sponsor-list-title">
             <div class="dashboard-section-head">
                 <h2 class="dashboard-section-title" id="sponsor-list-title">Sponsorenübersicht</h2>
                 <p class="dashboard-section-lead mb-0">
-                    {{ sponsors|length }} {{ sponsors|length == 1 ? "Sponsor" : "Sponsoren" }}. Der Zustandsfilter steht in der Tabellenleiste.
+                    {{ sponsors|length }} {{ sponsors|length == 1 ? "Sponsor" : "Sponsoren" }}. Filter für Zustand, Kategorie und Zuständigkeit stehen in der Tabellenleiste.
                 </p>
             </div>
 
             <div class="surface-card table-shell"
                  data-table-engine="true"
                  data-table-id="sponsoring.sponsors.index"
-                 data-table-plugins="sponsorState,sponsorCategory"
+                 data-table-plugins="sponsorState,sponsorCategory,sponsorAssignee"
                  data-state-options="{{ state_options|json_encode|e('html_attr') }}"
                  data-category-options="{{ categories|map(c => {value: c.id ~ "", label: c.name})|json_encode|e('html_attr') }}"
+                 data-assignee-options="{{ _assignee_options|json_encode|e('html_attr') }}"
                  data-default-view="auto"
                  data-default-page-size="100"
                  data-page-size-options="25,50,100,200"
@@ -75,13 +77,13 @@
                             <tr>
                                 <th data-sort-key="sponsor_name" data-sort-type="text">Name</th>
                                 <th data-sort-key="state" data-sort-type="text">Zustand</th>
+                                <th data-sort-key="assignee" data-sort-type="text">Zuständig</th>
                                 <th data-sort-key="package" data-sort-type="text">Paket</th>
                                 {% if sees_totals %}
                                     <th data-sort-key="accepted_amount" data-sort-type="number" class="text-end">Zugesagt</th>
                                 {% endif %}
                                 <th data-sort-key="next_follow_up" data-sort-type="date">Nächste Frist</th>
                                 <th>Kontakt</th>
-                                <th data-sort-key="sponsorship_count" data-sort-type="number">Vereinbarungen</th>
                                 <th class="text-end">Aktionen</th>
                             </tr>
                         </thead>
@@ -96,7 +98,8 @@
                                     data-sort-state="{{ sponsor_state }}"
                                     data-state="{{ sponsor_state }}"
                                     data-category="{{ sponsor.category_id|default("") }}"
-                                    data-sort-sponsorship_count="{{ sponsor.sponsorships|length }}">
+                                    data-assignees="{{ row.assignee_tokens }}"
+                                    data-sort-assignee="{{ row.assignee_sort }}">
                                     <td data-label="Name" data-card-title>
                                         <a href="/sponsoring/sponsors/{{ sponsor.id }}"
                                            class="text-decoration-none">{{ sponsor.name }}</a>
@@ -104,11 +107,14 @@
                                             <i class="bi bi-image text-muted" title="Logo vorhanden" aria-label="Logo vorhanden"></i>
                                         {% endif %}
                                         <div class="text-muted small">
-                                            {{ sponsor.type == "organization" ? "Organisation" : "Einzelperson" }}{% if sponsor.category %} · {{ sponsor.category.name }}{% endif %}{% if sponsor.contact_person %} · {{ sponsor.contact_person }}{% endif %}
+                                            {{ sponsor.type == "organization" ? "Organisation" : "Einzelperson" }}{% if sponsor.category_id %} · {{ sponsor.category.name }}{% endif %}{% if sponsor.contact_person %} · {{ sponsor.contact_person }}{% endif %}
                                         </div>
                                     </td>
                                     <td data-label="Zustand">
                                         <span class="badge {{ state_badges[sponsor_state] }}">{{ state_labels[sponsor_state] }}</span>
+                                    </td>
+                                    <td data-label="Zuständig">
+                                        {{ include("sponsoring/partials/responsibility.twig", {responsibility: row.responsibility}) }}
                                     </td>
                                     <td data-label="Paket">
                                         {% if row.package_name %}
@@ -130,15 +136,10 @@
                                             <span class="text-muted">–</span>
                                         {% endif %}
                                     </td>
-                                    <td data-label="Kontakt" class="small">
+                                    <td data-label="Kontakt" class="small sponsor-contact-cell">
                                         {% if sponsor.phone %}<a href="tel:{{ sponsor.phone|replace({" ": "", "/": "", "-": ""}) }}" class="d-block text-nowrap">{{ sponsor.phone }}</a>{% endif %}
-                                        {% if sponsor.email %}<a href="mailto:{{ sponsor.email }}" class="d-block text-truncate">{{ sponsor.email }}</a>{% endif %}
+                                        {% if sponsor.email %}<a href="mailto:{{ sponsor.email }}" class="d-block text-truncate" title="{{ sponsor.email }}">{{ sponsor.email }}</a>{% endif %}
                                         {% if not sponsor.phone and not sponsor.email %}<span class="text-muted">–</span>{% endif %}
-                                    </td>
-                                    <td data-label="Vereinbarungen"
-                                        data-sort-key="sponsorship_count"
-                                        data-sort-value="{{ sponsor.sponsorships|length }}">
-                                        <span class="badge text-bg-light border">{{ sponsor.sponsorships|length }}</span>
                                     </td>
                                     <td data-label="Aktionen" class="text-end text-nowrap">
                                         <div class="btn-group"
@@ -303,6 +304,7 @@
     {{ parent() }}
     <script src="/js/table-plugins/sponsors-state-plugin.js"></script>
     <script src="/js/table-plugins/sponsors-category-plugin.js"></script>
+    <script src="/js/table-plugins/sponsors-assignee-plugin.js"></script>
     <script src="/js/sponsor-form-reopen.js"></script>
     <script src="/js/sponsorship-form.js"></script>
     <script src="/vendor/tom-select/js/tom-select.complete.min.js"></script>

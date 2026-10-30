@@ -20,6 +20,7 @@ use App\Models\SponsorshipDeliverable;
 use App\Models\User;
 use App\Policies\SponsoringPolicy;
 use App\Services\EntityAttachmentService;
+use App\Services\NameFormatterService;
 use App\Util\AmountNormalizer;
 use App\Util\BenefitList;
 use Carbon\Carbon;
@@ -30,9 +31,12 @@ use App\Util\InputValidator;
 class SponsorshipController
 {
     public const AMOUNT_ERROR = 'Ungültiger Betrag. Bitte eine Zahl ab 0 eingeben.';
-    public const STATUS_ERROR = 'Ungültiger Status für die Vereinbarung.';
-    public const PROJECT_ERROR = 'Vereinbarungen lassen sich nur zu einem laufenden Projekt erfassen.';
+    public const STATUS_ERROR = 'Ungültiger Status für den Vorgang.';
+    public const PROJECT_ERROR = 'Vorgänge lassen sich nur zu einem laufenden Projekt erfassen.';
     public const ASSIGNEE_ERROR = 'Die zuständige Person muss ein aktives Mitglied sein.';
+    public const ASSIGNEE_MISSING_ERROR = 'Bitte eine Person auswählen.';
+    public const ASSIGNEE_NO_ACCESS_ERROR = 'Diese Person hat kein Sponsoring-Recht und sähe den Vorgang gar nicht.';
+    public const ASSIGNEE_NOT_OPEN_ERROR = 'Dieser Vorgang ist bereits zugewiesen oder läuft nicht mehr.';
     public const BLOCKED_ERROR = 'Dieser Sponsor hat sich weitere Anfragen verbeten.';
     public const PAID_AT_ERROR = 'Bitte ein gültiges Datum für "Bezahlt am" angeben.';
 
@@ -43,15 +47,18 @@ class SponsorshipController
     private SponsoringPolicy $policy;
     private EntityAttachmentService $attachments;
     private LoggerInterface $logger;
+    private NameFormatterService $nameFormatter;
 
     public function __construct(
         SponsoringPolicy $policy,
         EntityAttachmentService $attachments,
-        ?LoggerInterface $logger = null
+        ?LoggerInterface $logger = null,
+        ?NameFormatterService $nameFormatter = null
     ) {
         $this->policy = $policy;
         $this->attachments = $attachments;
         $this->logger = $logger ?? new NullLogger();
+        $this->nameFormatter = $nameFormatter ?? new NameFormatterService();
     }
 
     /**
@@ -192,7 +199,7 @@ class SponsorshipController
 
             $this->handleAttachments($request, $sponsorship->id);
 
-            $_SESSION['success'] = 'Vereinbarung angelegt.';
+            $_SESSION['success'] = 'Vorgang angelegt.';
         } catch (\Exception $e) {
             // Der Grund gehört ins Protokoll, nicht vor die Augen des
             // Sponsoring-Teams: Hier stand früher der rohe SQLSTATE-Text des
@@ -202,7 +209,7 @@ class SponsorshipController
                 'sponsor_id' => $sponsorId,
                 'exception' => $e,
             ]);
-            $_SESSION['error'] = 'Die Vereinbarung konnte nicht angelegt werden.';
+            $_SESSION['error'] = 'Der Vorgang konnte nicht angelegt werden.';
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
@@ -312,12 +319,12 @@ class SponsorshipController
 
             $this->handleAttachments($request, $sponsorship->id);
 
-            $_SESSION['success'] = 'Vereinbarung gespeichert.';
+            $_SESSION['success'] = 'Vorgang gespeichert.';
         } catch (ModelNotFoundException $e) {
             // Der häufigste Weg hierher: Die Seite lag offen, während jemand
             // anderes dieselbe Vereinbarung entfernt hat. Kein Betriebsfehler.
-            $_SESSION['error'] = 'Die Vereinbarung wurde nicht gefunden. '
-                . 'Möglicherweise wurde sie bereits gelöscht.';
+            $_SESSION['error'] = 'Der Vorgang wurde nicht gefunden. '
+                . 'Möglicherweise wurde er bereits gelöscht.';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         } catch (\Exception $e) {
             $this->logger->error('Updating a sponsorship failed.', [
@@ -325,7 +332,7 @@ class SponsorshipController
                 'sponsorship_id' => $id,
                 'exception' => $e,
             ]);
-            $_SESSION['error'] = 'Die Vereinbarung konnte nicht aktualisiert werden.';
+            $_SESSION['error'] = 'Der Vorgang konnte nicht aktualisiert werden.';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 
@@ -379,6 +386,72 @@ class SponsorshipController
             : ['error' => self::ASSIGNEE_ERROR, 'value' => null];
     }
 
+    /**
+     * Trägt die zuständige Person direkt aus der Liste "Ohne Zuständigkeit" ein.
+     *
+     * Bisher ging das nur über den ganzen Bearbeiten-Dialog am Sponsor; wer zehn
+     * Lücken schließen wollte, öffnete zehn Sponsoren. Nur für das Vollrecht:
+     * Zuständigkeit gibt Einsicht in Betrag und Belege (SponsoringPolicy::
+     * canSeeSponsorshipDetails()), die verteilt das Sponsoring-Team.
+     *
+     * Leer ist hier anders als im Dialog keine Antwort: Die Liste ist dazu da,
+     * eine Person einzutragen, nicht eine zu entfernen. Und sie schließt nur
+     * Lücken: Aus einem veralteten Tab soll die Einsicht in Betrag und Belege
+     * nicht still zu jemand anderem wandern.
+     *
+     * Enger als der Dialog: Hier gibt es nur Personen mit Sponsoring-Recht.
+     * Jede andere bekäme auf /sponsoring eine 403, und der Vorgang wirkte
+     * versorgt, ohne dass sich jemand kümmert.
+     */
+    public function assign(Request $request, Response $response, array $args): Response
+    {
+        if (!$this->policy->canManageAll()) {
+            return $this->deny($response);
+        }
+
+        $back = $response->withHeader('Location', '/sponsoring')->withStatus(302);
+        $data = (array) $request->getParsedBody();
+
+        $sponsorship = Sponsorship::with('sponsor')->find((int) $args['id']);
+        if ($sponsorship === null) {
+            $_SESSION['error'] = 'Vorgang nicht gefunden.';
+            return $back;
+        }
+
+        if (empty($data['assigned_user_id'])) {
+            $_SESSION['error'] = self::ASSIGNEE_MISSING_ERROR;
+            return $back;
+        }
+
+        $assignee = $this->validateAssignedUser($data, null);
+        if ($assignee['error'] !== null) {
+            $_SESSION['error'] = $assignee['error'];
+            return $back;
+        }
+
+        if (!User::query()->whereKey($assignee['value'])->withSponsoringAccess()->exists()) {
+            $_SESSION['error'] = self::ASSIGNEE_NO_ACCESS_ERROR;
+            return $back;
+        }
+
+        if (!Sponsorship::query()->whereKey($sponsorship->id)->withoutActiveAssignee()->exists()) {
+            $_SESSION['error'] = self::ASSIGNEE_NOT_OPEN_ERROR;
+            return $back;
+        }
+
+        $sponsorship->update(['assigned_user_id' => $assignee['value']]);
+        $this->logger->info('Sponsorship assignee changed.', [
+            'event' => 'sponsorship.assignee.changed',
+            'sponsorship_id' => (int) $sponsorship->id,
+            'assigned_user_id' => $assignee['value'],
+            'user_id' => $this->policy->currentUserId(),
+        ]);
+        $_SESSION['success'] = $this->nameFormatter->formatPerson(User::find($assignee['value']))
+            . ' ist jetzt für ' . ($sponsorship->sponsor->name ?? 'diesen Sponsor') . ' zuständig.';
+
+        return $back;
+    }
+
     public function delete(Request $request, Response $response, array $args): Response
     {
         $id   = (int) $args['id'];
@@ -399,10 +472,10 @@ class SponsorshipController
 
             $this->attachments->deleteAllForEntities(self::ENTITY_TYPE, [$id]);
             $sponsorship->delete();
-            $_SESSION['success'] = 'Vereinbarung erfolgreich gelöscht.';
+            $_SESSION['success'] = 'Vorgang erfolgreich gelöscht.';
         } catch (ModelNotFoundException $e) {
-            $_SESSION['error'] = 'Die Vereinbarung wurde nicht gefunden. '
-                . 'Möglicherweise wurde sie bereits gelöscht.';
+            $_SESSION['error'] = 'Der Vorgang wurde nicht gefunden. '
+                . 'Möglicherweise wurde er bereits gelöscht.';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         } catch (\Exception $e) {
             $this->logger->error('Deleting a sponsorship failed.', [
@@ -410,7 +483,7 @@ class SponsorshipController
                 'sponsorship_id' => $id,
                 'exception' => $e,
             ]);
-            $_SESSION['error'] = 'Die Vereinbarung konnte nicht gelöscht werden.';
+            $_SESSION['error'] = 'Der Vorgang konnte nicht gelöscht werden.';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 
@@ -425,7 +498,7 @@ class SponsorshipController
 
         $sponsorship = Sponsorship::find($sponsorshipId);
         if ($sponsorship === null) {
-            $_SESSION['error'] = 'Vereinbarung nicht gefunden.';
+            $_SESSION['error'] = 'Vorgang nicht gefunden.';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
             return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
         }
@@ -464,7 +537,7 @@ class SponsorshipController
             return $response->withHeader('Location', '/sponsoring')->withStatus(302);
         }
 
-        if (!$this->policy->canTickBenefits($benefit->sponsorship)) {
+        if (!$this->policy->canTickBenefits()) {
             return $this->deny($response);
         }
 
@@ -473,8 +546,9 @@ class SponsorshipController
 
     /**
      * Hakt eine Leistung des Sponsors als erhalten ab oder nimmt den Haken
-     * zurück. Dasselbe Recht wie bei den Gegenleistungen: Beides wird von
-     * denselben Leuten nachgehalten.
+     * zurück. Ein anderes Recht als bei den Gegenleistungen: Das Material des
+     * Sponsors hält das Mitglied nach, das ihn betreut, die Gegenleistungen
+     * erbringt das Sponsoring-Team.
      */
     public function toggleDeliverable(Request $request, Response $response, array $args): Response
     {
@@ -484,7 +558,7 @@ class SponsorshipController
             return $response->withHeader('Location', '/sponsoring')->withStatus(302);
         }
 
-        if (!$this->policy->canTickBenefits($deliverable->sponsorship)) {
+        if (!$this->policy->canTickDeliverables($deliverable->sponsorship)) {
             return $this->deny($response);
         }
 

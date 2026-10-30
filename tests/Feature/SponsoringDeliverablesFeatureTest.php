@@ -134,6 +134,22 @@ final class SponsoringDeliverablesFeatureTest extends TestCase
         $this->assertSame(1, $sponsorship->deliverables()->count());
     }
 
+    public function testTheManagerTicksOffADeliverableAndIsRecorded(): void
+    {
+        $sponsorship = $this->makeSponsorship($this->makeSponsor(), (int) $this->assignee->id, (int) $this->assignee->id);
+        $deliverable = $this->makeDeliverable($sponsorship);
+
+        $this->toggle($deliverable);
+
+        $fresh = $deliverable->fresh();
+        $this->assertNotNull($fresh->received_at);
+        $this->assertSame((int) $this->manager->id, (int) $fresh->received_by_user_id);
+    }
+
+    /**
+     * Dass der Sponsor sein Material bringt, verantwortet das Mitglied, das ihn
+     * betreut - anders als die Gegenleistungen, die das Sponsoring-Team erbringt.
+     */
     public function testTheAssignedPersonMayTickOffADeliverable(): void
     {
         $sponsorship = $this->makeSponsorship($this->makeSponsor(), (int) $this->manager->id, (int) $this->assignee->id);
@@ -145,6 +161,17 @@ final class SponsoringDeliverablesFeatureTest extends TestCase
         $fresh = $deliverable->fresh();
         $this->assertNotNull($fresh->received_at);
         $this->assertSame((int) $this->assignee->id, (int) $fresh->received_by_user_id);
+    }
+
+    public function testTheCreatorMayTickOffADeliverable(): void
+    {
+        $sponsorship = $this->makeSponsorship($this->makeSponsor(), (int) $this->contributor->id, (int) $this->assignee->id);
+        $deliverable = $this->makeDeliverable($sponsorship);
+        $this->loginAs($this->contributor, false);
+
+        $this->toggle($deliverable);
+
+        $this->assertNotNull($deliverable->fresh()->received_at);
     }
 
     public function testAnUninvolvedContributorMayNotTickOffADeliverable(): void

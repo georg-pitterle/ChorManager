@@ -3467,6 +3467,9 @@ class DevSeedService
                     'package' => 'Silber',
                     'project_offset' => -2,
                     'assigned_user_offset' => 6,
+                    // Zuständig ist jemand, der nicht mehr aktiv ist: zeigt die
+                    // Zeile "bisher ..., nicht mehr aktiv" auf dem Dashboard.
+                    'assigned_archived' => true,
                     'amount' => 1800.00,
                     'status' => 'reminded',
                     'start_date' => '+3 months',
@@ -3491,7 +3494,9 @@ class DevSeedService
                 [
                     'package' => 'Bronze',
                     'project_offset' => null,
-                    'assigned_user_offset' => 8,
+                    // Niemand eingetragen: füllt "Ohne Zuständigkeit" auf dem
+                    // Dashboard und den Filter "Niemand" der Sponsorenliste.
+                    'assigned_user_offset' => null,
                     'amount' => 500.00,
                     'status' => 'requested',
                     'start_date' => '+1 month',
@@ -3549,7 +3554,9 @@ class DevSeedService
                 [
                     'package' => 'Gold',
                     'project_offset' => null,
-                    'assigned_user_offset' => 11,
+                    // Neben der Zusage mit zuständiger Person: Die Liste nennt
+                    // die Person und zugleich den Vorgang ohne.
+                    'assigned_user_offset' => null,
                     'amount' => 3000.00,
                     'status' => 'reminded',
                     'start_date' => '+5 months',
@@ -3583,8 +3590,12 @@ class DevSeedService
                 }
 
                 $assignedUser = null;
-                if ($activeUserCount > 0) {
+                if ($activeUserCount > 0 && $item['assigned_user_offset'] !== null) {
                     $assignedUser = $activeUsers[$item['assigned_user_offset'] % $activeUserCount];
+                }
+
+                if (!empty($item['assigned_archived'])) {
+                    $assignedUser = User::where('is_active', 0)->orderBy('id')->first() ?? $assignedUser;
                 }
 
                 $startDate = (new DateTimeImmutable())->modify($item['start_date'])->format('Y-m-d');
@@ -3602,7 +3613,7 @@ class DevSeedService
                         // Urheber und Zuständige sind bewusst verschieden:
                         // so zeigt der Seed beide Rollen im Rechte-Modell.
                         'created_by_user_id' => $activeUserCount > 0
-                            ? $activeUsers[($item['assigned_user_offset'] + 1) % $activeUserCount]->id
+                            ? $activeUsers[(($item['assigned_user_offset'] ?? 0) + 1) % $activeUserCount]->id
                             : null,
                         'amount' => max((float) $item['amount'], (float) $package->min_amount),
                         'needs_logo_print' => (bool) $package->needs_logo_print,

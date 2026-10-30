@@ -2871,25 +2871,94 @@ a:hover {
     color: var(--theme-primary-strong);
 }
 
+/* Hilfeseite: eine Lesespalte für alles - Text, Hinweise, Tabellen, Bilder. Vorher war
+   nur der Text begrenzt, Tabellen liefen über die volle Karte, und rechts neben dem Text
+   blieb die halbe Karte leer. Daneben steht, wo Platz ist, "Auf dieser Seite". Ein
+   Container statt des Viewports, weil die Seitenleiste die Breite mitbestimmt. */
+.help-page {
+    container: help-page / inline-size;
+}
+
+.help-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 45rem);
+    align-items: start;
+    gap: 2.5rem;
+}
+
+.help-article .card-body {
+    padding: clamp(1rem, 3cqi, 1.75rem);
+}
+
+.help-toc {
+    display: none;
+}
+
+.help-toc .group-label {
+    margin-bottom: 0.5rem;
+}
+
+.help-toc ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.help-toc li + li {
+    margin-top: 0.4rem;
+}
+
+.help-toc a {
+    color: var(--theme-text-muted);
+    font-size: var(--font-size-small);
+    text-decoration: none;
+}
+
+.help-toc a:hover,
+.help-toc a:focus-visible {
+    color: var(--theme-primary-strong);
+    text-decoration: underline;
+}
+
+@container help-page (min-width: 62rem) {
+    .help-layout {
+        grid-template-columns: minmax(0, 45rem) 14rem;
+    }
+
+    .help-toc {
+        position: sticky;
+        top: 5rem;
+        display: block;
+        max-height: calc(100vh - 6rem);
+        overflow-y: auto;
+    }
+}
+
+/* Überschriften nach den vier Rollen aus DESIGN.md: h2 ist ein Abschnitt, h3 eine
+   Karte. Bootstraps h2 war so groß wie der Seitentitel darüber. */
 .markdown-content h1,
-.markdown-content h2,
-.markdown-content h3 {
-    margin-top: 1.75rem;
+.markdown-content h2 {
+    margin-top: 2.25rem;
     margin-bottom: 0.75rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--theme-border);
+    font-size: clamp(1.05rem, 1.45vw, 1.35rem);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    scroll-margin-top: 5rem;
+}
+
+.markdown-content h3 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    font-size: var(--font-size-title);
+    font-weight: 600;
 }
 
 .markdown-content h1:first-child,
 .markdown-content h2:first-child,
 .markdown-content h3:first-child {
     margin-top: 0;
-}
-
-/* Fließtext auf Lesebreite - am Desktop liefen Zeilen sonst über 150 Zeichen.
-   Tabellen und Bilder nutzen weiter die volle Breite. */
-.markdown-content p,
-.markdown-content li,
-.markdown-content blockquote {
-    max-width: 75ch;
 }
 
 .markdown-content img {
@@ -4509,11 +4578,45 @@ a:hover {
     margin: 0;
 }
 
+/* Zeile mit eigener Auswahl: am Telefon rückt sie unter den Titel, sonst bliebe
+   dem Sponsornamen neben Auswahl und Knopf kaum Platz. */
+.work-item--assign {
+    flex-wrap: wrap;
+}
+
+.work-item-assign {
+    display: flex;
+    flex: 1 1 15rem;
+    gap: 0.5rem;
+    max-width: 100%;
+    margin: 0;
+}
+
+.work-item--assign .work-item-main {
+    flex: 1 1 12rem;
+}
+
+.work-item-assign .form-select {
+    flex: 1 1 auto;
+    width: auto;
+    min-width: 0;
+}
+
+.work-item-assign .btn {
+    flex: none;
+}
+
 .work-item-amount {
     flex: none;
     font-weight: 600;
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
+}
+
+/* Lange E-Mail-Adressen kürzen: Sonst kippte die Sponsorenliste schon bei 1440px
+   in die Kartenansicht, und der Überblick über die Zuständigen ging verloren. */
+.sponsor-contact-cell {
+    max-width: 12rem;
 }
 
 /* Fälligkeit in Worten. Farbe allein hieß vorher: rot für "heute oder früher",

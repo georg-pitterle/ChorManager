@@ -133,6 +133,43 @@ class HelpFeatureTest extends TestCase
         $this->assertStringContainsString('Alpha Guide', $body);
     }
 
+    public function testShowListsTheSectionsOfALongTopicAndAnchorsThem(): void
+    {
+        file_put_contents(
+            $this->docsDir . '/alpha-guide/docs/alpha-guide.md',
+            "# Alpha Guide\n\n## Wer darf was\n\nText\n\n### Unterpunkt\n\nText\n\n## Logos & Fristen\n\nText\n\n## Wer darf was\n\nText\n"
+        );
+
+        $body = $this->renderTopic('alpha-guide');
+
+        $this->assertStringContainsString('Auf dieser Seite', $body);
+        $this->assertStringContainsString('<h2 id="wer-darf-was">Wer darf was</h2>', $body);
+        $this->assertStringContainsString('<h2 id="logos-fristen">Logos &amp; Fristen</h2>', $body);
+        // Gleich lautende Abschnitte brauchen trotzdem je ein eigenes Ziel.
+        $this->assertStringContainsString('<h2 id="wer-darf-was-2">Wer darf was</h2>', $body);
+        $this->assertStringContainsString('<a href="#logos-fristen">Logos &amp; Fristen</a>', $body);
+        // Nur die Abschnitte, nicht jeder Unterpunkt.
+        $this->assertStringNotContainsString('href="#unterpunkt"', $body);
+    }
+
+    public function testShowHasNoSectionListForAShortTopic(): void
+    {
+        file_put_contents($this->docsDir . '/alpha-guide/docs/alpha-guide.md', "# Alpha Guide\n\n## Einziger Abschnitt\n\nText\n");
+
+        $this->assertStringNotContainsString('Auf dieser Seite', $this->renderTopic('alpha-guide'));
+    }
+
+    public function testShowOpensImagesInFullSize(): void
+    {
+        // In der Lesespalte ist ein Screenshot kleiner als aufgenommen.
+        $body = $this->renderTopic('sponsoring');
+
+        $this->assertMatchesRegularExpression(
+            '~<a href="images/sponsoring/01-dashboard\.png"[^>]*target="_blank"[^>]*rel="noopener"[^>]*>\s*<img src="images/sponsoring/01-dashboard\.png"~',
+            $body
+        );
+    }
+
     public function testShowLeavesDocumentsWithoutTablesUnchanged(): void
     {
         $response = $this->controller()->show(
@@ -292,6 +329,17 @@ class HelpFeatureTest extends TestCase
         $this->assertSame(404, $response->getStatusCode());
         $this->assertStringContainsString('Anleitung nicht gefunden', $body);
         $this->assertMatchesRegularExpression('/<a href="\/help" class="btn btn-outline-secondary">/', $body);
+    }
+
+    private function renderTopic(string $slug): string
+    {
+        $response = $this->controller()->show(
+            $this->makeRequest('GET', '/help/' . $slug),
+            $this->makeResponse(),
+            ['slug' => $slug]
+        );
+
+        return (string) $response->getBody();
     }
 
     public function testShowHasBackButtonButNoBreadcrumbAndAHairlineCard(): void

@@ -64,3 +64,48 @@ export const ASSIGNEE_FLOW = {
     otherAttachment: 'mediadaten-saegewerk.pdf', // naming:ascii - Dateiname
     amount: '200',
 };
+
+export const RESPONSIBILITY_FLOW = {
+    role: 'Sponsoring-Betreuung',
+    member: {
+        firstName: 'Agnes',
+        lastName: 'Betreuer-Öhler',
+        email: 'agnes.betreuer@example.test',
+        group: 'Alt',
+        sub: 'Alt 1',
+        role: 'Sponsoring-Betreuung',
+    },
+    // Ohne Sponsoring-Recht: darf nicht zur Auswahl stehen.
+    outsider: {
+        firstName: 'Otto',
+        lastName: 'Ohnerecht-Würth',
+        email: 'otto.ohnerecht@example.test',
+        group: 'Bass',
+        sub: 'Bass 1',
+    },
+    sponsor: { name: 'Möbelhaus Wörgötter', category: '' },
+    amount: '150',
+};
+
+export const TICK_FLOW = {
+    role: 'Sponsoring-Material',
+    member: {
+        firstName: 'Mira',
+        lastName: 'Material-Köhler',
+        email: 'mira.material@example.test',
+        group: 'Sopran',
+        sub: 'Sopran 1',
+        role: 'Sponsoring-Material',
+    },
+    password: 'Sponsoring-Material-2026!',
+    package: {
+        name: 'Paket Material',
+        minAmount: '100',
+        benefits: ['Logo an die Grafik übergeben'],
+        deliverables: ['Logo-Datei geliefert'],
+        logoPrint: false,
+        logoOnline: false,
+    },
+    sponsor: { name: 'Tischlerei Mößner', category: '' },
+    amount: '150',
+};

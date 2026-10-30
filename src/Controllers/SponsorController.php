@@ -26,6 +26,7 @@ use App\Util\RequestFormat;
 use App\Util\SponsorCategoryResolver;
 use App\Util\SponsorDuplicateFinder;
 use App\Util\SponsorLogoUpload;
+use App\Util\SponsorResponsibility;
 use App\Services\ModalFormService;
 
 class SponsorController
@@ -72,8 +73,9 @@ class SponsorController
         // wären bei vielen Sponsoren reiner Ballast.
         $sponsors = Sponsor::withCount('logos')->with([
             'category',
-            'sponsorships:id,sponsor_id,package_id,status,amount,created_at',
+            'sponsorships:id,sponsor_id,package_id,assigned_user_id,status,amount,created_at',
             'sponsorships.package',
+            'sponsorships.assignedUser',
             // Nur offene Wiedervorlagen: die Spalte "Nächste Frist" braucht die
             // früheste davon, alles Erledigte wäre Ballast.
             'contacts' => static fn ($query) => $query
@@ -88,11 +90,14 @@ class SponsorController
         $error   = $_SESSION['error'] ?? null;
         unset($_SESSION['success'], $_SESSION['error']);
 
+        $sponsorRows = $this->buildSponsorRows($sponsors);
+
         return $this->view->render($response, 'sponsoring/sponsors/index.twig', [
             'sponsors'       => $sponsors,
             'can_manage_all' => $this->policy->canManageAll(),
             'sponsor_states' => $this->buildSponsorStates($sponsors),
-            'sponsor_rows'   => $this->buildSponsorRows($sponsors),
+            'sponsor_rows'   => $sponsorRows,
+            'assignee_filter_users' => $this->assigneeFilterUsers($sponsorRows),
             'sees_totals'    => $this->policy->canSeeFinancialTotals(),
             'state_options'  => SponsorEngagementState::options(),
             'state_badges'   => SponsorEngagementState::badgeClasses(),
@@ -116,11 +121,36 @@ class SponsorController
     }
 
     /**
+     * Wen der Filter "Zuständig" anbietet: nur Personen, die in der Liste auch
+     * vorkommen. Der ganze Mitgliederstand wäre eine lange Auswahl, deren meiste
+     * Einträge zu leeren Treffern führen.
+     *
+     * @param array<int, array<string, mixed>> $rows Ergebnis von buildSponsorRows()
+     * @return list<User>
+     */
+    private function assigneeFilterUsers(array $rows): array
+    {
+        $users = [];
+        foreach ($rows as $row) {
+            foreach ($row['responsibility']['assignees'] as $person) {
+                $users[(int) $person->id] = $person;
+            }
+        }
+
+        usort($users, static fn (User $a, User $b): int => [$a->last_name, $a->first_name]
+            <=> [$b->last_name, $b->first_name]);
+
+        return $users;
+    }
+
+    /**
      * Was die Sponsorenliste je Zeile über die Stammdaten hinaus zeigt.
      *
      * - Paket: das der maßgeblichen Vereinbarung - eine Zusage vor einer
      *   laufenden Anfrage, sonst die jüngste.
      * - Nächste Frist: die früheste offene Wiedervorlage.
+     * - Zuständig: die Personen der laufenden Vorgänge (SponsorResponsibility);
+     *   assignee_tokens trägt sie für den Filter, "none" steht für eine Lücke.
      * - Zugesagt: Summe der Zusagen, nur für das Vollrecht. Wie die Summen auf
      *   dem Dashboard lässt sie sich keiner Urheberschaft zuordnen.
      *
@@ -148,10 +178,24 @@ class SponsorController
                 ->sortBy(static fn ($contact): string => $contact->follow_up_date->format('Y-m-d'))
                 ->first();
             $accepted = $sponsor->sponsorships->where('status', SponsorshipStatus::ACCEPTED);
+            $responsibility = SponsorResponsibility::forSponsor($sponsor);
+            $firstAssignee = $responsibility['assignees'][0] ?? null;
 
             $rows[(int) $sponsor->id] = [
                 'package_name' => $leading?->package?->name,
                 'package_badge' => $leading?->package?->badge_class,
+                'responsibility' => $responsibility,
+                'assignee_tokens' => implode(' ', [
+                    ...array_map(static fn (User $person): int => (int) $person->id, $responsibility['assignees']),
+                    ...($responsibility['unassigned'] > 0 ? ['none'] : []),
+                ]),
+                // Lücken stehen beim Sortieren oben, Sponsoren ohne laufenden
+                // Vorgang unten - dort gibt es nichts zu klären.
+                'assignee_sort' => match (true) {
+                    $responsibility['unassigned'] > 0 && $firstAssignee === null => '',
+                    $firstAssignee !== null => mb_strtolower($firstAssignee->last_name . ' ' . $firstAssignee->first_name),
+                    default => "\u{10FFFF}",
+                },
                 'next_follow_up_display' => $nextFollowUp?->follow_up_date->format('d.m.Y'),
                 'next_follow_up_sort' => $nextFollowUp?->follow_up_date->format('Y-m-d') ?? '9999-12-31',
                 'next_follow_up_overdue' => $nextFollowUp !== null
@@ -252,6 +296,7 @@ class SponsorController
             'can_manage_logo' => $this->policy->canManageLogo($sponsor),
             'current_user_id' => $this->policy->currentUserId(),
             'sponsor_state'  => SponsorEngagementState::forSponsor($sponsor),
+            'responsibility' => SponsorResponsibility::forSponsor($sponsor),
             'state_labels'   => SponsorEngagementState::labels(),
             'state_badges'   => SponsorEngagementState::badgeClasses(),
             // Je Zeile vorberechnet, damit das Template nur ein Kennzeichen
@@ -298,7 +343,9 @@ class SponsorController
     {
         $rows = [];
         foreach ($sponsor->sponsorships as $sponsorship) {
-            $mayTick = $this->policy->canTickBenefits($sponsorship);
+            $mayTick = $relation === 'deliverables'
+                ? $this->policy->canTickDeliverables($sponsorship)
+                : $this->policy->canTickBenefits();
             $rows[(int) $sponsorship->id] = $sponsorship->{$relation}
                 ->map(static fn ($line): array => [
                     'id' => (int) $line->id,

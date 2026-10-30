@@ -78,7 +78,7 @@ class SponsoringAttachmentOverviewFeatureTest extends TestCase
 
             $this->assertSame('Sponsor', $rows[$logoName]['context_label']);
             $this->assertArrayNotHasKey('download_url', $rows[$logoName]);
-            $this->assertSame('Vereinbarung', $rows[$contractName]['context_label']);
+            $this->assertSame('Vorgang', $rows[$contractName]['context_label']);
             $this->assertArrayNotHasKey('download_url', $rows[$contractName]);
         } finally {
             Attachment::whereIn('id', [$logo->id, $contract->id])->delete();

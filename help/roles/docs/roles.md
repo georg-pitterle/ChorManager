@@ -89,7 +89,7 @@ Ist dieses Recht aktiv, darf die Rolle den Budget-Bereich einsehen und bearbeite
 
 ### Sponsoring verwalten
 
-Mit diesem Recht darf die Rolle das Sponsoring-Modul sehen sowie Sponsoren, Vereinbarungen und Kontakthistorien verwalten. Es erscheint nur, wenn das Sponsoring-Modul für die Installation aktiviert ist, und richtet sich an Personen, die Sponsorenbeziehungen pflegen.
+Mit diesem Recht darf die Rolle das Sponsoring-Modul sehen sowie Sponsoren, Vorgänge und Kontakthistorien verwalten. Es erscheint nur, wenn das Sponsoring-Modul für die Installation aktiviert ist, und richtet sich an Personen, die Sponsorenbeziehungen pflegen.
 
 ### Repertoire verwalten
 

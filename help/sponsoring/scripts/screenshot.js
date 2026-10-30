@@ -99,6 +99,12 @@ async function main() {
         await page.locator('.sponsoring-board').waitFor({ state: 'visible' });
         await shotCapped(page, '01-dashboard');
 
+        // 18. Dashboard: "Ohne Zuständigkeit" mit direkter Zuweisung
+        await shotElement(
+            page.locator('section[aria-labelledby="sponsoring-unassigned-title"]'),
+            '18-dashboard-unassigned'
+        );
+
         // 13. Dashboard: "Logo fehlt" samt aufgeklappten Logo-Fristen der Projekte
         await page.locator('details.logo-deadline-settings').evaluate((el) => { el.open = true; });
         await shotElement(
@@ -154,7 +160,7 @@ async function main() {
             'hidden.bs.modal'
         );
 
-        // 4. Sponsor-Detail: Steckbrief und erste Vereinbarung
+        // 4. Sponsor-Detail: Steckbrief und erster Vorgang
         //
         // Bewusst "Musikhaus Weber": Der Seed gibt ihm eine bezahlte Gold-Zusage
         // mit teils erbrachten Gegenleistungen und keine Generalabsage - bei einer
@@ -167,7 +173,7 @@ async function main() {
         await page.locator('.sponsor-profile').waitFor({ state: 'visible' });
         await shotCapped(page, '04-sponsor-detail', 1300);
 
-        // 5. Eine Vereinbarung als Karte - mit Gegenleistungen und Leistungen des Sponsors
+        // 5. Ein Vorgang als Karte - mit Gegenleistungen und Leistungen des Sponsors
         await shotElement(page.locator('.agreement-card').first(), '05-sponsor-detail-agreement');
 
         // 16. Logo-Dateien des Sponsors mit Ablegefläche
@@ -176,7 +182,7 @@ async function main() {
             '16-sponsor-logos'
         );
 
-        // 6. Modal: Neue Vereinbarung - mit Paket, damit die vorgeschlagenen
+        // 6. Modal: Neuer Vorgang - mit Paket, damit die vorgeschlagenen
         //    Gegenleistungen zu sehen sind
         await clickAndWaitForEvent(
             page,

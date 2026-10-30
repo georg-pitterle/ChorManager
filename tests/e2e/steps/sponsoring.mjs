@@ -8,7 +8,7 @@
 //      Dublettenhinweis .sponsor-duplicate-warning mit button[name="confirm_duplicate"]
 //      Liste #sponsorsTable, Name-Links in td[data-label="Name"] a
 //  - templates/sponsoring/sponsors/detail.twig
-//      Vereinbarung #newSponsorshipModal: package_id [data-sponsorship-package], status,
+//      Vorgang #newSponsorshipModal: package_id [data-sponsorship-package], status,
 //      amount, project_id, assigned_user_id, benefits [data-sponsorship-benefits],
 //      deliverables [data-sponsorship-deliverables], [data-sponsorship-logo-print|online],
 //      Absenden button[type="submit"] "Anlegen"
@@ -23,6 +23,11 @@
 //      Fristen: details.logo-deadline-settings, je Projekt
 //      form[action="/sponsoring/projects/{id}/logo-deadlines"] mit logo_deadline_print/online
 //      Offene Leistungen des Sponsors: section[aria-labelledby="sponsoring-deliverables-title"]
+//      Ohne Zuständigkeit: section[aria-labelledby="sponsoring-unassigned-title"] .work-item
+//      mit select[name="assigned_user_id"], Absenden button[type="submit"] "Zuweisen"
+//  - public/js/table-plugins/sponsors-assignee-plugin.js
+//      Filter select[aria-label="Zuständigkeit filtern"]; am Telefon hinter
+//      [data-table-filter-toggle] (partials/table_toolbar.twig)
 
 /** Sponsoring ist über FEATURE_SPONSORING gegatet - ohne das Modul liefert /sponsoring 404. */
 export async function sponsoringModuleEnabled(page) {
@@ -90,7 +95,7 @@ export async function openSponsor(page, name) {
 }
 
 /**
- * Legt auf der geöffneten Sponsorseite eine Vereinbarung an. Gibt zurück, was der
+ * Legt auf der geöffneten Sponsorseite einen Vorgang an. Gibt zurück, was der
  * Dialog nach der Paketwahl vorgeschlagen hatte, damit der Test es prüfen kann.
  */
 export async function createSponsorship(page, { packageName = '', status = 'accepted', projectName = '', amount, assigneeLastName = '' }) {
@@ -164,6 +169,33 @@ export async function setLogoDeadlines(page, projectName, { print = '', online =
     await form.locator('input[name="logo_deadline_online"]').fill(online);
     await form.locator('button[type="submit"]').click();
     await page.waitForURL('**/sponsoring');
+}
+
+/** Zeile eines Sponsors im Bereich "Ohne Zuständigkeit" der Übersicht. */
+export function unassignedRow(page, sponsorName) {
+    return page.locator('section[aria-labelledby="sponsoring-unassigned-title"] .work-item', { hasText: sponsorName });
+}
+
+/** Trägt auf der Übersicht direkt in der Zeile die zuständige Person ein. */
+export async function assignFromDashboard(page, sponsorName, personLastName) {
+    await page.goto('/sponsoring');
+    const row = unassignedRow(page, sponsorName);
+    const select = row.locator('select[name="assigned_user_id"]');
+    const value = await select.locator('option', { hasText: personLastName }).first().getAttribute('value');
+    await select.selectOption(value);
+    await row.locator('button[type="submit"]').click();
+}
+
+/** Setzt in der Sponsorenliste den Filter "Zuständig"; `text` ist Teil der Beschriftung. */
+export async function filterSponsorsByAssignee(page, text) {
+    await page.goto('/sponsoring/sponsors');
+    const toggle = page.locator('[data-table-filter-toggle]');
+    if (await toggle.isVisible()) {
+        await toggle.click();
+    }
+    const select = page.locator('select[aria-label="Zuständigkeit filtern"]');
+    const value = await select.locator('option', { hasText: text }).first().getAttribute('value');
+    await select.selectOption(value);
 }
 
 /** Hakt auf der Sponsorseite eine Leistung ab (Gegenleistung oder Leistung des Sponsors). */

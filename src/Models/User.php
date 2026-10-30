@@ -147,6 +147,23 @@ class User extends Model
         return $this->belongsToMany(Role::class, 'user_roles', 'user_id', 'role_id');
     }
 
+    /**
+     * Aktive Mitglieder, die den Sponsoring-Bereich betreten dürfen - und damit
+     * als Zuständige etwas tun können. Ohne eines der beiden Rechte zählt eine
+     * eingetragene Zuständigkeit nicht (SponsoringPolicy::assignmentCounts()).
+     *
+     * @param \Illuminate\Database\Eloquent\Builder<User> $query
+     * @return \Illuminate\Database\Eloquent\Builder<User>
+     */
+    public function scopeWithSponsoringAccess($query)
+    {
+        return $query
+            ->where('is_active', 1)
+            ->whereHas('roles', static function ($role): void {
+                $role->where('can_manage_sponsoring', 1)->orWhere('can_create_own_sponsorships', 1);
+            });
+    }
+
     public function projects()
     {
         return $this->belongsToMany(Project::class, 'project_users', 'user_id', 'project_id');

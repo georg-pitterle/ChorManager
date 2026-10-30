@@ -44,6 +44,17 @@ const KNOWN_BENIGN_CONSOLE_ERRORS = [
         pageUrl: '/newsletters/create',
         pattern: /Failed to load resource:.*status of 40[13]/,
     },
+    {
+        // Die Seite verlangt can_keep_voice_group_lists (RoleMiddleware requiresVoiceGroupLists),
+        // und das hält der Bootstrap-Admin absichtlich nicht: Die Listen sollen nur die
+        // Stimmvertretungen sehen, wer das Recht bekommt, entscheidet die Administration
+        // (db/migrations/20261026120000_add_can_keep_voice_group_lists_to_roles.php). Im Menü
+        // steht die Seite für ihn nicht; der Crawler kommt nur über die Routen-Tabelle hin. Dass
+        // die Sperre greift und mit dem Recht die Seite aufgeht, prüfen roleAccessMatrix.mjs und
+        // das Szenario voice-group-lists.e2e.test.mjs.
+        pageUrl: '/voice-group-lists',
+        pattern: /Failed to load resource:.*status of 403/,
+    },
 ];
 
 // Anders als die seitenscharfen Einträge oben ist diese Meldung auf JEDER Seite gutartig, weil

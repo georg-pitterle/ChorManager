@@ -45,7 +45,7 @@ final class RolePermissionCatalog
             ['key' => 'can_manage_sponsoring', 'label' => 'Sponsoring verwalten', 'module' => 'sponsoring'],
             [
                 'key' => 'can_create_own_sponsorships',
-                'label' => 'Eigene Sponsoring-Vereinbarungen erfassen',
+                'label' => 'Eigene Sponsoring-Vorgänge erfassen',
                 'module' => 'sponsoring',
             ],
             ['key' => 'can_manage_song_library', 'label' => 'Repertoire verwalten', 'module' => null],

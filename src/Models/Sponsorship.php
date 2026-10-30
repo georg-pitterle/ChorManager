@@ -5,8 +5,15 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Models\Concerns\HasEntityAttachments;
+use App\Util\SponsorshipStatus;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Der Weg mit einem Sponsor zu einem Projekt, von der ersten Anfrage bis zum
+ * Abschluss. In der Oberfläche heißt das "Vorgang": "Vereinbarung" klang nach
+ * dem unterschriebenen Vertrag, und der ist nur ein Beleg daran.
+ */
 class Sponsorship extends Model
 {
     use HasEntityAttachments;
@@ -91,5 +98,24 @@ class Sponsorship extends Model
     public function contacts()
     {
         return $this->hasMany(SponsoringContact::class, 'sponsorship_id');
+    }
+
+    /**
+     * Laufende Vorgänge, um die sich niemand kümmert: keine Person eingetragen,
+     * oder die eingetragene ist nicht mehr aktiv. Sie darf eingetragen bleiben
+     * (SponsorshipController::validateAssignedUser()), kümmern kann sie sich
+     * trotzdem nicht mehr.
+     *
+     * @param Builder<Sponsorship> $query
+     * @return Builder<Sponsorship>
+     */
+    public function scopeWithoutActiveAssignee(Builder $query): Builder
+    {
+        return $query
+            ->whereIn('status', SponsorshipStatus::ONGOING)
+            ->where(static function (Builder $sub): void {
+                $sub->whereNull('assigned_user_id')
+                    ->orWhereHas('assignedUser', static fn (Builder $user) => $user->where('is_active', 0));
+            });
     }
 }

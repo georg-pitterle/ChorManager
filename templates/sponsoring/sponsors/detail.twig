@@ -48,7 +48,7 @@
                         class="btn btn-primary"
                         data-bs-toggle="modal"
                         data-bs-target="#newSponsorshipModal">
-                    Neue Vereinbarung
+                    Neuer Vorgang
                 </button>
             {% endif %}
             {% if can_edit_sponsor or can_manage_all %}
@@ -75,7 +75,7 @@
                             <li>
                                 <form method="post"
                                       action="/sponsoring/sponsors/{{ sponsor.id }}/delete"
-                                      data-confirm="Sponsor {{ sponsor.name }} wirklich löschen? Vereinbarungen, Kontakte und Anhänge werden mitgelöscht.">
+                                      data-confirm="Sponsor {{ sponsor.name }} wirklich löschen? Vorgänge, Kontakte und Anhänge werden mitgelöscht.">
                                     <button type="submit" class="dropdown-item text-danger">
                                         <i class="bi bi-trash me-2" aria-hidden="true"></i>Sponsor löschen
                                     </button>
@@ -94,7 +94,7 @@
        "Pakete" und "Anhänge" wie Reiter dieses Sponsors. Zurück führt der Knopf
        "Zur Liste" im Kopf; die Sprungleiste erreicht die eigenen Abschnitte. #}
     {% set _section_links = [
-        {anchor: "sponsor-agreements-title", label: "Vereinbarungen", count: sponsor.sponsorships|length},
+        {anchor: "sponsor-agreements-title", label: "Vorgänge", count: sponsor.sponsorships|length},
         {anchor: "sponsor-contacts-title", label: "Kontakte", count: sponsor.contacts|length},
         {anchor: "sponsor-logo-title", label: "Logos", count: sponsor.logos|length},
         {anchor: "sponsor-attachments-title", label: "Anhänge", count: attachment_count},
@@ -137,6 +137,10 @@
            Als Text, nicht als Formular - bearbeitet wird im Dialog "Stammdaten bearbeiten". #}
         <section class="surface-card card border-0 sponsor-profile" aria-label="Steckbrief">
             <dl class="sponsor-facts">
+                <div>
+                    <dt>Zuständig</dt>
+                    <dd>{{ include("sponsoring/partials/responsibility.twig") }}</dd>
+                </div>
                 <div>
                     <dt>Kategorie</dt>
                     <dd>{{ sponsor.category.name|default("–") }}</dd>
@@ -207,13 +211,13 @@
         <section class="dashboard-section dashboard-section--context" aria-labelledby="sponsor-agreements-title">
             <div class="dashboard-section-head">
                 <h2 class="dashboard-section-title sponsor-section-anchor" id="sponsor-agreements-title">
-                    Vereinbarungen <span class="text-muted fw-normal">{{ sponsor.sponsorships|length }}</span>
+                    Vorgänge <span class="text-muted fw-normal">{{ sponsor.sponsorships|length }}</span>
                 </h2>
                 <p class="dashboard-section-lead mb-0">
                     {% if sees_totals %}
                         Zugesagt insgesamt: <span class="fw-semibold">{{ accepted_total|number_format(2, ",", ".") }} €</span>
                     {% else %}
-                        Beträge siehst du bei deinen eigenen Vereinbarungen; die übrigen sieht die Sponsoring-Verwaltung.
+                        Beträge siehst du bei deinen eigenen Vorgängen; die übrigen sieht die Sponsoring-Verwaltung.
                     {% endif %}
                 </p>
             </div>
@@ -339,12 +343,12 @@
                                 </p>
                             {% endif %}
 
-                            {# Kontakthistorie der Vereinbarung: verhandelt wird je Projekt, deshalb
+                            {# Kontakthistorie des Vorgangs: verhandelt wird je Projekt, deshalb
                                stehen die Kontakte hier und nicht nur in der Gesamtliste am Sponsor. #}
                             <div class="agreement-block">
                                 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
                                     <h4 class="group-label mb-0">
-                                        Kontakte zu dieser Vereinbarung <span class="fw-normal">· {{ sp.contacts|length }}</span>
+                                        Kontakte zu diesem Vorgang <span class="fw-normal">· {{ sp.contacts|length }}</span>
                                     </h4>
                                     {% if not sponsor.requests_blocked %}
                                         <button type="button"
@@ -385,7 +389,7 @@
                                     </button>
                                     <form method="post"
                                           action="/sponsoring/sponsorships/{{ sp.id }}/delete"
-                                          data-confirm="Vereinbarung {{ sp.project_id ? sp.project.name : "ohne Projekt" }} löschen? Belege und Gegenleistungen werden mitgelöscht.">
+                                          data-confirm="Vorgang {{ sp.project_id ? sp.project.name : "ohne Projekt" }} löschen? Belege und Gegenleistungen werden mitgelöscht.">
                                         <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
                                         <button type="submit" class="btn btn-sm btn-link text-danger">Löschen</button>
                                     </form>
@@ -393,7 +397,7 @@
                             {% else %}
                                 <p class="agreement-owner-note">
                                     <i class="bi bi-lock" aria-hidden="true"></i>
-                                    Von jemand anderem angelegt - ändern darf sie die Sponsoring-Verwaltung.
+                                    Von jemand anderem angelegt - ändern darf ihn die Sponsoring-Verwaltung.
                                 </p>
                             {% endif %}
                         </article>
@@ -401,8 +405,8 @@
                 </div>
             {% else %}
                 <p class="text-muted mb-0">
-                    Noch keine Vereinbarungen.
-                    {% if not sponsor.requests_blocked %}Mit „Neue Vereinbarung“ hältst du die erste Anfrage fest.{% endif %}
+                    Noch keine Vorgänge.
+                    {% if not sponsor.requests_blocked %}Mit „Neuer Vorgang“ hältst du die erste Anfrage fest.{% endif %}
                 </p>
             {% endif %}
         </section>
@@ -496,7 +500,7 @@
         <section class="dashboard-section dashboard-section--context" aria-labelledby="sponsor-logo-title">
             <div class="dashboard-section-head">
                 <h2 class="dashboard-section-title sponsor-section-anchor" id="sponsor-logo-title">Logos</h2>
-                <p class="dashboard-section-lead mb-0">Alle Formate und Varianten, die der Sponsor geschickt hat. Bleiben für spätere Vereinbarungen erhalten.</p>
+                <p class="dashboard-section-lead mb-0">Alle Formate und Varianten, die der Sponsor geschickt hat. Bleiben für spätere Vorgänge erhalten.</p>
             </div>
 
             {% set _sees_logos = can_manage_logo or sees_sponsor_details %}
@@ -564,11 +568,11 @@
         <section class="dashboard-section dashboard-section--context" aria-labelledby="sponsor-attachments-title">
             <div class="dashboard-section-head">
                 <h2 class="dashboard-section-title sponsor-section-anchor" id="sponsor-attachments-title">Anhänge zum Sponsor</h2>
-                <p class="dashboard-section-lead mb-0">Mediadaten oder Unterlagen, die zu keiner einzelnen Vereinbarung gehören.</p>
+                <p class="dashboard-section-lead mb-0">Mediadaten oder Unterlagen, die zu keinem einzelnen Vorgang gehören.</p>
             </div>
 
             {# Dateinamen und Links nur mit Einsicht - dieselbe Regel wie bei den
-               Belegen einer Vereinbarung und beim Abruf selbst. #}
+               Belegen eines Vorgangs und beim Abruf selbst. #}
             {% if _files|length > 0 and sees_sponsor_details %}
                 <ul class="list-unstyled mb-3 sponsor-files">
                     {% for att in _files %}
@@ -732,7 +736,7 @@
         </div>
     {% endif %}
 
-    {# Modal: Neue Vereinbarung #}
+    {# Modal: Neuer Vorgang #}
     <div class="modal fade"
          id="newSponsorshipModal"
          tabindex="-1"
@@ -747,7 +751,7 @@
                 <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
                 <div class="modal-content border-0 shadow">
                     <div class="modal-header">
-                        <h5 class="modal-title" id="newSponsorshipModalLabel">Neue Vereinbarung</h5>
+                        <h5 class="modal-title" id="newSponsorshipModalLabel">Neuer Vorgang</h5>
                         <button type="button"
                                 class="btn-close"
                                 data-bs-dismiss="modal"
@@ -889,7 +893,7 @@
         </div>
     </div>
 
-    {# Bearbeiten-Dialoge für jede Vereinbarung, die diese Person ändern darf #}
+    {# Bearbeiten-Dialoge für jeden Vorgang, den diese Person ändern darf #}
     {% set editable_sponsorships = sponsor.sponsorships|filter(sp => can_manage_all or (sp.created_by_user_id is not null and sp.created_by_user_id == current_user_id)) %}
     {% for sp in editable_sponsorships %}
         <div class="modal fade"
@@ -906,7 +910,7 @@
                     <input type="hidden" name="sponsor_id" value="{{ sponsor.id }}">
                     <div class="modal-content border-0 shadow">
                         <div class="modal-header">
-                            <h5 class="modal-title" id="editSponsorshipModalLabel{{ sp.id }}">Vereinbarung bearbeiten</h5>
+                            <h5 class="modal-title" id="editSponsorshipModalLabel{{ sp.id }}">Vorgang bearbeiten</h5>
                             <button type="button"
                                     class="btn-close"
                                     data-bs-dismiss="modal"
@@ -990,6 +994,13 @@
                                     <label for="sponsors-detail-assigned-user-id-v2-{{ loop.index }}" class="form-label">Zuständig</label>
                                     <select name="assigned_user_id" class="form-select" id="sponsors-detail-assigned-user-id-v2-{{ loop.index }}">
                                         <option value="">– Niemand –</option>
+                                        {# Die eingetragene Person bleibt wählbar, auch wenn sie nicht mehr aktiv ist:
+                                           Ohne Option schickte der Browser "Niemand" und löschte sie still. #}
+                                        {% if sp.assigned_user_id and not sp.assignedUser.is_active %}
+                                            <option value="{{ sp.assigned_user_id }}"
+                                                    selected>{{ sp.assignedUser|person_name }} (nicht mehr aktiv)
+                                            </option>
+                                        {% endif %}
                                         {% for user in users %}
                                             <option value="{{ user.id }}"
                                                     {{ sp.assigned_user_id == user.id ? "selected" : "" }}>{{ user|person_name }}
@@ -1115,9 +1126,9 @@
                                     </select>
                                 </div>
                                 <div class="col-12">
-                                    <label for="sponsors-detail-sponsorship-id-{{ loop.index }}" class="form-label">Vereinbarung</label>
+                                    <label for="sponsors-detail-sponsorship-id-{{ loop.index }}" class="form-label">Vorgang</label>
                                     <select name="sponsorship_id" class="form-select" id="sponsors-detail-sponsorship-id-{{ loop.index }}">
-                                        <option value="">– Keine –</option>
+                                        <option value="">– Keiner –</option>
                                         {% for sp in sponsor.sponsorships %}
                                             <option value="{{ sp.id }}"
                                                     {{ contact.sponsorship_id == sp.id ? "selected" : "" }}>
@@ -1196,9 +1207,9 @@
                                 </select>
                             </div>
                             <div class="col-12">
-                                <label for="sponsors-detail-sponsorship-id-v2" class="form-label">Vereinbarung</label>
+                                <label for="sponsors-detail-sponsorship-id-v2" class="form-label">Vorgang</label>
                                 <select name="sponsorship_id" class="form-select" data-contact-sponsorship-select id="sponsors-detail-sponsorship-id-v2">
-                                    <option value="">– Keine –</option>
+                                    <option value="">– Keiner –</option>
                                     {% for sp in sponsor.sponsorships %}
                                         <option value="{{ sp.id }}">
                                             {{ sp.project_id ? sp.project.name : "Ohne Projekt" }}

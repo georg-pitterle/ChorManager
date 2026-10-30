@@ -34,6 +34,9 @@ class HelpController
         'webp' => 'image/webp',
     ];
 
+    /** Ab so vielen Abschnitten lohnt sich die Liste "Auf dieser Seite". */
+    private const MIN_TOC_SECTIONS = 2;
+
     private Twig $view;
     private string $helpDir;
     private HelpCatalog $catalog;
@@ -112,9 +115,12 @@ class HelpController
         // würde ihn direkt darunter ein zweites Mal zeigen.
         $markdown = (string) preg_replace('/\A#\s+.+\R?/', '', (string) file_get_contents($path));
 
+        $document = $this->enrichDocument($parsedown->text($markdown));
+
         return $this->view->render($response, 'help/show.twig', [
             'title'        => HelpCatalog::titleFromFile($path, basename($path, '.md')),
-            'content_html' => $this->labelTableCells($parsedown->text($markdown)),
+            'content_html' => $document['html'],
+            'toc'          => $document['toc'],
             'active_nav'   => 'help',
         ]);
     }
@@ -155,18 +161,16 @@ class HelpController
     }
 
     /**
-     * Schreibt an jede Tabellenzelle ihre Spaltenüberschrift als `data-label` und
-     * fasst jede Tabelle in einen Rahmen, der notfalls seitwärts scrollt.
+     * Ergänzt, was Parsedown nicht liefert: Tabellen für schmale Bildschirme,
+     * Bilder in voller Größe und Sprungziele für "Auf dieser Seite". Dokumente
+     * ohne solche Elemente bleiben Byte für Byte, wie Parsedown sie liefert.
      *
-     * Auf schmalen Bildschirmen stapelt das Stylesheet jede Zeile zu einem Block,
-     * und die Überschrift steht dann als Beschriftung über dem Zellinhalt - ohne
-     * sie wüsste man im gestapelten Block nicht mehr, welcher Wert welcher ist.
-     * Dokumente ohne Tabelle bleiben Byte für Byte, wie Parsedown sie liefert.
+     * @return array{html: string, toc: list<array{id: string, label: string}>}
      */
-    private function labelTableCells(string $html): string
+    private function enrichDocument(string $html): array
     {
-        if (!str_contains($html, '<table')) {
-            return $html;
+        if (preg_match('/<(?:table|img|h2)\b/', $html) !== 1) {
+            return ['html' => $html, 'toc' => []];
         }
 
         $document = \Dom\HTMLDocument::createFromString(
@@ -174,6 +178,73 @@ class HelpController
             LIBXML_NOERROR
         );
 
+        $this->labelTableCells($document);
+        $this->linkImages($document);
+        $toc = $this->anchorSections($document);
+
+        return [
+            'html' => $document->body->innerHTML,
+            'toc' => count($toc) >= self::MIN_TOC_SECTIONS ? $toc : [],
+        ];
+    }
+
+    /**
+     * Macht jedes Bild zum Link auf sich selbst: In der Lesespalte ist ein
+     * Screenshot kleiner als aufgenommen, die Beschriftungen darin wären sonst
+     * nicht mehr gut zu lesen.
+     */
+    private function linkImages(\Dom\HTMLDocument $document): void
+    {
+        foreach ($document->querySelectorAll('img') as $image) {
+            if ($image->closest('a') !== null) {
+                continue;
+            }
+
+            $link = $document->createElement('a');
+            $link->setAttribute('href', (string) $image->getAttribute('src'));
+            $link->setAttribute('target', '_blank');
+            $link->setAttribute('rel', 'noopener');
+            $link->setAttribute('title', 'Bild in voller Größe öffnen');
+            $image->before($link);
+            $link->append($image);
+        }
+    }
+
+    /**
+     * Gibt jedem Abschnitt ein Sprungziel. Nur `h2`: Mit jedem Unterpunkt würde
+     * die Liste so lang wie der Text, den sie abkürzen soll.
+     *
+     * @return list<array{id: string, label: string}>
+     */
+    private function anchorSections(\Dom\HTMLDocument $document): array
+    {
+        $toc = [];
+        $used = [];
+
+        foreach ($document->querySelectorAll('h2') as $heading) {
+            $label = trim($heading->textContent);
+            $slug = trim((string) preg_replace('/[^\p{L}\p{N}]+/u', '-', mb_strtolower($label)), '-');
+            $base = $slug !== '' ? $slug : 'section';
+            $used[$base] = ($used[$base] ?? 0) + 1;
+            $id = $used[$base] === 1 ? $base : $base . '-' . $used[$base];
+
+            $heading->setAttribute('id', $id);
+            $toc[] = ['id' => $id, 'label' => $label];
+        }
+
+        return $toc;
+    }
+
+    /**
+     * Schreibt an jede Tabellenzelle ihre Spaltenüberschrift als `data-label` und
+     * fasst jede Tabelle in einen Rahmen, der notfalls seitwärts scrollt.
+     *
+     * Auf schmalen Bildschirmen stapelt das Stylesheet jede Zeile zu einem Block,
+     * und die Überschrift steht dann als Beschriftung über dem Zellinhalt - ohne
+     * sie wüsste man im gestapelten Block nicht mehr, welcher Wert welcher ist.
+     */
+    private function labelTableCells(\Dom\HTMLDocument $document): void
+    {
         foreach ($document->querySelectorAll('table') as $table) {
             $frame = $document->createElement('div');
             $frame->setAttribute('class', 'markdown-table');
@@ -195,8 +266,6 @@ class HelpController
                 }
             }
         }
-
-        return $document->body->innerHTML;
     }
 
     private function resolveDocPath(string $slug): ?string

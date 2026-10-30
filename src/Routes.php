@@ -613,11 +613,7 @@ return function (App $app) {
                             [SponsorshipController::class, 'deleteAttachment']
                         );
 
-                        // Gegenleistung abhaken - wer darf, entscheidet die Policy.
-                        $sponsoringGroup->post(
-                            '/sponsorship-benefits/{id:[0-9]+}/toggle',
-                            [SponsorshipController::class, 'toggleBenefit']
-                        );
+                        // Leistung des Sponsors abhaken - wer darf, entscheidet die Policy.
                         $sponsoringGroup->post(
                             '/sponsorship-deliverables/{id:[0-9]+}/toggle',
                             [SponsorshipController::class, 'toggleDeliverable']
@@ -661,6 +657,18 @@ return function (App $app) {
                         $sponsoringAdminGroup->post(
                             '/projects/{id:[0-9]+}/logo-deadlines',
                             [SponsoringDashboardController::class, 'updateLogoDeadlines']
+                        );
+
+                        // Gegenleistung abhaken - nur das Sponsoring-Team
+                        $sponsoringAdminGroup->post(
+                            '/sponsorship-benefits/{id:[0-9]+}/toggle',
+                            [SponsorshipController::class, 'toggleBenefit']
+                        );
+
+                        // Zuständigkeit direkt aus der Liste "Ohne Zuständigkeit"
+                        $sponsoringAdminGroup->post(
+                            '/sponsorships/{id:[0-9]+}/assignee',
+                            [SponsorshipController::class, 'assign']
                         );
 
                         // Paketverwaltung
