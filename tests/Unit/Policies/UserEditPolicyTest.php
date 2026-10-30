@@ -264,13 +264,19 @@ final class UserEditPolicyTest extends TestCase
     }
 
     /**
-     * Auch das Bearbeiten-Recht schreibt die Projektzuordnung. Es lag dafür bis
+     * Das Bearbeiten-Recht schreibt die Projektzuordnung NICHT. Es stand dafür bis
      * Lauf 59 als rohes Sitzungsflag neben dieser Stufe in
-     * UserController::update(), und das Formular schaltete die Kästchen nach einer
-     * dritten Regel frei - mit dem Ergebnis, dass eine Stimmvertretung sie sah,
-     * anklickte und das Speichern sie stillschweigend verwarf.
+     * UserController::update() (`$canEditGlobal || $canEditProjects`), während das
+     * Formular die Kästchen nach einer dritten Regel freischaltete.
+     *
+     * Aufgelöst ist das zugunsten der Policy: Die Projektzuordnung gehört allein
+     * can_manage_project_members, so wie der Klassenkommentar diese Stufe von
+     * Anfang an beschreibt. Für die ausgelieferten Rollen ändert das nichts -
+     * Admin und Vorstand halten beide Rechte ohnehin. Wer Mitglieder bearbeitet,
+     * aber nicht die Projektbesetzung verwaltet, sieht das Feld jetzt nicht mehr
+     * und schreibt es auch nicht.
      */
-    public function testUserEditorMayEditProjectsOfActiveMember(): void
+    public function testUserEditorAloneMayNotEditProjects(): void
     {
         $session = [
             'can_edit_users' => true,
@@ -278,9 +284,9 @@ final class UserEditPolicyTest extends TestCase
             'voice_group_ids' => [],
         ];
 
-        $this->assertTrue($this->policy($session)->canEditProjects($this->makeUser(7, [1])));
-        // Die Basisprüfungen gelten auch auf diesem Weg.
-        $this->assertFalse($this->policy($session)->canEditProjects($this->makeUser(7, [1], 0)));
+        $this->assertFalse($this->policy($session)->canEditProjects($this->makeUser(7, [1])));
+        // Die übrigen Mitgliedsdaten bleiben ihm selbstverständlich offen.
+        $this->assertTrue($this->policy($session)->canEditProfile($this->makeUser(7, [1])));
     }
 
     /**

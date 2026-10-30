@@ -302,10 +302,10 @@ final class UserListLayoutFeatureTest extends TestCase
     {
         $twig = $this->template('users/manage.twig');
 
-        $this->assertStringContainsString(
-            '{% if session.can_edit_users or session.can_manage_project_members %}',
-            $twig
-        );
+        // Die Freigabe kommt aus UserEditPolicy::canAssignProjectsOnCreate(),
+        // nicht mehr aus zwei Sitzungsschlüsseln in der Vorlage.
+        $this->assertStringContainsString('{% if can_assign_projects_on_create %}', $twig);
+        $this->assertStringNotContainsString('session.can_edit_users or session.can_manage_project_members', $twig);
         $this->assertStringContainsString('id="proj_add_{{ p.id }}"', $twig);
     }
 

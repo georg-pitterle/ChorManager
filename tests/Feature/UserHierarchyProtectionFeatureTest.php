@@ -176,7 +176,9 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         $userPersistence->expects($this->once())->method('syncVoiceGroups')->with($target, []);
 
         $projectPersistence = $this->createMock(ProjectPersistence::class);
-        $projectPersistence->expects($this->once())->method('setUserProjects')->with($this->targetUserId, []);
+        // Die Projektzuordnung hängt allein an can_manage_project_members, und das
+        // hält diese Sitzung nicht - siehe UserEditPolicy::canEditProjects().
+        $projectPersistence->expects($this->never())->method('setUserProjects');
 
         $controller = $this->makeController($userQuery, $userPersistence, $projectPersistence);
 
@@ -222,7 +224,9 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         $userPersistence->expects($this->once())->method('syncVoiceGroups')->with($target, []);
 
         $projectPersistence = $this->createMock(ProjectPersistence::class);
-        $projectPersistence->expects($this->once())->method('setUserProjects')->with($this->targetUserId, []);
+        // Die Projektzuordnung hängt allein an can_manage_project_members, und das
+        // hält diese Sitzung nicht - siehe UserEditPolicy::canEditProjects().
+        $projectPersistence->expects($this->never())->method('setUserProjects');
 
         $controller = $this->makeController($userQuery, $userPersistence, $projectPersistence);
 

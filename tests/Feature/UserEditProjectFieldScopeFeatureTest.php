@@ -191,12 +191,16 @@ final class UserEditProjectFieldScopeFeatureTest extends TestCase
     }
 
     /**
-     * Wer Mitglieder bearbeiten darf, pflegt die Projektzuordnung weiterhin -
-     * das Recht stand dafür bisher als rohes Sitzungsflag in `update()` neben der
-     * Policy. Jetzt beantwortet die Policy beides, und Formular und Speichern
-     * lesen dieselbe Antwort.
+     * Das Bearbeiten-Recht allein trägt die Projektzuordnung nicht. Es stand dafür
+     * bis Lauf 59 als rohes Sitzungsflag in `update()` neben der Policy; aufgelöst
+     * ist das zugunsten der Policy, also zugunsten von can_manage_project_members.
+     *
+     * Für die ausgelieferten Rollen ändert das nichts - Admin und Vorstand halten
+     * beide Rechte. Eine eigens gebaute Rolle mit "Mitglieder editieren erlauben",
+     * aber ohne "Projektmitglieder verwalten", bekommt das Feld jetzt nicht mehr
+     * zu sehen und schreibt es auch nicht.
      */
-    public function testUserEditorIsStillOfferedTheProjectAssignment(): void
+    public function testUserEditorAloneIsNotOfferedTheProjectAssignment(): void
     {
         $_SESSION = [
             'user_id' => 999103,
@@ -208,11 +212,38 @@ final class UserEditProjectFieldScopeFeatureTest extends TestCase
             'voice_group_ids' => [],
         ];
 
-        self::assertTrue(
+        self::assertFalse(
             (new UserEditPolicy($_SESSION))->canEditProjects($this->target),
-            'can_edit_users trägt die Projektzuordnung - sonst verwirft update() sie still.'
+            'Die Projektzuordnung gehört can_manage_project_members.'
         );
-        self::assertStringContainsString('name="projects[]"', $this->renderEditForm());
+
+        $html = $this->renderEditForm();
+
+        // Das Formular steht - nur eben ohne die Projekt-Kästchen.
+        self::assertStringContainsString('name="first_name"', $html);
+        self::assertStringNotContainsString('name="projects[]"', $html);
+    }
+
+    /**
+     * Das Anlegen setzt ein Mitglied gleich ins laufende Projekt und stand dafür
+     * auf einer vierten, selbst zusammengesetzten Fassung derselben Regel
+     * (`can_edit_users or can_manage_project_members`). Es folgt jetzt derselben
+     * Policy wie das Bearbeiten.
+     */
+    public function testOnlyProjectMemberManagersMayAssignProjectsWhenCreating(): void
+    {
+        $editorOnly = [
+            'can_edit_users' => true,
+            'can_manage_project_members' => false,
+        ];
+        $projectManager = [
+            'can_edit_users' => false,
+            'can_manage_project_members' => true,
+        ];
+
+        self::assertFalse((new UserEditPolicy($editorOnly))->canAssignProjectsOnCreate());
+        self::assertTrue((new UserEditPolicy($projectManager))->canAssignProjectsOnCreate());
+        self::assertFalse((new UserEditPolicy([]))->canAssignProjectsOnCreate());
     }
 
     /**

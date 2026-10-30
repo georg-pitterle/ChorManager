@@ -447,7 +447,7 @@
 
                     {# Gleich ins laufende Projekt setzen, statt anlegen, suchen und #}
                     {# bearbeiten. Dieselbe Rechteregel wie im Controller. #}
-                    {% if session.can_edit_users or session.can_manage_project_members %}
+                    {% if can_assign_projects_on_create %}
                         {% set _today_add = "now"|date("Y-m-d") %}
                         {% set _running_projects = projects|filter(p => not p.end_date or p.end_date|date("Y-m-d") >= _today_add) %}
                         {% if _running_projects is not empty %}

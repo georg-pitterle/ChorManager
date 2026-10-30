@@ -172,6 +172,10 @@ class UserController
             'projects' => $projects,
             'can_edit_users' => $canEditUsers,
             'can_manage_project_members' => $canManageProjectMembers,
+            // Die Freigabe des Projektfelds im Anlegen-Dialog kommt aus derselben
+            // Policy wie die Schreibprüfung in create(). Die Vorlage setzte sie
+            // zuvor selbst aus zwei Sitzungsschlüsseln zusammen.
+            'can_assign_projects_on_create' => $this->userEditPolicy->canAssignProjectsOnCreate(),
             'show_archived' => $showArchived,
             'success' => $success,
             'error' => $error,
@@ -311,8 +315,11 @@ class UserController
             );
 
             // Gleich ins laufende Projekt setzen statt anlegen, suchen, bearbeiten.
-            // Dieselbe Rechteregel wie in update().
-            if (($_SESSION['can_edit_users'] ?? false) || ($_SESSION['can_manage_project_members'] ?? false)) {
+            // Dieselbe Rechteregel wie in update(), und jetzt auch wirklich
+            // dieselbe: Hier stand sie als vierte Fassung aus der Sitzung
+            // zusammengesetzt, und zwar eine weitere als die drei, die der
+            // Review-Lauf 59 beim Bearbeiten zusammengezogen hat.
+            if ($this->userEditPolicy->canAssignProjectsOnCreate()) {
                 $this->projectPersistence->setUserProjects((int) $user->id, (array) ($data['projects'] ?? []));
             }
 
@@ -554,11 +561,10 @@ class UserController
             // can_manage_project_members reicht projektübergreifend, deshalb wird die
             // Projektauswahl hier nicht mehr auf die eigenen Projekte gefiltert.
             //
-            // Beide schreibenden Rechte stehen jetzt in canEditProjects(); das rohe
-            // `can_edit_users` aus der Sitzung lag hier zuvor als zweite Bedingung
-            // daneben, und editForm() schaltete die Kästchen nach einer dritten Regel
-            // frei. Nur noch eine Quelle - sonst zeigt das Formular ein Feld, das das
-            // Speichern still verwirft.
+            // Die Policy entscheidet allein; das rohe `can_edit_users` aus der
+            // Sitzung lag hier zuvor als zweite Bedingung daneben, und editForm()
+            // schaltete die Kästchen nach einer dritten Regel frei. Eine Quelle -
+            // sonst zeigt das Formular ein Feld, das das Speichern still verwirft.
             if ($canEditProjects) {
                 $this->projectPersistence->setUserProjects($userId, $projectIds);
             }

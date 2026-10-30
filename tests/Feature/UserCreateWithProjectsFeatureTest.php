@@ -26,7 +26,9 @@ use Tests\Unit\Bootstrap;
  * Wer nach der ersten Probe einer Saison eine neue Sängerin einträgt, will sie
  * gleich ins laufende Projekt setzen. Bisher hieß das: anlegen, in der Liste
  * suchen, Bearbeiten öffnen, Projekt ankreuzen. Beim Anlegen gilt dieselbe
- * Rechteregel wie beim Bearbeiten (UserController::update()).
+ * Rechteregel wie beim Bearbeiten - seit Lauf 59 über
+ * UserEditPolicy::canAssignProjectsOnCreate() statt über eine eigene Fassung
+ * aus der Sitzung, und das Recht dafür ist allein can_manage_project_members.
  */
 final class UserCreateWithProjectsFeatureTest extends TestCase
 {
@@ -70,26 +72,39 @@ final class UserCreateWithProjectsFeatureTest extends TestCase
         parent::tearDown();
     }
 
-    public function testMemberEditorsAssignProjectsWhileCreating(): void
+    /**
+     * "Mitglieder editieren erlauben" allein reicht nicht. Die Regel stand hier
+     * zuvor anders, und zwar als vierte selbst zusammengesetzte Fassung
+     * (`can_edit_users or can_manage_project_members`); aufgelöst ist sie
+     * zugunsten der Policy, also zugunsten der Projektbesetzung. Für die
+     * ausgelieferten Rollen kostet das nichts - Admin und Vorstand halten beide
+     * Rechte ohnehin.
+     */
+    public function testMemberEditorsAloneDoNotAssignProjectsWhileCreating(): void
     {
         $user = $this->createMember();
 
-        $this->assertSame([(int) $this->project->id], $user->projects()->pluck('projects.id')->map('intval')->all());
+        $this->assertSame(
+            0,
+            $user->projects()->count(),
+            'Ohne "Projektmitglieder verwalten" bleibt die Zuordnung leer.'
+        );
     }
 
-    public function testProjectMemberManagersMayAssignToo(): void
+    public function testProjectMemberManagersAssignWhileCreating(): void
     {
         $_SESSION['can_edit_users'] = false;
         $_SESSION['can_manage_project_members'] = true;
 
         $user = $this->createMember();
 
-        $this->assertSame(1, $user->projects()->count());
+        $this->assertSame([(int) $this->project->id], $user->projects()->pluck('projects.id')->map('intval')->all());
     }
 
-    public function testWithoutEitherRightTheProjectsAreIgnored(): void
+    public function testWithoutTheRightTheProjectsAreIgnored(): void
     {
         $_SESSION['can_edit_users'] = false;
+        $_SESSION['can_manage_project_members'] = false;
 
         $user = $this->createMember();
 

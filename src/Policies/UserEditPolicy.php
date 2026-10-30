@@ -94,18 +94,45 @@ class UserEditPolicy
      * abgesetzter POST auf /users/{id} schrieb die Projektzuordnung aber
      * weiterhin.
      *
-     * Beide Rechte stehen hier, weil beide schreiben dürfen: can_edit_users
-     * lag dafür zuletzt noch als rohes Sitzungsflag neben dieser Stufe in
+     * Allein can_manage_project_members, und das ist eine Entscheidung: Bis Lauf
+     * 59 stand can_edit_users als rohes Sitzungsflag neben dieser Stufe in
      * UserController::update() (`$canEditGlobal || $canEditProjects`), während
      * das Formular die Kästchen nach einer dritten Regel freischaltete. Drei
      * Quellen für eine Frage, und sie liefen auseinander: Eine Stimmvertretung
      * sah die Kästchen, klickte sie an und bekam "Mitglied erfolgreich
      * aktualisiert." zu lesen - geschrieben wurde die Zuordnung nicht.
+     *
+     * Aufgelöst ist das zugunsten dieser Stufe, nicht zugunsten des Flags: Jedes
+     * Recht bedeutet dann genau eine Sache, und es ist das, was der
+     * Klassenkommentar oben von Anfang an beschreibt. Für die ausgelieferten
+     * Rollen kostet es nichts - Admin und Vorstand halten beide Rechte ohnehin.
+     * Eine eigens gebaute Rolle mit "Mitglieder editieren erlauben", aber ohne
+     * "Projektmitglieder verwalten", verliert das Feld; wer es dort braucht,
+     * hängt der Rolle das zweite Recht an, statt das erste zu verbreitern.
      */
     public function canEditProjects(User $target): bool
     {
         return $this->passesBaseGuards($target)
-            && ($this->canManageProjectMembers || $this->canEditUsers);
+            && $this->canManageProjectMembers;
+    }
+
+    /**
+     * Dieselbe Frage für ein Mitglied, das es noch nicht gibt: Darf das
+     * Anlegen-Formular die Projektzuordnung mitschicken?
+     *
+     * Ohne Ziel und deshalb ohne die Basisprüfungen - ein frisch angelegtes
+     * Mitglied ist aktiv und hält keine Rolle über dem eigenen Level, weil
+     * capRoleIdsToActorLevel() in UserController::create() die Auswahl vorher
+     * deckelt. Bleibt genau das Recht.
+     *
+     * Eigene Methode, weil create() die Regel bis Lauf 59 als vierte Fassung
+     * selbst aus der Sitzung zusammensetzte (`can_edit_users or
+     * can_manage_project_members`) - mit dem Kommentar "Dieselbe Rechteregel wie
+     * in update()" darüber, was sie schon damals nicht war.
+     */
+    public function canAssignProjectsOnCreate(): bool
+    {
+        return $this->canManageProjectMembers;
     }
 
     /**
