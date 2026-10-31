@@ -458,7 +458,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(Twig::class),
                 $c->get(SponsoringPolicy::class),
                 $c->get(EntityAttachmentService::class),
-                $c->get(LoggerInterface::class)
+                $c->get(LoggerInterface::class),
+                $c->get(NameFormatterService::class)
             );
         },
         SendRegistrationRemindersCommand::class => \DI\autowire(),

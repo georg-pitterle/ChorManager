@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Policies\SponsoringPolicy;
 use App\Services\EntityAttachmentService;
 use App\Services\EntityCleanupService;
+use App\Services\NameFormatterService;
 use App\Services\Notifications\InAppNotificationStore;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -28,6 +29,7 @@ use App\Util\SponsorDuplicateFinder;
 use App\Util\SponsorLogoUpload;
 use App\Util\SponsorResponsibility;
 use App\Services\ModalFormService;
+use Illuminate\Database\Eloquent\Collection;
 
 class SponsorController
 {
@@ -53,17 +55,30 @@ class SponsorController
     private EntityAttachmentService $attachments;
 
     private LoggerInterface $logger;
+    private NameFormatterService $nameFormatter;
 
+    /**
+     * Der Namensformatierer steht hinten und darf fehlen - wie der Logger.
+     *
+     * Die Vorgabe liest die Einstellung nicht: Sie trägt die
+     * Standardreihenfolge, nicht die eingestellte. Im Betrieb reicht
+     * Dependencies.php die konfigurierte Instanz herein; die Vorgabe greift nur
+     * dort, wo ein Test den Controller selbst baut und die Reihenfolge nicht
+     * prüft. Ein Pflichtargument hätte 20 Testaufrufe mitgezogen, ohne an
+     * einem davon etwas zu zeigen.
+     */
     public function __construct(
         Twig $view,
         SponsoringPolicy $policy,
         EntityAttachmentService $attachments,
-        ?LoggerInterface $logger = null
+        ?LoggerInterface $logger = null,
+        ?NameFormatterService $nameFormatter = null
     ) {
         $this->view = $view;
         $this->policy = $policy;
         $this->attachments = $attachments;
         $this->logger = $logger ?? new NullLogger();
+        $this->nameFormatter = $nameFormatter ?? new NameFormatterService();
     }
 
     public function index(Request $request, Response $response): Response
@@ -118,6 +133,29 @@ class SponsorController
     private function categories(): \Illuminate\Support\Collection
     {
         return SponsorCategory::orderBy('name')->get();
+    }
+
+    /**
+     * Wen die Auswahl "Zuständig" im Bearbeiten-Dialog anbietet: die aktiven
+     * Mitglieder, in der eingestellten Namensreihenfolge.
+     *
+     * Zwei Regeln der Abfrageschicht gelten auch hier, wo die Abfrage im
+     * Controller steht (siehe UserQuery::orderedListQuery()):
+     *
+     * - Nur die Listenspalten. Die Modelle gehen unverändert an die Vorlage, der
+     *   Passwort-Hash bleibt damit in der Datenbank.
+     * - Die Reihenfolge kommt aus NameFormatterService. Vorher sortierte die
+     *   Abfrage hart nach dem Nachnamen, während die Vorlage daneben
+     *   `person_name` ausgibt - bei "Vorname Nachname" las sich die Auswahl
+     *   unsortiert.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, User>
+     */
+    private function selectableUsers(): Collection
+    {
+        $query = User::select(User::LIST_COLUMNS)->where('is_active', 1);
+
+        return $this->nameFormatter->applyNameOrder($query)->get();
     }
 
     /**
@@ -271,7 +309,7 @@ class SponsorController
             $this->logger
         );
 
-        $users    = User::where('is_active', 1)->orderBy('last_name')->get();
+        $users    = $this->selectableUsers();
         $projects = $this->policy->selectableProjects();
         $packages = SponsorPackage::with(['benefits', 'deliverables'])->orderBy('min_amount')->get();
 

@@ -25,6 +25,10 @@ final class NameSortOrderFeatureTest extends TestCase
             ['src/Controllers/NewsletterController.php'],
             ['src/Controllers/RegistrationController.php'],
             ['src/Controllers/TaskController.php'],
+            // Die Personenauswahl der Sponsoring-Vorgänge: der Bearbeiten-Dialog
+            // am Sponsor und das Zuweisen aus "Ohne Zuständigkeit".
+            ['src/Controllers/SponsorController.php'],
+            ['src/Controllers/SponsoringDashboardController.php'],
         ];
     }
 
@@ -47,6 +51,48 @@ final class NameSortOrderFeatureTest extends TestCase
         $this->assertTrue(
             $usesFormatter,
             $relativePath . ' muss die Namensreihenfolge über NameFormatterService beziehen.'
+        );
+    }
+
+    /**
+     * Dasselbe Verbot wie oben, nur ohne Liste: geprüft wird ganz src/.
+     *
+     * Die Liste in sortingSources() kann nur Dateien prüfen, die jemand
+     * eingetragen hat - und genau daran lief die Regel vorbei. Die
+     * Personenauswahl der Sponsoring-Vorgänge sortierte in zwei Dateien hart
+     * nach `last_name`, während der Filter `person_name` daneben die
+     * eingestellte Reihenfolge ausgab: Die Auswahl las sich damit unsortiert,
+     * sobald "Vorname Nachname" eingestellt war. Beide Dateien standen nicht in
+     * der Liste, und der Wächter schwieg.
+     *
+     * Dieser Teil braucht keine Liste: Wer die Reihenfolge irgendwo in src/ hart
+     * verdrahtet, läuft hier auf, auch in einer Datei, die es heute noch nicht
+     * gibt.
+     */
+    public function testNoSourceFileInSrcHardcodesNameOrdering(): void
+    {
+        $forbidden = [
+            "orderBy('last_name')",
+            "orderBy('first_name')",
+            "sortBy(['last_name', 'first_name'])",
+        ];
+        $offenders = [];
+
+        foreach (self::phpFilesIn(self::projectRoot() . '/src') as $path) {
+            $source = (string) file_get_contents($path);
+            foreach ($forbidden as $needle) {
+                if (!str_contains($source, $needle)) {
+                    continue;
+                }
+                $offenders[] = substr($path, strlen(self::projectRoot()) + 1) . ': ' . $needle;
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $offenders,
+            'Die Namensreihenfolge gehört in NameFormatterService::applyNameOrder(), '
+                . 'nicht in ein hart verdrahtetes orderBy(): ' . implode(', ', $offenders)
         );
     }
 

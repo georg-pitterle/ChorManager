@@ -386,6 +386,123 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
     }
 
     /**
+     * Beide Personenauswahlen stehen in der eingestellten Namensreihenfolge.
+     *
+     * Sie sortierten hart nach `last_name`, während der Filter `person_name`
+     * daneben "Vorname Nachname" ausgab - die Auswahl las sich dadurch
+     * unsortiert, und wer eine Person suchte, musste die ganze Liste durchgehen.
+     *
+     * Die beiden Namen kreuzen sich absichtlich: Nach Vornamen kommt Anton
+     * Zehner zuerst, nach Nachnamen Zita Albrecht. Ohne diese Kreuzung wäre der
+     * Test auch mit der alten Sortierung grün.
+     *
+     * @return array{0: User, 1: User}
+     */
+    private function crossingPair(): array
+    {
+        $role = Role::create([
+            'name' => 'Sponsoring Reihenfolge ' . bin2hex(random_bytes(4)),
+            'hierarchy_level' => 10,
+            'can_create_own_sponsorships' => 1,
+        ]);
+
+        $zehner = $this->person('Anton', 'Zehner');
+        $albrecht = $this->person('Zita', 'Albrecht');
+        $zehner->roles()->attach($role->id);
+        $albrecht->roles()->attach($role->id);
+
+        return [$zehner, $albrecht];
+    }
+
+    public function testTheAssignSelectOnTheDashboardFollowsTheConfiguredNameOrder(): void
+    {
+        $this->crossingPair();
+        $this->case(Sponsor::create(['name' => 'Offene Sache']), SponsorshipStatus::ACCEPTED, null);
+
+        $html = $this->renderDashboard();
+
+        $this->assertStringContainsString('Anton Zehner', $html);
+        $this->assertLessThan(
+            strpos($html, 'Zita Albrecht'),
+            strpos($html, 'Anton Zehner'),
+            'Die Auswahl unter "Ohne Zuständigkeit" muss der eingestellten '
+                . 'Namensreihenfolge folgen, nicht dem Nachnamen.'
+        );
+    }
+
+    public function testTheAssigneeSelectOnTheSponsorPageFollowsTheConfiguredNameOrder(): void
+    {
+        $this->crossingPair();
+        $sponsor = Sponsor::create(['name' => 'Reihenfolgefirma']);
+        $this->case($sponsor, SponsorshipStatus::ACCEPTED, $this->bernd);
+
+        $html = $this->renderSponsorPage($sponsor);
+
+        $this->assertStringContainsString('Anton Zehner', $html);
+        $this->assertLessThan(
+            strpos($html, 'Zita Albrecht'),
+            strpos($html, 'Anton Zehner'),
+            'Die Auswahl "Zuständig" im Bearbeiten-Dialog muss der eingestellten '
+                . 'Namensreihenfolge folgen, nicht dem Nachnamen.'
+        );
+    }
+
+    /**
+     * Beide Personenauswahlen laden nur die Listenspalten.
+     *
+     * Sie reichen ihre User-Modelle unverändert an die Vorlage weiter und
+     * fallen damit unter dieselbe Regel wie die Abfragen in src/Queries
+     * (UserColumnExposureFeatureTest): Der Passwort-Hash hat in einer Abfrage
+     * nichts zu suchen, deren Ergebnis in der View landet. Beide holten zuvor
+     * die ganze Zeile.
+     */
+    public function testBothPersonSelectsLoadOnlyTheListColumns(): void
+    {
+        $this->crossingPair();
+
+        $sponsor = Sponsor::create(['name' => 'Spaltenfirma']);
+        $this->case($sponsor, SponsorshipStatus::ACCEPTED, null);
+
+        $selects = [
+            'SponsorController::selectableUsers' => (new \ReflectionMethod(
+                SponsorController::class,
+                'selectableUsers'
+            ))->invoke(new SponsorController(
+                $this->createStub(Twig::class),
+                new SponsoringPolicy($_SESSION),
+                $this->attachmentService()
+            )),
+            'SponsoringDashboardController::assignableUsers' => (new \ReflectionMethod(
+                SponsoringDashboardController::class,
+                'assignableUsers'
+            ))->invoke(new SponsoringDashboardController(
+                $this->createStub(Twig::class),
+                new NameFormatterService(),
+                new SponsoringPolicy($_SESSION)
+            )),
+        ];
+
+        foreach ($selects as $label => $users) {
+            $this->assertGreaterThan(0, $users->count(), $label . ' bietet niemanden an.');
+
+            foreach ($users as $user) {
+                $this->assertArrayNotHasKey(
+                    'password',
+                    $user->getAttributes(),
+                    $label . ' lädt den Passwort-Hash in die View-Schicht.'
+                );
+                foreach (['id', 'first_name', 'last_name'] as $column) {
+                    $this->assertArrayHasKey(
+                        $column,
+                        $user->getAttributes(),
+                        $label . ' lädt die von der Auswahl benötigte Spalte ' . $column . ' nicht.'
+                    );
+                }
+            }
+        }
+    }
+
+    /**
      * @return list<array<string, mixed>>
      */
     private function unassigned(): array

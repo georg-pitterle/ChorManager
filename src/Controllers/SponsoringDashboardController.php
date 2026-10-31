@@ -17,6 +17,7 @@ use App\Services\NameFormatterService;
 use App\Util\LogoDeadline;
 use App\Util\SponsorshipStatus;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Collection;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -125,7 +126,7 @@ class SponsoringDashboardController
             'unassigned'        => $unassigned,
             // Die Auswahl steht in jeder Zeile, die Liste der Personen wird nur
             // gebraucht, wenn es überhaupt eine Zeile gibt.
-            'assignable_users'  => $unassigned !== [] ? User::withSponsoringAccess()->orderBy('last_name')->get() : [],
+            'assignable_users'  => $unassigned !== [] ? $this->assignableUsers() : [],
             'missing_logos'     => $this->missingLogos(),
             'logo_deadline_projects' => $canManageAll ? $this->logoDeadlineProjects() : [],
             'open_benefits'     => $this->openBenefits(),
@@ -137,6 +138,29 @@ class SponsoringDashboardController
             'recent_contacts'   => $recentContacts,
             'active_nav'        => 'sponsoring',
         ]);
+    }
+
+    /**
+     * Wen die Auswahl in der Zeile anbietet: die Personen mit Sponsoring-Recht,
+     * in der eingestellten Namensreihenfolge.
+     *
+     * Zwei Regeln der Abfrageschicht gelten auch hier, wo die Abfrage im
+     * Controller steht (siehe UserQuery::orderedListQuery()):
+     *
+     * - Nur die Listenspalten. Das Ergebnis geht unverändert an die View, der
+     *   Passwort-Hash bleibt damit in der Datenbank.
+     * - Die Reihenfolge kommt aus NameFormatterService. Vorher sortierte die
+     *   Abfrage hart nach dem Nachnamen, während die Vorlage daneben
+     *   `person_name` ausgibt - bei "Vorname Nachname" las sich die Auswahl
+     *   unsortiert.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection<int, User>
+     */
+    private function assignableUsers(): Collection
+    {
+        $query = User::withSponsoringAccess()->select(User::LIST_COLUMNS);
+
+        return $this->nameFormatter->applyNameOrder($query)->get();
     }
 
     /**
