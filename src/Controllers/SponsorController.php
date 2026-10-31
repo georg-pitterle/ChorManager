@@ -285,7 +285,7 @@ class SponsorController
             $this->logger
         );
 
-        $users    = $this->sponsoringQuery->getSelectableUsers();
+        $users    = $this->sponsoringQuery->getAssignableUsers();
         $projects = $this->policy->selectableProjects();
         $packages = SponsorPackage::with(['benefits', 'deliverables'])->orderBy('min_amount')->get();
 

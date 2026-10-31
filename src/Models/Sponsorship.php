@@ -101,6 +101,24 @@ class Sponsorship extends Model
     }
 
     /**
+     * Kann sich die eingetragene Person um diesen Vorgang kümmern?
+     *
+     * Die Einzelfall-Fassung von scopeWithoutCapableAssignee(): dort als
+     * Bedingung einer Abfrage, hier an einer geladenen Zeile. Beide fragen
+     * dasselbe - eingetragen, aktiv, und mit einem der beiden Sponsoring-Rechte.
+     *
+     * Die Vorlage braucht sie, weil `assignedUser` null sein kann und Twig den
+     * Methodenaufruf darauf mit einem Laufzeitfehler beendet, nicht mit `false`.
+     *
+     * Die Rollen sollten vorab geladen sein (`assignedUser.roles`), sonst holt
+     * Eloquent sie je Zeile nach - siehe User::hasSponsoringAccess().
+     */
+    public function hasCapableAssignee(): bool
+    {
+        return $this->assignedUser !== null && $this->assignedUser->hasSponsoringAccess();
+    }
+
+    /**
      * Laufende Vorgänge, um die sich niemand kümmern *kann*: keine Person
      * eingetragen, oder die eingetragene ist archiviert oder hält kein
      * Sponsoring-Recht mehr. Sie darf eingetragen bleiben

@@ -414,6 +414,69 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
         );
     }
 
+    public function testTheEditDialogOffersOnlyPeopleWithSponsoringRight(): void
+    {
+        // Gleiche Strenge wie beim Zuweisen aus "Ohne Zuständigkeit": Wer kein
+        // Sponsoring-Recht hält, bekäme auf /sponsoring eine 403 - der Vorgang
+        // sähe versorgt aus, ohne dass sich jemand kümmern kann.
+        $outsider = $this->person('Ohne', 'Recht');
+        $sponsor = Sponsor::create(['name' => 'Auswahlfirma']);
+        $this->case($sponsor, SponsorshipStatus::REQUESTED, null);
+
+        $html = $this->renderSponsorPage($sponsor);
+
+        $this->assertStringContainsString('Anna Aigner', $html);
+        $this->assertStringNotContainsString('Ohne Recht', $html);
+        $this->assertStringNotContainsString('value="' . $outsider->id . '"', $html);
+    }
+
+    public function testTheEditDialogRejectsAPersonWithoutSponsoringRight(): void
+    {
+        // Die Auswahl allein ist keine Absicherung - eine veraltete oder
+        // manipulierte Eingabe kommt trotzdem hier an.
+        $sponsor = Sponsor::create(['name' => 'Abweisfirma']);
+        $case = $this->case($sponsor, SponsorshipStatus::ACCEPTED, $this->bernd);
+        $outsider = $this->person('Ohne', 'Recht');
+
+        $this->updateCase($case, ['assigned_user_id' => (string) $outsider->id]);
+
+        $this->assertSame(SponsorshipController::ASSIGNEE_NO_ACCESS_ERROR, $_SESSION['error'] ?? null);
+        $this->assertSame((int) $this->bernd->id, (int) $case->fresh()->assigned_user_id);
+    }
+
+    public function testTheEditDialogKeepsAPersonWhoLostTheRight(): void
+    {
+        // Dieselbe Falle wie beim archivierten Konto, nur eine Stufe früher:
+        // Ohne eigene Option schickte der Browser "Niemand", und ein
+        // korrigierter Betrag hätte die Zuständigkeit still gelöscht.
+        $sponsor = Sponsor::create(['name' => 'Haltefirma']);
+        $former = $this->person('Ohne', 'Recht');
+        $this->case($sponsor, SponsorshipStatus::ACCEPTED, $former);
+
+        $html = $this->renderSponsorPage($sponsor);
+
+        $this->assertMatchesRegularExpression(
+            '~<option value="' . $former->id . '"\s+selected>\s*Ohne Recht \(kein Sponsoring-Recht\)~u',
+            $html
+        );
+    }
+
+    public function testSavingAnotherFieldKeepsAPersonWhoLostTheRight(): void
+    {
+        $sponsor = Sponsor::create(['name' => 'Betragsfirma']);
+        $former = $this->person('Ohne', 'Recht');
+        $case = $this->case($sponsor, SponsorshipStatus::ACCEPTED, $former);
+
+        $this->updateCase($case, [
+            'amount' => '250',
+            'assigned_user_id' => (string) $former->id,
+        ]);
+
+        $this->assertArrayNotHasKey('error', $_SESSION);
+        $this->assertSame((int) $former->id, (int) $case->fresh()->assigned_user_id);
+        $this->assertSame('250.00', (string) $case->fresh()->amount);
+    }
+
     public function testAnUnknownCaseEndsInAMessageNotAnError(): void
     {
         $response = $this->sponsorshipController()->assign(
@@ -581,6 +644,27 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
     {
         return $this->sponsorshipController($handler)->assign(
             $this->makeRequest('POST', '/sponsoring/sponsorships/' . $case->id . '/assignee', ['assigned_user_id' => $userId]),
+            $this->makeResponse(),
+            ['id' => (string) $case->id]
+        );
+    }
+
+    /**
+     * Ein Speichern aus dem Bearbeiten-Dialog. `amount` und `status` sind
+     * Pflichtfelder der Maske und stehen deshalb in der Vorgabe.
+     *
+     * @param array<string, string> $data
+     */
+    private function updateCase(Sponsorship $case, array $data): \Psr\Http\Message\ResponseInterface
+    {
+        $body = array_merge([
+            'sponsor_id' => (string) $case->sponsor_id,
+            'amount' => (string) $case->amount,
+            'status' => (string) $case->status,
+        ], $data);
+
+        return $this->sponsorshipController()->update(
+            $this->makeRequest('POST', '/sponsoring/sponsorships/' . $case->id, $body),
             $this->makeResponse(),
             ['id' => (string) $case->id]
         );

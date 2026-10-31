@@ -41,12 +41,12 @@ final class SponsorResponsibility
                 continue;
             }
 
-            $person = $sponsorship->assignedUser;
-            if ($person === null || !$person->hasSponsoringAccess()) {
+            if (!$sponsorship->hasCapableAssignee()) {
                 $unassigned++;
                 continue;
             }
 
+            $person = $sponsorship->assignedUser;
             $assignees[(int) $person->id] = $person;
         }
 

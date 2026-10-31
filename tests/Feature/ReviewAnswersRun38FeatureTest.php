@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Controllers\SponsorshipController;
 use App\Models\Attachment;
+use App\Models\Role;
 use App\Models\Sponsor;
 use App\Models\Sponsorship;
 use App\Models\User;
@@ -181,8 +182,10 @@ class ReviewAnswersRun38FeatureTest extends TestCase
     }
 
     /**
-     * Das Formular bietet nur aktive Mitglieder an. Ein archiviertes Konto
-     * gelangt also nur über eine veraltete oder manipulierte Eingabe hierher.
+     * Das Formular bietet nur Personen mit Sponsoring-Recht an, und die sind
+     * aktiv. Ein archiviertes Konto gelangt also nur über eine veraltete oder
+     * manipulierte Eingabe hierher - und bekommt ASSIGNEE_ERROR, nicht die
+     * Meldung zum fehlenden Recht: Es ist gar kein wählbares Mitglied.
      */
     public function testAnArchivedMemberCannotBeMadeResponsible(): void
     {
@@ -204,7 +207,7 @@ class ReviewAnswersRun38FeatureTest extends TestCase
     public function testAnActiveMemberIsAcceptedAsResponsible(): void
     {
         $sponsor = $this->createSponsor();
-        $active = $this->createUser('Nina', 'Zuständig');
+        $active = $this->createAssignableUser('Nina', 'Zuständig');
 
         $result = $this->createSponsorship($sponsor, ['assigned_user_id' => (string) $active->id]);
 
@@ -321,6 +324,26 @@ class ReviewAnswersRun38FeatureTest extends TestCase
             'last_name' => $lastName,
             'is_active' => $isActive ? 1 : 0,
         ]);
+    }
+
+    /**
+     * Ein Mitglied, das eine Zuständigkeit auch bekommen darf.
+     *
+     * Seit Lauf 60 verlangt validateAssignedUser() ein Sponsoring-Recht und
+     * nicht mehr nur ein aktives Konto - der Dialog ist damit genauso streng wie
+     * das Zuweisen aus "Ohne Zuständigkeit". Ohne Recht prüfte der Test unten
+     * nicht mehr, was sein Name verspricht.
+     */
+    private function createAssignableUser(string $firstName, string $lastName): User
+    {
+        $user = $this->createUser($firstName, $lastName);
+        $user->roles()->attach(Role::create([
+            'name' => 'Sponsoring ' . bin2hex(random_bytes(4)),
+            'hierarchy_level' => 10,
+            'can_create_own_sponsorships' => 1,
+        ])->id);
+
+        return $user;
     }
 
     /**

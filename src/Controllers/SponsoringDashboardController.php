@@ -202,11 +202,11 @@ class SponsoringDashboardController
      */
     private function assigneeName(?Sponsorship $sponsorship): ?string
     {
-        $person = $sponsorship?->assignedUser;
+        if ($sponsorship === null || !$sponsorship->hasCapableAssignee()) {
+            return null;
+        }
 
-        return $person !== null && $person->hasSponsoringAccess()
-            ? $this->nameFormatter->formatPerson($person)
-            : null;
+        return $this->nameFormatter->formatPerson($sponsorship->assignedUser);
     }
 
     /** Ab wie vielen Tagen vor der Frist eine Zeile als "bald" gilt. */

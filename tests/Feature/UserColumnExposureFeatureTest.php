@@ -118,10 +118,9 @@ class UserColumnExposureFeatureTest extends TestCase
             'ProjectQuery::getUsersNotInProject' => $projectQuery->getUsersNotInProject($this->projectId),
             'ProjectQuery::getUsersNotInProjectForVoiceGroups'
                 => $projectQuery->getUsersNotInProjectForVoiceGroups($this->projectId, [$this->sopranId]),
-            // Die beiden Personenauswahlen des Sponsorings. Sie standen als
-            // private Methoden in den Controllern und fielen damit durch diesen
-            // Wächter hindurch, obwohl die Regel für sie genauso gilt.
-            'SponsoringQuery::getSelectableUsers' => $sponsoringQuery->getSelectableUsers(),
+            // Die Personenauswahl des Sponsorings. Sie stand als private Methode
+            // in den Controllern und fiel damit durch diesen Wächter hindurch,
+            // obwohl die Regel für sie genauso gilt.
             'SponsoringQuery::getAssignableUsers' => $sponsoringQuery->getAssignableUsers(),
         ];
     }

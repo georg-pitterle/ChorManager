@@ -38,28 +38,25 @@ class SponsoringQuery
     }
 
     /**
-     * Wen die Auswahl "Zuständig" im Bearbeiten-Dialog am Sponsor anbietet: die
-     * aktiven Mitglieder.
-     *
-     * Breiter als getAssignableUsers() - das ist heute Absicht und steht an
-     * SponsorshipController::assign(). Ob der Dialog nachziehen soll, ist eine
-     * offene Frage und keine dieser Klasse.
-     *
-     * @return Collection<int, User>
-     */
-    public function getSelectableUsers(): Collection
-    {
-        return $this->orderedSelect(User::select(User::LIST_COLUMNS)->where('is_active', 1));
-    }
-
-    /**
-     * Wen das Zuweisen aus "Ohne Zuständigkeit" anbietet: nur Personen mit
+     * Wen eine Zuständigkeit überhaupt angeboten bekommt: die Personen mit
      * einem der beiden Sponsoring-Rechte.
      *
      * Jede andere bekäme auf /sponsoring eine 403, und der Vorgang wirkte
-     * versorgt, ohne dass sich jemand kümmert. Dieselbe Menge prüft
-     * SponsorshipController::assign() beim Speichern nach - die Auswahl allein
-     * ist keine Absicherung.
+     * versorgt, ohne dass sich jemand kümmern kann. Beschränkt auf das
+     * Vollrecht ist die Menge dagegen nicht: Die Zuständigkeit ist gerade die
+     * Erweiterung für Beitragende - wer "Sponsoring verwalten" hält, darf
+     * ohnehin alles, erst ein Mitglied mit "eigene Vorgänge" gewinnt durch sie
+     * Zugang zu einem Vorgang, den jemand anderes angelegt hat
+     * (SponsoringPolicy::assignmentCounts()).
+     *
+     * Eine Methode für beide Auswahlen - das Zuweisen aus "Ohne Zuständigkeit"
+     * und den Bearbeiten-Dialog am Sponsor. Der Dialog war bis hierher breiter
+     * und bot jedes aktive Mitglied an; zwei Mengen für dieselbe Frage sind eine
+     * Einladung zum Auseinanderlaufen.
+     *
+     * Dass die Auswahl eng ist, ist dabei keine Absicherung:
+     * SponsorshipController::validateAssignedUser() prüft dieselbe Menge beim
+     * Speichern nach.
      *
      * @return Collection<int, User>
      */

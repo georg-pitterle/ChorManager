@@ -348,13 +348,25 @@ class SponsorshipController
      * Art Lücke, die SponsoringPolicy::canUseProject() für das Projekt und
      * ProjectController::addMember() für das Mitglied schon schließt.
      *
-     * Geprüft wird gegen die **aktiven** Mitglieder, also genau die, die das
-     * Formular anbietet. Eine Ausnahme gilt für die bereits eingetragene Person:
-     * Sie bleibt gültig, auch wenn sie inzwischen archiviert wurde. Sonst
-     * scheiterte ein Speichern aus einem ganz anderen Grund - ein korrigierter
-     * Betrag - an einer Zuständigkeit, die niemand angefasst hat, oder das
-     * Formular hätte sie still gelöscht. Dieselbe Überlegung steht an
-     * SponsoringPolicy::retainedProjects().
+     * Geprüft wird gegen die Personen mit Sponsoring-Recht, also genau die, die
+     * das Formular anbietet (SponsoringQuery::getAssignableUsers()). Zuvor
+     * genügte hier ein aktives Konto - der Dialog war damit breiter als das
+     * Zuweisen aus "Ohne Zuständigkeit", und wer dort eine rechtlose Person
+     * eintrug, erzeugte einen Vorgang, der versorgt aussah, während die Person
+     * auf /sponsoring eine 403 bekam.
+     *
+     * Eine Ausnahme gilt für die bereits eingetragene Person: Sie bleibt gültig,
+     * auch wenn sie inzwischen archiviert wurde oder ihr Recht verloren hat.
+     * Sonst scheiterte ein Speichern aus einem ganz anderen Grund - ein
+     * korrigierter Betrag - an einer Zuständigkeit, die niemand angefasst hat,
+     * oder das Formular hätte sie still gelöscht. Dieselbe Überlegung steht an
+     * SponsoringPolicy::retainedProjects(); die Vorlage hält die Person dafür
+     * als eigene Option bereit.
+     *
+     * Zwei Meldungen, weil die beiden Fälle verschieden zu lesen sind: Eine
+     * unbekannte oder archivierte Kennung kommt nur aus einer veralteten oder
+     * manipulierten Eingabe, ein fehlendes Recht dagegen aus einer Rollenpflege,
+     * die jemand nebenbei geändert hat.
      *
      * @param array<string, mixed> $data
      * @param int|null $current bisher eingetragene Person, null beim Anlegen
@@ -376,14 +388,19 @@ class SponsorshipController
             return ['error' => null, 'value' => $submitted];
         }
 
+        if (User::query()->whereKey($submitted)->withSponsoringAccess()->exists()) {
+            return ['error' => null, 'value' => $submitted];
+        }
+
         $isActiveMember = User::query()
             ->whereKey($submitted)
             ->where('is_active', 1)
             ->exists();
 
-        return $isActiveMember
-            ? ['error' => null, 'value' => $submitted]
-            : ['error' => self::ASSIGNEE_ERROR, 'value' => null];
+        return [
+            'error' => $isActiveMember ? self::ASSIGNEE_NO_ACCESS_ERROR : self::ASSIGNEE_ERROR,
+            'value' => null,
+        ];
     }
 
     /**
@@ -423,14 +440,14 @@ class SponsorshipController
             return $back;
         }
 
+        // Ohne bisherige Person (`null`): Die Ausnahme für die schon
+        // eingetragene greift hier nicht, das Zuweisen schließt eine Lücke und
+        // trägt nie etwas fort. Die Rechteprüfung steckt seit der Vereinheitlichung
+        // in validateAssignedUser() selbst - sie stand hier einmal eigens daneben,
+        // weil der Bearbeiten-Dialog damals breiter war.
         $assignee = $this->validateAssignedUser($data, null);
         if ($assignee['error'] !== null) {
             $_SESSION['error'] = $assignee['error'];
-            return $back;
-        }
-
-        if (!User::query()->whereKey($assignee['value'])->withSponsoringAccess()->exists()) {
-            $_SESSION['error'] = self::ASSIGNEE_NO_ACCESS_ERROR;
             return $back;
         }
 
