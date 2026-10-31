@@ -9,6 +9,7 @@ use App\Controllers\SponsoringDashboardController;
 use App\Controllers\SponsorshipController;
 use App\Models\Attachment;
 use App\Models\Project;
+use App\Models\Role;
 use App\Models\Sponsor;
 use App\Models\SponsorPackage;
 use App\Models\Sponsorship;
@@ -39,6 +40,7 @@ final class SponsoringMissingLogosFeatureTest extends TestCase
     use TwigViewStubs;
 
     private User $manager;
+    private ?Role $sponsoringRole = null;
 
     protected function setUp(): void
     {
@@ -449,14 +451,39 @@ final class SponsoringMissingLogosFeatureTest extends TestCase
         ]);
     }
 
+    /**
+     * Eine zuständige Person - mit Sponsoring-Recht.
+     *
+     * Ohne das Recht dürfte sie das Logo gar nicht hochladen
+     * (SponsoringPolicy::canManageLogo() verlangt es über assignmentCounts()),
+     * und die Zeile "Logo fehlt" nennt sie seit der Umstellung auf
+     * User::hasSponsoringAccess() folgerichtig nicht mehr. Die Testperson
+     * braucht also das Recht, sonst prüft der Test den Fall nicht mehr, den
+     * sein Name verspricht.
+     */
     private function person(string $firstName, string $lastName): User
     {
-        return User::create([
+        $person = User::create([
             'first_name' => $firstName,
             'last_name' => $lastName,
             'email' => 'logo-person-' . bin2hex(random_bytes(6)) . '@example.test',
             'password' => PasswordHasher::hash('x'),
             'is_active' => 1,
+        ]);
+        $person->roles()->attach($this->sponsoringRole()->id);
+
+        return $person;
+    }
+
+    /**
+     * Die Rolle mit Sponsoring-Recht, einmal je Testlauf.
+     */
+    private function sponsoringRole(): Role
+    {
+        return $this->sponsoringRole ??= Role::create([
+            'name' => 'Sponsoring ' . bin2hex(random_bytes(4)),
+            'hierarchy_level' => 10,
+            'can_create_own_sponsorships' => 1,
         ]);
     }
 

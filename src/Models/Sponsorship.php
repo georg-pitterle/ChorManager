@@ -101,21 +101,36 @@ class Sponsorship extends Model
     }
 
     /**
-     * Laufende Vorgänge, um die sich niemand kümmert: keine Person eingetragen,
-     * oder die eingetragene ist nicht mehr aktiv. Sie darf eingetragen bleiben
+     * Laufende Vorgänge, um die sich niemand kümmern *kann*: keine Person
+     * eingetragen, oder die eingetragene ist archiviert oder hält kein
+     * Sponsoring-Recht mehr. Sie darf eingetragen bleiben
      * (SponsorshipController::validateAssignedUser()), kümmern kann sie sich
      * trotzdem nicht mehr.
+     *
+     * Hieß bis hierher withoutActiveAssignee() und maß nur `is_active`. Wer das
+     * Recht verliert - Rolle gewechselt, Recht entzogen -, blieb damit
+     * eingetragen, und der Vorgang stand nie als Lücke da. Er ließ sich auch
+     * nicht mehr zuweisen: assign() verlangt eine echte Lücke, und als solche
+     * zählte er nicht. Eine Zeile, die niemand mehr aufräumen konnte. Der neue
+     * Name sagt, was gemessen wird - nicht "eingetragen und aktiv", sondern
+     * "kann handeln".
+     *
+     * Ein einzelnes whereDoesntHave() deckt beides ab: Ohne eingetragene Person
+     * gibt es keine verbundene Zeile, die Bedingung trifft also auch dann zu.
+     * Das `assigned_user_id IS NULL` daneben wäre nur eine zweite Schreibweise
+     * desselben Falls. Eine verwaiste Kennung kann es nicht geben, der
+     * Fremdschlüssel steht auf ON DELETE SET NULL (Migration 20260314130000).
      *
      * @param Builder<Sponsorship> $query
      * @return Builder<Sponsorship>
      */
-    public function scopeWithoutActiveAssignee(Builder $query): Builder
+    public function scopeWithoutCapableAssignee(Builder $query): Builder
     {
         return $query
             ->whereIn('status', SponsorshipStatus::ONGOING)
-            ->where(static function (Builder $sub): void {
-                $sub->whereNull('assigned_user_id')
-                    ->orWhereHas('assignedUser', static fn (Builder $user) => $user->where('is_active', 0));
-            });
+            ->whereDoesntHave(
+                'assignedUser',
+                static fn (Builder $user): Builder => $user->withSponsoringAccess()
+            );
     }
 }

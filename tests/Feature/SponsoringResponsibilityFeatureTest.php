@@ -127,6 +127,89 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
         $this->assertSame(1, $summary['unassigned']);
     }
 
+    public function testAPersonWithoutSponsoringRightCountsAsAGap(): void
+    {
+        // Dieselbe Überlegung wie beim archivierten Konto: Eingetragen bleiben
+        // darf sie, kümmern kann sie sich nicht. Ohne eines der beiden
+        // Sponsoring-Rechte bekäme sie auf /sponsoring eine 403 - der Vorgang
+        // sähe versorgt aus, und niemand würde ihn vermissen.
+        $sponsor = Sponsor::create(['name' => 'Rechtlos GmbH']);
+        $this->case($sponsor, SponsorshipStatus::ACCEPTED, $this->person('Ohne', 'Recht'));
+
+        $summary = SponsorResponsibility::forSponsor($sponsor->fresh());
+
+        $this->assertSame([], $summary['assignees']);
+        $this->assertSame(1, $summary['unassigned']);
+    }
+
+    public function testTheDashboardListsACaseWhosePersonHasNoSponsoringRight(): void
+    {
+        $sponsor = Sponsor::create(['name' => 'Rechtlos OG']);
+        $this->case($sponsor, SponsorshipStatus::ACCEPTED, $this->person('Ohne', 'Recht'));
+
+        $this->assertSame(
+            ['Rechtlos OG'],
+            array_column($this->unassigned(), 'sponsor_name')
+        );
+    }
+
+    /**
+     * Die Lücke ist auch eine zum Schließen.
+     *
+     * assign() lässt nur eine echte Lücke zuweisen, damit die Einsicht in Betrag
+     * und Belege nicht aus einem veralteten Tab heraus still wandert. Solange
+     * allein `is_active` zählte, galt ein Vorgang mit rechtloser Person als
+     * versorgt: Er stand nirgends als Lücke, und zuweisen ließ er sich auch
+     * nicht mehr - eine Zeile, die niemand mehr aufräumen konnte.
+     */
+    public function testACaseWhosePersonHasNoSponsoringRightCanBeAssignedAgain(): void
+    {
+        $sponsor = Sponsor::create(['name' => 'Wieder zuweisbar KG']);
+        $case = $this->case($sponsor, SponsorshipStatus::ACCEPTED, $this->person('Ohne', 'Recht'));
+
+        $this->assign($case, (string) $this->anna->id);
+
+        $this->assertArrayNotHasKey('error', $_SESSION);
+        $this->assertSame((int) $this->anna->id, (int) $case->fresh()->assigned_user_id);
+    }
+
+    /**
+     * Die PHP-Frage und die SQL-Frage müssen dieselbe Antwort geben.
+     *
+     * `User::hasSponsoringAccess()` prüft geladene Rollen, der Scope
+     * `withSponsoringAccess()` prüft in SQL. Zwei Formulierungen derselben Regel
+     * laufen auseinander, sobald eine davon geändert wird - und das fällt nur
+     * hier auf.
+     */
+    public function testBothFormsOfTheSponsoringAccessRuleAgree(): void
+    {
+        $roleId = (int) $this->anna->roles()->firstOrFail()->id;
+
+        $archivedWithRight = $this->person('Archiv', 'Mitrecht');
+        $archivedWithRight->roles()->attach($roleId);
+        $archivedWithRight->update(['is_active' => 0]);
+
+        $expected = [
+            (int) $this->anna->id => true,
+            (int) $this->person('Ohne', 'Recht')->id => false,
+            (int) $archivedWithRight->id => false,
+            (int) $this->manager->id => false,
+        ];
+
+        foreach ($expected as $id => $hasAccess) {
+            $this->assertSame(
+                $hasAccess,
+                User::query()->whereKey($id)->withSponsoringAccess()->exists(),
+                'withSponsoringAccess() für Konto ' . $id
+            );
+            $this->assertSame(
+                $hasAccess,
+                User::with('roles')->findOrFail($id)->hasSponsoringAccess(),
+                'hasSponsoringAccess() für Konto ' . $id
+            );
+        }
+    }
+
     public function testTheDashboardListsOngoingCasesWithoutAPersonAcceptedFirst(): void
     {
         $this->case(Sponsor::create(['name' => 'A Anfrage']), SponsorshipStatus::REQUESTED, null);
@@ -445,61 +528,6 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
             'Die Auswahl "Zuständig" im Bearbeiten-Dialog muss der eingestellten '
                 . 'Namensreihenfolge folgen, nicht dem Nachnamen.'
         );
-    }
-
-    /**
-     * Beide Personenauswahlen laden nur die Listenspalten.
-     *
-     * Sie reichen ihre User-Modelle unverändert an die Vorlage weiter und
-     * fallen damit unter dieselbe Regel wie die Abfragen in src/Queries
-     * (UserColumnExposureFeatureTest): Der Passwort-Hash hat in einer Abfrage
-     * nichts zu suchen, deren Ergebnis in der View landet. Beide holten zuvor
-     * die ganze Zeile.
-     */
-    public function testBothPersonSelectsLoadOnlyTheListColumns(): void
-    {
-        $this->crossingPair();
-
-        $sponsor = Sponsor::create(['name' => 'Spaltenfirma']);
-        $this->case($sponsor, SponsorshipStatus::ACCEPTED, null);
-
-        $selects = [
-            'SponsorController::selectableUsers' => (new \ReflectionMethod(
-                SponsorController::class,
-                'selectableUsers'
-            ))->invoke(new SponsorController(
-                $this->createStub(Twig::class),
-                new SponsoringPolicy($_SESSION),
-                $this->attachmentService()
-            )),
-            'SponsoringDashboardController::assignableUsers' => (new \ReflectionMethod(
-                SponsoringDashboardController::class,
-                'assignableUsers'
-            ))->invoke(new SponsoringDashboardController(
-                $this->createStub(Twig::class),
-                new NameFormatterService(),
-                new SponsoringPolicy($_SESSION)
-            )),
-        ];
-
-        foreach ($selects as $label => $users) {
-            $this->assertGreaterThan(0, $users->count(), $label . ' bietet niemanden an.');
-
-            foreach ($users as $user) {
-                $this->assertArrayNotHasKey(
-                    'password',
-                    $user->getAttributes(),
-                    $label . ' lädt den Passwort-Hash in die View-Schicht.'
-                );
-                foreach (['id', 'first_name', 'last_name'] as $column) {
-                    $this->assertArrayHasKey(
-                        $column,
-                        $user->getAttributes(),
-                        $label . ' lädt die von der Auswahl benötigte Spalte ' . $column . ' nicht.'
-                    );
-                }
-            }
-        }
     }
 
     /**

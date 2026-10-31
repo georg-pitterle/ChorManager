@@ -434,7 +434,7 @@ class SponsorshipController
             return $back;
         }
 
-        if (!Sponsorship::query()->whereKey($sponsorship->id)->withoutActiveAssignee()->exists()) {
+        if (!Sponsorship::query()->whereKey($sponsorship->id)->withoutCapableAssignee()->exists()) {
             $_SESSION['error'] = self::ASSIGNEE_NOT_OPEN_ERROR;
             return $back;
         }

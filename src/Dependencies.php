@@ -25,6 +25,7 @@ use App\Queries\ProjectQuery;
 use App\Services\HtmlSanitizer;
 use App\Queries\UserQuery;
 use App\Queries\NewsletterTemplateQuery;
+use App\Queries\SponsoringQuery;
 use App\Persistence\UserPersistence;
 use App\Persistence\ProjectPersistence;
 use App\Persistence\NewsletterTemplatePersistence;
@@ -239,6 +240,7 @@ return function (ContainerBuilder $containerBuilder) {
         ProjectQuery::class => \DI\autowire(),
         ProjectPersistence::class => \DI\autowire(),
         NewsletterTemplateQuery::class => \DI\autowire(),
+        SponsoringQuery::class => \DI\autowire(),
         NewsletterTemplatePersistence::class => \DI\autowire(),
         // Derselbe Fall wie bei SongLibraryController/PasswordResetController: der optionale
         // Logger-Parameter wird von der Autowiring-Reflexion übersprungen und blieb bislang
@@ -450,7 +452,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(Twig::class),
                 $c->get(NameFormatterService::class),
                 $c->get(SponsoringPolicy::class),
-                $c->get(LoggerInterface::class)
+                $c->get(LoggerInterface::class),
+                $c->get(SponsoringQuery::class)
             );
         },
         SponsorController::class => function (ContainerInterface $c): SponsorController {
@@ -459,7 +462,7 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(SponsoringPolicy::class),
                 $c->get(EntityAttachmentService::class),
                 $c->get(LoggerInterface::class),
-                $c->get(NameFormatterService::class)
+                $c->get(SponsoringQuery::class)
             );
         },
         SendRegistrationRemindersCommand::class => \DI\autowire(),

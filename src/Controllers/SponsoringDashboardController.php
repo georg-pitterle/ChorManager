@@ -13,11 +13,11 @@ use App\Models\Sponsorship;
 use App\Models\SponsoringContact;
 use App\Models\User;
 use App\Policies\SponsoringPolicy;
+use App\Queries\SponsoringQuery;
 use App\Services\NameFormatterService;
 use App\Util\LogoDeadline;
 use App\Util\SponsorshipStatus;
 use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Collection;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -28,17 +28,26 @@ class SponsoringDashboardController
     private SponsoringPolicy $policy;
 
     private LoggerInterface $logger;
+    private SponsoringQuery $sponsoringQuery;
 
+    /**
+     * Die Abfrageklasse steht hinten und darf fehlen - wie der Logger; gleiche
+     * Begründung wie in SponsorController. Ohne sie bekommt die Auswahl den
+     * hier hereingereichten Namensformatierer, im Betrieb kommt sie aus
+     * Dependencies.php.
+     */
     public function __construct(
         Twig $view,
         NameFormatterService $nameFormatter,
         SponsoringPolicy $policy,
-        ?LoggerInterface $logger = null
+        ?LoggerInterface $logger = null,
+        ?SponsoringQuery $sponsoringQuery = null
     ) {
         $this->view = $view;
         $this->nameFormatter = $nameFormatter;
         $this->policy = $policy;
         $this->logger = $logger ?? new NullLogger();
+        $this->sponsoringQuery = $sponsoringQuery ?? new SponsoringQuery($nameFormatter);
     }
 
     public function index(Request $request, Response $response): Response
@@ -84,7 +93,14 @@ class SponsoringDashboardController
             ->where('follow_up_date', '<=', $in7Days);
 
         $upcomingFollowUps = $this->policy->restrictFollowUpsToOwnWorkload($followUpQuery)
-            ->with(['sponsor', 'user', 'sponsorship.package', 'sponsorship.project', 'sponsorship.assignedUser'])
+            ->with([
+                'sponsor',
+                'user',
+                'sponsorship.package',
+                'sponsorship.project',
+                // Die Rollen für assigneeName(): rechtlos zählt als niemand.
+                'sponsorship.assignedUser.roles',
+            ])
             ->orderBy('follow_up_date')
             ->get()
             ->map(fn(SponsoringContact $contact): array => $this->mapUpcomingFollowUp($contact, $today))
@@ -126,7 +142,7 @@ class SponsoringDashboardController
             'unassigned'        => $unassigned,
             // Die Auswahl steht in jeder Zeile, die Liste der Personen wird nur
             // gebraucht, wenn es überhaupt eine Zeile gibt.
-            'assignable_users'  => $unassigned !== [] ? $this->assignableUsers() : [],
+            'assignable_users'  => $unassigned !== [] ? $this->sponsoringQuery->getAssignableUsers() : [],
             'missing_logos'     => $this->missingLogos(),
             'logo_deadline_projects' => $canManageAll ? $this->logoDeadlineProjects() : [],
             'open_benefits'     => $this->openBenefits(),
@@ -138,29 +154,6 @@ class SponsoringDashboardController
             'recent_contacts'   => $recentContacts,
             'active_nav'        => 'sponsoring',
         ]);
-    }
-
-    /**
-     * Wen die Auswahl in der Zeile anbietet: die Personen mit Sponsoring-Recht,
-     * in der eingestellten Namensreihenfolge.
-     *
-     * Zwei Regeln der Abfrageschicht gelten auch hier, wo die Abfrage im
-     * Controller steht (siehe UserQuery::orderedListQuery()):
-     *
-     * - Nur die Listenspalten. Das Ergebnis geht unverändert an die View, der
-     *   Passwort-Hash bleibt damit in der Datenbank.
-     * - Die Reihenfolge kommt aus NameFormatterService. Vorher sortierte die
-     *   Abfrage hart nach dem Nachnamen, während die Vorlage daneben
-     *   `person_name` ausgibt - bei "Vorname Nachname" las sich die Auswahl
-     *   unsortiert.
-     *
-     * @return \Illuminate\Database\Eloquent\Collection<int, User>
-     */
-    private function assignableUsers(): Collection
-    {
-        $query = User::withSponsoringAccess()->select(User::LIST_COLUMNS);
-
-        return $this->nameFormatter->applyNameOrder($query)->get();
     }
 
     /**
@@ -176,7 +169,7 @@ class SponsoringDashboardController
         $statusBadges = SponsorshipStatus::badgeClasses();
 
         return Sponsorship::with(['sponsor', 'project', 'package', 'assignedUser'])
-            ->withoutActiveAssignee()
+            ->withoutCapableAssignee()
             ->get()
             ->sortBy([
                 static fn (Sponsorship $a, Sponsorship $b): int => ($b->status === SponsorshipStatus::ACCEPTED)
@@ -202,15 +195,18 @@ class SponsoringDashboardController
     }
 
     /**
-     * Wer sich um den Vorgang kümmert, oder null. Eine archivierte Person zählt
-     * als niemand, wie in SponsorResponsibility: Beitragende sehen "Ohne
-     * Zuständigkeit" nicht und hielten den Vorgang sonst für versorgt.
+     * Wer sich um den Vorgang kümmert, oder null. Eine archivierte oder rechtlos
+     * gewordene Person zählt als niemand, wie in SponsorResponsibility:
+     * Beitragende sehen "Ohne Zuständigkeit" nicht und hielten den Vorgang sonst
+     * für versorgt.
      */
     private function assigneeName(?Sponsorship $sponsorship): ?string
     {
         $person = $sponsorship?->assignedUser;
 
-        return $person !== null && $person->is_active ? $this->nameFormatter->formatPerson($person) : null;
+        return $person !== null && $person->hasSponsoringAccess()
+            ? $this->nameFormatter->formatPerson($person)
+            : null;
     }
 
     /** Ab wie vielen Tagen vor der Frist eine Zeile als "bald" gilt. */
@@ -232,7 +228,7 @@ class SponsoringDashboardController
      */
     private function missingLogos(): array
     {
-        $sponsorships = Sponsorship::with(['sponsor', 'project', 'assignedUser'])
+        $sponsorships = Sponsorship::with(['sponsor', 'project', 'assignedUser.roles'])
             ->where('status', SponsorshipStatus::ACCEPTED)
             ->where(static fn ($query) => $query->where('needs_logo_print', true)->orWhere('needs_logo_online', true))
             ->whereHas('sponsor', static fn ($query) => $query->whereDoesntHave('logos'))
@@ -392,7 +388,7 @@ class SponsoringDashboardController
             'sponsor',
             'project',
             'package',
-            'assignedUser',
+            'assignedUser.roles',
             $relation => $open,
         ])
             ->where('status', SponsorshipStatus::ACCEPTED)
@@ -439,7 +435,7 @@ class SponsoringDashboardController
     {
         // Eine reine Sachleistung (0 €) wartet auf kein Geld und stünde sonst
         // für immer in der Liste.
-        return Sponsorship::with(['sponsor', 'project', 'assignedUser'])
+        return Sponsorship::with(['sponsor', 'project', 'assignedUser.roles'])
             ->where('status', SponsorshipStatus::ACCEPTED)
             ->whereNull('paid_at')
             ->where('amount', '>', 0)

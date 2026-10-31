@@ -14,6 +14,7 @@ use App\Models\SponsorPackage;
 use App\Models\Sponsorship;
 use App\Models\User;
 use App\Policies\SponsoringPolicy;
+use App\Queries\SponsoringQuery;
 use App\Services\EntityAttachmentService;
 use App\Services\EntityCleanupService;
 use App\Services\NameFormatterService;
@@ -29,7 +30,6 @@ use App\Util\SponsorDuplicateFinder;
 use App\Util\SponsorLogoUpload;
 use App\Util\SponsorResponsibility;
 use App\Services\ModalFormService;
-use Illuminate\Database\Eloquent\Collection;
 
 class SponsorController
 {
@@ -55,30 +55,29 @@ class SponsorController
     private EntityAttachmentService $attachments;
 
     private LoggerInterface $logger;
-    private NameFormatterService $nameFormatter;
+    private SponsoringQuery $sponsoringQuery;
 
     /**
-     * Der Namensformatierer steht hinten und darf fehlen - wie der Logger.
+     * Die Abfrageklasse steht hinten und darf fehlen - wie der Logger.
      *
-     * Die Vorgabe liest die Einstellung nicht: Sie trägt die
-     * Standardreihenfolge, nicht die eingestellte. Im Betrieb reicht
-     * Dependencies.php die konfigurierte Instanz herein; die Vorgabe greift nur
-     * dort, wo ein Test den Controller selbst baut und die Reihenfolge nicht
-     * prüft. Ein Pflichtargument hätte 20 Testaufrufe mitgezogen, ohne an
-     * einem davon etwas zu zeigen.
+     * Die Vorgabe trägt die Standard-Namensreihenfolge, nicht die eingestellte:
+     * Im Betrieb reicht Dependencies.php die konfigurierte Instanz herein, die
+     * Vorgabe greift nur dort, wo ein Test den Controller selbst baut und die
+     * Reihenfolge nicht prüft. Ein Pflichtargument hätte 20 Testaufrufe in 13
+     * Dateien mitgezogen, ohne an einem davon etwas zu zeigen.
      */
     public function __construct(
         Twig $view,
         SponsoringPolicy $policy,
         EntityAttachmentService $attachments,
         ?LoggerInterface $logger = null,
-        ?NameFormatterService $nameFormatter = null
+        ?SponsoringQuery $sponsoringQuery = null
     ) {
         $this->view = $view;
         $this->policy = $policy;
         $this->attachments = $attachments;
         $this->logger = $logger ?? new NullLogger();
-        $this->nameFormatter = $nameFormatter ?? new NameFormatterService();
+        $this->sponsoringQuery = $sponsoringQuery ?? new SponsoringQuery(new NameFormatterService());
     }
 
     public function index(Request $request, Response $response): Response
@@ -90,7 +89,7 @@ class SponsorController
             'category',
             'sponsorships:id,sponsor_id,package_id,assigned_user_id,status,amount,created_at',
             'sponsorships.package',
-            'sponsorships.assignedUser',
+            'sponsorships.assignedUser.roles',
             // Nur offene Wiedervorlagen: die Spalte "Nächste Frist" braucht die
             // früheste davon, alles Erledigte wäre Ballast.
             'contacts' => static fn ($query) => $query
@@ -133,29 +132,6 @@ class SponsorController
     private function categories(): \Illuminate\Support\Collection
     {
         return SponsorCategory::orderBy('name')->get();
-    }
-
-    /**
-     * Wen die Auswahl "Zuständig" im Bearbeiten-Dialog anbietet: die aktiven
-     * Mitglieder, in der eingestellten Namensreihenfolge.
-     *
-     * Zwei Regeln der Abfrageschicht gelten auch hier, wo die Abfrage im
-     * Controller steht (siehe UserQuery::orderedListQuery()):
-     *
-     * - Nur die Listenspalten. Die Modelle gehen unverändert an die Vorlage, der
-     *   Passwort-Hash bleibt damit in der Datenbank.
-     * - Die Reihenfolge kommt aus NameFormatterService. Vorher sortierte die
-     *   Abfrage hart nach dem Nachnamen, während die Vorlage daneben
-     *   `person_name` ausgibt - bei "Vorname Nachname" las sich die Auswahl
-     *   unsortiert.
-     *
-     * @return \Illuminate\Database\Eloquent\Collection<int, User>
-     */
-    private function selectableUsers(): Collection
-    {
-        $query = User::select(User::LIST_COLUMNS)->where('is_active', 1);
-
-        return $this->nameFormatter->applyNameOrder($query)->get();
     }
 
     /**
@@ -291,7 +267,7 @@ class SponsorController
             'logos',
             'sponsorships.package',
             'sponsorships.project',
-            'sponsorships.assignedUser',
+            'sponsorships.assignedUser.roles',
             'sponsorships.attachments' => $metadataOnly,
             'sponsorships.contacts.user',
             'sponsorships.benefits',
@@ -309,7 +285,7 @@ class SponsorController
             $this->logger
         );
 
-        $users    = $this->selectableUsers();
+        $users    = $this->sponsoringQuery->getSelectableUsers();
         $projects = $this->policy->selectableProjects();
         $packages = SponsorPackage::with(['benefits', 'deliverables'])->orderBy('min_amount')->get();
 

@@ -16,7 +16,13 @@ use App\Models\User;
  * einzuführen, der von den Vorgängen weglaufen könnte - dieselbe Überlegung wie
  * bei SponsorEngagementState.
  *
- * Erwartet die Relationen `sponsorships` und `sponsorships.assignedUser`.
+ * Als Zuständige zählt nur, wer sich auch kümmern kann: aktiv und mit einem der
+ * beiden Sponsoring-Rechte (User::hasSponsoringAccess()). Eine archivierte oder
+ * rechtlos gewordene Person darf eingetragen bleiben, der Vorgang gilt aber als
+ * Lücke - dieselbe Grenze wie in Sponsorship::scopeWithoutCapableAssignee().
+ *
+ * Erwartet die Relationen `sponsorships`, `sponsorships.assignedUser` und
+ * `sponsorships.assignedUser.roles` - die Rollen für die Rechtefrage.
  */
 final class SponsorResponsibility
 {
@@ -36,7 +42,7 @@ final class SponsorResponsibility
             }
 
             $person = $sponsorship->assignedUser;
-            if ($person === null || !$person->is_active) {
+            if ($person === null || !$person->hasSponsoringAccess()) {
                 $unassigned++;
                 continue;
             }

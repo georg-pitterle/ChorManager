@@ -164,6 +164,36 @@ class User extends Model
             });
     }
 
+    /**
+     * Dieselbe Frage wie scopeWithSponsoringAccess(), nur am geladenen Modell.
+     *
+     * Gebraucht wird sie dort, wo die Antwort an einem bereits geladenen
+     * Mitglied hängt und keine zweite Abfrage wert ist - SponsorResponsibility
+     * fasst die Vorgänge eines Sponsors in PHP zusammen.
+     *
+     * Die Rollen sollten vorab geladen sein (`assignedUser.roles`), sonst holt
+     * Eloquent sie je Mitglied nach. Falsch wird die Antwort dadurch nicht, nur
+     * teuer.
+     *
+     * Dass die Regel zweimal formuliert ist - einmal in SQL, einmal hier -, hält
+     * SponsoringResponsibilityFeatureTest::testBothFormsOfTheSponsoringAccessRuleAgree()
+     * zusammen.
+     */
+    public function hasSponsoringAccess(): bool
+    {
+        if (!$this->is_active) {
+            return false;
+        }
+
+        foreach ($this->roles as $role) {
+            if ($role->can_manage_sponsoring || $role->can_create_own_sponsorships) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function projects()
     {
         return $this->belongsToMany(Project::class, 'project_users', 'user_id', 'project_id');

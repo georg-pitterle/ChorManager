@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Models\Role;
 use App\Queries\ProjectQuery;
+use App\Queries\SponsoringQuery;
 use App\Queries\UserQuery;
 use App\Services\NameFormatterService;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -46,6 +48,14 @@ class UserColumnExposureFeatureTest extends TestCase
             'archiviert' => ['Clara', 'Chor', 0, false, false],
         ];
 
+        // Eine Person mit Sponsoring-Recht: ohne sie liefert
+        // SponsoringQuery::getAssignableUsers() keine Zeile zum Prüfen.
+        $sponsoringRole = Role::create([
+            'name' => 'Sponsoring ' . bin2hex(random_bytes(4)),
+            'hierarchy_level' => 10,
+            'can_create_own_sponsorships' => 1,
+        ]);
+
         foreach ($people as $key => [$firstName, $lastName, $isActive, $inProject, $inVoiceGroup]) {
             $email = strtolower($key) . '_' . bin2hex(random_bytes(4)) . '@example.test';
             $user = User::create([
@@ -62,6 +72,7 @@ class UserColumnExposureFeatureTest extends TestCase
                 $this->memberEmail = $email;
                 $user->last_project_id = $this->projectId;
                 $user->save();
+                $user->roles()->attach($sponsoringRole->id);
             }
 
             if ($inProject) {
@@ -98,6 +109,7 @@ class UserColumnExposureFeatureTest extends TestCase
     {
         $userQuery = new UserQuery(new NameFormatterService());
         $projectQuery = new ProjectQuery(new NameFormatterService());
+        $sponsoringQuery = new SponsoringQuery(new NameFormatterService());
 
         return [
             'UserQuery::getActiveUsers' => $userQuery->getActiveUsers(),
@@ -106,6 +118,11 @@ class UserColumnExposureFeatureTest extends TestCase
             'ProjectQuery::getUsersNotInProject' => $projectQuery->getUsersNotInProject($this->projectId),
             'ProjectQuery::getUsersNotInProjectForVoiceGroups'
                 => $projectQuery->getUsersNotInProjectForVoiceGroups($this->projectId, [$this->sopranId]),
+            // Die beiden Personenauswahlen des Sponsorings. Sie standen als
+            // private Methoden in den Controllern und fielen damit durch diesen
+            // Wächter hindurch, obwohl die Regel für sie genauso gilt.
+            'SponsoringQuery::getSelectableUsers' => $sponsoringQuery->getSelectableUsers(),
+            'SponsoringQuery::getAssignableUsers' => $sponsoringQuery->getAssignableUsers(),
         ];
     }
 

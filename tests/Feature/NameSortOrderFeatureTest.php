@@ -25,10 +25,10 @@ final class NameSortOrderFeatureTest extends TestCase
             ['src/Controllers/NewsletterController.php'],
             ['src/Controllers/RegistrationController.php'],
             ['src/Controllers/TaskController.php'],
-            // Die Personenauswahl der Sponsoring-Vorgänge: der Bearbeiten-Dialog
-            // am Sponsor und das Zuweisen aus "Ohne Zuständigkeit".
-            ['src/Controllers/SponsorController.php'],
-            ['src/Controllers/SponsoringDashboardController.php'],
+            // Die beiden Personenauswahlen der Sponsoring-Vorgänge: der
+            // Bearbeiten-Dialog am Sponsor und das Zuweisen aus "Ohne
+            // Zuständigkeit".
+            ['src/Queries/SponsoringQuery.php'],
         ];
     }
 
