@@ -11,6 +11,7 @@ use AllowNewslettersWithoutProject;
 use CreateFinanceAccounts;
 use CreateFinanceGroupsAndLink;
 use DropEventsProjectId;
+use RequireFileSizeOnAttachments;
 use RequireKnownAttendanceStatus;
 use RequireKnownSongResourceType;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -28,6 +29,7 @@ require_once dirname(__DIR__, 2) . '/db/migrations/20261005090100_add_channel_to
 require_once dirname(__DIR__, 2) . '/db/migrations/20261022120000_require_known_attendance_status.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20261022130000_use_english_task_status_values.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20261029120000_require_known_song_resource_type.php';
+require_once dirname(__DIR__, 2) . '/db/migrations/20261101120000_require_file_size_on_attachments.php';
 
 /**
  * Fünf Migrationen führen einen Schritt aus, der Daten unwiederbringlich
@@ -56,6 +58,7 @@ final class DestructiveMigrationGuardTest extends TestCase
     private const ATTENDANCE_TABLE = 'test_guard_attendance';
     private const TASKS_TABLE = 'test_guard_tasks';
     private const SONG_RESOURCES_TABLE = 'test_guard_song_resources';
+    private const ATTACHMENTS_TABLE = 'test_guard_attachments';
 
     protected function setUp(): void
     {
@@ -179,6 +182,16 @@ final class DestructiveMigrationGuardTest extends TestCase
                 PRIMARY KEY (id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
             self::SONG_RESOURCES_TABLE
+        ));
+
+        Capsule::connection()->statement(sprintf(
+            'CREATE TABLE %s (
+                id int(11) NOT NULL AUTO_INCREMENT,
+                file_size int(11) DEFAULT NULL,
+                file_content longblob NOT NULL,
+                PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
+            self::ATTACHMENTS_TABLE
         ));
 
         Capsule::connection()->statement(sprintf(
@@ -557,6 +570,45 @@ final class DestructiveMigrationGuardTest extends TestCase
     }
 
     /**
+     * 20261101120000 macht `attachments.file_size` zur Pflicht. Der Nachtrag trägt
+     * die echte Länge des BLOBs ein und lässt eine gespeicherte Größe stehen; bleibt
+     * trotzdem eine Zeile leer, schlägt die Prüfung vor dem ALTER an.
+     */
+    public function testAttachmentBackfillStoresTheRealLengthAndKeepsRecordedSizes(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (file_size, file_content) VALUES (NULL, 'abcde'), (1000, 'xy')",
+            self::ATTACHMENTS_TABLE
+        ));
+        $tables = ['attachments' => self::ATTACHMENTS_TABLE];
+
+        $this->assertSame(1, $this->countFrom(RequireFileSizeOnAttachments::MISSING_SIZES_SQL, $tables, 'missing_sizes'));
+
+        $ids = Capsule::connection()->select(strtr(RequireFileSizeOnAttachments::MISSING_SIZE_IDS_SQL, $tables));
+        $this->assertCount(1, $ids, 'Nur die Zeile ohne Größe wird angefasst.');
+        foreach ($ids as $row) {
+            Capsule::connection()->update(sprintf(
+                strtr(RequireFileSizeOnAttachments::FILL_SIZE_SQL, $tables),
+                (int) $row->id
+            ));
+        }
+
+        $sizes = Capsule::table(self::ATTACHMENTS_TABLE)->orderBy('id')->pluck('file_size')->all();
+        $this->assertSame([5, 1000], array_map('intval', $sizes));
+        $this->assertSame(0, $this->countFrom(RequireFileSizeOnAttachments::MISSING_SIZES_SQL, $tables, 'missing_sizes'));
+    }
+
+    /**
+     * Die Liste der IDs darf den BLOB nicht nennen - sonst liest schon sie jeden
+     * Anhang, auch wenn nichts nachzutragen ist.
+     */
+    public function testAttachmentBackfillFindsItsRowsWithoutNamingTheBlob(): void
+    {
+        $this->assertStringNotContainsString('file_content', RequireFileSizeOnAttachments::MISSING_SIZE_IDS_SQL);
+        $this->assertStringNotContainsString('file_content', RequireFileSizeOnAttachments::MISSING_SIZES_SQL);
+    }
+
+    /**
      * 20261022130000 schreibt Zustand und Dringlichkeit der Aufgaben auf
      * englische Bezeichner um. Was die Zuordnung nicht kennt, überlebt das
      * UPDATE unverändert und wird vom folgenden ENUM zur leeren Zeichenkette.
@@ -618,6 +670,7 @@ final class DestructiveMigrationGuardTest extends TestCase
             self::ATTENDANCE_TABLE,
             self::TASKS_TABLE,
             self::SONG_RESOURCES_TABLE,
+            self::ATTACHMENTS_TABLE,
         ];
 
         foreach ($tables as $table) {

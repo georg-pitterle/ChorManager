@@ -9,8 +9,7 @@ use Illuminate\Database\Capsule\Manager as DB;
 /**
  * Datenbank. Tabellengrößen kommen aus information_schema (Daten + Index); MySQL
  * hält sie bis zu einen Tag zwischengespeichert, sie sind also eine Näherung.
- * Genau gerechnet werden die Anhänge (gespeicherte Größe, nur ohne sie LENGTH des
- * BLOBs) und alle Zeilenzahlen
+ * Genau gerechnet werden die Anhänge (gespeicherte Größe) und alle Zeilenzahlen
  * (COUNT(*) statt TABLE_ROWS, das bei InnoDB nur geschätzt ist).
  *
  * Die Wurzel ist immer die Summe ihrer Kinder, damit die Übersicht in sich aufgeht,
@@ -111,13 +110,10 @@ final class DatabaseUsageProvider implements StorageUsageProvider
 
     private function attachments(int $tableBytes): StorageUsageNode
     {
-        // file_size setzt jeder Schreiber; LENGTH() auf den BLOB müsste jeden Anhang
-        // von der Platte lesen. COALESCE wertet es nur für Altdaten ohne Größe aus.
+        // Hier darf file_content nicht vorkommen, auch nicht als Ausweg in einem
+        // COALESCE: InnoDB liest einen genannten BLOB für jede Zeile von der Platte.
         $rows = DB::table('attachments')
-            ->selectRaw(
-                'entity_type, COUNT(*) AS file_count, '
-                . 'COALESCE(SUM(COALESCE(file_size, LENGTH(file_content))), 0) AS payload'
-            )
+            ->selectRaw('entity_type, COUNT(*) AS file_count, COALESCE(SUM(file_size), 0) AS payload')
             ->groupBy('entity_type')
             ->get();
 

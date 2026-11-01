@@ -31,7 +31,7 @@ final class DatabaseUsageProviderFeatureTest extends TestCase
         }
     }
 
-    private function attach(string $entityType, int $bytes, ?int $recordedSize = -1): void
+    private function attach(string $entityType, int $bytes, int $recordedSize = -1): void
     {
         Attachment::create([
             'entity_type' => $entityType,
@@ -45,19 +45,41 @@ final class DatabaseUsageProviderFeatureTest extends TestCase
         ]);
     }
 
-    /**
-     * Die gespeicherte Größe genügt - LENGTH() auf den BLOB müsste jeden Anhang von
-     * der Platte lesen, bei jeder Messung. Nur Altdaten ohne Größe werden gemessen.
-     */
-    public function testRecordedSizeIsUsedAndOnlyMissingSizesAreMeasured(): void
+    public function testRecordedSizeIsWhatCounts(): void
     {
         $this->attach('task', 10, 1000);
-        $this->attach('task', 30, null);
 
         $task = $this->usage()->child('database.attachments')?->child('database.attachments.task');
 
-        $this->assertSame(1030, $task?->bytes);
-        $this->assertSame(2, $task?->count);
+        $this->assertSame(1000, $task?->bytes);
+        $this->assertSame(1, $task?->count);
+    }
+
+    /**
+     * Die Spalte darf in der Abfrage nicht einmal genannt sein: InnoDB lädt einen
+     * BLOB für jede Zeile, sobald er im Statement vorkommt - auch dann, wenn der
+     * Ausdruck drumherum ihn gar nicht auswertet. Ein COALESCE(file_size,
+     * LENGTH(file_content)) hat die Seite /storage bei 1,2 GB Anhängen von 0,2 s
+     * auf 8 s gebracht.
+     */
+    public function testMeasuringNeverNamesTheFileContent(): void
+    {
+        $this->attach('task', 10);
+
+        $connection = Bootstrap::getCapsule()?->connection();
+        $this->assertNotNull($connection);
+        $connection->enableQueryLog();
+        $connection->flushQueryLog();
+
+        $this->usage();
+
+        $statements = array_column($connection->getQueryLog(), 'query');
+        $connection->disableQueryLog();
+
+        $this->assertNotSame([], $statements);
+        foreach ($statements as $statement) {
+            $this->assertStringNotContainsString('file_content', (string) $statement);
+        }
     }
 
     private function usage(): StorageUsageNode
