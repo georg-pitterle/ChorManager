@@ -907,7 +907,7 @@ body.app-shell {
     }
 
     .song-attachment-item .text-truncate {
-        flex-basis: calc(100% - 2rem);
+        flex-basis: calc(100% - 4rem);
     }
 
 }
@@ -922,7 +922,7 @@ body.app-shell {
     }
 
     .song-attachment-item .text-truncate {
-        flex-basis: calc(100% - 2rem);
+        flex-basis: calc(100% - 4rem);
     }
 }
 

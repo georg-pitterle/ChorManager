@@ -697,6 +697,10 @@ return function (App $app) {
                     $songsGroup->post('/songs/{id:[0-9]+}/delete', [SongLibraryController::class, 'deleteSong']);
                     $songsGroup->post('/songs/{id:[0-9]+}/attachments', [SongLibraryController::class, 'uploadAttachments']);
                     $songsGroup->post(
+                        '/songs/{id:[0-9]+}/attachments/bulk-delete',
+                        [SongLibraryController::class, 'deleteAttachments']
+                    );
+                    $songsGroup->post(
                         '/songs/{song_id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',
                         [SongLibraryController::class, 'deleteAttachment']
                     );

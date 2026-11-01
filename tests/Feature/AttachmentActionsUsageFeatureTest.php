@@ -397,6 +397,56 @@ final class AttachmentActionsUsageFeatureTest extends TestCase
         }
     }
 
+    public function testSongsDetailOffersBulkDeleteFromTwoAttachments(): void
+    {
+        $song = Song::create(['title' => 'Sammellöschen-Anzeige ' . bin2hex(random_bytes(4))]);
+        $first = $this->makeAttachment('song', (int) $song->id, 'Sopran.pdf', self::PREVIEWABLE_MIME);
+        $second = $this->makeAttachment('song', (int) $song->id, 'Alt.pdf', self::PREVIEWABLE_MIME);
+        $formId = 'id="song-attachments-bulk-form"';
+
+        try {
+            $html = $this->renderSongDetail($song);
+
+            $this->assertStringContainsString($formId, $html);
+            $this->assertStringContainsString(
+                'action="/song-library/songs/' . $song->id . '/attachments/bulk-delete"',
+                $html
+            );
+            // Die Zeilen tragen eigene Lösch-Formulare; verschachteln ginge nicht.
+            // Die Checkboxen hängen sich deshalb über `form=` an das Sammelformular.
+            foreach ([$first, $second] as $attachment) {
+                $this->assertMatchesRegularExpression(
+                    '/<input[^>]*name="attachment_ids\[\]"[^>]*value="' . $attachment->id
+                        . '"[^>]*form="song-attachments-bulk-form"/',
+                    $html
+                );
+            }
+            $this->assertStringContainsString('/js/song-attachments-bulk.js', $html);
+
+            $second->delete();
+            $html = $this->renderSongDetail($song);
+
+            // Bei einem einzigen Anhang wäre die Auswahl nur Rauschen.
+            $this->assertStringNotContainsString($formId, $html);
+            $this->assertStringNotContainsString('name="attachment_ids[]"', $html);
+        } finally {
+            $first->delete();
+            $second->delete();
+            $song->delete();
+        }
+    }
+
+    private function renderSongDetail(Song $song): string
+    {
+        $response = $this->container()->get(SongLibraryController::class)->show(
+            $this->makeRequest('GET', '/song-library/songs/' . $song->id),
+            $this->makeResponse(),
+            ['id' => (string) $song->id]
+        );
+
+        return (string) $response->getBody();
+    }
+
     public function testDownloadsPageKeepsItsEmbeddedPlayersAndRendersActions(): void
     {
         $user = User::create([

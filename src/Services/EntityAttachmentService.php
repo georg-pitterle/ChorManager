@@ -252,6 +252,25 @@ class EntityAttachmentService
     }
 
     /**
+     * Löscht mehrere Anhänge einer Entität und gibt zurück, wie viele es wirklich
+     * waren. IDs fremder Entitäten bleiben dabei unberührt - die Liste kommt aus
+     * einem Formular und sagt nichts darüber, wem ein Anhang gehört.
+     *
+     * @param list<int> $attachmentIds
+     */
+    public function deleteManyForEntity(string $entityType, int $entityId, array $attachmentIds): int
+    {
+        if ($attachmentIds === []) {
+            return 0;
+        }
+
+        return Attachment::where('entity_type', $entityType)
+            ->where('entity_id', $entityId)
+            ->whereKey($attachmentIds)
+            ->delete();
+    }
+
+    /**
      * Räumt alle Anhänge mehrerer Entitäten ab. Nötig, weil `attachments`
      * polymorph ist und keinen Fremdschlüssel hat: Löscht die Datenbank eine
      * Zeile per Kaskade weg, bleiben ihre Anhänge sonst unerreichbar liegen.

@@ -201,10 +201,34 @@
                             <i class="bi bi-paperclip"></i>Anhänge
                         </h3>
 
+                        {% set _bulk_delete = song.attachments|length > 1 %}
+                        {% if _bulk_delete %}
+                            <form method="post"
+                                  id="song-attachments-bulk-form"
+                                  class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2"
+                                  action="/song-library/songs/{{ song.id }}/attachments/bulk-delete">
+                                <div class="form-check mb-0">
+                                    <input type="checkbox" class="form-check-input" id="song-attachments-select-all">
+                                    <label class="form-check-label" for="song-attachments-select-all">Alle auswählen</label>
+                                </div>
+                                <button type="submit" class="btn btn-outline-danger btn-sm" disabled>
+                                    <i class="bi bi-trash me-1" aria-hidden="true"></i><span>Ausgewählte löschen</span>
+                                </button>
+                            </form>
+                        {% endif %}
+
                         {% if song.attachments|length > 0 %}
                             <ul class="list-group list-group-flush mb-3">
                                 {% for attachment in song.attachments %}
                                     <li class="list-group-item px-0 d-flex align-items-center gap-2 song-attachment-item">
+                                        {% if _bulk_delete %}
+                                            <input type="checkbox"
+                                                   class="form-check-input flex-shrink-0 mt-0 song-attachment-select"
+                                                   name="attachment_ids[]"
+                                                   value="{{ attachment.id }}"
+                                                   form="song-attachments-bulk-form"
+                                                   aria-label="Anhang {{ attachment.original_name }} auswählen">
+                                        {% endif %}
                                         <i class="bi bi-file-earmark text-muted"></i>
                                         <span class="attachment-name text-truncate"
                                               title="{{ attachment.original_name }}">{{ attachment.original_name }}</span>
@@ -438,3 +462,7 @@
         </div>
     </div>
 {% endblock content %}
+
+{% block scripts %}
+    <script src="{{ asset_path("/js/song-attachments-bulk.js") }}"></script>
+{% endblock scripts %}

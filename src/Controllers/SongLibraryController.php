@@ -454,4 +454,31 @@ class SongLibraryController
         $_SESSION['success'] = 'Anhang erfolgreich gelöscht.';
         return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
     }
+
+    public function deleteAttachments(Request $request, Response $response, array $args): Response
+    {
+        $songId = (int) ($args['id'] ?? 0);
+        $data = (array) $request->getParsedBody();
+        $attachmentIds = array_values(array_filter(
+            array_map('intval', (array) ($data['attachment_ids'] ?? [])),
+            static fn (int $id): bool => $id > 0
+        ));
+
+        if ($attachmentIds === []) {
+            $_SESSION['error'] = 'Keine Anhänge ausgewählt.';
+            return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+        }
+
+        $deleted = $this->attachments->deleteManyForEntity(self::ENTITY_TYPE, $songId, $attachmentIds);
+
+        if ($deleted === 0) {
+            $_SESSION['error'] = 'Keiner der ausgewählten Anhänge wurde gefunden.';
+        } elseif ($deleted === 1) {
+            $_SESSION['success'] = 'Anhang erfolgreich gelöscht.';
+        } else {
+            $_SESSION['success'] = $deleted . ' Anhänge erfolgreich gelöscht.';
+        }
+
+        return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
+    }
 }
