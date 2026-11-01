@@ -633,4 +633,63 @@ class CsrfMiddlewareFeatureTest extends TestCase
 
         $this->assertFalse($result->hasHeader(Csrf::RESPONSE_HEADER));
     }
+
+    /**
+     * Eine Antwort, die sich selbst als `public` zwischenspeicherbar ausweist,
+     * nennt den Token nicht.
+     *
+     * Zwei Routen tun das: die Hilfe-Bilder (`public, max-age=86400`) hinter der
+     * Anmeldung und das OIDC-Discovery-Dokument samt Schlüsselsatz. Beide liefen
+     * durch diese Middleware, und die hängte den Token der aufrufenden Sitzung an.
+     * Ein gemeinsamer Zwischenspeicher - Reverse Proxy, CDN - darf eine
+     * `public`-Antwort samt Kopfzeilen aufbewahren und dem nächsten Abruf
+     * ausliefern: Dann kennt eine fremde Person den Token einer anderen Sitzung,
+     * und genau damit lässt sich die Fälschungs-Sperre aushebeln, gegen die der
+     * Token schützt.
+     *
+     * Verloren geht dabei nichts: Diese Antworten sind ein Bild und ein
+     * JSON-Dokument, kein Formular, das seinen Token nachziehen müsste.
+     */
+    public function testPubliclyCacheableResponseDoesNotCarryTheToken(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION['user_id'] = 7;
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return (new Response())
+                    ->withHeader('Content-Type', 'image/png')
+                    ->withHeader('Cache-Control', 'public, max-age=86400');
+            }
+        };
+
+        $result = $middleware->process($this->makeRequest('GET', '/help/images/tasks/list.png'), $handler);
+
+        $this->assertSame(200, $result->getStatusCode());
+        $this->assertFalse($result->hasHeader(Csrf::RESPONSE_HEADER));
+    }
+
+    /**
+     * Umgekehrt bleibt alles, was nur der aufrufende Browser aufbewahren darf,
+     * beim Token - sonst nähme die Sperre oben den Seiten ihren Abgleich weg.
+     */
+    public function testPrivatelyCacheableResponseStillCarriesTheToken(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION['user_id'] = 7;
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return (new Response())->withHeader('Cache-Control', 'private, max-age=300');
+            }
+        };
+
+        $result = $middleware->process($this->makeRequest('GET', '/settings/logo'), $handler);
+
+        $this->assertSame($_SESSION[Csrf::SESSION_KEY], $result->getHeaderLine(Csrf::RESPONSE_HEADER));
+    }
 }

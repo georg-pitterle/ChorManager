@@ -1,5 +1,5 @@
-{# Hinweisbox fuer Gueltigkeitsdauer und Sicherheitshinweise.
-   tone "brand" fuer Einladungen, tone "neutral" im Sicherheitskontext. Bewusst kein Rot:
+{# Hinweisbox für Gültigkeitsdauer und Sicherheitshinweise.
+   tone "brand" für Einladungen, tone "neutral" im Sicherheitskontext. Bewusst kein Rot:
    eine Systemmail ist keine Stoerung. Einbinden per {% embed %} mit Block "body". #}
 {% set is_brand_tone = tone|default("neutral") == "brand" %}
 {% set surface = surface_override|default(is_brand_tone ? "#fdf8ec" : "#f2f4f7") %}

@@ -109,12 +109,39 @@ class CsrfMiddleware implements MiddlewareInterface
      */
     private function withCurrentToken(Response $response): Response
     {
+        if ($this->isPubliclyCacheable($response)) {
+            return $response;
+        }
+
         $token = $_SESSION[Csrf::SESSION_KEY] ?? null;
         if (!is_string($token) || $token === '') {
             return $response;
         }
 
         return $response->withHeader(Csrf::RESPONSE_HEADER, $token);
+    }
+
+    /**
+     * Weist sich die Antwort selbst als `public` zwischenspeicherbar aus?
+     *
+     * Dann bekommt sie den Token nicht. Ein gemeinsamer Zwischenspeicher -
+     * Reverse Proxy, CDN - darf eine solche Antwort samt Kopfzeilen aufbewahren
+     * und dem nächsten Abruf ausliefern. Mit dem Token darin kennt eine fremde
+     * Person den Token einer anderen Sitzung, und genau damit lässt sich die
+     * Fälschungs-Sperre aushebeln, gegen die er schützt.
+     *
+     * Zwei Routen weisen sich so aus: die Hilfe-Bilder hinter der Anmeldung
+     * (`public, max-age=86400`) und das OIDC-Discovery-Dokument samt
+     * Schlüsselsatz. Beide sind ein Bild bzw. ein JSON-Dokument, kein Formular,
+     * das seinen Token nachziehen müsste - es geht also nichts verloren.
+     *
+     * Alles andere behält den Kopf: Die SecurityHeadersMiddleware setzt für
+     * Antworten ohne eigene Angabe `no-store`, und `private` gilt nur für den
+     * aufrufenden Browser.
+     */
+    private function isPubliclyCacheable(Response $response): bool
+    {
+        return str_contains(strtolower($response->getHeaderLine('Cache-Control')), 'public');
     }
 
     private function guard(Request $request, RequestHandler $handler): Response

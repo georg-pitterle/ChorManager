@@ -30,7 +30,7 @@
                     {{ ui.detail_row("Sponsor", contact.sponsor.name, true) }}
                     {{ ui.detail_row("Letzter Kontakt", contact.contact_date|date("d.m.Y"), false) }}
                     {% if contact.summary is not empty %}
-                        {# Ohne twig/string-extra gibt es kein truncate - slice reicht fuer die Vorschau. #}
+                        {# Ohne twig/string-extra gibt es kein truncate - slice reicht für die Vorschau. #}
                         {% set _summary = contact.summary|length > 200 ? contact.summary|slice(0, 200) ~ "…" : contact.summary %}
                         {{ ui.detail_row("Damals notiert", _summary, false) }}
                     {% endif %}
