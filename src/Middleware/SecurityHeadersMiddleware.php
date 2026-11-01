@@ -99,6 +99,34 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
             // Es erlaubt kein eval() für JavaScript, und woher die Bytes stammen dürfen, regeln
             // weiterhin default-src/connect-src 'self' - also nur die eigene Herkunft.
             "script-src 'self' 'wasm-unsafe-eval'",
+            // 'unsafe-inline' bleibt, und das ist eine gemessene Entscheidung, keine
+            // Nachlässigkeit. Naheliegend wäre
+            // `style-src 'self'; style-src-attr 'unsafe-inline'`: Das ließe die
+            // dynamischen CSS-Variablen aus template-hygiene.md weiterlaufen und
+            // nähme einem eingeschleusten <style>-Block die Wirkung. Zwei
+            // Bibliotheken hängen ihre Gestaltung aber zur Laufzeit als <style> ein,
+            // und verschärft bricht genau das:
+            //
+            // - TinyMCE schiebt `content_style` als <style> in den Editor-iframe, und
+            //   der iframe erbt die Richtlinie der Seite. Abgewiesen stand `body` im
+            //   Newsletter-Editor auf 16px statt 14px und `.newsletter-lead` nicht mehr
+            //   auf 600/18px - wer schreibt, sieht dann nicht mehr, wie die Mail
+            //   aussehen wird, und genau dafür steht `content_style` dort.
+            // - html-midi-player (songs/downloads) baut seine Gestaltung als <style> im
+            //   Shadow-DOM und nutzt kein `adoptedStyleSheets`. Abgewiesen stand der
+            //   Player auf `display: inline` statt `inline-block` und `width: auto`
+            //   statt `300px`.
+            //
+            // pdf.js ist nicht betroffen - es nimmt `adoptedStyleSheets`, wenn es sie
+            // gibt. Gemessen in Chromium gegen die echten Dateien aus public/vendor,
+            // beide Richtlinien gegeneinander (Review-Lauf 61).
+            //
+            // Der Gewinn wäre ohnehin klein: Ein eingeschleuster <style>-Block kann
+            // Seiten verunstalten, aber keine Daten abziehen - dafür sorgen
+            // script-src und connect-src 'self'. Vor einer Verschärfung müsste erst
+            // `content_style` in eine echte CSS-Datei umziehen, und für den
+            // MIDI-Player blieb nur ein CSP-Hash, der bei jedem Update der Bibliothek
+            // still bricht.
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob:",
             "font-src 'self' data:",

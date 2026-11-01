@@ -335,4 +335,42 @@ class SecurityHeadersMiddlewareFeatureTest extends TestCase
             $this->hstsFor('http://localhost/dashboard', ['HTTPS' => 'on', 'REMOTE_ADDR' => '10.0.0.10'])
         );
     }
+
+    /**
+     * `style-src` behält sein `'unsafe-inline'`, und dieser Test ist der Grund,
+     * warum das nicht beim nächsten Aufräumen verschwindet.
+     *
+     * Naheliegend wäre `style-src 'self'; style-src-attr 'unsafe-inline'` - die
+     * dynamischen CSS-Variablen aus template-hygiene.md liefen weiter, ein
+     * eingeschleuster `<style>`-Block verlöre seine Wirkung. Zwei Bibliotheken
+     * hängen ihre Gestaltung aber zur Laufzeit als `<style>` ein und brechen
+     * dabei: TinyMCE schiebt `content_style` in den Editor-iframe, der die
+     * Richtlinie der Seite erbt (Newsletter-Editor stand danach auf 16px statt
+     * 14px, `.newsletter-lead` nicht mehr auf 600/18px), und html-midi-player
+     * baut seine Gestaltung im Shadow-DOM ohne `adoptedStyleSheets` (Player auf
+     * `display: inline` statt `inline-block`).
+     *
+     * Beides sieht diese Suite nicht: Sie prüft keinen Browser, und beide
+     * Ausfälle sind rein sichtbar. Ohne diesen Test bleibt die Verschärfung
+     * grün und der Bruch fällt erst jemandem auf, der einen Newsletter schreibt
+     * oder eine Aufnahme anhört. Gemessen wurde es in Chromium gegen die echten
+     * Dateien aus public/vendor (Review-Lauf 61); die Begründung steht
+     * ausführlich an der Richtlinie selbst.
+     */
+    public function testStyleSrcKeepsUnsafeInlineForRuntimeInjectedStyleElements(): void
+    {
+        $csp = $this->cspFor(new SecurityHeadersMiddleware(), '/dashboard');
+
+        $this->assertStringContainsString(
+            "style-src 'self' 'unsafe-inline'",
+            $csp,
+            "TinyMCEs content_style und html-midi-player hängen <style> zur Laufzeit ein. "
+            . 'Ohne unsafe-inline verlieren der Newsletter-Editor und der MIDI-Player ihre '
+            . 'Gestaltung - siehe die Begründung an buildCsp(). Vorher umbauen, dann verschärfen.'
+        );
+
+        // Die getrennte Form ist genau die verworfene Variante: Sie lässt
+        // style-Attribute zu und weist <style>-Elemente ab.
+        $this->assertStringNotContainsString('style-src-attr', $csp);
+    }
 }
