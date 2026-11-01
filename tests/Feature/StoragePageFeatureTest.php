@@ -119,7 +119,7 @@ final class StoragePageFeatureTest extends TestCase
 
         $this->assertMatchesRegularExpression(
             "~get\\('/storage', \\[StorageController::class, 'index'\\]\\)\\s*"
-                . "->add\\(new RoleMiddleware\\(requiresStorageManagement: true\\)\\)~",
+                . "->add\\(new RoleMiddleware\\(gates: \\['requiresStorageManagement'\\]\\)\\)~",
             $routes
         );
     }

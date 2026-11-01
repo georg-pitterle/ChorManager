@@ -54,7 +54,7 @@ final class UnauthenticatedRejectionConsistencyFeatureTest extends TestCase
             new RememberLoginService(),
             new SessionAuthService(new NameFormatterService(), new RequestContext())
         );
-        $this->secondRow = new RoleMiddleware(requiresUserManagement: true);
+        $this->secondRow = new RoleMiddleware(gates: ['requiresUserManagement']);
 
         if (session_status() === PHP_SESSION_NONE) {
             session_start();

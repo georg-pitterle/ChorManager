@@ -24,7 +24,7 @@ final class RoleMiddlewareBackupFeatureTest extends TestCase
         $_SESSION['can_manage_backups'] = true;
         $_SESSION['can_manage_users'] = false;
 
-        $middleware = new RoleMiddleware(requiresBackupManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresBackupManagement']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/backups'),
             new class implements RequestHandlerInterface {
@@ -43,7 +43,7 @@ final class RoleMiddlewareBackupFeatureTest extends TestCase
         $_SESSION['can_manage_backups'] = false;
         $_SESSION['can_manage_users'] = true;
 
-        $middleware = new RoleMiddleware(requiresBackupManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresBackupManagement']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/backups'),
             new class implements RequestHandlerInterface {

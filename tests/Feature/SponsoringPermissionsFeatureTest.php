@@ -67,13 +67,13 @@ class SponsoringPermissionsFeatureTest extends TestCase
     {
         $this->loginAsContributor();
 
-        $accessMiddleware = new RoleMiddleware(requiresSponsoringAccess: true);
+        $accessMiddleware = new RoleMiddleware(gates: ['requiresSponsoringAccess']);
         $this->assertSame(
             204,
             $accessMiddleware->process($this->makeRequest('GET', '/sponsoring'), $this->passThrough())->getStatusCode()
         );
 
-        $managementMiddleware = new RoleMiddleware(requiresSponsoringManagement: true);
+        $managementMiddleware = new RoleMiddleware(gates: ['requiresSponsoringManagement']);
         $this->assertSame(
             403,
             $managementMiddleware->process(
@@ -87,7 +87,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
     {
         $_SESSION['user_id'] = (int) $this->contributor->id;
 
-        $accessMiddleware = new RoleMiddleware(requiresSponsoringAccess: true);
+        $accessMiddleware = new RoleMiddleware(gates: ['requiresSponsoringAccess']);
 
         $this->assertSame(
             403,
@@ -205,7 +205,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
         $name = 'Testpaket ' . bin2hex(random_bytes(4));
 
         $controller = new SponsorPackageController($this->createStub(Twig::class), new SponsoringPolicy($_SESSION));
-        $middleware = new RoleMiddleware(requiresSponsoringManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresSponsoringManagement']);
 
         // Die Route liegt hinter der Verwaltungs-Middleware; der Controller
         // wird fuer einen Beitragenden gar nicht erst erreicht.

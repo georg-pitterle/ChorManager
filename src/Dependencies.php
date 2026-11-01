@@ -834,7 +834,8 @@ return function (ContainerBuilder $containerBuilder) {
             // restored, which dropped the navbar for that request.
             return new RegistrationReminderMiddleware(
                 static fn (): RegistrationReminderService => $c->get(RegistrationReminderService::class),
-                $c->get(LoggerInterface::class)
+                $c->get(LoggerInterface::class),
+                $c->get(AfterResponse::class)
             );
         },
         NotificationReminderService::class => \DI\autowire(),
@@ -846,7 +847,8 @@ return function (ContainerBuilder $containerBuilder) {
             // den noch unangemeldeten Sitzungszustand ein.
             return new NotificationReminderMiddleware(
                 static fn (): NotificationReminderService => $c->get(NotificationReminderService::class),
-                $c->get(LoggerInterface::class)
+                $c->get(LoggerInterface::class),
+                $c->get(AfterResponse::class)
             );
         },
         // Die Sitzung kommt von hier, nicht aus dem Superglobal in der Policy.

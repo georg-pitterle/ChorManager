@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Util\AfterResponse;
 use App\Util\AppUrlResolver;
 use App\Util\OpportunisticRunGate;
 use Closure;
@@ -46,7 +47,8 @@ abstract class OpportunisticReminderMiddleware implements MiddlewareInterface
      */
     public function __construct(
         private readonly Closure $reminderServiceFactory,
-        private readonly LoggerInterface $logger
+        private readonly LoggerInterface $logger,
+        private readonly AfterResponse $afterResponse
     ) {
     }
 
@@ -67,11 +69,29 @@ abstract class OpportunisticReminderMiddleware implements MiddlewareInterface
      */
     abstract protected function skippedEvent(): string;
 
+    /**
+     * Gearbeitet wird erst, wenn die Antwort beim Browser und die Sitzung
+     * freigegeben ist - genau wie bei der Mailwarteschlange.
+     *
+     * Vorher lief der Lauf vor dem Controller: Einmal pro Stunde wartete genau
+     * die Person, deren Aufruf ihn auslöste, zusätzlich auf die Abfragen über
+     * Aufgaben, Wiedervorlagen und Terminanmeldungen und auf das Aufräumen von
+     * Versandprotokoll und Glocken-Einträgen. Niemand braucht dieses Ergebnis
+     * für die Seite, die gerade gebaut wird - die Erinnerungen stellen nur in
+     * die Warteschlange, verschickt wird daraus später.
+     *
+     * Der Merker wird damit ebenfalls erst nach der Antwort gesetzt. Das
+     * verschiebt die Wartezeit um die Dauer einer Anfrage und sonst nichts:
+     * `OpportunisticRunGate` setzt ihn weiterhin vor der Arbeit, zwei
+     * gleichzeitige Anfragen bremsen sich also wie bisher.
+     */
     public function process(Request $request, RequestHandler $handler): Response
     {
-        $this->processIfDue($request);
+        $response = $handler->handle($request);
 
-        return $handler->handle($request);
+        $this->afterResponse->defer(fn () => $this->processIfDue($request));
+
+        return $response;
     }
 
     private function processIfDue(Request $request): void

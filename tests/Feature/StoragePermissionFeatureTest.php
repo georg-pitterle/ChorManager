@@ -95,12 +95,12 @@ final class StoragePermissionFeatureTest extends TestCase
     public function testGateLetsTheRightThroughAndStopsOthers(): void
     {
         $_SESSION['can_manage_storage'] = true;
-        $this->assertSame(200, $this->pass(new RoleMiddleware(requiresStorageManagement: true)));
+        $this->assertSame(200, $this->pass(new RoleMiddleware(gates: ['requiresStorageManagement'])));
 
         $_SESSION['can_manage_storage'] = false;
         $_SESSION['can_manage_backups'] = true;
         $_SESSION['can_manage_roles'] = true;
-        $this->assertSame(403, $this->pass(new RoleMiddleware(requiresStorageManagement: true)));
+        $this->assertSame(403, $this->pass(new RoleMiddleware(gates: ['requiresStorageManagement'])));
     }
 
     private function pass(RoleMiddleware $middleware): int

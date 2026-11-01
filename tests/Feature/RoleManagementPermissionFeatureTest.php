@@ -42,7 +42,7 @@ final class RoleManagementPermissionFeatureTest extends TestCase
 
     private function roleGateStatus(): int
     {
-        $middleware = new RoleMiddleware(requiresRoleManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresRoleManagement']);
 
         return $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/roles'),
@@ -126,7 +126,7 @@ final class RoleManagementPermissionFeatureTest extends TestCase
 
         $roleGroup = '#\$roleGroup->get\(\'\', \[RoleController::class, \'index\'\]\);'
             . '(?:(?!\)->add\().)*'
-            . '\)->add\(new RoleMiddleware\(requiresRoleManagement: true\)\);#s';
+            . '\)->add\(new RoleMiddleware\(gates: \[.requiresRoleManagement.\]\)\);#s';
         $this->assertMatchesRegularExpression($roleGroup, $routes);
     }
 

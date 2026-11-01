@@ -10,29 +10,27 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use InvalidArgumentException;
 use ReflectionClass;
-use ReflectionNamedType;
 use Slim\Psr7\Factory\ServerRequestFactory;
 use Slim\Psr7\Response;
 
 /**
  * Die RoleMiddleware trug für jedes Rechte-Gate einen eigenen Wahrheitswert im
- * Konstruktor und einen eigenen, fast gleichlautenden `if`-Block. Die Bedeutung
- * hing allein an der Position: Ein Einschub in der Mitte verschob still alle
- * folgenden, weshalb neue Schalter ans Ende gehängt werden mussten - zuletzt
- * sogar hinter den Logger.
+ * Konstruktor - zuletzt 22 Stück, jeder Name ein zweites Mal als Schlüssel in
+ * einer Zuordnung darunter. Die Route nennt die Gates jetzt beim Namen
+ * (`gates: ['requiresTaskManagement']`), und allein die Tabelle self::GATES
+ * entscheidet, was es gibt und in welcher Reihenfolge geprüft wird.
  *
- * Jetzt beschreibt eine Tabelle die Gates. Dieser Test hält beide Hälften
- * zusammen: Ein Gate ohne Schalter wäre unerreichbar, ein Schalter ohne Gate
- * wirkungslos - beides fiele sonst niemandem auf.
+ * Damit verschiebt sich auch, worüber dieser Test wachen muss. Die benannten
+ * Parameter waren ihr eigener Wächter: Ein Tippfehler war ein
+ * `Unknown named parameter` und damit ein Absturz beim Start. Eine Zeichenkette
+ * ist das nicht - ein vertippter Name wäre still kein Gate, und die Route liefe
+ * ohne jede Rechteprüfung weiter. Deshalb prüft dieser Test vor allem, dass ein
+ * unbekannter Name abgewiesen wird.
  */
 final class RoleMiddlewareGateTableFeatureTest extends TestCase
 {
-    /**
-     * Konstruktorparameter, die kein Gate schalten.
-     */
-    private const NON_GATE_PARAMETERS = ['logger'];
-
     /**
      * Die Middleware prüft ausschließlich Rechte, nie das Hierarchie-Level.
      *
@@ -71,7 +69,7 @@ final class RoleMiddlewareGateTableFeatureTest extends TestCase
             'can_manage_finances' => true,
         ];
 
-        $middleware = new RoleMiddleware(requiresFinanceManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresFinanceManagement']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/finances'),
             new class implements RequestHandlerInterface {
@@ -85,26 +83,68 @@ final class RoleMiddlewareGateTableFeatureTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
     }
 
-    public function testEveryGateHasAMatchingConstructorSwitch(): void
+    /**
+     * Der Kern der neuen Bauart: Ein Name, den die Tabelle nicht kennt, bricht
+     * beim Bauen ab.
+     *
+     * Ohne diese Ausnahme wäre ein Tippfehler an der Route - `requiresTaskManagment`
+     * ohne `e` - still kein Gate. Die Route hinge dann an einer Middleware, die
+     * nur noch auf eine Sitzung prüft, und jedes angemeldete Mitglied käme an die
+     * Aufgabenverwaltung. Von außen sähe man nur, dass die Seite sich öffnet.
+     */
+    public function testUnknownGateNameIsRejectedWhileBuilding(): void
     {
-        $missing = array_diff(array_keys($this->gates()), $this->gateParameterNames());
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('requiresTaskManagment');
 
-        $this->assertSame(
-            [],
-            array_values($missing),
-            'Gate ohne gleichnamigen Konstruktorparameter - es ließe sich nie einschalten.'
-        );
+        new RoleMiddleware(gates: ['requiresTaskManagment']);
     }
 
-    public function testEveryConstructorSwitchHasAMatchingGate(): void
+    /**
+     * Auch ein einzelner falscher Name unter richtigen fliegt auf - sonst
+     * verdeckte ein gültiges Gate daneben den Fehler.
+     */
+    public function testOneBadNameAmongValidOnesIsRejected(): void
     {
-        $missing = array_diff($this->gateParameterNames(), array_keys($this->gates()));
+        $this->expectException(InvalidArgumentException::class);
 
-        $this->assertSame(
-            [],
-            array_values($missing),
-            'Konstruktorparameter ohne Gate-Eintrag - er bliebe wirkungslos.'
-        );
+        new RoleMiddleware(gates: ['requiresUserManagement', 'allowVoiceGroupRepps']);
+    }
+
+    /**
+     * Die Gegenrichtung: Jeder Name aus der Tabelle wird angenommen. Ein Gate,
+     * das sich nicht einschalten lässt, wäre unerreichbar.
+     */
+    public function testEveryGateNameFromTheTableIsAccepted(): void
+    {
+        foreach (array_keys($this->gates()) as $gate) {
+            $middleware = new RoleMiddleware(gates: [$gate]);
+            $this->assertInstanceOf(RoleMiddleware::class, $middleware, "Gate {$gate} wurde abgewiesen.");
+        }
+    }
+
+    /**
+     * Ein eingeschaltetes Gate wirkt auch: ohne das Recht 403, mit dem Recht
+     * durch. Geprüft wird das für jedes Gate der Tabelle - ein Eintrag, der
+     * zwar angenommen, aber nie geprüft wird, wäre wirkungslos.
+     */
+    public function testEveryGateActuallyGuardsAndLetsThroughWithItsPermission(): void
+    {
+        foreach ($this->gates() as $gate => $definition) {
+            $_SESSION = ['user_id' => 42];
+            $denied = (new RoleMiddleware(gates: [$gate]))->process($this->request(), $this->okHandler());
+            $this->assertSame(403, $denied->getStatusCode(), "Gate {$gate} weist ohne Recht nicht ab.");
+
+            foreach ($definition['permissions'] as $permission) {
+                $_SESSION = ['user_id' => 42, $permission => true];
+                $passed = (new RoleMiddleware(gates: [$gate]))->process($this->request(), $this->okHandler());
+                $this->assertSame(
+                    200,
+                    $passed->getStatusCode(),
+                    "Gate {$gate} lässt mit {$permission} nicht durch."
+                );
+            }
+        }
     }
 
     public function testEveryGateIsCompletelyDescribed(): void
@@ -170,7 +210,7 @@ final class RoleMiddlewareGateTableFeatureTest extends TestCase
             'can_manage_own_voice_group' => false,
         ];
 
-        $middleware = new RoleMiddleware(requiresUserManagement: true, allowVoiceGroupReps: true);
+        $middleware = new RoleMiddleware(gates: ['requiresUserManagement', 'allowVoiceGroupReps']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/users'),
             new class implements RequestHandlerInterface {
@@ -195,28 +235,18 @@ final class RoleMiddlewareGateTableFeatureTest extends TestCase
         return $gates;
     }
 
-    /**
-     * Alle Konstruktorparameter, die ein Gate schalten - also die booleschen.
-     *
-     * @return list<string>
-     */
-    private function gateParameterNames(): array
+    private function request(): ServerRequestInterface
     {
-        $constructor = (new ReflectionClass(RoleMiddleware::class))->getConstructor();
-        $this->assertNotNull($constructor);
+        return (new ServerRequestFactory())->createServerRequest('GET', '/irgendeine-route');
+    }
 
-        $names = [];
-        foreach ($constructor->getParameters() as $parameter) {
-            if (in_array($parameter->getName(), self::NON_GATE_PARAMETERS, true)) {
-                continue;
+    private function okHandler(): RequestHandlerInterface
+    {
+        return new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return new Response(200);
             }
-
-            $type = $parameter->getType();
-            if ($type instanceof ReflectionNamedType && $type->getName() === 'bool') {
-                $names[] = $parameter->getName();
-            }
-        }
-
-        return $names;
+        };
     }
 }

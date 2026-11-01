@@ -59,7 +59,7 @@ final class AuthorizationLoggingTest extends TestCase
     {
         $_SESSION['can_manage_roles'] = true;
         [$logger, $handler] = $this->logger();
-        $middleware = new RoleMiddleware(requiresRoleManagement: true, logger: $logger);
+        $middleware = new RoleMiddleware(gates: ['requiresRoleManagement'], logger: $logger);
 
         $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/roles'),
@@ -90,7 +90,8 @@ final class AuthorizationLoggingTest extends TestCase
         $context->assign(['path' => $route]);
         $logger->pushProcessor(new RequestContextProcessor($context));
 
-        $middleware = new RoleMiddleware(requiresRoleManagement: $requiresRoleManagement, logger: $logger);
+        $gates = $requiresRoleManagement ? ['requiresRoleManagement'] : [];
+        $middleware = new RoleMiddleware(gates: $gates, logger: $logger);
 
         return $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', $route),

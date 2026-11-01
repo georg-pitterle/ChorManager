@@ -245,7 +245,7 @@ return function (App $app) {
                     $userGroup->post('/restore/{id:[0-9]+}', [UserController::class, 'restore']);
                     $userGroup->post('/{id:[0-9]+}/invite', [UserController::class, 'invite']);
                 }
-            )->add(new RoleMiddleware(allowVoiceGroupReps: true)); // allow manage_users OR can_manage_own_voice_group
+            )->add(new RoleMiddleware(gates: ['allowVoiceGroupReps'])); // allow manage_users OR can_manage_own_voice_group
 
             // Stimmgruppen-Listen: welche Liste jemand sieht, entscheidet VoiceGroupListPolicy.
             $group->group(
@@ -267,7 +267,7 @@ return function (App $app) {
                         [VoiceGroupListController::class, 'saveEntry']
                     );
                 }
-            )->add(new RoleMiddleware(requiresVoiceGroupLists: true));
+            )->add(new RoleMiddleware(gates: ['requiresVoiceGroupLists']));
 
             // Trefferzahl einer Zielgruppen-Zeile; wer sie abfragen darf, prüft der Controller.
             $group->post('/audience-preview', [AudiencePreviewController::class, 'preview']);
@@ -288,7 +288,7 @@ return function (App $app) {
                     $attendanceGroup->get('/attendance/{event_id:[0-9]+}', [AttendanceController::class, 'show']);
                     $attendanceGroup->post('/attendance/{event_id:[0-9]+}', [AttendanceController::class, 'save']);
                 }
-            )->add(new RoleMiddleware(requiresAttendanceManagement: true));
+            )->add(new RoleMiddleware(gates: ['requiresAttendanceManagement']));
 
             // Registration Routes (Anmeldung zu zukünftigen Terminen)
             if ($settings['modules']['registration'] ?? false) {
@@ -364,7 +364,7 @@ return function (App $app) {
                         $filesAdmin->post('/roots', [FileFolderController::class, 'createRoot']);
                         $filesAdmin->post('/folders/{id:[0-9]+}/quota', [FileFolderController::class, 'quota']);
                     }
-                )->add(new RoleMiddleware(requiresFilesManagement: true));
+                )->add(new RoleMiddleware(gates: ['requiresFilesManagement']));
             }
 
             // Help pages (Markdown guides under help/) - accessible for all logged-in users.
@@ -405,7 +405,7 @@ return function (App $app) {
                     $eventGroup->post('/event-types/{id:[0-9]+}/update', [EventTypeController::class, 'update']);
                     $eventGroup->post('/event-types/{id:[0-9]+}/delete', [EventTypeController::class, 'delete']);
                 }
-            )->add(new RoleMiddleware(requiresEventManagement: true));
+            )->add(new RoleMiddleware(gates: ['requiresEventManagement']));
 
             // Rollenverwaltung vergibt Rechte und ist deshalb ein eigenes Recht: can_manage_users
             // darf Rollen nur noch zuweisen (begrenzt auf das eigene Hierarchie-Level), während
@@ -418,7 +418,7 @@ return function (App $app) {
                     $roleGroup->post('/{id:[0-9]+}', [RoleController::class, 'update']);
                     $roleGroup->post('/{id:[0-9]+}/delete', [RoleController::class, 'delete']);
                 }
-            )->add(new RoleMiddleware(requiresRoleManagement: true));
+            )->add(new RoleMiddleware(gates: ['requiresRoleManagement']));
 
             // Stammdaten Management (dedicated permission)
             $group->group(
@@ -460,7 +460,7 @@ return function (App $app) {
                     $masterGroup->get('/settings', [AppSettingController::class, 'index']);
                     $masterGroup->post('/settings', [AppSettingController::class, 'save']);
                 }
-            )->add(new RoleMiddleware(requiresMasterDataManagement: true));
+            )->add(new RoleMiddleware(gates: ['requiresMasterDataManagement']));
 
 
             if ($settings['modules']['finance'] ?? false) {
@@ -476,7 +476,7 @@ return function (App $app) {
                         // Rohdaten für Rechnungsprüfer: bewusst nur Leserecht nötig.
                         $financeReadGroup->get('/finances/export', [FinanceController::class, 'exportCsv']);
                     }
-                )->add(new RoleMiddleware(requiresFinanceRead: true));
+                )->add(new RoleMiddleware(gates: ['requiresFinanceRead']));
 
                 // Finance (Kassa) write routes - Need can_manage_finances OR global manage
                 $group->group(
@@ -515,7 +515,7 @@ return function (App $app) {
                             [FinanceController::class, 'deleteAttachment']
                         );
                     }
-                )->add(new RoleMiddleware(requiresFinanceManagement: true));
+                )->add(new RoleMiddleware(gates: ['requiresFinanceManagement']));
             }
 
             // Shared Evaluation Groups (Project Member Management)derverwaltung (eigenes Recht)
@@ -530,7 +530,7 @@ return function (App $app) {
                         [ProjectController::class, 'removeMember']
                     );
                 }
-            )->add(new RoleMiddleware(requiresProjectMemberManagement: true));
+            )->add(new RoleMiddleware(gates: ['requiresProjectMemberManagement']));
 
             if ($settings['modules']['tasks'] ?? false) {
                 // Project task routes require task management permission
@@ -540,7 +540,7 @@ return function (App $app) {
                         $projGroup->get('/{project_id:[0-9]+}/tasks', [TaskController::class, 'index']);
                         $projGroup->post('/{project_id:[0-9]+}/tasks', [TaskController::class, 'create']);
                     }
-                )->add(new RoleMiddleware(requiresTaskManagement: true));
+                )->add(new RoleMiddleware(gates: ['requiresTaskManagement']));
 
                 // Task detail routes require task management permission
                 $group->group(
@@ -557,7 +557,7 @@ return function (App $app) {
                             [TaskController::class, 'deleteAttachment']
                         );
                     }
-                )->add(new RoleMiddleware(requiresTaskManagement: true));
+                )->add(new RoleMiddleware(gates: ['requiresTaskManagement']));
             }
 
             if ($settings['modules']['sponsoring'] ?? false) {
@@ -643,7 +643,7 @@ return function (App $app) {
                         // Paketübersicht
                         $sponsoringGroup->get('/packages', [SponsorPackageController::class, 'index']);
                     }
-                )->add(new RoleMiddleware(requiresSponsoringAccess: true));
+                )->add(new RoleMiddleware(gates: ['requiresSponsoringAccess']));
 
                 $group->group(
                     '/sponsoring',
@@ -682,7 +682,7 @@ return function (App $app) {
                             [SponsorPackageController::class, 'delete']
                         );
                     }
-                )->add(new RoleMiddleware(requiresSponsoringManagement: true));
+                )->add(new RoleMiddleware(gates: ['requiresSponsoringManagement']));
             }
 
             // Song library management
@@ -717,10 +717,10 @@ return function (App $app) {
                     // Sheet Archive routes (save, fetch voice categories) - requiresSheetArchiveManagement
                     if ($settings['modules']['sheet_archive'] ?? false) {
                         $songsGroup->post('/songs/{songId:[0-9]+}/archive/save', [SheetArchiveController::class, 'save'])
-                            ->add(new RoleMiddleware(requiresSheetArchiveManagement: true));
+                            ->add(new RoleMiddleware(gates: ['requiresSheetArchiveManagement']));
 
                         $songsGroup->get('/archive/voice-categories', [SheetArchiveController::class, 'getVoiceCategories'])
-                            ->add(new RoleMiddleware(requiresSheetArchiveManagement: true));
+                            ->add(new RoleMiddleware(gates: ['requiresSheetArchiveManagement']));
                     }
 
                     // Category management
@@ -745,13 +745,13 @@ return function (App $app) {
                         [ProjectSongAssignmentController::class, 'delete']
                     );
                 }
-            )->add(new RoleMiddleware(requiresSongLibraryManagement: true));
+            )->add(new RoleMiddleware(gates: ['requiresSongLibraryManagement']));
 
             // Budget routes
             if ($settings['modules']['budget'] ?? false) {
                 // Read-only view: finance readers + budget managers.
                 $group->get('/budget', [BudgetController::class, 'index'])
-                    ->add(new RoleMiddleware(requiresBudgetRead: true));
+                    ->add(new RoleMiddleware(gates: ['requiresBudgetRead']));
 
                 // Write actions: budget managers only.
                 $group->group(
@@ -779,7 +779,7 @@ return function (App $app) {
                             [BudgetController::class, 'deleteItem']
                         );
                     }
-                )->add(new RoleMiddleware(requiresBudgetManagement: true));
+                )->add(new RoleMiddleware(gates: ['requiresBudgetManagement']));
             }
 
             if ($settings['modules']['newsletter'] ?? false) {
@@ -884,7 +884,7 @@ return function (App $app) {
                             [NewsletterTemplateController::class, 'clone']
                         );
                     }
-                )->add(new RoleMiddleware(requiresNewsletterManagement: true));
+                )->add(new RoleMiddleware(gates: ['requiresNewsletterManagement']));
             }
 
             // Mail Queue Management
@@ -903,7 +903,7 @@ return function (App $app) {
                     $mailQueueGroup->post('/mail-queue/{id:[0-9]+}/retry', [MailQueueController::class, 'retrySingle']);
                     $mailQueueGroup->post('/mail-queue/retry-all-dead', [MailQueueController::class, 'retryAllDead']);
                 }
-            )->add(new RoleMiddleware(requiresMailQueueManagement: true));
+            )->add(new RoleMiddleware(gates: ['requiresMailQueueManagement']));
 
             // Backup management
             $group->group(
@@ -915,15 +915,15 @@ return function (App $app) {
                     $backupGroup->post('/backups/{id:[A-Za-z0-9_]+}/delete', [BackupController::class, 'delete']);
                     $backupGroup->get('/backups/{id:[A-Za-z0-9_]+}/download', [BackupController::class, 'download']);
                 }
-            )->add(new RoleMiddleware(requiresBackupManagement: true));
+            )->add(new RoleMiddleware(gates: ['requiresBackupManagement']));
 
             // Speicherplatz-Übersicht
             $group->get('/storage', [StorageController::class, 'index'])
-                ->add(new RoleMiddleware(requiresStorageManagement: true));
+                ->add(new RoleMiddleware(gates: ['requiresStorageManagement']));
 
             // Dev-only seed endpoint, still protected by admin permission.
             $group->post('/dev/seed', [DevSeedController::class, 'run'])
-                ->add(new RoleMiddleware(requiresUserManagement: true));
+                ->add(new RoleMiddleware(gates: ['requiresUserManagement']));
         }
     )->add(AuthMiddleware::class);
 };

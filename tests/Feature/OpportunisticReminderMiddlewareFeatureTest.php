@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Middleware\NotificationReminderMiddleware;
 use App\Middleware\OpportunisticReminderMiddleware;
 use App\Models\AppSetting;
+use App\Util\AfterResponse;
 use Closure;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
@@ -55,15 +56,15 @@ final class OpportunisticReminderMiddlewareFeatureTest extends TestCase
     {
         $this->assertInstanceOf(
             OpportunisticReminderMiddleware::class,
-            new RegistrationReminderMiddleware($this->neverCalledFactory(), new Logger('test'))
+            new RegistrationReminderMiddleware($this->neverCalledFactory(), new Logger('test'), $this->afterResponse())
         );
         $this->assertInstanceOf(
             OpportunisticReminderMiddleware::class,
-            new NotificationReminderMiddleware($this->neverCalledFactory(), new Logger('test'))
+            new NotificationReminderMiddleware($this->neverCalledFactory(), new Logger('test'), $this->afterResponse())
         );
         $this->assertInstanceOf(
             MiddlewareInterface::class,
-            new RegistrationReminderMiddleware($this->neverCalledFactory(), new Logger('test'))
+            new RegistrationReminderMiddleware($this->neverCalledFactory(), new Logger('test'), $this->afterResponse())
         );
     }
 
@@ -97,14 +98,17 @@ final class OpportunisticReminderMiddlewareFeatureTest extends TestCase
         $handler = new TestHandler();
         $logger = new Logger('test', [$handler]);
 
+        $afterResponse = $this->afterResponse();
         $middleware = new $middlewareClass(
             static function (): never {
                 throw new RuntimeException('Dienst nicht verfügbar');
             },
-            $logger
+            $logger,
+            $afterResponse
         );
 
         $response = $middleware->process($this->request(), $this->passthroughHandler());
+        $afterResponse->runPending();
 
         // Ein Fehler in der Nebenbei-Arbeit darf die Anfrage nie mitreißen.
         $this->assertSame(200, $response->getStatusCode());
@@ -138,9 +142,12 @@ final class OpportunisticReminderMiddlewareFeatureTest extends TestCase
             throw new RuntimeException('Dienst nicht verfügbar');
         };
 
-        $middleware = new $middlewareClass($factory, $logger);
+        $afterResponse = $this->afterResponse();
+        $middleware = new $middlewareClass($factory, $logger, $afterResponse);
         $middleware->process($this->request(), $this->passthroughHandler());
+        $afterResponse->runPending();
         $middleware->process($this->request(), $this->passthroughHandler());
+        $afterResponse->runPending();
 
         $this->assertSame(1, $calls, 'Die Wartezeit aus ' . $markerKey . ' muss den zweiten Lauf bremsen.');
         $this->assertNotSame('', $failureEvent);
@@ -157,6 +164,7 @@ final class OpportunisticReminderMiddlewareFeatureTest extends TestCase
     public function testDatabaseOutageIsLoggedAsSkippedWarning(string $middlewareClass, string $skippedEvent): void
     {
         $handler = new TestHandler();
+        $afterResponse = $this->afterResponse();
         $middleware = new $middlewareClass(
             static function (): never {
                 throw new \Illuminate\Database\QueryException(
@@ -166,10 +174,12 @@ final class OpportunisticReminderMiddlewareFeatureTest extends TestCase
                     new \PDOException('SQLSTATE[HY000] [2002] Connection refused')
                 );
             },
-            new Logger('test', [$handler])
+            new Logger('test', [$handler]),
+            $afterResponse
         );
 
         $response = $middleware->process($this->request(), $this->passthroughHandler());
+        $afterResponse->runPending();
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertFalse($handler->hasErrorRecords(), 'Eine Datenbank-Störung ist kein ERROR.');
@@ -197,6 +207,19 @@ final class OpportunisticReminderMiddlewareFeatureTest extends TestCase
         ];
     }
 
+    /**
+     * Eine Warteschlange, die der Test selbst auslöst.
+     *
+     * Im CLI-Lauf hängt sich `AfterResponse` bewusst nicht ans Prozessende -
+     * sonst führte ein PHPUnit-Lauf die gesammelte Arbeit erst bei seinem
+     * eigenen Ende aus. Die Tests rufen `runPending()` deshalb von Hand.
+     */
+    private function afterResponse(): AfterResponse
+    {
+        return new AfterResponse(static function (): void {
+        }, false);
+    }
+
     private function neverCalledFactory(): Closure
     {
         return static function (): never {
@@ -217,5 +240,70 @@ final class OpportunisticReminderMiddlewareFeatureTest extends TestCase
                 return new SlimResponse(200);
             }
         };
+    }
+
+    /**
+     * Die Erinnerung läuft erst, wenn die Antwort beim Browser und die Sitzung
+     * freigegeben ist - nicht mehr vor dem Controller.
+     *
+     * Vorher lag die Arbeit im Anfrageweg: Einmal pro Stunde wartete genau die
+     * Person, deren Aufruf den Lauf auslöste, zusätzlich auf Datenbankabfragen
+     * über Aufgaben, Wiedervorlagen und Terminanmeldungen und auf das Aufräumen
+     * von Versandprotokoll und Glocken-Einträgen. Die Mailwarteschlange hatte
+     * denselben Weg aus demselben Grund schon verlassen; hier fehlte er noch.
+     *
+     * @param class-string<OpportunisticReminderMiddleware> $middlewareClass
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('reminderProvider')]
+    public function testReminderWorkRunsOnlyAfterTheResponse(
+        string $middlewareClass,
+        string $markerKey,
+        string $failureEvent
+    ): void {
+        $calls = [];
+        $afterResponse = new AfterResponse(static function (): void {
+        }, false);
+
+        $middleware = new $middlewareClass(
+            static function () use (&$calls): object {
+                $calls[] = 'reminder';
+
+                return new class {
+                    public function processDue(string $baseUrl): int
+                    {
+                        return 0;
+                    }
+                };
+            },
+            new Logger('test', [new TestHandler()]),
+            $afterResponse
+        );
+
+        $handler = new class ($calls) implements RequestHandlerInterface {
+            /** @param list<string> $calls */
+            public function __construct(private array &$calls)
+            {
+            }
+
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                $this->calls[] = 'handler';
+
+                return new SlimResponse(200);
+            }
+        };
+
+        $response = $middleware->process($this->request(), $handler);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(['handler'], $calls, 'Vor der Antwort darf die Erinnerung nicht laufen.');
+
+        $afterResponse->runPending();
+
+        $this->assertSame(['handler', 'reminder'], $calls);
+        $this->assertNotNull(
+            AppSetting::query()->where('setting_key', $markerKey)->value('setting_value')
+        );
+        $this->assertNotSame('', $failureEvent);
     }
 }

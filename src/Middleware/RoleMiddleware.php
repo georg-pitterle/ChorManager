@@ -6,6 +6,7 @@ namespace App\Middleware;
 
 use App\Util\LoginRedirect;
 use App\Util\RequestFormat;
+use InvalidArgumentException;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
@@ -183,78 +184,48 @@ class RoleMiddleware implements MiddlewareInterface
     private LoggerInterface $logger;
 
     /**
-     * Jeder Schalter trägt den Namen seines Gates in self::GATES; alle
-     * Aufrufstellen in Routes.php übergeben ihn benannt.
+     * Die Gates dieser Instanz, benannt wie in self::GATES.
      *
-     * Früher stand hier für jedes Gate ein eigener Wahrheitswert, dessen
-     * Bedeutung allein an der Position hing: Ein Einschub in der Mitte verschob
-     * still die Bedeutung aller folgenden, weshalb neue Schalter ans Ende
-     * gehängt werden mussten - zuletzt sogar hinter den Logger. Ein neues Gate
-     * braucht jetzt einen Eintrag in self::GATES und einen gleichnamigen
-     * Parameter; RoleMiddlewareGateTableFeatureTest weist jede Hälfte ohne die
-     * andere zurück.
+     * Hier stand für jedes Gate ein eigener Wahrheitswert - zuletzt 22 Stück,
+     * und jeder Name ein zweites Mal als Schlüssel in der Zuordnung darunter.
+     * Ein neues Gate brauchte damit drei gleichlautende Einträge an drei
+     * Stellen; vergaß man einen, war das Gate entweder unerreichbar oder
+     * wirkungslos. Die Tabelle self::GATES kennt die Namen ohnehin alle, also
+     * nennt die Route sie jetzt einfach.
+     *
+     * Ein unbekannter Name bricht sofort ab, und das ist der Kern der Sache:
+     * Als benannte Parameter fing PHP einen Tippfehler selbst ab
+     * (`Unknown named parameter`). Als bloße Zeichenkette wäre ein vertippter
+     * Name still kein Gate - die Route liefe ohne jede Rechteprüfung, und von
+     * außen sähe man nur, dass sie funktioniert. Deshalb die Ausnahme statt
+     * eines stillen Überlesens.
      *
      * Geprüft werden ausschließlich Rechte, nie das Hierarchie-Level. Ein
      * Parameter `minHierarchyLevel` stand hier samt eigener Abweisung, wurde aber
      * von keiner einzigen Route gesetzt. Das Level entscheidet allein darüber,
      * wessen Zuordnungen jemand ändern darf - das prüft UserEditPolicy an der
      * einzelnen Zuordnung, wo auch die zu vergleichenden Rollen bekannt sind.
+     *
+     * @param list<string> $gates Namen aus self::GATES. Die Reihenfolge hier
+     *        spielt keine Rolle; geprüft wird in der Reihenfolge der Tabelle.
+     *
+     * @throws InvalidArgumentException wenn ein Name kein Gate benennt
      */
-    public function __construct(
-        bool $requiresTaskManagement = false,
-        bool $requiresEventManagement = false,
-        bool $requiresAttendanceManagement = false,
-        bool $requiresRoleManagement = false,
-        bool $requiresSongLibraryManagement = false,
-        bool $requiresNewsletterManagement = false,
-        bool $requiresMailQueueManagement = false,
-        bool $requiresSheetArchiveManagement = false,
-        bool $requiresBudgetManagement = false,
-        bool $requiresBackupManagement = false,
-        bool $requiresBudgetRead = false,
-        bool $requiresSponsoringAccess = false,
-        bool $requiresSponsoringManagement = false,
-        bool $requiresMasterDataManagement = false,
-        bool $requiresFinanceRead = false,
-        bool $requiresFinanceManagement = false,
-        bool $requiresProjectMemberManagement = false,
-        bool $allowVoiceGroupReps = false,
-        bool $requiresUserManagement = false,
-        bool $requiresFilesManagement = false,
-        bool $requiresStorageManagement = false,
-        bool $requiresVoiceGroupLists = false,
-        ?LoggerInterface $logger = null
-    ) {
-        $requestedGates = [
-            'requiresTaskManagement' => $requiresTaskManagement,
-            'requiresEventManagement' => $requiresEventManagement,
-            'requiresAttendanceManagement' => $requiresAttendanceManagement,
-            'requiresRoleManagement' => $requiresRoleManagement,
-            'requiresSongLibraryManagement' => $requiresSongLibraryManagement,
-            'requiresNewsletterManagement' => $requiresNewsletterManagement,
-            'requiresMailQueueManagement' => $requiresMailQueueManagement,
-            'requiresSheetArchiveManagement' => $requiresSheetArchiveManagement,
-            'requiresBudgetManagement' => $requiresBudgetManagement,
-            'requiresBackupManagement' => $requiresBackupManagement,
-            'requiresBudgetRead' => $requiresBudgetRead,
-            'requiresSponsoringAccess' => $requiresSponsoringAccess,
-            'requiresSponsoringManagement' => $requiresSponsoringManagement,
-            'requiresMasterDataManagement' => $requiresMasterDataManagement,
-            'requiresFinanceRead' => $requiresFinanceRead,
-            'requiresFinanceManagement' => $requiresFinanceManagement,
-            'requiresProjectMemberManagement' => $requiresProjectMemberManagement,
-            'allowVoiceGroupReps' => $allowVoiceGroupReps,
-            'requiresUserManagement' => $requiresUserManagement,
-            'requiresFilesManagement' => $requiresFilesManagement,
-            'requiresStorageManagement' => $requiresStorageManagement,
-            'requiresVoiceGroupLists' => $requiresVoiceGroupLists,
-        ];
+    public function __construct(array $gates = [], ?LoggerInterface $logger = null)
+    {
+        $unknown = array_values(array_diff($gates, array_keys(self::GATES)));
+        if ($unknown !== []) {
+            throw new InvalidArgumentException(
+                'Unbekanntes Rechte-Gate: ' . implode(', ', $unknown)
+                . '. Bekannt sind: ' . implode(', ', array_keys(self::GATES)) . '.'
+            );
+        }
 
-        // Über self::GATES laufen, nicht über $requestedGates: So bestimmt die
-        // Tabelle die Prüfreihenfolge, nicht die Schreibweise dieser Zuordnung.
+        // Über self::GATES laufen, nicht über $gates: So bestimmt die Tabelle die
+        // Prüfreihenfolge, nicht die Schreibweise an der Route.
         $this->activeGates = array_values(array_filter(
             array_keys(self::GATES),
-            static fn (string $gate): bool => $requestedGates[$gate] ?? false
+            static fn (string $gate): bool => in_array($gate, $gates, true)
         ));
 
         $this->logger = $logger ?? self::$defaultLogger ?? new NullLogger();

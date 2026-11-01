@@ -362,7 +362,7 @@ final class VoiceGroupListFeatureTest extends TestCase
             'voice_group_ids' => [(int) $this->group->id],
         ];
 
-        $response = (new RoleMiddleware(requiresVoiceGroupLists: true))->process(
+        $response = (new RoleMiddleware(gates: ['requiresVoiceGroupLists']))->process(
             $this->makeRequest('GET', '/voice-group-lists'),
             new class implements RequestHandlerInterface {
                 public function handle(ServerRequestInterface $request): ResponseInterface

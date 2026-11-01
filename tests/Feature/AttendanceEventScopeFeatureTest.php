@@ -204,7 +204,7 @@ final class AttendanceEventScopeFeatureTest extends TestCase
             'can_manage_own_voice_group' => true,
         ];
 
-        $middleware = new RoleMiddleware(requiresAttendanceManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresAttendanceManagement']);
         $status = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/attendance'),
             new class implements RequestHandlerInterface {
@@ -226,7 +226,7 @@ final class AttendanceEventScopeFeatureTest extends TestCase
             'can_manage_own_voice_group' => false,
         ];
 
-        $middleware = new RoleMiddleware(requiresAttendanceManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresAttendanceManagement']);
         $status = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/attendance'),
             new class implements RequestHandlerInterface {
@@ -248,7 +248,7 @@ final class AttendanceEventScopeFeatureTest extends TestCase
             'can_manage_users' => false,
         ];
 
-        $middleware = new RoleMiddleware(requiresUserManagement: true, allowVoiceGroupReps: true);
+        $middleware = new RoleMiddleware(gates: ['requiresUserManagement', 'allowVoiceGroupReps']);
         $status = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/users'),
             new class implements RequestHandlerInterface {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Middleware\RegistrationReminderMiddleware;
+use App\Util\AfterResponse;
 use Closure;
 use DI\ContainerBuilder;
 use PHPUnit\Framework\TestCase;
@@ -75,7 +76,9 @@ final class RegistrationReminderMiddlewareLazyFeatureTest extends TestCase
             static function (): never {
                 throw new RuntimeException('Reminder service resolved too early.');
             },
-            new NullLogger()
+            new NullLogger(),
+            new AfterResponse(static function (): void {
+            }, false)
         );
 
         $this->assertInstanceOf(RegistrationReminderMiddleware::class, $middleware);

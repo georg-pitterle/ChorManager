@@ -51,7 +51,7 @@ final class RoleAccessConsistencyFeatureTest extends TestCase
     {
         $routes = $this->routes();
 
-        $this->assertStringContainsString('new RoleMiddleware(requiresFinanceRead: true)', $routes);
+        $this->assertStringContainsString("new RoleMiddleware(gates: ['requiresFinanceRead'])", $routes);
     }
 
     public function testRoleManagementIsBoundToRoleManagementPermission(): void
@@ -59,7 +59,7 @@ final class RoleAccessConsistencyFeatureTest extends TestCase
         $routes = $this->routes();
 
         $this->assertMatchesRegularExpression(
-            "/\\\$group->group\(\s*'\/roles',.*?new RoleMiddleware\(requiresRoleManagement: true\)/s",
+            "/\\\$group->group\(\s*'\/roles',.*?new RoleMiddleware\(gates: \[.requiresRoleManagement.\]\)/s",
             $routes,
             'Role management grants permissions and therefore requires can_manage_roles.'
         );
@@ -83,7 +83,7 @@ final class RoleAccessConsistencyFeatureTest extends TestCase
         $_SESSION['can_manage_finances'] = false;
         $_SESSION['can_manage_users'] = false;
 
-        $middleware = new RoleMiddleware(requiresFinanceRead: true);
+        $middleware = new RoleMiddleware(gates: ['requiresFinanceRead']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/finances'),
             new class implements RequestHandlerInterface {

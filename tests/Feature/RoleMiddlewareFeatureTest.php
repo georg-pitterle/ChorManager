@@ -36,7 +36,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         $_SESSION['can_manage_finances'] = false;
         $_SESSION['can_manage_users'] = false;
 
-        $middleware = new RoleMiddleware(requiresFinanceRead: true);
+        $middleware = new RoleMiddleware(gates: ['requiresFinanceRead']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/finances'),
             new class implements RequestHandlerInterface {
@@ -56,7 +56,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         $_SESSION['can_manage_finances'] = false;
         $_SESSION['can_manage_users'] = false;
 
-        $middleware = new RoleMiddleware(requiresFinanceRead: true);
+        $middleware = new RoleMiddleware(gates: ['requiresFinanceRead']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/finances'),
             new class implements RequestHandlerInterface {
@@ -76,7 +76,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         $_SESSION['can_manage_finances'] = false;
         $_SESSION['can_manage_users'] = false;
 
-        $middleware = new RoleMiddleware(requiresFinanceManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresFinanceManagement']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('POST', '/finances/save'),
             new class implements RequestHandlerInterface {
@@ -95,7 +95,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_own_voice_group'] = false;
 
-        $middleware = new RoleMiddleware(requiresUserManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresUserManagement']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/users'),
             new class implements RequestHandlerInterface {
@@ -118,7 +118,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         $_SESSION['can_manage_mail_queue'] = true;
         $_SESSION['can_manage_users'] = false;
 
-        $middleware = new RoleMiddleware(requiresMailQueueManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresMailQueueManagement']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/admin/mail-queue'),
             new class implements RequestHandlerInterface {
@@ -137,7 +137,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         $_SESSION['can_manage_mail_queue'] = false;
         $_SESSION['can_manage_users'] = false;
 
-        $middleware = new RoleMiddleware(requiresMailQueueManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresMailQueueManagement']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/admin/mail-queue'),
             new class implements RequestHandlerInterface {
@@ -157,7 +157,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         $_SESSION['can_manage_attendance_all'] = true;
         $_SESSION['can_manage_users'] = false;
 
-        $middleware = new RoleMiddleware(requiresAttendanceManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresAttendanceManagement']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/attendance'),
             new class implements RequestHandlerInterface {
@@ -177,7 +177,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         // can_manage_users must no longer act as an implicit fallback for Stammdaten/Projekte.
         $_SESSION['can_manage_users'] = true;
 
-        $middleware = new RoleMiddleware(requiresMasterDataManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresMasterDataManagement']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/projects'),
             new class implements RequestHandlerInterface {
@@ -198,7 +198,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         // can_manage_users must no longer act as an implicit fallback for Anwesenheit.
         $_SESSION['can_manage_users'] = true;
 
-        $middleware = new RoleMiddleware(requiresAttendanceManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresAttendanceManagement']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/attendance'),
             new class implements RequestHandlerInterface {
@@ -230,7 +230,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         $logger->pushHandler($handler);
 
         RoleMiddleware::setDefaultLogger($logger);
-        $middlewareUsingDefault = new RoleMiddleware(requiresRoleManagement: true);
+        $middlewareUsingDefault = new RoleMiddleware(gates: ['requiresRoleManagement']);
         $middlewareUsingDefault->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/roles'),
             new class implements RequestHandlerInterface {
@@ -246,7 +246,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
         RoleMiddleware::setDefaultLogger(null);
         $handler->clear();
 
-        $middlewareAfterReset = new RoleMiddleware(requiresRoleManagement: true);
+        $middlewareAfterReset = new RoleMiddleware(gates: ['requiresRoleManagement']);
         $middlewareAfterReset->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/roles'),
             new class implements RequestHandlerInterface {
@@ -277,7 +277,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
             ->createServerRequest('POST', '/newsletters')
             ->withHeader('Accept', 'application/json');
 
-        $middleware = new RoleMiddleware(requiresNewsletterManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresNewsletterManagement']);
         $response = $middleware->process($request, $this->passthroughHandler());
 
         $this->assertSame(403, $response->getStatusCode());
@@ -301,7 +301,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
             ->createServerRequest('POST', '/tasks/1/status')
             ->withHeader('X-Requested-With', 'XMLHttpRequest');
 
-        $middleware = new RoleMiddleware(requiresTaskManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresTaskManagement']);
         $response = $middleware->process($request, $this->passthroughHandler());
 
         $this->assertSame(403, $response->getStatusCode());
@@ -316,7 +316,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
             ->createServerRequest('GET', '/roles')
             ->withHeader('Accept', 'text/html,application/xhtml+xml');
 
-        $middleware = new RoleMiddleware(requiresRoleManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresRoleManagement']);
         $response = $middleware->process($request, $this->passthroughHandler());
 
         $this->assertSame(403, $response->getStatusCode());
@@ -342,7 +342,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
             ->createServerRequest('POST', '/users/42/roles')
             ->withHeader('X-Requested-With', 'XMLHttpRequest');
 
-        $middleware = new RoleMiddleware(requiresUserManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresUserManagement']);
         $response = $middleware->process($request, $this->passthroughHandler());
 
         $this->assertSame(401, $response->getStatusCode());
@@ -359,7 +359,7 @@ final class RoleMiddlewareFeatureTest extends TestCase
     {
         unset($_SESSION['user_id']);
 
-        $middleware = new RoleMiddleware(requiresUserManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresUserManagement']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/users'),
             $this->passthroughHandler()

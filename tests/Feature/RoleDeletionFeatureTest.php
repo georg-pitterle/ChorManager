@@ -142,7 +142,7 @@ final class RoleDeletionFeatureTest extends TestCase
 
         $roleGroup = '#\$roleGroup->post\(\'/\{id:\[0-9\]\+\}/delete\', \[RoleController::class, \'delete\'\]\);'
             . '(?:(?!\)->add\().)*'
-            . '\)->add\(new RoleMiddleware\(requiresRoleManagement: true\)\);#s';
+            . '\)->add\(new RoleMiddleware\(gates: \[.requiresRoleManagement.\]\)\);#s';
         $this->assertMatchesRegularExpression($roleGroup, $routes);
     }
 

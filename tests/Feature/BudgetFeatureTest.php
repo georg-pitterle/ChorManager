@@ -137,7 +137,7 @@ final class BudgetFeatureTest extends TestCase
         $content = file_get_contents(dirname(__DIR__, 2) . '/src/Routes.php');
         $this->assertIsString($content);
         // The GET /budget view must be reachable for finance readers, not only managers.
-        $this->assertStringContainsString('requiresBudgetRead: true', $content);
+        $this->assertStringContainsString("gates: ['requiresBudgetRead']", $content);
     }
 
     public function testBudgetNavigationVisibleForFinanceReaders(): void

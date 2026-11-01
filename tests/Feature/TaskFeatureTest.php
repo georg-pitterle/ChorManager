@@ -116,7 +116,7 @@ class TaskFeatureTest extends TestCase
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
         $this->assertStringContainsString("->add(new RoleMiddleware", $routesContent);
         // Verify the task routes are gated by the dedicated task-management permission.
-        $taskMiddlewareSignature = "new RoleMiddleware(requiresTaskManagement: true)";
+        $taskMiddlewareSignature = "new RoleMiddleware(gates: ['requiresTaskManagement'])";
         $this->assertStringContainsString($taskMiddlewareSignature, $routesContent);
         $this->assertGreaterThanOrEqual(2, substr_count($routesContent, $taskMiddlewareSignature));
     }
@@ -434,7 +434,7 @@ class TaskFeatureTest extends TestCase
             'can_manage_master_data' => true,
         ];
 
-        $middleware = new RoleMiddleware(requiresTaskManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresTaskManagement']);
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/tasks/1');
         $handler = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface
@@ -457,7 +457,7 @@ class TaskFeatureTest extends TestCase
             'can_manage_master_data' => false,
         ];
 
-        $middleware = new RoleMiddleware(requiresTaskManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresTaskManagement']);
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/tasks/1');
         $handler = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface
@@ -480,7 +480,7 @@ class TaskFeatureTest extends TestCase
             'can_manage_master_data' => false,
         ];
 
-        $middleware = new RoleMiddleware(requiresTaskManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresTaskManagement']);
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/tasks/1');
         $handler = new class implements RequestHandlerInterface {
             public function handle(ServerRequestInterface $request): ResponseInterface
@@ -495,22 +495,27 @@ class TaskFeatureTest extends TestCase
     }
 
     /**
-     * Test RoleMiddleware has requiresTaskManagement support
+     * Die RoleMiddleware kennt das Gate der Aufgabenverwaltung.
+     *
+     * Gezählt wurden hier früher die Konstruktorparameter ("mindestens 9").
+     * Seit die Gates als Liste übergeben werden (`gates: [...]`), sagt diese
+     * Zahl nichts mehr - und sie sagte auch vorher nur, dass irgendwelche
+     * Parameter dazugekommen waren. Geprüft wird jetzt, was die Route
+     * tatsächlich braucht: dass der Name ein Gate benennt und dass das Gate am
+     * Recht `can_manage_tasks` hängt.
      */
-    public function testRoleMiddlewareHasTaskManagementParameter(): void
+    public function testRoleMiddlewareKnowsTheTaskManagementGate(): void
     {
-        $reflection = new ReflectionClass(RoleMiddleware::class);
-        $constructor = $reflection->getConstructor();
+        $gates = (new ReflectionClass(RoleMiddleware::class))->getConstant('GATES');
+        $this->assertIsArray($gates);
+        $this->assertArrayHasKey('requiresTaskManagement', $gates);
+        $this->assertSame(['can_manage_tasks'], $gates['requiresTaskManagement']['permissions']);
 
-        $this->assertNotNull($constructor);
-        $params = $constructor->getParameters();
-
-        // Should have 9 parameters (8 existing + 1 new requiresTaskManagement)
-        $this->assertGreaterThanOrEqual(9, count($params));
-
-        // Check for requiresTaskManagement parameter
-        $paramNames = array_map(fn($p) => $p->getName(), $params);
-        $this->assertContains('requiresTaskManagement', $paramNames);
+        // Ein unbekannter Name würde hier abbrechen - genau das schützt die Route.
+        $this->assertInstanceOf(
+            RoleMiddleware::class,
+            new RoleMiddleware(gates: ['requiresTaskManagement'])
+        );
     }
 
     /**

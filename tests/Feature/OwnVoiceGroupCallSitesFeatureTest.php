@@ -146,7 +146,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $_SESSION['role_level'] = 0;
         $_SESSION['can_manage_own_voice_group'] = true;
 
-        $middleware = new RoleMiddleware(allowVoiceGroupReps: true);
+        $middleware = new RoleMiddleware(gates: ['allowVoiceGroupReps']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/attendance/manage'),
             new class implements RequestHandlerInterface {
@@ -167,7 +167,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $_SESSION['role_level'] = 0;
         $_SESSION['can_manage_own_voice_group'] = false;
 
-        $middleware = new RoleMiddleware(allowVoiceGroupReps: true);
+        $middleware = new RoleMiddleware(gates: ['allowVoiceGroupReps']);
         $response = $middleware->process(
             (new ServerRequestFactory())->createServerRequest('GET', '/attendance/manage'),
             new class implements RequestHandlerInterface {

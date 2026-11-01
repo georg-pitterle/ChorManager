@@ -41,7 +41,7 @@ final class EventManagementPermissionFeatureTest extends TestCase
 
     private function passesGate(): int
     {
-        $middleware = new RoleMiddleware(requiresEventManagement: true);
+        $middleware = new RoleMiddleware(gates: ['requiresEventManagement']);
 
         return $middleware->process(
             (new ServerRequestFactory())->createServerRequest('POST', '/events'),
@@ -117,7 +117,7 @@ final class EventManagementPermissionFeatureTest extends TestCase
 
         $eventGroup = '#\$eventGroup->post\(\'/events\', \[EventController::class, \'create\'\]\);'
             . '(?:(?!\)->add\().)*'
-            . '\)->add\(new RoleMiddleware\(requiresEventManagement: true\)\);#s';
+            . '\)->add\(new RoleMiddleware\(gates: \[.requiresEventManagement.\]\)\);#s';
         $this->assertMatchesRegularExpression($eventGroup, $routes);
 
         $this->assertStringContainsString(
