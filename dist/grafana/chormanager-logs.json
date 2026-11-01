@@ -666,6 +666,1106 @@
       "type": "table"
     },
     {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "id": 11,
+      "panels": [],
+      "title": "Nginx (SWAG)",
+      "type": "row"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${DS_LOKI}"
+      },
+      "description": "Anfragen an beide ChorManager-Hosts im Zeitraum, ohne Uptime-Kuma.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 19
+      },
+      "id": 12,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "sum(count_over_time({service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, status, request_time | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` [$__range]))",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Anfragen",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${DS_LOKI}"
+      },
+      "description": "Die Hälfte der Anfragen war schneller. Quelle: request_time, ohne Uptime-Kuma.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 19
+      },
+      "id": 13,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.5, {service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, request_time | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` | unwrap request_time | __error__=`` [$__range]) by ()",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Antwortzeit Median",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${DS_LOKI}"
+      },
+      "description": "95 % der Anfragen waren schneller. Ab 1 s orange, ab 3 s rot.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 19
+      },
+      "id": 14,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.95, {service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, request_time | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` | unwrap request_time | __error__=`` [$__range]) by ()",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Antwortzeit p95",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${DS_LOKI}"
+      },
+      "description": "99 % der Anfragen waren schneller. Bei wenigen Anfragen bestimmen einzelne Ausreißer den Wert.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 19
+      },
+      "id": 15,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.99, {service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, request_time | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` | unwrap request_time | __error__=`` [$__range]) by ()",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Antwortzeit p99",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${DS_LOKI}"
+      },
+      "description": "Anteil der Anfragen, die länger als eine Sekunde gedauert haben. Ab 5 % orange.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.05
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 19
+      },
+      "id": 16,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "(sum(count_over_time({service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, status, request_time | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` | request_time > 1 [$__range])) or vector(0)) / sum(count_over_time({service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, status, request_time | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` [$__range]))",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "Anteil über 1 s",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${DS_LOKI}"
+      },
+      "description": "Anteil der Anfragen mit Serverfehler. Rot, sobald einer auftritt.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.000001
+              }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 19
+      },
+      "id": 17,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "(sum(count_over_time({service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, status, request_time | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` | status=~`5..` [$__range])) or vector(0)) / sum(count_over_time({service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, status, request_time | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` [$__range]))",
+          "queryType": "instant",
+          "refId": "A"
+        }
+      ],
+      "title": "5xx-Quote",
+      "type": "stat"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${DS_LOKI}"
+      },
+      "description": "Median, p95 und p99 über alle Anfragen je Zeitabschnitt, ohne Uptime-Kuma.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "always",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Median"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "light-blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p99"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "dark-blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 23
+      },
+      "id": 18,
+      "interval": "5m",
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.5, {service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, request_time | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` | unwrap request_time | __error__=`` [$__auto]) by ()",
+          "legendFormat": "Median",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.95, {service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, request_time | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` | unwrap request_time | __error__=`` [$__auto]) by ()",
+          "legendFormat": "p95",
+          "queryType": "range",
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.99, {service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, request_time | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` | unwrap request_time | __error__=`` [$__auto]) by ()",
+          "legendFormat": "p99",
+          "queryType": "range",
+          "refId": "C"
+        }
+      ],
+      "title": "Antwortzeit-Perzentile",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${DS_LOKI}"
+      },
+      "description": "Zeigt, ob eine Instanz langsamer ist als die andere.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "always",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 23
+      },
+      "id": 19,
+      "interval": "5m",
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.95, {service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, request_time | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` | unwrap request_time | __error__=`` [$__auto]) by (host)",
+          "legendFormat": "{{host}}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Antwortzeit p95 je Host",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${DS_LOKI}"
+      },
+      "description": "p95 von request_time (gesamt) und upstream_response_time (ChorManager). Liegt die Lücke hoch, kostet die Übertragung zum Client die Zeit, nicht die Anwendung.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "line",
+            "fillOpacity": 0,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "always",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Gesamt"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Backend"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "purple",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 31
+      },
+      "id": 20,
+      "interval": "5m",
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.95, {service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, request_time | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` | unwrap request_time | __error__=`` [$__auto]) by ()",
+          "legendFormat": "Gesamt",
+          "queryType": "range",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "quantile_over_time(0.95, {service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, upstream_response_time | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` | unwrap upstream_response_time | __error__=`` [$__auto]) by ()",
+          "legendFormat": "Backend",
+          "queryType": "range",
+          "refId": "B"
+        }
+      ],
+      "title": "Gesamtzeit und Backend",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${DS_LOKI}"
+      },
+      "description": "Anfragen je Zeitabschnitt, gestapelt nach Statusklasse.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "never",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "normal"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "2xx"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "green",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "3xx"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "blue",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "4xx"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "orange",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "5xx"
+            },
+            "properties": [
+              {
+                "id": "color",
+                "value": {
+                  "fixedColor": "red",
+                  "mode": "fixed"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 31
+      },
+      "id": 21,
+      "interval": "5m",
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (status_class) (count_over_time({service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, status | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` | label_format status_class=`{{ substr 0 1 .status }}xx` [$__auto]))",
+          "legendFormat": "{{status_class}}",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "Anfragen nach Statusklasse",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${DS_LOKI}"
+      },
+      "description": "Die zehn Routen mit dem höchsten p95, nur erfolgreiche Anfragen ohne statische Dateien. Zahlen und Tokens im Pfad sind zu :id zusammengefasst.",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "p95"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "s"
+              },
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "Anfragen"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "short"
+              },
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 39
+      },
+      "id": 22,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": [
+          {
+            "desc": true,
+            "displayName": "p95"
+          }
+        ]
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "topk(10, quantile_over_time(0.95, {service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, uri, status, request_time | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` | status=~`2..|3..` | uri!~`.*\\.(css|js|map|png|jpe?g|gif|svg|ico|webp|woff2?)$` | label_format route=`{{ regexReplaceAll \"[0-9a-fA-F]{8,}|[0-9]+\" .uri \":id\" }}` | unwrap request_time | __error__=`` [$__range]) by (route))",
+          "queryType": "instant",
+          "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "sum by (route) (count_over_time({service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` != `Uptime-Kuma` | json host, uri, status, request_time | __error__=`` | host=~`chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu` | status=~`2..|3..` | uri!~`.*\\.(css|js|map|png|jpe?g|gif|svg|ico|webp|woff2?)$` | label_format route=`{{ regexReplaceAll \"[0-9a-fA-F]{8,}|[0-9]+\" .uri \":id\" }}` [$__range]))",
+          "queryType": "instant",
+          "refId": "B"
+        }
+      ],
+      "title": "Langsamste Routen",
+      "transformations": [
+        {
+          "id": "joinByField",
+          "options": {
+            "byField": "route",
+            "mode": "inner"
+          }
+        },
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Time 1": true,
+              "Time 2": true
+            },
+            "indexByName": {},
+            "renameByName": {
+              "route": "Route",
+              "Value #A": "p95",
+              "Value #B": "Anfragen"
+            }
+          }
+        }
+      ],
+      "type": "table"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 48
+      },
+      "id": 23,
+      "panels": [],
+      "title": "Logs",
+      "type": "row"
+    },
+    {
       "datasource": {
         "type": "loki",
         "uid": "${DS_LOKI}"
@@ -675,7 +1775,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 18
+        "y": 49
       },
       "id": 8,
       "options": {
@@ -713,7 +1813,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 27
+        "y": 58
       },
       "id": 9,
       "options": {
@@ -739,6 +1839,44 @@
         }
       ],
       "title": "Infrastruktur roh",
+      "type": "logs"
+    },
+    {
+      "datasource": {
+        "type": "loki",
+        "uid": "${DS_LOKI}"
+      },
+      "description": "Zeilen des Reverse Proxys SWAG, die einen der beiden ChorManager-Hosts enthalten, neueste zuerst. Der Filter sucht in der ganzen Zeile; die Variablen Stack und Service wirken hier nicht.",
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 67
+      },
+      "id": 10,
+      "options": {
+        "dedupStrategy": "none",
+        "enableLogDetails": true,
+        "prettifyLogMessage": false,
+        "showCommonLabels": false,
+        "showLabels": false,
+        "showTime": true,
+        "sortOrder": "Descending",
+        "wrapLogMessage": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOKI}"
+          },
+          "editorMode": "code",
+          "expr": "{service_name=\"letsencrypt\"} |~ `chormanager\\.gpit\\.dedyn\\.io|chorkuma\\.chomano\\.eu`",
+          "queryType": "range",
+          "refId": "A"
+        }
+      ],
+      "title": "SWAG-Logs",
       "type": "logs"
     }
   ],

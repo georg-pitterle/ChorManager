@@ -442,6 +442,13 @@ reverse proxy already logs every request with the real client IP:
   would write a plain-text line per request into the same stream as the Monolog
   JSON.
 
+The dashboard's Nginx panels read that reverse proxy log from the stream
+`service_name="letsencrypt"`. They expect one JSON object per line with the fields
+`host`, `status`, `uri`, `request_time` and `upstream_response_time`. The two public
+hostnames are part of each query, so a new hostname has to be added there, and
+requests from Uptime-Kuma are excluded because a monitor would otherwise dominate
+the percentiles on a low-traffic instance.
+
 ## Backup
 
 ### Where in-app backups live
