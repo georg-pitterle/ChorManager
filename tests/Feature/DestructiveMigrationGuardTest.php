@@ -11,6 +11,7 @@ use AllowNewslettersWithoutProject;
 use CreateFinanceAccounts;
 use CreateFinanceGroupsAndLink;
 use DropEventsProjectId;
+use MoveSponsorLogosToOwnAttachments;
 use RequireFileSizeOnAttachments;
 use RequireKnownAttendanceStatus;
 use RequireKnownSongResourceType;
@@ -27,15 +28,20 @@ require_once dirname(__DIR__, 2) . '/db/migrations/20260811190000_allow_newslett
 require_once dirname(__DIR__, 2) . '/db/migrations/20260826120000_allow_lock_entries_in_finance_journal.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20261005090100_add_channel_to_user_notification_settings.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20261022120000_require_known_attendance_status.php';
+require_once dirname(__DIR__, 2) . '/db/migrations/20261023124000_move_sponsor_logos_to_own_attachments.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20261022130000_use_english_task_status_values.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20261029120000_require_known_song_resource_type.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20261101120000_require_file_size_on_attachments.php';
 
 /**
- * Fünf Migrationen führen einen Schritt aus, der Daten unwiederbringlich
- * beseitigt: zwei werfen im `up()` eine Spalte weg, deren Inhalt vorher
- * woandershin umgeschrieben wurde, drei müssten im `down()` Zeilen loswerden,
+ * Einige Migrationen führen einen Schritt aus, der Daten unwiederbringlich
+ * beseitigt: manche werfen im `up()` eine Spalte weg, deren Inhalt vorher
+ * woandershin umgeschrieben wurde, andere müssten im `down()` Zeilen loswerden,
  * die in den engeren Schlüssel oder die engere Spalte nicht mehr passen.
+ *
+ * Eine Zahl stand hier früher; sie veraltete mit jeder neuen Migration, ohne
+ * dass es auffiel. Welche Abfragen bewacht sind, sagt jetzt allein die Liste
+ * der `use`-Zeilen darüber.
  *
  * In beiden Fällen ist der Wert danach fort, und nachholen lässt sich das nicht,
  * weil Phinx den Lauf bereits in `phinxlog` verbucht hat. Die Zählung davor ist
@@ -184,9 +190,16 @@ final class DestructiveMigrationGuardTest extends TestCase
             self::SONG_RESOURCES_TABLE
         ));
 
+        // Dieselbe Wegwerf-Tabelle trägt beide Anhang-Prüfungen: 20261101120000
+        // zählt über file_size, 20261023124000 über entity_type/entity_id.
+        // `entity_type`/`entity_id` haben deshalb einen Vorgabewert, damit das
+        // Insert der Größen-Prüfung sie nicht nennen muss; `file_content` bleibt
+        // NOT NULL wie in der echten Tabelle.
         Capsule::connection()->statement(sprintf(
             'CREATE TABLE %s (
                 id int(11) NOT NULL AUTO_INCREMENT,
+                entity_type varchar(50) NOT NULL DEFAULT \'sponsor\',
+                entity_id int(11) NOT NULL DEFAULT 0,
                 file_size int(11) DEFAULT NULL,
                 file_content longblob NOT NULL,
                 PRIMARY KEY (id)
@@ -596,6 +609,59 @@ final class DestructiveMigrationGuardTest extends TestCase
         $sizes = Capsule::table(self::ATTACHMENTS_TABLE)->orderBy('id')->pluck('file_size')->all();
         $this->assertSame([5, 1000], array_map('intval', $sizes));
         $this->assertSame(0, $this->countFrom(RequireFileSizeOnAttachments::MISSING_SIZES_SQL, $tables, 'missing_sizes'));
+    }
+
+    /**
+     * 20261023124000 macht Sponsoren-Logos zu eigenen Anhängen und entfernt
+     * `sponsors.logo_attachment_id`. Der Rückbau kennt nur ein Logo je Sponsor;
+     * hat einer mehrere, gäbe es keine richtige Wahl, welches "das" Logo ist,
+     * und die übrigen verlören ihre Kennzeichnung. Genau das zählt die Prüfung
+     * im `down()`.
+     *
+     * Gezählt werden Sponsoren, nicht Anhänge: Zwei überzählige Logos bei einem
+     * Sponsor sind ein Fall, nicht zwei. Deshalb steht die Zahl 1 hier, obwohl
+     * drei Logo-Zeilen in der Tabelle liegen.
+     */
+    public function testSponsorLogoGuardFindsOnlyTheSponsorWithSeveralLogos(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (entity_type, entity_id, file_content) VALUES
+                ('sponsor_logo', 1, 'a'),
+                ('sponsor_logo', 1, 'b'),
+                ('sponsor_logo', 2, 'c'),
+                ('sponsor', 1, 'd'),
+                ('sponsor', 1, 'e')",
+            self::ATTACHMENTS_TABLE
+        ));
+
+        $this->assertSame(1, $this->countFrom(
+            MoveSponsorLogosToOwnAttachments::SPONSORS_WITH_SEVERAL_LOGOS_SQL,
+            ['attachments' => self::ATTACHMENTS_TABLE],
+            'rows_left'
+        ));
+    }
+
+    /**
+     * Die Gegenprobe. Wichtig ist hier die zweite Hälfte: Mehrere Anhänge
+     * desselben Sponsors, die *keine* Logos sind, dürfen nicht anschlagen -
+     * sonst blockierte jeder Sponsor mit zwei Mediadaten-Dateien den Rückbau.
+     */
+    public function testSponsorLogoGuardStaysQuietWhenEverySponsorHasAtMostOneLogo(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (entity_type, entity_id, file_content) VALUES
+                ('sponsor_logo', 1, 'a'),
+                ('sponsor_logo', 2, 'b'),
+                ('sponsor', 1, 'c'),
+                ('sponsor', 1, 'd')",
+            self::ATTACHMENTS_TABLE
+        ));
+
+        $this->assertSame(0, $this->countFrom(
+            MoveSponsorLogosToOwnAttachments::SPONSORS_WITH_SEVERAL_LOGOS_SQL,
+            ['attachments' => self::ATTACHMENTS_TABLE],
+            'rows_left'
+        ));
     }
 
     /**
