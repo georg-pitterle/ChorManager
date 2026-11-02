@@ -123,7 +123,68 @@ class LoginRedirectFeatureTest extends TestCase
         $this->assertNull(SafeRedirect::sanitize('javascript:alert(1)'));
         $this->assertNull(SafeRedirect::sanitize('relative/path'));
         $this->assertNull(SafeRedirect::sanitize("/line\nbreak"));
-        $this->assertNull(SafeRedirect::sanitize('/' . str_repeat('a', 600)));
+        $this->assertNull(SafeRedirect::sanitize('/' . str_repeat('a', SafeRedirect::MAX_LENGTH)));
+    }
+
+    /**
+     * Die Anmeldeanfrage von Nextcloud (user_oidc) ist in der Praxis rund 570 Zeichen
+     * lang. Lief sie in die Längengrenze, fiel das Ziel still weg: Das Mitglied landete
+     * nach der Anmeldung auf dem Dashboard statt zurück in Nextcloud.
+     */
+    private function oidcAuthorizeTarget(): string
+    {
+        $claims = '{"id_token":{"email":null,"name":null,"quota":null,"groups":null},'
+            . '"userinfo":{"email":null,"name":null,"quota":null,"groups":null}}';
+
+        return '/oidc/authorize?' . http_build_query([
+            'client_id' => str_repeat('a', 32),
+            'response_type' => 'code',
+            'scope' => 'openid profile email groups',
+            'redirect_uri' => 'https://cloud.example.org/apps/user_oidc/code',
+            'claims' => $claims,
+            'state' => str_repeat('s', 32),
+            'nonce' => str_repeat('n', 32),
+            'code_challenge' => str_repeat('c', 43),
+            'code_challenge_method' => 'S256',
+        ]);
+    }
+
+    public function testTargetUpToTheLimitPasses(): void
+    {
+        $target = '/' . str_repeat('a', SafeRedirect::MAX_LENGTH - 1);
+
+        $this->assertSame($target, SafeRedirect::sanitize($target));
+    }
+
+    public function testMiddlewareKeepsLongOidcAuthorizeTarget(): void
+    {
+        $target = $this->oidcAuthorizeTarget();
+        $this->assertGreaterThan(512, strlen($target));
+
+        $response = $this->middleware->process(
+            (new ServerRequestFactory())->createServerRequest('GET', $target),
+            $this->passThroughHandler()
+        );
+
+        $this->assertSame('/login?redirect=' . rawurlencode($target), $response->getHeaderLine('Location'));
+    }
+
+    public function testProcessLoginReturnsToLongOidcAuthorizeTarget(): void
+    {
+        $target = $this->oidcAuthorizeTarget();
+        $controller = $this->makeAuthController($this->createStub(Twig::class));
+        $request = (new ServerRequestFactory())
+            ->createServerRequest('POST', '/login')
+            ->withParsedBody([
+                'email' => $this->user->email,
+                'password' => $this->userPassword,
+                'redirect' => $target,
+            ]);
+
+        $response = $controller->processLogin($request, new SlimResponse());
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertSame($target, $response->getHeaderLine('Location'));
     }
 
     public function testLoginFormCarriesRedirectField(): void

@@ -10,13 +10,21 @@ namespace App\Util;
  */
 final class SafeRedirect
 {
+    /**
+     * Grenze für das Ziel, nicht für die Sicherheit: Geprüft wird die Form. Sie muss
+     * auch eine Anmeldeanfrage angeschlossener Anwendungen fassen - die von Nextcloud
+     * ist rund 570 Zeichen lang - und bleibt URL-kodiert in `/login?redirect=` unter
+     * der Grenze von 8 KB, die nginx für eine Header-Zeile setzt.
+     */
+    public const MAX_LENGTH = 2048;
+
     public static function sanitize(?string $target): ?string
     {
         if ($target === null || $target === '') {
             return null;
         }
 
-        if (strlen($target) > 512) {
+        if (strlen($target) > self::MAX_LENGTH) {
             return null;
         }
 
