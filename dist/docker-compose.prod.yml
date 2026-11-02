@@ -38,6 +38,10 @@ x-app-environment: &app-environment
   FILES_TRASH_DAYS: ${FILES_TRASH_DAYS:-30}
   FILES_TOTAL_QUOTA_MB: ${FILES_TOTAL_QUOTA_MB:-0}
   FILES_MAX_ZIP_MB: ${FILES_MAX_ZIP_MB:-500}
+  FEATURE_OFFICE: ${FEATURE_OFFICE:-false}
+  OFFICE_SERVER_URL: ${OFFICE_SERVER_URL:-}
+  OFFICE_SERVER_INTERNAL_URL: ${OFFICE_SERVER_INTERNAL_URL:-}
+  OFFICE_WOPI_BASE_URL: ${OFFICE_WOPI_BASE_URL:-}
   FEATURE_OIDC: ${FEATURE_OIDC:-false}
   # Stays optional like the module itself: without it the provider issues no
   # logins, it does not keep the stack from starting.
