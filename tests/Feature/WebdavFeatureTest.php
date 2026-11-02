@@ -32,6 +32,8 @@ final class WebdavFeatureTest extends TestCase
 {
     use TestHttpHelpers;
 
+    private const ALLPROP_BODY = '<?xml version="1.0" encoding="utf-8"?><D:propfind xmlns:D="DAV:"><D:allprop/></D:propfind>';
+
     private User $member;
     private User $stranger;
     private Project $project;
@@ -300,8 +302,122 @@ final class WebdavFeatureTest extends TestCase
         $this->assertSame(405, $response->getStatusCode());
     }
 
-    private function call(string $method, string $path, ?string $token = null, array $headers = []): ResponseInterface
+    /**
+     * MobileSheets meldete bei der Einrichtung "Text '' could not be parsed at
+     * index 0". Ein Ordner ohne Datum stand als leeres `getlastmodified` im
+     * 404-Abschnitt - vermutlich liest die App dieses Element, ohne auf den
+     * Status des Abschnitts zu schauen. Ein Datum an jedem Eintrag nimmt ihr
+     * den leeren Wert.
+     *
+     * @return array<string, array{0: string}>
+     */
+    public static function propfindBodyProvider(): array
     {
+        return [
+            'allprop' => [self::ALLPROP_BODY],
+            'angefragte Eigenschaft' => [
+                '<?xml version="1.0" encoding="utf-8"?><D:propfind xmlns:D="DAV:">'
+                    . '<D:prop><D:getlastmodified/></D:prop></D:propfind>',
+            ],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('propfindBodyProvider')]
+    public function testEveryEntryCarriesAReadableDate(string $body): void
+    {
+        $this->assignSong($this->project, 'Ave Maria', 'ave.pdf', 'Noteninhalt');
+        $this->attachToProject($this->createProject('Leeres Projekt'));
+
+        foreach (['', 'Herbstkonzert', 'Herbstkonzert/Ave Maria', 'Leeres Projekt'] as $path) {
+            $this->assertEveryEntryHasADate(
+                $this->call('PROPFIND', $path, $this->token, ['Depth' => '1'], $body)
+            );
+        }
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('propfindBodyProvider')]
+    public function testARootWithoutProjectsStillCarriesADate(string $body): void
+    {
+        Capsule::table('project_users')->where('user_id', (int) $this->member->id)->delete();
+
+        $this->assertEveryEntryHasADate(
+            $this->call('PROPFIND', '', $this->token, ['Depth' => '0'], $body)
+        );
+    }
+
+    /**
+     * Ein Ordner trägt das Datum seines jüngsten Inhalts - nur so erkennt ein
+     * Klient an der Wurzel, dass sich weiter unten etwas geändert hat.
+     */
+    public function testAFolderCarriesTheDateOfItsNewestContent(): void
+    {
+        $this->assignSong($this->project, 'Ave Maria', 'ave.pdf', 'Noteninhalt');
+        Capsule::table('songs')->update(['created_at' => '2026-01-10 12:00:00']);
+        Capsule::table('attachments')->update(['created_at' => '2026-03-15 12:00:00']);
+
+        $response = $this->call('PROPFIND', '', $this->token, ['Depth' => '1']);
+
+        $this->assertSame(
+            ['Sun, 15 Mar 2026', 'Sun, 15 Mar 2026'],
+            array_map(
+                static fn(string $date): string => substr($date, 0, 16),
+                $this->lastModifiedValues($response)
+            )
+        );
+    }
+
+    private function assertEveryEntryHasADate(ResponseInterface $response): void
+    {
+        $this->assertSame(207, $response->getStatusCode());
+
+        $document = new \DOMDocument();
+        $document->loadXML((string) $response->getBody());
+
+        $entries = $document->getElementsByTagNameNS('DAV:', 'response')->length;
+        $values = $this->lastModifiedValues($response);
+
+        $this->assertGreaterThan(0, $entries);
+        $this->assertCount($entries, $values);
+
+        foreach ($values as $value) {
+            $this->assertNotFalse(
+                \DateTimeImmutable::createFromFormat('D, d M Y H:i:s \G\M\T', $value),
+                'Kein gültiges HTTP-Datum: "' . $value . '"'
+            );
+        }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function lastModifiedValues(ResponseInterface $response): array
+    {
+        $document = new \DOMDocument();
+        $document->loadXML((string) $response->getBody());
+
+        $values = [];
+        foreach ($document->getElementsByTagNameNS('DAV:', 'getlastmodified') as $element) {
+            $values[] = (string) $element->textContent;
+        }
+
+        return $values;
+    }
+
+    private function attachToProject(Project $project): void
+    {
+        Capsule::table('project_users')->insert([
+            'project_id' => (int) $project->id,
+            'user_id' => (int) $this->member->id,
+        ]);
+    }
+
+    private function call(
+        string $method,
+        string $path,
+        ?string $token = null,
+        array $headers = [],
+        string $body = self::ALLPROP_BODY
+    ): ResponseInterface {
         $segments = $path === '' ? [] : array_map('rawurlencode', explode('/', $path));
         $uri = '/webdav' . ($segments === [] ? '/' : '/' . implode('/', $segments));
 
@@ -310,9 +426,7 @@ final class WebdavFeatureTest extends TestCase
         }
 
         $request = $this->makeRequest($method, $uri, [], [], $headers);
-        $request->getBody()->write(
-            '<?xml version="1.0" encoding="utf-8"?><D:propfind xmlns:D="DAV:"><D:allprop/></D:propfind>'
-        );
+        $request->getBody()->write($body);
         $request->getBody()->rewind();
 
         return $this->makeController()->handle($request, $this->makeResponse());

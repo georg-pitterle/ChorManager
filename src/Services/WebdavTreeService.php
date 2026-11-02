@@ -38,6 +38,14 @@ class WebdavTreeService
      */
     private const MAX_EXTENSION_LENGTH = 20;
 
+    /**
+     * Das Datum eines Ordners ohne Inhalt. Fehlen darf es nicht: Ohne Datum
+     * steht ein leeres `getlastmodified` in der Antwort, und MobileSheets
+     * meldete daraufhin "Text '' could not be parsed at index 0". Fest statt
+     * "jetzt", damit ein leerer Ordner nicht bei jeder Anfrage als geändert gilt.
+     */
+    private const EMPTY_FOLDER_DATE = '2000-01-01 00:00:00';
+
     /** @var array<int, array<string, WebdavNode>> */
     private array $nodes = [];
 
@@ -94,13 +102,27 @@ class WebdavTreeService
             return;
         }
 
-        $root = new WebdavNode('', '', true);
+        $projects = $this->loadProjects($userId);
+        $projectDates = [];
+        foreach ($projects as $project) {
+            $projectDates[(int) $project->id] = $this->newestContentDate($project);
+        }
+
+        $root = new WebdavNode('', '', true, null, 0, '', max([self::EMPTY_FOLDER_DATE, ...array_values($projectDates)]));
         $nodes = ['' => $root];
         $children = ['' => []];
 
-        foreach ($this->loadProjects($userId) as $project) {
+        foreach ($projects as $project) {
             $projectName = $this->uniqueName((string) $project->name, $children['']);
-            $projectNode = new WebdavNode($projectName, $projectName, true);
+            $projectNode = new WebdavNode(
+                $projectName,
+                $projectName,
+                true,
+                null,
+                0,
+                '',
+                $projectDates[(int) $project->id]
+            );
 
             $nodes[$projectNode->path] = $projectNode;
             $children[''][] = $projectNode;
@@ -219,6 +241,26 @@ class WebdavTreeService
         }
 
         return substr($name, 0, $dot) . $suffix . substr($name, $dot);
+    }
+
+    /**
+     * `projects` führt keine Zeitstempel, deshalb zählt der jüngste Inhalt. Das
+     * passt auch fachlich: Am Datum sieht ein Klient, ob sich darunter etwas
+     * geändert hat.
+     */
+    private function newestContentDate(Project $project): string
+    {
+        $dates = [self::EMPTY_FOLDER_DATE];
+
+        foreach ($project->assignedSongs as $song) {
+            $dates[] = (string) $this->formatDate($song->created_at);
+
+            foreach ($song->attachments as $attachment) {
+                $dates[] = (string) $this->formatDate($attachment->created_at);
+            }
+        }
+
+        return max($dates);
     }
 
     private function formatDate(mixed $value): ?string
