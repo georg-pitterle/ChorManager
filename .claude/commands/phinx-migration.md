@@ -44,6 +44,10 @@ The change is purely application logic with no schema modification.
   Vorgaben anschlägt.
 - A `down()` that restores a column whose values now live elsewhere writes those
   values back before the owning table is dropped by an earlier migration's `down()`.
+- Jeder `addForeignKey()` auf eine Tabelle, die Phinx angelegt hat, trägt an seiner
+  Spalte `'signed' => false`. Phinx legt das `id` einer Tabelle unsigned an,
+  `addColumn(..., 'integer')` dagegen signed - ohne die Angabe passen die beiden
+  Seiten nicht zueinander. Begründung und Prüfbefehl unten.
 - Reference patterns: `20260421120000_drop_songs_project_id` (guard),
   `20260820120000_require_finance_account_on_finances` (guard),
   `20260513220000_add_newsletter_recipient_sources` (restore in `down()`),
@@ -118,3 +122,39 @@ sie. Bei einem Schalter mit Vorgabewert wäre sie ohnehin nur Zeremonie.
 und Konsorten reihen die Aktion nur ein. Ausgeführt wird sie erst durch `create()`,
 `save()` oder `update()`. Fehlt der Abschluss, meldet der Lauf trotzdem Erfolg und die
 Änderung findet nie statt.
+
+**Das Vorzeichen eines Fremdschlüssels steht nicht von selbst richtig.** Die
+Primärschlüssel stehen im Schema in zwei Welten: 34 Tabellen tragen `id int(11)`, weil
+sie aus `20260314130000_initial` und den frühen Migrationen als rohes SQL kommen; 33
+tragen `id int(11) unsigned`, weil Phinx seine eigene `id`-Spalte so anlegt;
+`mail_queue` trägt `bigint(20) unsigned`.
+
+Die Falle ist nicht die Teilung, sondern dass Phinx in **derselben** Migration zwei
+verschiedene Vorgaben benutzt: Die automatische `id` ist unsigned,
+`addColumn('x_id', 'integer')` ist signed. Wer eine Phinx-Tabelle anlegt und im selben
+Zug eine zweite mit einem Fremdschlüssel darauf, baut also zwei Spalten, die nicht
+zueinander passen - ohne etwas falsch gemacht zu haben. MySQL antwortet mit
+`errno 150 "Foreign key constraint is incorrectly formed"`.
+
+Unangenehm daran ist der Zustand danach: Die Tabelle steht schon, der Fremdschlüssel
+fehlt, und `phinxlog` hat keinen Eintrag. Der zweite Versuch scheitert deshalb nicht
+mehr an 150, sondern an `1050 Table ... already exists` - die halb angelegte Tabelle
+muss erst von Hand weg.
+
+Wohin also `'signed' => false` gehört, entscheidet das Ziel, nicht das Gefühl:
+
+```bash
+ddev exec mysql -N -B -e "SELECT TABLE_NAME, COLUMN_TYPE FROM information_schema.COLUMNS \
+  WHERE TABLE_SCHEMA = DATABASE() AND COLUMN_NAME = 'id' \
+    AND EXTRA LIKE '%auto_increment%' ORDER BY COLUMN_TYPE, TABLE_NAME;"
+```
+
+Steht beim Ziel `unsigned`, braucht die Fremdschlüsselspalte `'signed' => false`; steht
+dort `int(11)`, ist die Vorgabe schon richtig. Muster: `20261026121000` verknüpft mit
+`'signed' => false` auf eigene Phinx-Tabellen, `20261023124000` kommt im `down()` mit
+`'signed' => true` auf das `attachments.id` aus der SQL-Zeit.
+
+Vereinheitlicht wird das Schema deswegen nicht. Das hieße, fast jede Spalte und jeden
+Fremdschlüssel in einem Zug anzufassen - viel Risiko gegen einen Fehler, der sich laut
+und sofort meldet, statt still Daten zu verbiegen. So entschieden in der Nacharbeit zu
+Lauf 62.
