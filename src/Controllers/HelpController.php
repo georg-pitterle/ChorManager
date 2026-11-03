@@ -155,9 +155,15 @@ class HelpController
 
         $response->getBody()->write((string) file_get_contents($realPath));
 
+        // `private`, nicht `public`: Die Route liegt hinter der Anmeldung. Ein
+        // Screenshot ist zwar kein Mitgliederdatum und darf im Browser der
+        // lesenden Person einen Tag liegen bleiben - ein gemeinsamer
+        // Zwischenspeicher (Reverse Proxy, CDN) hat an einer Antwort hinter der
+        // Anmeldung aber nichts aufzubewahren. `private` erlaubt genau das eine
+        // und verbietet das andere.
         return $response
             ->withHeader('Content-Type', $mimeType)
-            ->withHeader('Cache-Control', 'public, max-age=86400');
+            ->withHeader('Cache-Control', 'private, max-age=86400');
     }
 
     /**

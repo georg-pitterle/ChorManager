@@ -130,10 +130,14 @@ class CsrfMiddleware implements MiddlewareInterface
      * Person den Token einer anderen Sitzung, und genau damit lässt sich die
      * Fälschungs-Sperre aushebeln, gegen die er schützt.
      *
-     * Zwei Routen weisen sich so aus: die Hilfe-Bilder hinter der Anmeldung
-     * (`public, max-age=86400`) und das OIDC-Discovery-Dokument samt
-     * Schlüsselsatz. Beide sind ein Bild bzw. ein JSON-Dokument, kein Formular,
-     * das seinen Token nachziehen müsste - es geht also nichts verloren.
+     * Eine Route weist sich so aus: das OIDC-Discovery-Dokument samt
+     * Schlüsselsatz. Es ist ein JSON-Dokument, kein Formular, das seinen Token
+     * nachziehen müsste - es geht also nichts verloren. Die Hilfe-Bilder standen
+     * hier ebenfalls, bis sie auf `private` umgestellt wurden: Eine Antwort
+     * hinter der Anmeldung gehört in keinen gemeinsamen Zwischenspeicher, und
+     * damit entfällt der Weg, über den der Token überhaupt hätte abfließen
+     * können. Die Regel bleibt, weil sie das Discovery-Dokument weiter deckt -
+     * und die nächste `public`-Antwort von sich aus mitnimmt.
      *
      * Alles andere behält den Kopf: Die SecurityHeadersMiddleware setzt für
      * Antworten ohne eigene Angabe `no-store`, und `private` gilt nur für den

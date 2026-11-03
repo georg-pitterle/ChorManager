@@ -638,9 +638,10 @@ class CsrfMiddlewareFeatureTest extends TestCase
      * Eine Antwort, die sich selbst als `public` zwischenspeicherbar ausweist,
      * nennt den Token nicht.
      *
-     * Zwei Routen tun das: die Hilfe-Bilder (`public, max-age=86400`) hinter der
-     * Anmeldung und das OIDC-Discovery-Dokument samt Schlüsselsatz. Beide liefen
-     * durch diese Middleware, und die hängte den Token der aufrufenden Sitzung an.
+     * Heute tut das das OIDC-Discovery-Dokument samt Schlüsselsatz; die
+     * Hilfe-Bilder taten es ebenfalls, bis sie auf `private` umgestellt wurden.
+     * Beide liefen durch diese Middleware, und die hängte den Token der
+     * aufrufenden Sitzung an.
      * Ein gemeinsamer Zwischenspeicher - Reverse Proxy, CDN - darf eine
      * `public`-Antwort samt Kopfzeilen aufbewahren und dem nächsten Abruf
      * ausliefern: Dann kennt eine fremde Person den Token einer anderen Sitzung,

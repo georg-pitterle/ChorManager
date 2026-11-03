@@ -42,7 +42,8 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
     /**
      * Die Zwischenspeicherung entscheidet die Route, nicht diese Middleware: Wer
      * etwas ausliefert, das zwischengespeichert werden darf, setzt `Cache-Control`
-     * selbst (etwa die Hilfe-Anhänge mit `public, max-age=86400`). Alles andere -
+     * selbst (die Hilfe-Bilder mit `private, max-age=86400`, das
+     * OIDC-Discovery-Dokument mit `public`). Alles andere -
      * und das ist jede Seite hinter der Anmeldung - bekommt hier `no-store`, damit
      * Mitgliederdaten weder im Verlauf noch in einem Zwischenspeicher liegen
      * bleiben, wenn ein Gerät später jemand anderem gehört.
