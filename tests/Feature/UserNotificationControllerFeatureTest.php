@@ -284,4 +284,49 @@ final class UserNotificationControllerFeatureTest extends TestCase
             'is_active' => 1,
         ]);
     }
+
+    /**
+     * Die Glocke leitet nur auf die eigene Anwendung weiter.
+     *
+     * Gespeichert wird der Link in zwei Formen: Die Dienste im Betrieb bauen
+     * eine vollständige Adresse aus der Basis-Adresse
+     * (NotificationReminderService, EventController), die Seed-Daten schreiben
+     * einen Pfad. Beide müssen weiter funktionieren - deshalb reduziert `open()`
+     * auf Pfad, Abfrage und Anker, statt den Wert nur durch SafeRedirect zu
+     * schicken: Eine vollständige Adresse enthält "://" und fiele dort
+     * vollständig durch.
+     *
+     * @param string $stored     Was in der Spalte steht
+     * @param string $expectedTo Wohin weitergeleitet werden darf
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('linkProvider')]
+    public function testOpenOnlyRedirectsWithinTheApplication(string $stored, string $expectedTo): void
+    {
+        $entry = $this->entry($this->anna, 'Eintrag', $stored);
+
+        $response = $this->controller()->open(
+            $this->makeRequest('GET', '/notifications/' . $entry->id . '/open'),
+            new Response(),
+            ['id' => (string) $entry->id]
+        );
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertSame($expectedTo, $response->getHeaderLine('Location'));
+    }
+
+    /**
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function linkProvider(): array
+    {
+        return [
+            'Pfad wie in den Seed-Daten' => ['/tasks/7', '/tasks/7'],
+            'vollständige eigene Adresse' => ['https://chor.example/tasks/7', '/tasks/7'],
+            'Adresse mit Abfrage' => ['https://chor.example/events?project_id=3', '/events?project_id=3'],
+            'fremder Rechner' => ['https://example.invalid/phish', '/phish'],
+            'schemalos' => ['//example.invalid/phish', '/phish'],
+            'anderes Schema' => ['javascript:alert(1)', '/notifications'],
+            'leer' => ['', '/notifications'],
+        ];
+    }
 }

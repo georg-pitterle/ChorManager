@@ -8,6 +8,7 @@ use App\Models\UserNotification;
 use App\Services\Notifications\InAppNotificationStore;
 use App\Util\NotificationType;
 use App\Util\RequestFormat;
+use App\Util\SafeRedirect;
 use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -25,6 +26,9 @@ use Slim\Views\Twig;
 class UserNotificationController
 {
     private const RECENT_LIMIT = 10;
+
+    /** Ziel, wenn der Eintrag keinen brauchbaren eigenen Pfad trägt. */
+    private const FALLBACK_TARGET = '/notifications';
 
     public function __construct(
         private readonly Twig $view,
@@ -87,7 +91,49 @@ class UserNotificationController
 
         $this->store->markRead($notification);
 
-        return $response->withHeader('Location', (string) $notification->link)->withStatus(302);
+        return $response
+            ->withHeader('Location', $this->ownTarget($notification->link))
+            ->withStatus(302);
+    }
+
+    /**
+     * Das Ziel eines Eintrags, auf die eigene Anwendung begrenzt.
+     *
+     * Der Link entsteht heute ausschließlich in der Anwendung selbst, es gibt
+     * also keinen bekannten Weg, über den ein fremdes Ziel in die Spalte käme.
+     * Genau darauf beruhte der Schutz aber: auf einer Eigenschaft der
+     * Schreibstellen, nicht auf einer Prüfung an der Lesestelle. Ein künftiger
+     * Anlass, dessen Ziel aus Daten entsteht, hätte daraus eine offene
+     * Weiterleitung gemacht, ohne dass hier etwas aufgefallen wäre.
+     *
+     * Der Wert wird deshalb auf Pfad, Abfrage und Anker reduziert und erst dann
+     * geprüft. Die Reduktion ist nötig und nicht nur Vorsicht: Die Dienste im
+     * Betrieb speichern eine vollständige Adresse aus der Basis-Adresse, und die
+     * enthält "://" - `SafeRedirect::sanitize()` allein würde jeden dieser Links
+     * abweisen und die Glocke unbenutzbar machen. Ein Rechnername im Wert fällt
+     * bei der Reduktion weg, womit ein fremdes Ziel zum eigenen Pfad wird.
+     *
+     * Bleibt kein brauchbarer Pfad übrig, führt der Eintrag zurück zur Liste -
+     * gelesen ist er dann trotzdem, so wie beim Klick auf einen Eintrag ohne
+     * eigenes Ziel.
+     */
+    private function ownTarget(?string $link): string
+    {
+        $raw = (string) $link;
+        $parts = parse_url($raw);
+        if ($parts === false) {
+            return self::FALLBACK_TARGET;
+        }
+
+        $target = (string) ($parts['path'] ?? '');
+        if (($parts['query'] ?? '') !== '') {
+            $target .= '?' . $parts['query'];
+        }
+        if (($parts['fragment'] ?? '') !== '') {
+            $target .= '#' . $parts['fragment'];
+        }
+
+        return SafeRedirect::sanitize($target) ?? self::FALLBACK_TARGET;
     }
 
     public function readAll(Request $request, Response $response): Response
