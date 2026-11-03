@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -32,6 +33,8 @@ use App\Util\InputValidator;
 
 class FinanceController
 {
+    use FlashMessages;
+
     /** Belege, die an der Buchung hängen. */
     /** Derselbe Wert wie am Modell - festgelegt wird er nur dort. */
     public const ENTITY_TYPE = Finance::ENTITY_TYPE;
@@ -203,9 +206,7 @@ class FinanceController
 
         $groups = FinanceGroup::orderBy('name')->pluck('name');
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         // Abgewiesene Eingaben oder die Vorgaben für den nächsten Beleg: Der Dialog
         // öffnet damit beim Laden wieder, statt die Kassierin von vorn tippen zu lassen.

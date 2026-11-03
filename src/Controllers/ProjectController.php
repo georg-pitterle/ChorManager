@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -23,6 +24,8 @@ use App\Util\InputValidator;
 
 class ProjectController
 {
+    use FlashMessages;
+
     private const INVALID_DATE_MESSAGE = 'Beginn und Ende müssen ein Datum sein (JJJJ-MM-TT) oder leer bleiben.';
     public const INVALID_LOGO_DEADLINE_MESSAGE = 'Die Logo-Fristen müssen ein Datum sein (JJJJ-MM-TT) oder leer bleiben.';
 
@@ -172,9 +175,7 @@ class ProjectController
     {
         $projects = $this->projectQuery->getAllProjects();
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         return $this->view->render($response, 'projects/index.twig', [
             'projects' => $projects,
@@ -345,9 +346,7 @@ class ProjectController
             ];
         });
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         return $this->view->render($response, 'projects/members.twig', [
             'project' => $project,

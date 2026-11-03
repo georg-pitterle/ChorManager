@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -16,6 +17,8 @@ use App\Util\InputValidator;
 
 class EventTypeController
 {
+    use FlashMessages;
+
     /**
      * Die Farben, die das Formular zur Auswahl stellt - und damit die einzigen,
      * für die Bootstrap eine `bg-*`-Klasse kennt. Ein abweichender Wert kommt
@@ -47,9 +50,7 @@ class EventTypeController
     public function index(Request $request, Response $response): Response
     {
         $eventTypes = EventType::orderBy('name')->get();
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         // Get create form state
         $createService = new ModalFormService('event_type_create');

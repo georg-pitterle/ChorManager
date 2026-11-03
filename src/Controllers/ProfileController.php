@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use App\Util\PasswordHasher;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -29,6 +30,8 @@ use Psr\Log\LoggerInterface;
 
 class ProfileController
 {
+    use FlashMessages;
+
     /**
      * Ohne Verschlüsselung ging das IMAP-Passwort des Mitglieds im Klartext über
      * das Netz - MailBadgeService baut die Verbindung wirklich auf. `none` ist
@@ -83,9 +86,7 @@ class ProfileController
         }
         $user->voice_group_pivots = $pivots;
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         $voiceGroups = VoiceGroup::orderBy('id')->get();
         $subVoices = SubVoice::orderBy('name')->get();

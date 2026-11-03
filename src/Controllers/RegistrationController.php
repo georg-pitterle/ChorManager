@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\User;
@@ -24,6 +25,8 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 
 class RegistrationController
 {
+    use FlashMessages;
+
     /** Formularwert, mit dem eine Antwort - eigene oder vertretene - wieder auf "offen" gesetzt wird. */
     private const STATUS_OPEN = 'open';
 
@@ -96,9 +99,7 @@ class RegistrationController
             ] + $this->scheduleLabels($event, $now));
         }
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         return $this->view->render($response, 'registrations/index.twig', [
             'rows' => $rows,
@@ -207,9 +208,7 @@ class RegistrationController
         $total = $users->count();
         $answered = $total - $counts['open'];
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         return $this->view->render($response, 'registrations/detail.twig', [
             'event' => $event,

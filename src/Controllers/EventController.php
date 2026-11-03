@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use Carbon\Carbon;
 use Carbon\CarbonImmutable;
 use Exception;
@@ -43,6 +44,8 @@ use Psr\Log\LoggerInterface;
 
 class EventController
 {
+    use FlashMessages;
+
     /**
      * Schlüssel, unter dem die frisch erzeugte Abo-Adresse genau einen
      * Seitenaufruf lang in der Sitzung liegt.
@@ -551,9 +554,7 @@ class EventController
 
         $projects = $accessibleProjects;
         $eventTypes = EventType::orderBy('name')->get();
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
         $createService = new ModalFormService('event_create');
         $createState = $createService->getState();
         $createService->clear();
@@ -614,9 +615,7 @@ class EventController
         (new InAppNotificationStore())->markEntityReadQuietly($userId, 'event', (int) $event->id, $this->logger);
         $event->setRelation('comments', $this->getVisibleEventComments($event->id, $userId));
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         return $this->view->render($response, 'events/detail.twig', [
             'event' => $event,

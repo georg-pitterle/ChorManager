@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -18,6 +19,8 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class VoiceGroupController
 {
+    use FlashMessages;
+
     /**
      * Die Besetzungsansicht gruppiert nach dem Namen der Stimmgruppe; zwei
      * gleichnamige Gruppen verschmelzen dort stillschweigend zu einer. Der
@@ -94,9 +97,7 @@ class VoiceGroupController
         $voiceGroups = VoiceGroup::with('subVoices')->orderBy('id')->get();
         [$groupMemberCounts, $subVoiceMemberCounts] = $this->membershipCounts($voiceGroups);
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         // Get create group form state
         $createGroupService = new ModalFormService('voice_group_create');

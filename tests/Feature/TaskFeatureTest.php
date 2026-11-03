@@ -211,16 +211,32 @@ class TaskFeatureTest extends TestCase
         $this->assertStringContainsString("$" . "changes[] = 'Beschreibung aktualisiert';", $controllerContent);
     }
 
+    /**
+     * Beide Aufgaben-Seiten nehmen die Flash-Meldungen aus der Sitzung.
+     *
+     * Geprüft wird der Aufruf des gemeinsamen Helfers, nicht mehr die Schreibweise
+     * der Übergabe. Vorher standen hier vier Zeichenketten samt ihrer Ausrichtung
+     * ("'success'      => $success,") - und genau daran brach der Test, als der
+     * dreizeilige Block in Concerns\FlashMessages zusammengezogen wurde, obwohl
+     * sich am Verhalten nichts änderte. Dieselbe Lehre steht eine Methode weiter
+     * unten schon einmal.
+     *
+     * Dass die Meldung auch tatsächlich im Template erscheint, hält
+     * FlashMessageRenderedFeatureTest fest - der geht von jeder Verbrauchsstelle
+     * aus und prüft das danach gerenderte Template. Das ist die stärkere Aussage:
+     * Die alten Zeichenketten haben nur den Controller angesehen, nie das
+     * Template.
+     */
     public function testTaskControllerConsumesFlashMessagesInViews(): void
     {
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/TaskController.php');
 
         $this->assertIsString($controllerContent);
-        $this->assertGreaterThanOrEqual(2, substr_count($controllerContent, "unset(" . '$' . "_SESSION['success'], " . '$' . "_SESSION['error']);"));
-        $this->assertStringContainsString("'success'      => " . '$' . 'success,', $controllerContent);
-        $this->assertStringContainsString("'error'        => " . '$' . 'error,', $controllerContent);
-        $this->assertStringContainsString("'success' => " . '$' . 'success,', $controllerContent);
-        $this->assertStringContainsString("'error'   => " . '$' . 'error,', $controllerContent);
+        $this->assertGreaterThanOrEqual(
+            2,
+            substr_count($controllerContent, '$this->takeFlash()'),
+            'Aufgabenliste und Aufgaben-Detail müssen die Flash-Meldungen abholen.'
+        );
     }
 
     /**

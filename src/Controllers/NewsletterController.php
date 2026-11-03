@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -42,6 +43,8 @@ use Psr\Log\LoggerInterface;
 
 class NewsletterController
 {
+    use FlashMessages;
+
     private Twig $view;
     private NewsletterService $newsletterService;
     private NewsletterLockingService $lockingService;
@@ -313,9 +316,7 @@ class NewsletterController
     {
         $queryParams = $request->getQueryParams();
         $userId = $_SESSION['user_id'] ?? null;
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         $projects = $this->selectableProjects();
 

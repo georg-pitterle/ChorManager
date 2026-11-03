@@ -100,6 +100,9 @@ final class FlashMessageRenderedFeatureTest extends TestCase
     private function isFlashConsumption(string $line): bool
     {
         $patterns = [
+            // Der übliche Weg: der Helfer aus Concerns\FlashMessages.
+            '$this->takeFlash()',
+            // Stellen, die die Sitzung weiterhin selbst leeren.
             "unset(\$_SESSION['success'], \$_SESSION['error'])",
             "unset(\$_SESSION['error'], \$_SESSION['success'])",
         ];
@@ -183,9 +186,15 @@ final class FlashMessageRenderedFeatureTest extends TestCase
 
         $files = [];
         foreach ($iterator as $entry) {
-            if ($entry->isFile() && $entry->getExtension() === 'php') {
-                $files[] = $entry->getPathname();
+            if (!$entry->isFile() || $entry->getExtension() !== 'php') {
+                continue;
             }
+            // Der Helfer selbst ist die Definition des Verbrauchs, nicht eine
+            // Stelle, die verbraucht - er rendert nichts und hat kein Template.
+            if ($entry->getFilename() === 'FlashMessages.php') {
+                continue;
+            }
+            $files[] = $entry->getPathname();
         }
 
         sort($files);

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -18,6 +19,8 @@ use App\Util\InputValidator;
 
 class AppSettingController
 {
+    use FlashMessages;
+
     public const DEFAULT_PRIMARY_COLOR = '#E8A817';
 
     /** Dunkelster Seitenhintergrund (#EEF2F7), gegen den Text noch lesbar sein muss. */
@@ -103,9 +106,7 @@ class AppSettingController
     {
         $settings = AppSetting::all()->pluck('setting_value', 'setting_key')->toArray();
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         // Hier werden alle Anlässe angeboten, die das jeweilige Modul zulässt -
         // auch die abgeschalteten, sonst ließe sich ein einmal abgeschalteter

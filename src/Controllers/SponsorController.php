@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
@@ -33,6 +34,8 @@ use App\Services\ModalFormService;
 
 class SponsorController
 {
+    use FlashMessages;
+
     use AttachmentUploadJson;
 
     private const MAX_NAME_LENGTH = 255;
@@ -100,9 +103,7 @@ class SponsorController
             ->orderBy('name')
             ->get();
 
-        $success = $_SESSION['success'] ?? null;
-        $error   = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         $sponsorRows = $this->buildSponsorRows($sponsors);
 
@@ -291,9 +292,7 @@ class SponsorController
 
         $contactPermissions = $this->buildContactPermissions($sponsor);
 
-        $success = $_SESSION['success'] ?? null;
-        $error   = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         return $this->view->render($response, 'sponsoring/sponsors/detail.twig', [
             'sponsor'        => $sponsor,

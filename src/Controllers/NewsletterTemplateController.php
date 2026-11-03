@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use App\Models\Event;
 use App\Models\Newsletter;
 use App\Models\NewsletterTemplate;
@@ -30,6 +31,8 @@ use Slim\Views\Twig;
  */
 class NewsletterTemplateController
 {
+    use FlashMessages;
+
     private Twig $view;
     private HtmlSanitizer $htmlSanitizer;
     private NewsletterTemplateQuery $templateQuery;
@@ -160,9 +163,7 @@ class NewsletterTemplateController
 
     public function index(Request $request, Response $response): Response
     {
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         // Dieselben Auswahllisten wie in edit(): Der Erstellen-Dialog bietet die
         // Newsletter-Einstellungen samt Empfängerquellen an, sonst müsste eine neue

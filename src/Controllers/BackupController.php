@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use App\Services\BackupLimitReachedException;
 use App\Services\BackupLockedException;
 use App\Services\BackupMigrationFailedException;
@@ -19,6 +20,8 @@ use Slim\Views\Twig;
 
 class BackupController
 {
+    use FlashMessages;
+
     /**
      * Backup-Vorgänge laufen nicht gegeneinander (BackupLock). Gewartet wird nicht:
      * Ein Backup dauert Minuten, und ein Web-Request, der so lange wartet, läuft in
@@ -40,9 +43,7 @@ class BackupController
     {
         $backups = $this->backupService->list();
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         return $this->view->render($response, 'backups/index.twig', [
             'backups' => $backups,

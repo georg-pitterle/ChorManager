@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use App\Controllers\Concerns\AttachmentUploadJson;
 use App\Models\Project;
 use App\Models\Task;
@@ -34,6 +35,8 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 
 class TaskController
 {
+    use FlashMessages;
+
     use AttachmentUploadJson;
 
     /** Anhänge, die an der Aufgabe hängen. */
@@ -427,9 +430,7 @@ class TaskController
             ->get();
 
         $projectUsers = $this->projectUsersInNameOrder($project);
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         return $this->view->render($response, 'projects/tasks.twig', [
             'project'      => $project,
@@ -458,9 +459,7 @@ class TaskController
             $this->logger
         );
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
         $task->description = $this->htmlSanitizer->sanitizeTaskHtml((string) $task->description);
 
         return $this->view->render($response, 'projects/task_detail.twig', [

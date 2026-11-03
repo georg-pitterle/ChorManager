@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -21,6 +22,8 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 
 class AttendanceController
 {
+    use FlashMessages;
+
     private const SELECTED_EVENT_SESSION_KEY = 'attendance_selected_event_id';
 
     /** Wie weit die Terminauswahl ohne den Haken "Ältere Termine" zurückreicht. */
@@ -189,9 +192,7 @@ class AttendanceController
             }
         }
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         return $this->view->render($response, 'attendance/show.twig', [
             'events' => $events,

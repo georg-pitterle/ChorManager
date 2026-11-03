@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use App\Util\PasswordHasher;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -32,6 +33,8 @@ use Psr\Log\LoggerInterface;
 
 class UserController
 {
+    use FlashMessages;
+
     /** Sperrgrund, wenn sonst niemand mehr an die Mitgliederverwaltung käme. */
     private const LAST_MANAGER_MESSAGE = 'Das ist das letzte Mitglied mit Mitgliederverwaltung. '
         . 'Vergib das Recht zuerst an ein anderes Mitglied.';
@@ -125,9 +128,7 @@ class UserController
 
         $canManageProjectMembers = $_SESSION['can_manage_project_members'] ?? false;
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         // Get create form state
         $createService = new ModalFormService('user_create');

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use App\Models\BudgetCategory;
 use App\Models\BudgetItem;
 use App\Models\FinanceGroup;
@@ -17,6 +18,8 @@ use Slim\Views\Twig;
 
 class BudgetController
 {
+    use FlashMessages;
+
     private Twig $view;
     private BudgetService $budgetService;
     private LoggerInterface $logger;
@@ -40,9 +43,7 @@ class BudgetController
 
         $financeGroups = FinanceGroup::orderBy('name')->get();
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         return $this->view->render($response, 'budget/index.twig', [
             'overview' => $overview,

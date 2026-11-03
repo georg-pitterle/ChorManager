@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use App\Controllers\Concerns\AttachmentUploadJson;
 use App\Models\Category;
 use App\Models\Project;
@@ -22,6 +23,8 @@ use Slim\Views\Twig;
 
 class SongLibraryController
 {
+    use FlashMessages;
+
     use AttachmentUploadJson;
 
     /** Anhänge, die am Lied hängen: Noten, Übungsaufnahmen, Begleitstimmen. */
@@ -92,9 +95,7 @@ class SongLibraryController
             }
         ])->orderBy('name', 'asc')->get();
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         return $this->view->render($response, 'songs/manage.twig', [
             'songs' => $songs,
@@ -136,9 +137,7 @@ class SongLibraryController
         $allProjects = Project::query()->chronological()->get();
         $assignedProjectIds = $song->projectAssignments->pluck('project_id')->toArray();
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         return $this->view->render($response, 'songs/detail.twig', [
             'song' => $song,
@@ -156,9 +155,7 @@ class SongLibraryController
     {
         $allCategories = Category::orderBy('sort_order', 'asc')->orderBy('name', 'asc')->get();
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         return $this->view->render($response, 'songs/create.twig', [
             'all_categories' => $allCategories,

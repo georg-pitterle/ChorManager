@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\FlashMessages;
 use App\Models\Finance;
 use App\Models\FinanceAccount;
 use App\Services\FinanceAccountService;
@@ -23,6 +24,8 @@ use Slim\Views\Twig;
  */
 class FinanceAccountController
 {
+    use FlashMessages;
+
     public function __construct(
         private readonly Twig $view,
         private readonly FinanceAccountService $accountService,
@@ -45,9 +48,7 @@ class FinanceAccountController
             ];
         }
 
-        $success = $_SESSION['success'] ?? null;
-        $error = $_SESSION['error'] ?? null;
-        unset($_SESSION['success'], $_SESSION['error']);
+        ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         return $this->view->render($response, 'finances/accounts.twig', [
             'rows' => $rows,
