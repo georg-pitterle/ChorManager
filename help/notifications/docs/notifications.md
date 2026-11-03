@@ -46,8 +46,9 @@ Jede Zeile steht für einen Anlass, mit je einem Schalter für **E-Mail** und **
 | Neue Bemerkung zu einem Termin | Jemand schreibt eine öffentliche Bemerkung |
 | Zu einem Projekt hinzugefügt | Jemand ordnet dich einem Projekt zu |
 | Wiedervorlage wird fällig | Kurz vor dem Wiedervorlage-Datum eines Kontakts, den du protokolliert hast |
+| Neue Umfrage | Eine Umfrage startet, an der du teilnehmen kannst, siehe [Umfragen](polls) |
 
-Die Aufgaben-Anlässe erscheinen nur, wenn das Aufgaben-Modul aktiv ist; die Wiedervorlage nur bei aktivem Sponsoring-Modul. Fehlt ein Anlass in deiner Liste, ist entweder das Modul aus oder die Verwaltung hat ihn abgeschaltet.
+Die Aufgaben-Anlässe erscheinen nur, wenn das Aufgaben-Modul aktiv ist; die Wiedervorlage nur bei aktivem Sponsoring-Modul, die neue Umfrage nur bei aktivem Umfragen-Modul. Fehlt ein Anlass in deiner Liste, ist entweder das Modul aus oder die Verwaltung hat ihn abgeschaltet.
 
 Am Ende jeder Mail steht, welcher Anlass sie ausgelöst hat, mit einem Link zurück auf diese Seite.
 

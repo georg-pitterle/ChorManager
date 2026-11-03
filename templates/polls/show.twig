@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% block title %}
     {{ poll.title }} - Umfragen - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
@@ -19,6 +21,7 @@
             </p>
         </div>
         <div class="page-actions">
+            {{ help.button("polls", "Umfragen") }}
             <a href="/polls" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Alle Umfragen
             </a>

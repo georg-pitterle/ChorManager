@@ -18,7 +18,7 @@ class HelpCatalogFeatureTest extends TestCase
     private const ALL_MODULES = [
         'sheet_archive' => true, 'finance' => true, 'budget' => true, 'newsletter' => true,
         'sponsoring' => true, 'tasks' => true, 'registration' => true, 'oidc' => true,
-        'files' => true, 'office' => true,
+        'files' => true, 'office' => true, 'polls' => true,
     ];
 
     /**

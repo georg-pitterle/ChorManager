@@ -1,5 +1,7 @@
 {% extends "layout.twig" %}
 
+{% import "macros/help.twig" as help %}
+
 {% set _is_new = poll is null %}
 
 {% block title %}
@@ -12,6 +14,7 @@
             <h1 class="h2 mb-1 mt-2">{{ _is_new ? "Neue Umfrage" : "Umfrage bearbeiten" }}</h1>
         </div>
         <div class="page-actions">
+            {{ help.button("polls-manage", "Umfragen verwalten") }}
             <a href="{{ _is_new ? "/polls" : "/polls/" ~ poll.id }}" class="btn btn-outline-secondary">
                 <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Zurück
             </a>

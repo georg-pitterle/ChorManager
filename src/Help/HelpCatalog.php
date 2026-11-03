@@ -74,6 +74,8 @@ final class HelpCatalog
         'newsletter'                  => ['menu' => ['/newsletters', '/newsletters/archive']],
         'newsletter-compose'          => ['menu' => ['/newsletters']],
         'newsletter-templates'        => ['menu' => ['/newsletters']],
+        'polls'                       => ['menu' => ['/polls']],
+        'polls-manage'                => ['menu' => ['/polls'], 'rights' => ['can_manage_polls']],
         'roles'                       => ['menu' => ['/roles']],
         'events-event-types'          => ['menu' => ['/event-types']],
     ];
