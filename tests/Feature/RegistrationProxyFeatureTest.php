@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Controllers\RegistrationController;
 use App\Models\Event;
 use App\Models\EventRegistration;
+use App\Util\ParticipantStateFingerprint;
 use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Services\AttendanceScopeService;
@@ -95,6 +96,11 @@ class RegistrationProxyFeatureTest extends TestCase
         $request = $this->makeRequest('POST', '/registrations/' . $this->event->id . '/proxy', [
             'registration' => [(string) $member->id => 'maybe'],
             'note' => [(string) $member->id => 'Kommt eventuell später'],
+            'state_hash' => ParticipantStateFingerprint::of(
+                EventRegistration::class,
+                (int) $this->event->id,
+                [(int) $member->id]
+            ),
         ]);
         $response = $this->controller()->saveProxy($request, $this->makeResponse(), [
             'event_id' => (string) $this->event->id,

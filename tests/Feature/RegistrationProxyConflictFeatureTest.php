@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Controllers\RegistrationController;
 use App\Models\Event;
 use App\Models\EventRegistration;
+use App\Util\ParticipantStateFingerprint;
 use App\Models\User;
 use App\Services\AttendanceScopeService;
 use App\Services\NameFormatterService;
@@ -93,10 +94,16 @@ final class RegistrationProxyConflictFeatureTest extends TestCase
      */
     private function saveProxy(array $registrations, ?string $stateHash = null): \Psr\Http\Message\ResponseInterface
     {
-        $body = ['registration' => $registrations];
-        if ($stateHash !== null) {
-            $body['state_hash'] = $stateHash;
-        }
+        // Ohne ausdrücklichen Wert der aktuelle Stand - ein fehlender
+        // Fingerabdruck gilt seit der Verschärfung als Konflikt.
+        $body = [
+            'registration' => $registrations,
+            'state_hash' => $stateHash ?? ParticipantStateFingerprint::of(
+                EventRegistration::class,
+                (int) $this->event->id,
+                array_map('intval', array_keys($registrations))
+            ),
+        ];
 
         return $this->controller()->saveProxy(
             $this->makeRequest('POST', '/registrations/' . $this->event->id . '/proxy', $body),
@@ -169,5 +176,29 @@ final class RegistrationProxyConflictFeatureTest extends TestCase
         $this->saveProxy([(string) $this->member->id => 'yes'], $freshHash);
 
         $this->assertSame('yes', $this->registrationOf($this->member)?->status);
+    }
+
+    /**
+     * Derselbe Schutz bei den Vertretungseinträgen: ohne Fingerabdruck wird
+     * nicht geschrieben.
+     */
+    public function testAProxySaveWithoutAStateHashIsRejected(): void
+    {
+        EventRegistration::create([
+            'event_id' => (int) $this->event->id,
+            'user_id' => (int) $this->member->id,
+            'status' => 'no',
+            'note' => 'Doch verhindert',
+        ]);
+
+        $response = $this->saveProxy([(string) $this->member->id => 'yes'], '');
+
+        $this->assertSame(302, $response->getStatusCode());
+        $this->assertSame(
+            'no',
+            $this->registrationOf($this->member)?->status,
+            'Ohne Fingerabdruck darf die Selbstauskunft nicht überschrieben werden.'
+        );
+        $this->assertNotEmpty($_SESSION['error'] ?? '');
     }
 }

@@ -62,4 +62,26 @@ final class ParticipantStateFingerprint
 
         return hash('sha256', implode(self::ROW_SEPARATOR, $parts));
     }
+
+    /**
+     * Ob der mitgeschickte Fingerabdruck nicht mehr zum gespeicherten Stand
+     * passt - dann wurde zwischenzeitlich von anderer Seite geändert.
+     *
+     * Ein fehlender Fingerabdruck gilt als veraltet. Zuvor übersprang ein leerer
+     * Wert die Prüfung ganz (`$hash !== '' && !hash_equals(...)`): Wer das Feld
+     * wegließ, schaltete damit die Sperre gegen verlorene Schreibvorgänge ab.
+     * Beide Formulare schicken es immer mit, eine ausgelassene Angabe stammt
+     * also nicht von ihnen.
+     *
+     * @param class-string<Model> $model
+     * @param list<int> $userIds
+     */
+    public static function isStale(string $model, int $eventId, array $userIds, string $submitted): bool
+    {
+        if ($submitted === '') {
+            return true;
+        }
+
+        return !hash_equals(self::of($model, $eventId, $userIds), $submitted);
+    }
 }

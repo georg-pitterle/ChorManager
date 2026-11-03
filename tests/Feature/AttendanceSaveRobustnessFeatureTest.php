@@ -128,10 +128,18 @@ final class AttendanceSaveRobustnessFeatureTest extends TestCase
      */
     private function save(array $attendance, array $notes = [], ?string $stateHash = null): \Psr\Http\Message\ResponseInterface
     {
-        $body = ['attendance' => $attendance, 'note' => $notes];
-        if ($stateHash !== null) {
-            $body['state_hash'] = $stateHash;
-        }
+        // Ohne ausdrücklichen Wert der aktuelle Stand: Ein fehlender
+        // Fingerabdruck gilt seit der Verschärfung als Konflikt, und diese Tests
+        // prüfen andere Regeln als die Sperre.
+        $body = [
+            'attendance' => $attendance,
+            'note' => $notes,
+            'state_hash' => $stateHash ?? ParticipantStateFingerprint::of(
+                Attendance::class,
+                (int) $this->event->id,
+                array_map('intval', array_keys($attendance))
+            ),
+        ];
 
         return $this->controller()->save(
             $this->makeRequest('POST', '/attendance/' . $this->event->id, $body),
@@ -369,5 +377,33 @@ final class AttendanceSaveRobustnessFeatureTest extends TestCase
     private function stateHashFor(array $userIds): string
     {
         return ParticipantStateFingerprint::of(Attendance::class, (int) $this->event->id, $userIds);
+    }
+
+    /**
+     * Ein Beitrag ohne Fingerabdruck wird abgewiesen.
+     *
+     * Vorher übersprang ein leerer Wert die Prüfung ganz - wer das Feld wegließ,
+     * schaltete die Sperre gegen verlorene Schreibvorgänge ab und überschrieb
+     * fremde Einträge kommentarlos. Das Formular schickt das Feld immer mit.
+     */
+    public function testASaveWithoutAStateHashIsRejected(): void
+    {
+        Attendance::create([
+            'event_id' => $this->event->id,
+            'user_id' => $this->members[0]->id,
+            'status' => Attendance::STATUS_EXCUSED,
+            'note' => 'Krank gemeldet',
+        ]);
+
+        $this->save([(string) $this->members[0]->id => Attendance::STATUS_PRESENT], [], '');
+
+        $attendance = $this->attendanceOf($this->members[0]);
+        $this->assertSame(
+            Attendance::STATUS_EXCUSED,
+            $attendance?->status,
+            'Ohne Fingerabdruck darf nichts geschrieben werden.'
+        );
+        $this->assertSame('Krank gemeldet', $attendance?->note);
+        $this->assertNotEmpty($_SESSION['error'] ?? '');
     }
 }

@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Controllers\RegistrationController;
 use App\Models\Event;
 use App\Models\EventRegistration;
+use App\Util\ParticipantStateFingerprint;
 use App\Models\User;
 use App\Services\AttendanceScopeService;
 use App\Util\PasswordHasher;
@@ -121,6 +122,11 @@ class RegistrationNoteLimitFeatureTest extends TestCase
                 (string) $second->id => 'no',
             ],
             'note' => [(string) $second->id => str_repeat('b', 400)],
+            'state_hash' => ParticipantStateFingerprint::of(
+                EventRegistration::class,
+                (int) $this->event->id,
+                [(int) $first->id, (int) $second->id]
+            ),
         ]);
         $response = $this->controller()->saveProxy($request, $this->makeResponse(), [
             'event_id' => (string) $this->event->id,
@@ -153,6 +159,11 @@ class RegistrationNoteLimitFeatureTest extends TestCase
 
         $request = $this->makeRequest('POST', '/registrations/' . $this->event->id . '/proxy', [
             'registration' => [(string) $member->id => ['yes']],
+            'state_hash' => ParticipantStateFingerprint::of(
+                EventRegistration::class,
+                (int) $this->event->id,
+                [(int) $member->id]
+            ),
         ]);
 
         set_error_handler(static function (int $severity, string $message): bool {

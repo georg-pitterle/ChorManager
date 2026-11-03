@@ -471,17 +471,13 @@ class RegistrationController
         // Hat sich der Stand seit dem Laden des Formulars geändert, wird nichts
         // geschrieben. Maßgeblich ist nur der Stand der übermittelten Mitglieder,
         // damit zwei Verwalter mit getrennten Stimmgruppen sich nicht blockieren.
-        if (
-            $loadedStateHash !== ''
-            && !hash_equals(
-                ParticipantStateFingerprint::of(
-                    EventRegistration::class,
-                    (int) $event->id,
-                    $submittedUserIds
-                ),
-                $loadedStateHash
-            )
-        ) {
+        $stateIsStale = ParticipantStateFingerprint::isStale(
+            EventRegistration::class,
+            (int) $event->id,
+            $submittedUserIds,
+            $loadedStateHash
+        );
+        if ($stateIsStale) {
             $this->logger->info('Proxy registration save rejected due to a concurrent change.', [
                 'event' => 'registration.proxy_save.conflict',
                 'event_id' => (int) $event->id,

@@ -260,13 +260,14 @@ class AttendanceController
 
         // Optimistisches Sperren: nur der Stand der übermittelten Mitglieder zählt,
         // damit zwei Stimmgruppenleiter mit getrennten Gruppen sich nicht blockieren.
-        if (
-            $loadedStateHash !== ''
-            && !hash_equals(
-                ParticipantStateFingerprint::of(Attendance::class, $eventId, $submittedUserIds),
-                $loadedStateHash
-            )
-        ) {
+        // Ein fehlender Fingerabdruck zählt wie ein veralteter - siehe isStale().
+        $stateIsStale = ParticipantStateFingerprint::isStale(
+            Attendance::class,
+            $eventId,
+            $submittedUserIds,
+            $loadedStateHash
+        );
+        if ($stateIsStale) {
             $this->logger->info('Attendance save rejected due to a concurrent change.', [
                 'event' => 'attendance.save.conflict',
                 'event_id' => $eventId,

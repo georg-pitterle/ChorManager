@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Controllers\AttendanceController;
 use App\Controllers\EvaluationController;
 use App\Models\Attendance;
+use App\Util\ParticipantStateFingerprint;
 use App\Models\Event;
 use App\Models\Project;
 use App\Models\User;
@@ -293,6 +294,11 @@ class AttendanceRequiredFeatureTest extends TestCase
 
         $request = $this->makeRequest('POST', '/attendance/' . $fixture['event']->id, [
             'attendance' => [(string) $fixture['inScope']->id => 'present'],
+            'state_hash' => ParticipantStateFingerprint::of(
+                Attendance::class,
+                (int) $fixture['event']->id,
+                [(int) $fixture['inScope']->id]
+            ),
         ]);
         $response = $controller->save($request, $this->makeResponse(), [
             'event_id' => (string) $fixture['event']->id,

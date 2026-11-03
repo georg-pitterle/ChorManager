@@ -162,4 +162,39 @@ final class ParticipantStateFingerprintTest extends TestCase
 
         $this->assertNotSame($stateA, $stateB, 'Eine Notiz darf keine weitere Zeile nachahmen können.');
     }
+
+    /**
+     * Ein fehlender Fingerabdruck gilt als veraltet. Ohne diese Regel ließe
+     * sich die Sperre gegen verlorene Schreibvorgänge durch Weglassen des
+     * Feldes abschalten.
+     */
+    public function testMissingFingerprintCountsAsStale(): void
+    {
+        $this->assertTrue(
+            ParticipantStateFingerprint::isStale(Attendance::class, (int) $this->event->id, $this->userIds(), ''),
+            'Ohne mitgeschickten Fingerabdruck muss der Stand als veraltet gelten.'
+        );
+    }
+
+    public function testCurrentFingerprintIsNotStaleAndAnOutdatedOneIs(): void
+    {
+        $eventId = (int) $this->event->id;
+        $current = ParticipantStateFingerprint::of(Attendance::class, $eventId, $this->userIds());
+
+        $this->assertFalse(
+            ParticipantStateFingerprint::isStale(Attendance::class, $eventId, $this->userIds(), $current),
+            'Der aktuelle Fingerabdruck darf nicht als veraltet gelten.'
+        );
+
+        Attendance::create([
+            'event_id' => $eventId,
+            'user_id' => (int) $this->first->id,
+            'status' => Attendance::STATUS_PRESENT,
+        ]);
+
+        $this->assertTrue(
+            ParticipantStateFingerprint::isStale(Attendance::class, $eventId, $this->userIds(), $current),
+            'Nach einer fremden Änderung muss der alte Fingerabdruck als veraltet gelten.'
+        );
+    }
 }
