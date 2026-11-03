@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Controllers\AttendanceController;
 use App\Models\Attendance;
+use App\Util\ParticipantStateFingerprint;
 use App\Models\Event;
 use App\Models\User;
 use App\Navigation\NavigationBuilder;
@@ -359,12 +360,14 @@ final class AttendanceSaveRobustnessFeatureTest extends TestCase
     }
 
     /**
+     * Der Fingerabdruck kommt seit dem Zusammenziehen beider Sperren aus
+     * ParticipantStateFingerprint - vorher griff dieser Helfer per Reflection
+     * auf eine private Methode des Controllers zu.
+     *
      * @param list<int> $userIds
      */
     private function stateHashFor(array $userIds): string
     {
-        $method = new \ReflectionMethod(AttendanceController::class, 'attendanceStateHash');
-
-        return (string) $method->invoke($this->controller(), (int) $this->event->id, $userIds);
+        return ParticipantStateFingerprint::of(Attendance::class, (int) $this->event->id, $userIds);
     }
 }

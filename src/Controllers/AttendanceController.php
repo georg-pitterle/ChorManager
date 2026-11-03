@@ -15,6 +15,7 @@ use App\Services\EventAudienceService;
 use App\Services\NameFormatterService;
 use App\Util\VoiceGroupOrder;
 use App\Util\InputValidator;
+use App\Util\ParticipantStateFingerprint;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
@@ -200,7 +201,7 @@ class AttendanceController
             'voice_groups' => $voiceGroups,
             // Fingerabdruck des angezeigten Standes: erkennt beim Speichern, ob
             // jemand anderes dieselben Mitglieder zwischenzeitlich geändert hat.
-            'state_hash' => $eventId ? $this->attendanceStateHash($eventId, $renderedUserIds) : '',
+            'state_hash' => $eventId ? ParticipantStateFingerprint::of(Attendance::class, $eventId, $renderedUserIds) : '',
             'show_old_events' => $showOldEvents,
             'success' => $success,
             'error' => $error
@@ -261,7 +262,10 @@ class AttendanceController
         // damit zwei Stimmgruppenleiter mit getrennten Gruppen sich nicht blockieren.
         if (
             $loadedStateHash !== ''
-            && !hash_equals($this->attendanceStateHash($eventId, $submittedUserIds), $loadedStateHash)
+            && !hash_equals(
+                ParticipantStateFingerprint::of(Attendance::class, $eventId, $submittedUserIds),
+                $loadedStateHash
+            )
         ) {
             $this->logger->info('Attendance save rejected due to a concurrent change.', [
                 'event' => 'attendance.save.conflict',
@@ -364,31 +368,6 @@ class AttendanceController
         }
 
         return [$rowsToWrite, $userIdsToClear];
-    }
-
-    /**
-     * Fingerabdruck des gespeicherten Standes für genau diese Mitglieder.
-     *
-     * @param list<int> $userIds
-     */
-    private function attendanceStateHash(int $eventId, array $userIds): string
-    {
-        if ($userIds === []) {
-            return hash('sha256', '');
-        }
-
-        $parts = Attendance::where('event_id', $eventId)
-            ->whereIn('user_id', $userIds)
-            ->orderBy('user_id')
-            ->get(['user_id', 'status', 'note'])
-            ->map(static fn(Attendance $row): string => implode("\x1f", [
-                (string) $row->user_id,
-                (string) $row->status,
-                (string) $row->note,
-            ]))
-            ->all();
-
-        return hash('sha256', implode("\x1e", $parts));
     }
 
     /**

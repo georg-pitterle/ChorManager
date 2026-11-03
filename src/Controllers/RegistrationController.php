@@ -14,6 +14,7 @@ use App\Services\NameFormatterService;
 use App\Util\RequestFormat;
 use App\Util\VoiceGroupOrder;
 use App\Util\InputValidator;
+use App\Util\ParticipantStateFingerprint;
 use Carbon\Carbon;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -221,7 +222,7 @@ class RegistrationController
             'response_rate' => $total > 0 ? (int) round($answered * 100 / $total) : 0,
             'registration_open' => $event->isRegistrationOpen(),
             'can_manage_others' => $this->scopeService->canManageOthers(),
-            'state_hash' => $this->registrationStateHash((int) $event->id, $proxyUserIds),
+            'state_hash' => ParticipantStateFingerprint::of(EventRegistration::class, (int) $event->id, $proxyUserIds),
             'success' => $success,
             'error' => $error
         ]);
@@ -473,7 +474,11 @@ class RegistrationController
         if (
             $loadedStateHash !== ''
             && !hash_equals(
-                $this->registrationStateHash((int) $event->id, $submittedUserIds),
+                ParticipantStateFingerprint::of(
+                    EventRegistration::class,
+                    (int) $event->id,
+                    $submittedUserIds
+                ),
                 $loadedStateHash
             )
         ) {
@@ -561,43 +566,6 @@ class RegistrationController
     private function boundedNote(mixed $raw): string
     {
         return mb_substr(trim(InputValidator::asString($raw)), 0, self::NOTE_MAX_LENGTH);
-    }
-
-    /**
-     * Fingerabdruck des gespeicherten Standes für genau diese Mitglieder.
-     *
-     * Die beiden Trennzeichen sind Pflicht, nicht Zierde: `note` ist freier Text
-     * eines Mitglieds. Ohne sie wäre die Reihung nicht eindeutig - eine
-     * Begründung, die mit Kennung und Status der nächsten Zeile beginnt, ergäbe
-     * dieselbe Zeichenkette wie der Stand, in dem diese Zeile wirklich existiert
-     * und die Begründung leer ist. Zwei verschiedene Stände hätten denselben
-     * Fingerabdruck, und der Schutz gegen das Überschreiben fremder Angaben in
-     * saveProxy() liefe ins Leere. `\x1f` und `\x1e` stehen als Escape-Folge und
-     * nicht als rohes Byte in der Zeichenkette: Rohe Steuerzeichen sind in Editor,
-     * Diff und Review unsichtbar und überleben eine Normalisierung der Datei
-     * nicht zuverlässig. Dieselbe Schreibweise wie in
-     * AttendanceController::attendanceStateHash().
-     *
-     * @param list<int> $userIds
-     */
-    private function registrationStateHash(int $eventId, array $userIds): string
-    {
-        if ($userIds === []) {
-            return hash('sha256', '');
-        }
-
-        $parts = EventRegistration::where('event_id', $eventId)
-            ->whereIn('user_id', $userIds)
-            ->orderBy('user_id')
-            ->get(['user_id', 'status', 'note'])
-            ->map(static fn(EventRegistration $row): string => implode("\x1f", [
-                (string) $row->user_id,
-                (string) $row->status,
-                (string) $row->note,
-            ]))
-            ->all();
-
-        return hash('sha256', implode("\x1e", $parts));
     }
 
     private function findRegistrationEvent(int $eventId): ?Event
