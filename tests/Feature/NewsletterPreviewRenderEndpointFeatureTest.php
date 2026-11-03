@@ -226,7 +226,7 @@ final class NewsletterPreviewRenderEndpointFeatureTest extends TestCase
             'GET',
             "/newsletters/{$newsletter->id}/preview",
             [],
-            ['recipient_id' => (string) $outsider->id]
+            ['recipient_id' => (string) $outsider->id, 'modal' => '1']
         )->withAttribute('id', (string) $newsletter->id);
         $response = $this->controller()->preview($request, $this->makeResponse());
 

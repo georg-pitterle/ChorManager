@@ -72,21 +72,67 @@ class NewsletterMailRenderer
         bool $includeBrowseLink = true,
         array $linkedFiles = []
     ): string {
+        return $this->view->fetch(
+            'emails/newsletter.twig',
+            $this->mailContext($newsletter, $subject, $contentHtml, $baseUrl, $includeBrowseLink, $linkedFiles)
+        );
+    }
+
+    /**
+     * Die Leseseite hinter "Im Browser ansehen": dieselbe Mail, ganzseitig ausgeliefert statt
+     * in einem eingebetteten Rahmen. newsletters/read.twig erweitert emails/newsletter.twig und
+     * füllt nur die Blöcke um die Mailkarte herum - eine schmale Leiste zurück ins Archiv und
+     * die angehängten Dateien, die es sonst nur am Mailprogramm gäbe. Die Mail selbst bleibt
+     * dadurch genau die, die verschickt wurde.
+     *
+     * @param array<int, array{name: string, size: int, url: string}> $linkedFiles
+     * @param iterable<mixed> $attachedFiles Metadaten der angehängten Dateien.
+     */
+    public function renderReadingPage(
+        Newsletter $newsletter,
+        string $subject,
+        string $contentHtml,
+        string $baseUrl,
+        array $linkedFiles = [],
+        iterable $attachedFiles = [],
+        ?string $sentAt = null
+    ): string {
+        return $this->view->fetch('newsletters/read.twig', array_merge(
+            $this->mailContext($newsletter, $subject, $contentHtml, $baseUrl, false, $linkedFiles),
+            [
+                'attached_files' => $attachedFiles,
+                'sent_at' => $sentAt,
+            ]
+        ));
+    }
+
+    /**
+     * @param array<int, array{name: string, size: int, url: string}> $linkedFiles
+     * @return array<string, mixed>
+     */
+    private function mailContext(
+        Newsletter $newsletter,
+        string $subject,
+        string $contentHtml,
+        string $baseUrl,
+        bool $includeBrowseLink,
+        array $linkedFiles
+    ): array {
         $branding = $this->resolveBranding();
 
         $projectName = trim((string) ($newsletter->project->name ?? ''));
         $eyebrowLabel = $projectName === '' ? 'Newsletter' : $projectName;
 
-        $browseUrl = rtrim($baseUrl, '/') . '/newsletters/' . (int) $newsletter->id . '/preview';
+        $browseUrl = rtrim($baseUrl, '/') . '/newsletters/' . (int) $newsletter->id . '/read';
 
-        return $this->view->fetch('emails/newsletter.twig', array_merge($branding, [
+        return array_merge($branding, [
             'subject' => $subject,
             'content_html' => $this->prepareContent($contentHtml, (string) $branding['primary_strong'], $baseUrl),
             'eyebrow_label' => $eyebrowLabel,
             'browse_url' => $browseUrl,
             'include_browse_link' => $includeBrowseLink,
             'linked_files' => $linkedFiles,
-        ]));
+        ]);
     }
 
     /**

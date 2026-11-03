@@ -1,0 +1,59 @@
+{# Leseseite hinter "Im Browser ansehen": dieselbe Mail wie im Postfach, ganzseitig. Nur die
+   Blöcke um die Mailkarte herum kommen dazu - eine schmale Leiste zurück ins Archiv und die
+   angehängten Dateien. Gestaltet wird das Zusätzliche über public/css/newsletter-read.css;
+   die Mail selbst bleibt bei ihren Inline-Styles, damit sie hier genau so aussieht wie
+   verschickt. Gerendert über NewsletterMailRenderer::renderReadingPage(). #}
+{% extends "emails/newsletter.twig" %}
+
+{% block mail_title %}{{ subject }} - {{ app_name|default("Chor-Manager") }}{% endblock %}
+
+{% block head_extra %}
+    <link rel="icon" href="/favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="{{ asset_path("/css/newsletter-read.css") }}">
+{% endblock %}
+
+{% block before_card %}
+    <nav class="cm-read-bar" aria-label="Newsletter">
+        <a href="/newsletters/archive" class="cm-read-bar__back">
+            <svg class="cm-read-bar__icon"
+                 viewBox="0 0 16 16"
+                 width="16"
+                 height="16"
+                 aria-hidden="true"
+                 focusable="false">
+                <path d="M10 3 5 8l5 5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.75"
+                      stroke-linecap="round"
+                      stroke-linejoin="round" />
+            </svg>
+            Alle Newsletter
+        </a>
+        {% if sent_at %}
+            <span class="cm-read-bar__meta">Gesendet am {{ sent_at|date("d.m.Y H:i") }}</span>
+        {% endif %}
+    </nav>
+{% endblock %}
+
+{% block after_card %}
+    {# Angehängte Dateien hängen an der Mail; ohne diese Liste sähe man hier nicht, dass etwas
+       dranhing. Verlinkte stehen bereits in der Mail selbst. #}
+    {% if attached_files|default([])|length > 0 %}
+        <section class="cm-read-files" aria-labelledby="cm-read-files-title">
+            <h2 id="cm-read-files-title" class="cm-read-files__title">Anhänge</h2>
+            <ul class="cm-read-files__list">
+                {% for file in attached_files %}
+                    <li class="cm-read-files__item">
+                        <a href="/attachments/{{ file.id }}/download"
+                           class="cm-read-files__link"
+                           target="_blank"
+                           rel="noopener noreferrer">{{ file.original_name }}</a>
+                        <span class="cm-read-files__size">{{ (file.file_size / 1024)|round(1)|number_format(1, ",", ".") }} KB</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
+{% endblock %}

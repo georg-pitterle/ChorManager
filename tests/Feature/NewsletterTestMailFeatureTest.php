@@ -77,7 +77,7 @@ final class NewsletterTestMailFeatureTest extends TestCase
             'Newsletter-Inhalt fehlt.'
         );
         $this->assertStringContainsString(
-            '/newsletters/' . $newsletter->id . '/preview',
+            '/newsletters/' . $newsletter->id . '/read',
             $bodyHtml,
             'Link zur Browser-Ansicht im Fußbereich fehlt.'
         );

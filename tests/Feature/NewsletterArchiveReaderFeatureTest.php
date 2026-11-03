@@ -155,10 +155,14 @@ final class NewsletterArchiveReaderFeatureTest extends TestCase
         $reader = $this->createUser('Georg');
         $newsletter = $this->archiveFor($creator, $reader, 'Konzertinfo', '2026-10-03 09:15:00');
 
-        $body = $this->renderPreviewAs($reader, $newsletter, false);
+        $_SESSION['user_id'] = (int) $reader->id;
+        $_SESSION['can_manage_newsletters'] = false;
+        $request = $this->makeRequest('GET', "/newsletters/{$newsletter->id}/read")
+            ->withAttribute('id', (string) $newsletter->id);
+        $body = (string) $this->controller()->read($request, $this->makeResponse())->getBody();
 
         $this->assertStringContainsString('Gesendet am 03.10.2026 09:15', $body);
-        $this->assertStringNotContainsString('Newsletter-Vorschau</h1>', $body);
+        $this->assertStringNotContainsString('Newsletter-Vorschau', $body);
         $this->assertStringNotContainsString('Status:', $body);
     }
 
@@ -197,7 +201,7 @@ final class NewsletterArchiveReaderFeatureTest extends TestCase
             'data-newsletter-url="/newsletters/' . $newsletter->id . '/preview?modal=1&amp;reader=1"',
             $body
         );
-        $this->assertStringContainsString('href="/newsletters/' . $newsletter->id . '/preview?reader=1"', $body);
+        $this->assertStringContainsString('href="/newsletters/' . $newsletter->id . '/read"', $body);
     }
 
     public function testManagerPreviewNamesStatusInGerman(): void

@@ -33,7 +33,8 @@ final class NewsletterPreviewPersonalizationFeatureTest extends TestCase
         $_SESSION['user_id'] = (int) $recipient->id;
         $_SESSION['can_manage_newsletters'] = false;
 
-        $request = $this->makeRequest('GET', "/newsletters/{$newsletter->id}/preview")
+        // Außerhalb des Lesedialogs leitet die Vorschau Lesende auf die Leseseite weiter.
+        $request = $this->makeRequest('GET', "/newsletters/{$newsletter->id}/preview", [], ['modal' => '1'])
             ->withAttribute('id', (string) $newsletter->id);
         $response = $this->controller()->preview($request, $this->makeResponse());
         $body = (string) $response->getBody();

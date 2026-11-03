@@ -146,7 +146,7 @@ final class NewsletterPersonalizedSendFeatureTest extends TestCase
             'Newsletter-Inhalt fehlt.'
         );
         $this->assertStringContainsString(
-            'https://chor.example/newsletters/' . $newsletter->id . '/preview',
+            'https://chor.example/newsletters/' . $newsletter->id . '/read',
             $bodyHtml,
             'Link zur Browser-Ansicht im Fußbereich fehlt.'
         );

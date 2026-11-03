@@ -811,6 +811,7 @@ return function (App $app) {
                 // Authenticated users can access their own newsletter archive and previews.
                 $group->get('/newsletters/archive', [NewsletterController::class, 'archive']);
                 $group->get('/newsletters/{id:[0-9]+}/preview', [NewsletterController::class, 'preview']);
+                $group->get('/newsletters/{id:[0-9]+}/read', [NewsletterController::class, 'read']);
                 $group->get(
                     '/newsletters/{id:[0-9]+}/preview-frame',
                     [NewsletterController::class, 'previewFrame']

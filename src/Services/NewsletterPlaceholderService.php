@@ -204,7 +204,7 @@ class NewsletterPlaceholderService
                     // gesetztes APP_URL aus dem Host-Kopf der Anfrage; ein
                     // Anführungszeichen darin bräche sonst aus dem href-Attribut aus.
                     $url = htmlspecialchars(
-                        $context->baseUrl . '/newsletters/' . $context->newsletterId . '/preview',
+                        $context->baseUrl . '/newsletters/' . $context->newsletterId . '/read',
                         ENT_QUOTES,
                         'UTF-8'
                     );

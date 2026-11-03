@@ -19,6 +19,7 @@ use App\Models\Project;
 use App\Models\Role;
 use App\Models\Event;
 use App\Models\User;
+use App\Newsletter\ObfuscatedEmail;
 use App\Policies\NewsletterPolicy;
 use App\Services\EntityAttachmentService;
 use App\Services\EntityCleanupService;
@@ -253,7 +254,12 @@ class NewsletterController
     private function validateNewsletterDraftInput(array $data): array
     {
         $title = trim(InputValidator::asString($data['title'] ?? null));
-        $contentHtml = $this->htmlSanitizer->sanitizeNewsletterHtml($data['content_html'] ?? '');
+        $rawContent = InputValidator::asString($data['content_html'] ?? null);
+        if (ObfuscatedEmail::isPresentIn($rawContent) || ObfuscatedEmail::isPresentIn($title)) {
+            return ['ok' => false, 'message' => ObfuscatedEmail::MESSAGE, 'payload' => []];
+        }
+
+        $contentHtml = $this->htmlSanitizer->sanitizeNewsletterHtml($rawContent);
         $plainContent = trim(strip_tags((string) $contentHtml));
         $hasMediaContent = (bool) preg_match('/<(img|table)\b/i', (string) $contentHtml);
 
@@ -731,6 +737,14 @@ class NewsletterController
             return $response->withStatus(404);
         }
 
+        // Wer liest, liest auf der eigenen Leseseite (read()). Hierher führen noch die Links
+        // aus früher versendeten Mails und das Archiv ohne JavaScript; der Lesedialog des
+        // Archivs (modal=1) braucht dagegen weiter den Lesebereich dieser Seite.
+        $isReader = !$canManage || InputValidator::asString($queryParams['reader'] ?? '0') === '1';
+        if ($isReader && !$isModal) {
+            return $response->withHeader('Location', "/newsletters/{$newsletter->id}/read")->withStatus(302);
+        }
+
         $requestedRecipientId = (int) ($queryParams['recipient_id'] ?? 0);
         $viewer = $userId === null ? null : User::find((int) $userId);
         $previewRecipient = $viewer;
@@ -751,22 +765,9 @@ class NewsletterController
         $baseUrl = AppUrlResolver::resolveBaseUrl($request);
         $rendered = $this->personalizedNewsletterContent($newsletter, $previewRecipient, $baseUrl);
 
-        // Wer den Newsletter empfangen hat, liest ihn als Mail: Maßgeblich ist, wann er bei
-        // dieser Person ankam, nicht wann der Entwurf angelegt wurde. Auch wer verwaltet, liest
-        // aus dem eigenen Archiv (reader=1) ohne Vorstandsdaten.
-        $isReader = !$canManage || InputValidator::asString($queryParams['reader'] ?? '0') === '1';
-        $receivedAt = null;
-        if ($isReader && $userId !== null) {
-            $receivedAt = NewsletterArchive::query()
-                ->where('newsletter_id', (int) $newsletter->id)
-                ->where('user_id', (int) $userId)
-                ->value('sent_at');
-        }
-
         return $this->view->render($response, 'newsletters/preview.twig', [
             'newsletter' => $newsletter,
             'is_reader' => $isReader,
-            'received_at' => $receivedAt,
             'status_label' => $newsletter->isSent() ? 'Versendet' : 'Entwurf',
             'preview_title' => $rendered['title'],
             'preview_frame_url' => $this->previewFrameUrl($newsletter, $canManage, $requestedRecipientId),
@@ -783,6 +784,58 @@ class NewsletterController
             'can_manage_newsletters' => $canManage,
             'is_modal' => $isModal,
         ]);
+    }
+
+    /**
+     * Die Leseseite hinter "Im Browser ansehen": die Mail ganzseitig, ohne App-Gerüst und ohne
+     * eingebetteten Rahmen - so, wie sie im Postfach ankam, nur größer. Gelesen wird immer mit
+     * den eigenen Daten, auch mit Verwaltungsrecht; fremde Empfängerdaten zeigt nur die
+     * Verwaltungs-Vorschau. Dieselbe Berechtigungsprüfung wie preview().
+     */
+    public function read(Request $request, Response $response): Response
+    {
+        $id = (int) $request->getAttribute('id');
+        $userId = $_SESSION['user_id'] ?? null;
+
+        if (!$this->canViewNewsletterById($id)) {
+            return $response->withStatus(403);
+        }
+
+        $newsletter = Newsletter::find($id);
+        if (!$newsletter) {
+            return $response->withStatus(404);
+        }
+
+        $viewer = $userId === null ? null : User::find((int) $userId);
+        $baseUrl = AppUrlResolver::resolveBaseUrl($request);
+        $rendered = $this->personalizedNewsletterContent($newsletter, $viewer, $baseUrl);
+
+        // Maßgeblich ist, wann der Newsletter bei dieser Person ankam. Wer verwaltet und ihn
+        // nicht selbst bekommen hat, sieht den Versandzeitpunkt des Newsletters.
+        $sentAt = $userId === null ? null : NewsletterArchive::query()
+            ->where('newsletter_id', (int) $newsletter->id)
+            ->where('user_id', (int) $userId)
+            ->value('sent_at');
+        $sentAt ??= $newsletter->sent_at;
+
+        $html = $this->mailRenderer->renderReadingPage(
+            $newsletter,
+            $rendered['title'],
+            $rendered['content_html'],
+            $baseUrl,
+            linkedFiles: $this->newsletterAttachments->linkedFiles((int) $newsletter->id, $baseUrl),
+            attachedFiles: $this->newsletterAttachments->metadataFor(
+                (int) $newsletter->id,
+                NewsletterAttachmentService::MODE_ATTACH
+            ),
+            sentAt: $sentAt === null ? null : (string) $sentAt
+        );
+
+        $response->getBody()->write($html);
+
+        return $response
+            ->withHeader('Content-Type', 'text/html; charset=utf-8')
+            ->withStatus(200);
     }
 
     /**

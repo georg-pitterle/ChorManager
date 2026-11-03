@@ -450,8 +450,8 @@ final class NewsletterProjectDecouplingFeatureTest extends TestCase
         $_SESSION['user_id'] = (int) $recipient->id;
         $_SESSION['can_manage_newsletters'] = false;
 
-        $response = $this->newsletterController()->preview(
-            $this->makeRequest('GET', '/newsletters/' . $newsletter->id . '/preview')
+        $response = $this->newsletterController()->read(
+            $this->makeRequest('GET', '/newsletters/' . $newsletter->id . '/read')
                 ->withAttribute('id', (string) $newsletter->id),
             $this->makeResponse()
         );

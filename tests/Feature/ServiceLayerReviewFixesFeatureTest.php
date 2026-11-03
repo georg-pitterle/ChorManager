@@ -145,7 +145,7 @@ final class ServiceLayerReviewFixesFeatureTest extends TestCase
 
         $this->assertStringNotContainsString('<script>', $rendered);
         $this->assertStringContainsString('&quot;', $rendered);
-        $this->assertStringContainsString('/newsletters/42/preview', $rendered);
+        $this->assertStringContainsString('/newsletters/42/read', $rendered);
     }
 
     private function createUser(): User

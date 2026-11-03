@@ -9,6 +9,7 @@ use App\Models\Event;
 use App\Models\Newsletter;
 use App\Models\NewsletterTemplate;
 use App\Models\Project;
+use App\Newsletter\ObfuscatedEmail;
 use App\Persistence\NewsletterTemplatePersistence;
 use App\Queries\NewsletterTemplateQuery;
 use App\Services\Audience\AudienceDescriber;
@@ -70,12 +71,17 @@ class NewsletterTemplateController
 
     /**
      * @param array<string, mixed> $data
-     * @return array{ok:bool, payload:array<string, string|null>}
+     * @return array{ok:bool, message?:string, payload:array<string, string|null>}
      */
     private function validateTemplateInput(array $data): array
     {
         $name = trim(InputValidator::asString($data['name'] ?? null));
-        $contentHtml = $this->htmlSanitizer->sanitizeNewsletterHtml($data['content_html'] ?? '');
+        $rawContent = InputValidator::asString($data['content_html'] ?? null);
+        if (ObfuscatedEmail::isPresentIn($rawContent)) {
+            return ['ok' => false, 'message' => ObfuscatedEmail::MESSAGE, 'payload' => []];
+        }
+
+        $contentHtml = $this->htmlSanitizer->sanitizeNewsletterHtml($rawContent);
         $description = trim(InputValidator::asString($data['description'] ?? null));
         $defaultTitle = trim(InputValidator::asString($data['default_title'] ?? null));
 
@@ -187,12 +193,13 @@ class NewsletterTemplateController
         $data = (array) $request->getParsedBody();
         $validation = $this->validateTemplateInput($data);
         if (!$validation['ok']) {
+            $message = $validation['message'] ?? 'Ungültige Vorlagendaten';
             if (!RequestFormat::expectsJson($request)) {
-                $_SESSION['error'] = 'Ungültige Vorlagendaten';
+                $_SESSION['error'] = $message;
                 return $response->withHeader('Location', '/newsletters/templates')->withStatus(302);
             }
 
-            return $this->jsonResponse($response, ['error' => 'Ungültige Vorlagendaten'], 422);
+            return $this->jsonResponse($response, ['error' => $message], 422);
         }
 
         $projectId = $this->projectIdFromInput($data);
@@ -265,14 +272,15 @@ class NewsletterTemplateController
         $data = (array) $request->getParsedBody();
         $validation = $this->validateTemplateInput($data);
         if (!$validation['ok']) {
+            $message = $validation['message'] ?? 'Ungültige Vorlagendaten';
             if (!RequestFormat::expectsJson($request)) {
-                $_SESSION['error'] = 'Ungültige Vorlagendaten';
+                $_SESSION['error'] = $message;
                 return $response
                     ->withHeader('Location', '/newsletters/templates/' . $template->id . '/edit')
                     ->withStatus(302);
             }
 
-            return $this->jsonResponse($response, ['error' => 'Ungültige Vorlagendaten'], 422);
+            return $this->jsonResponse($response, ['error' => $message], 422);
         }
 
         $payload = $validation['payload'];

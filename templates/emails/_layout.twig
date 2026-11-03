@@ -51,6 +51,9 @@
             .cm-linkaccent { color: {{ brand_color }} !important; }
         }
         </style>
+        {# Leer in jeder Mail. Nur die Leseseite im Browser (newsletters/read.twig) hängt hier
+           ihr eigenes Stylesheet an. #}
+        {% block head_extra %}{% endblock %}
     </head>
     <body class="cm-ground" style="margin:0; padding:0; background-color:#eef1f5;">
         {# Vorschauzeile im Postfach. Sichtbar nur dort, nicht in der geoeffneten Mail. #}
@@ -71,6 +74,7 @@
                style="background-color:#eef1f5">
             <tr>
                 <td align="center" style="padding:32px 12px">
+                    {% block before_card %}{% endblock %}
                     <table role="presentation"
                            width="600"
                            cellpadding="0"
@@ -168,6 +172,7 @@
                             </td>
                         </tr>
                     </table>
+                    {% block after_card %}{% endblock %}
                 </td>
             </tr>
         </table>

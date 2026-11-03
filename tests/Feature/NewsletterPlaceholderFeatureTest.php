@@ -143,7 +143,7 @@ final class NewsletterPlaceholderFeatureTest extends TestCase
         $this->assertSame('Anna Berger', $definitions['absender']->resolve($context, null));
         $this->assertSame('https://chor.example', $definitions['login_url']->resolve($context, null));
         $this->assertSame(
-            '<a href="https://chor.example/newsletters/' . $newsletter->id . '/preview">Im Browser ansehen</a>',
+            '<a href="https://chor.example/newsletters/' . $newsletter->id . '/read">Im Browser ansehen</a>',
             $definitions['archiv_link']->resolve($context, null)
         );
     }
@@ -353,7 +353,7 @@ final class NewsletterPlaceholderFeatureTest extends TestCase
         $rendered = $this->service()->renderHtml('<p>{{archiv_link}}</p>', $context, $recipient);
 
         $this->assertSame(
-            '<p><a href="https://chor.example/newsletters/' . $newsletter->id . '/preview">Im Browser ansehen</a></p>',
+            '<p><a href="https://chor.example/newsletters/' . $newsletter->id . '/read">Im Browser ansehen</a></p>',
             $rendered
         );
     }

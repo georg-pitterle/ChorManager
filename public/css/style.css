@@ -2197,6 +2197,27 @@ a:hover {
     border: 0;
 }
 
+/* Verwaltungs-Vorschau: Absender, Empfängerzahl und Stand in einer Zeile über der Mail */
+.newsletter-preview-facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.125rem 0;
+    color: var(--theme-text-muted);
+    font-size: var(--font-size-small);
+    font-variant-numeric: tabular-nums;
+}
+
+.newsletter-preview-facts > span + span::before {
+    padding: 0 0.5rem;
+    content: "·";
+    color: var(--theme-text-muted);
+}
+
+.newsletter-preview-facts__status {
+    color: var(--theme-text);
+    font-weight: 600;
+}
+
 .newsletter-preview-attachments__title {
     margin-bottom: 0.5rem;
     font-size: var(--font-size-small);
