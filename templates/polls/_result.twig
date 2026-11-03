@@ -1,0 +1,132 @@
+{# Ergebnis: dieselben Zeilen in derselben Reihenfolge und mit demselben Einzug wie der #}
+{# Stimmzettel. Wo dort die Auswahl saß, steht hier der Haken der eigenen Wahl. #}
+{# Offene Frage: statt Balken die Liste der Antworten. #}
+{% set _is_text = poll.isOpenQuestion() %}
+{% set _has_counts = not counts_hidden and results.participant_count > 0 %}
+{% set _nobody = _is_text ? "Es wurde nicht geantwortet." : "Es wurde nicht abgestimmt." %}
+{% set _none_yet = _is_text ? "Noch keine Antwort." : "Noch keine Stimme." %}
+{% set _one = _is_text ? "Antwort" : "Stimme" %}
+{% set _many = _is_text ? "Antworten" : "Stimmen" %}
+{% set _verb = _is_text ? "geantwortet" : "abgestimmt" %}
+<div class="poll-result">
+    <p class="poll-result__participation">
+        {% if results.participant_count == 0 %}
+            <span class="text-muted">{{ is_closed ? _nobody : _none_yet }}</span>
+        {% elseif results.audience_shrunk %}
+            {{ results.participant_count }} {{ results.participant_count == 1 ? _one : _many }}
+        {% else %}
+            {{ results.participant_count }} von {{ results.audience_count }} haben {{ _verb }}
+        {% endif %}
+        {% if is_closed %}
+            · <span class="badge text-bg-secondary">Beendet</span>
+        {% endif %}
+    </p>
+
+    {% if has_voted and poll.is_anonymous %}
+        <p class="poll-result__confirm">
+            <i class="bi bi-check-circle-fill" aria-hidden="true"></i>
+            <span>{{ _is_text ? "Deine Antwort wurde anonym gezählt." : "Deine Stimme wurde anonym gezählt." }}</span>
+        </p>
+    {% endif %}
+
+    {% if is_closed and _has_counts and not _is_text %}
+        {% set _leaders = results.options|filter(row => row.is_winner)|map(row => row.label) %}
+        <p class="poll-result__verdict">
+            {% if _leaders|length > 1 %}
+                Gleichstand: {{ _leaders|join(", ", " und ") }}
+            {% else %}
+                Ergebnis: {{ _leaders|first }}
+            {% endif %}
+        </p>
+    {% endif %}
+
+    {# Ob Texte gezeigt werden, entscheidet allein der Controller: Anonym und offen #}
+    {# liefert er results.answers leer aus. Ein zweiter Riegel hier bliebe unbewacht. #}
+    {% if _is_text and results.answers is not empty %}
+        <ul class="poll-answers">
+            {% for answer in results.answers %}
+                <li class="poll-answers__item{{ answer.is_mine ? " poll-answers__item--mine" : "" }}">
+                    <p class="poll-answers__body">{{ answer.body|nl2br }}</p>
+                    {% if answer.user or answer.is_mine %}
+                        <p class="poll-answers__author">
+                            {% if answer.user %}{{ answer.user|person_name }}{% endif %}
+                            {% if answer.is_mine %}<span class="poll-result__mine">Deine Antwort</span>{% endif %}
+                        </p>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% elseif counts_hidden and _is_text %}
+        <p class="text-muted poll-result__note">Die Antworten erscheinen am {{ closes_date_label }}</p>
+    {% elseif _is_text %}
+        {# Offene Frage ohne Antworten: Das sagt schon die Zeile zur Beteiligung. #}
+    {% elseif counts_hidden %}
+        {# Anonym und offen: Die Zahlen je Antwort liefert der Controller gar nicht erst aus. #}
+        {# Die Antworten bleiben stehen, damit die Frage nicht aus der Seite verschwindet. #}
+        <ol class="poll-result__rows">
+            {% for option in options %}
+                <li class="poll-result__row">
+                    <span class="poll-result__mark" aria-hidden="true"></span>
+                    <span class="poll-result__label">{{ option.label }}</span>
+                </li>
+            {% endfor %}
+        </ol>
+        <p class="text-muted poll-result__note">Das Ergebnis erscheint am {{ closes_date_label }}</p>
+    {% elseif _has_counts %}
+        <ol class="poll-result__rows">
+            {% for row in results.options %}
+                {% set _winner = is_closed and row.is_winner %}
+                <li class="poll-result__row{{ _winner ? " poll-result__row--winner" : "" }}">
+                    <span class="poll-result__mark" aria-hidden="true">
+                        {% if row.is_mine %}<i class="bi bi-check-circle-fill"></i>{% endif %}
+                    </span>
+                    <div class="poll-result__body">
+                        <div class="poll-result__head">
+                            <span class="poll-result__label">
+                                {{ row.label }}
+                                {% if row.is_mine %}
+                                    <span class="poll-result__mine">Deine Wahl</span>
+                                {% endif %}
+                            </span>
+                            <span class="poll-result__count">{{ row.count }} · {{ row.percent }} %</span>
+                        </div>
+                        <div class="progress poll-result__bar"
+                             role="progressbar"
+                             aria-label="{{ row.label }}"
+                             aria-valuenow="{{ row.percent }}"
+                             aria-valuemin="0"
+                             aria-valuemax="100">
+                            <div class="progress-bar progress-bar-dynamic" style="--progress-value: {{ row.percent }}%"></div>
+                        </div>
+                        {% if row.voters is not empty %}
+                            <details class="poll-result__voters">
+                                <summary>Namen zeigen ({{ row.voters|length }})</summary>
+                                <ul>
+                                    {% for voter in row.voters %}
+                                        <li>{{ voter|person_name }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </details>
+                        {% endif %}
+                    </div>
+                </li>
+            {% endfor %}
+        </ol>
+
+        {% if poll.allows_multiple %}
+            <p class="form-text">Mehrere Antworten möglich – die Prozente beziehen sich auf die Abstimmenden.</p>
+        {% endif %}
+    {% endif %}
+
+    {% if can_change or can_return_to_ballot %}
+        <div class="poll-result__actions">
+            {% if can_change %}
+                <a href="/polls/{{ poll.id }}?change=1" class="btn btn-outline-secondary">
+                    {{ _is_text ? "Antwort ändern" : "Stimme ändern" }}
+                </a>
+            {% else %}
+                <a href="/polls/{{ poll.id }}" class="btn btn-outline-secondary">Zum Stimmzettel</a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>

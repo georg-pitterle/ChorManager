@@ -384,6 +384,23 @@
                         </div>
                     {% endif %}
 
+                    {% if settings.modules.polls %}
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="can_manage_polls"
+                                   name="can_manage_polls"
+                                   value="1">
+                            <label class="form-check-label fw-bold text-primary"
+                                   for="can_manage_polls">Umfragen verwalten</label>
+                            <div class="form-text">
+                                Wenn aktiv, darf diese Person Umfragen anlegen, bearbeiten, beenden und löschen
+                                und sieht jederzeit den Zwischenstand.
+                            </div>
+                        </div>
+                    {% endif %}
+
                     {% if settings.modules.files %}
                         <div class="form-check form-switch mb-3">
                             <input class="form-check-input"
@@ -760,6 +777,23 @@
                             <label class="form-check-label fw-bold text-primary"
                                    for="edit_can_manage_tasks">Projektplanung (Aufgaben)</label>
                             <div class="form-text">Wenn aktiv, darf diese Person Aufgaben (auch übergreifend) verwalten.</div>
+                        </div>
+                    {% endif %}
+
+                    {% if settings.modules.polls %}
+                        <div class="form-check form-switch mb-3">
+                            <input class="form-check-input"
+                                   type="checkbox"
+                                   role="switch"
+                                   id="edit_can_manage_polls"
+                                   name="can_manage_polls"
+                                   value="1">
+                            <label class="form-check-label fw-bold text-primary"
+                                   for="edit_can_manage_polls">Umfragen verwalten</label>
+                            <div class="form-text">
+                                Wenn aktiv, darf diese Person Umfragen anlegen, bearbeiten, beenden und löschen
+                                und sieht jederzeit den Zwischenstand.
+                            </div>
                         </div>
                     {% endif %}
 

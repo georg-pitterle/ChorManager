@@ -147,8 +147,13 @@ use App\Policies\ProjectMemberPolicy;
 use App\Controllers\SponsorPackageController;
 use App\Controllers\SponsorshipController;
 use App\Controllers\VoiceGroupListController;
+use App\Controllers\PollController;
 use App\Policies\SponsoringPolicy;
 use App\Policies\VoiceGroupListPolicy;
+use App\Policies\PollPolicy;
+use App\Services\PollAudienceService;
+use App\Services\PollResults;
+use App\Services\PollVoteService;
 use App\Services\VoiceGroupListRows;
 use App\Services\AttachmentAccessRegistry;
 use App\Services\AttendanceScopeService;
@@ -571,6 +576,20 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(LoggerInterface::class)
             );
         },
+        PollController::class => function (ContainerInterface $c): PollController {
+            $audience = new PollAudienceService();
+
+            return new PollController(
+                $c->get(Twig::class),
+                $c->get(PollPolicy::class),
+                $audience,
+                new PollVoteService($audience, $c->get(LoggerInterface::class)),
+                new PollResults($audience, $c->get(NameFormatterService::class)),
+                $c->get(NameFormatterService::class),
+                $c->get(NotificationService::class),
+                $c->get(LoggerInterface::class)
+            );
+        },
         SponsorPackageController::class => function (ContainerInterface $c) {
             return new SponsorPackageController(
                 $c->get(Twig::class),
@@ -856,6 +875,7 @@ return function (ContainerBuilder $containerBuilder) {
         // dem Start der Sitzung - derselbe Zeitpunkt wie zuvor im Konstruktor.
         ProjectMemberPolicy::class => static fn (): ProjectMemberPolicy => new ProjectMemberPolicy($_SESSION),
         VoiceGroupListPolicy::class => static fn (): VoiceGroupListPolicy => new VoiceGroupListPolicy($_SESSION),
+        PollPolicy::class => static fn (): PollPolicy => new PollPolicy($_SESSION),
         SponsoringPolicy::class => static fn (): SponsoringPolicy => new SponsoringPolicy($_SESSION),
         EntityAttachmentService::class => \DI\autowire(),
         EntityCleanupService::class => \DI\autowire(),

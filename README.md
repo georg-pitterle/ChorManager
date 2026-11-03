@@ -41,6 +41,7 @@ Diese Module sind standardmäßig deaktiviert und werden über Umgebungsvariable
 | Sponsoring | `FEATURE_SPONSORING=true` | Sponsoren, Sponsoring-Pakete, Kontakte und Sponsoring-Dashboard. |
 | Newsletter | `FEATURE_NEWSLETTER=true` | Newsletter-Erstellung, -Versand und -Archiv. |
 | Anmeldungen | `FEATURE_REGISTRATION=true` | Termin-Anmeldungen inkl. Auswertung. |
+| Umfragen | `FEATURE_POLLS=true` | Kleine Abstimmungen an Zielgruppen, anonym oder namentlich. |
 | Aufgaben | `FEATURE_TASKS=true` | Aufgabenverwaltung innerhalb von Projekten. |
 | Noten-Archiv | `FEATURE_SHEET_ARCHIVE=true` | Digitales Archiv für Notenblätter. |
 | Webmail | `FEATURE_WEBMAIL=true` | Eingebettete IMAP-Webmail-Integration via Tachyon (siehe unten). |

@@ -54,6 +54,10 @@ final class AudiencePreviewController
             return true;
         }
 
+        if ((bool) ($_SESSION['can_manage_polls'] ?? false)) {
+            return true;
+        }
+
         $actor = FileActor::fromSession($_SESSION ?? []);
         if ($actor === null) {
             return false;

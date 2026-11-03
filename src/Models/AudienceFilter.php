@@ -12,13 +12,14 @@ class AudienceFilter extends Model
 {
     public const UPDATED_AT = null;
 
-    /** Besitzer-Spalten; genau eine ist gesetzt (CHECK ab Migration 20261004090400). */
+    /** Besitzer-Spalten; genau eine ist gesetzt (CHECK ab Migration 20261004090400, mit poll_id ab 20261103122000). */
     public const OWNER_COLUMNS = [
         'event_id',
         'newsletter_id',
         'newsletter_template_id',
         'file_folder_share_id',
         'file_share_id',
+        'poll_id',
     ];
 
     protected $table = 'audience_filters';

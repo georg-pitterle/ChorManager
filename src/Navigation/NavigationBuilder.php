@@ -378,6 +378,15 @@ final class NavigationBuilder
                             'navKeys' => ['newsletters_archive'],
                             'visible' => static fn(NavigationContext $c): bool => $c->module('newsletter'),
                         ],
+                        [
+                            'label' => 'Umfragen',
+                            'url' => '/polls',
+                            'icon' => 'bi-bar-chart',
+                            'keywords' => ['abstimmung', 'umfrage', 'voting', 'entscheidung', 'vorschläge'],
+                            'prefixes' => ['/polls'],
+                            'navKeys' => ['polls'],
+                            'visible' => static fn(NavigationContext $c): bool => $c->module('polls'),
+                        ],
                     ],
                 ],
                 [

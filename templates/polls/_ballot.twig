@@ -1,0 +1,70 @@
+{# Stimmzettel: ganze Zeile tippbar, erst wählen, dann "Abstimmen". Bei einer offenen #}
+{# Frage steht statt der Zeilen ein Textfeld. #}
+{% set _is_text = poll.isOpenQuestion() %}
+{% set _type = poll.allows_multiple ? "checkbox" : "radio" %}
+<form action="/polls/{{ poll.id }}/vote" method="post" class="poll-ballot" data-poll-ballot>
+    <fieldset>
+        <legend class="visually-hidden">{{ poll.title }}</legend>
+        {% if vote_error %}
+            <div class="alert alert-danger poll-ballot__error" role="alert" data-poll-ballot-error>{{ vote_error }}</div>
+        {% endif %}
+        {% if _is_text %}
+            <label for="poll-answer" class="form-label">Deine Antwort</label>
+            <textarea class="form-control poll-ballot__text"
+                      id="poll-answer"
+                      name="answer"
+                      rows="4"
+                      maxlength="{{ answer_max_length }}"
+                      aria-describedby="poll-answer-help">{{ answer_text }}</textarea>
+            <div class="form-text" id="poll-answer-help">
+                Höchstens {{ answer_max_length }} Zeichen. Mehrere Vorschläge passen in eine Antwort, einer je Zeile.
+            </div>
+        {% else %}
+            <div class="poll-ballot__rows">
+                {% for option in options %}
+                    <label class="poll-ballot__row" for="poll-option-{{ option.id }}">
+                        <input class="form-check-input poll-ballot__input"
+                               type="{{ _type }}"
+                               name="option_ids[]"
+                               id="poll-option-{{ option.id }}"
+                               value="{{ option.id }}"
+                               {% if option.id in selection %}checked{% endif %}>
+                        <span class="poll-ballot__label">{{ option.label }}</span>
+                    </label>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </fieldset>
+
+    {% if not has_voted %}
+        <p class="text-muted poll-ballot__hint">
+            {% if poll.is_anonymous %}
+                {{ _is_text ? "Die Antworten erscheinen" : "Das Ergebnis erscheint" }} am {{ closes_date_label }}
+            {% else %}
+                {{ _is_text ? "Die Antworten siehst du nach deiner eigenen." : "Das Ergebnis siehst du nach deiner Stimme." }}
+            {% endif %}
+        </p>
+    {% endif %}
+
+    {# Der einzige Schritt, der sich nicht zurücknehmen lässt: als Hinweis über dem #}
+    {# Knopf, nicht als Kleingedrucktes daneben. #}
+    {% if poll.is_anonymous %}
+        <div class="alert alert-warning poll-ballot__final">
+            <i class="bi bi-lock" aria-hidden="true"></i>
+            {% if _is_text %}
+                <span>Anonyme Umfrage: Deine Antwort lässt sich danach nicht mehr ändern.</span>
+            {% else %}
+                <span>Anonyme Abstimmung: Deine Stimme lässt sich danach nicht mehr ändern.</span>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    <div class="form-action-bar">
+        {% if can_peek %}
+            <a href="/polls/{{ poll.id }}?results=1" class="btn btn-outline-secondary">Zwischenstand</a>
+        {% elseif has_voted %}
+            <a href="/polls/{{ poll.id }}" class="btn btn-outline-secondary">Abbrechen</a>
+        {% endif %}
+        <button type="submit" class="btn btn-primary">{{ _is_text ? "Antwort senden" : "Abstimmen" }}</button>
+    </div>
+</form>

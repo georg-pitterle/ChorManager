@@ -448,7 +448,7 @@ final class NotificationServiceFeatureTest extends TestCase
      */
     public function testTheDispatchAgreesWithTheStoredSettingsForEveryType(): void
     {
-        $service = $this->service(['tasks' => true, 'sponsoring' => true]);
+        $service = $this->service(['tasks' => true, 'sponsoring' => true, 'polls' => true]);
         $userId = (int) $this->anna->id;
 
         foreach (NotificationType::all() as $type) {

@@ -14,6 +14,8 @@ use App\Services\EventAudienceService;
 use App\Services\EventScheduleFormatter;
 use App\Services\NameFormatterService;
 use App\Services\NewsletterPlaceholderService;
+use App\Services\PollAudienceService;
+use App\Services\PollLabels;
 use App\Services\Storage\StorageUsageService;
 use App\Util\AppUrlResolver;
 use Carbon\Carbon;
@@ -130,6 +132,16 @@ class DashboardController
             }
         }
 
+        // Nur Umfragen, bei denen die Person noch abstimmen kann. Ohne solche
+        // gibt es den Abschnitt gar nicht.
+        $openPolls = [];
+        if ((bool) ($this->settings['modules']['polls'] ?? false) && $userId > 0) {
+            $labels = new PollLabels();
+            foreach ((new PollAudienceService())->awaitingVote($userId) as $poll) {
+                $openPolls[] = $labels->overviewRow($poll, true, false);
+            }
+        }
+
         $memberCount = null;
         if ((bool) ($_SESSION['can_manage_users'] ?? false)) {
             $memberCount = User::where('is_active', 1)->count();
@@ -164,6 +176,7 @@ class DashboardController
             'upcoming_events' => $upcomingEvents,
             'todays_event' => $todaysEvent,
             'member_count' => $memberCount,
+            'open_polls' => $openPolls,
         ];
 
         return $this->view->render($response, 'dashboard/index.twig', $data);

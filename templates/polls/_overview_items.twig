@@ -1,0 +1,21 @@
+{# Je Umfrage: Frage, Frist und Stand der eigenen Antwort. #}
+<ul class="list-group poll-overview">
+    {% for row in items %}
+        <li class="list-group-item list-group-item-action position-relative">
+            <div class="poll-overview__main">
+                <a href="/polls/{{ row.poll.id }}" class="stretched-link poll-overview__title">{{ row.poll.title }}</a>
+                <span class="poll-overview__meta">
+                    {{ row.deadline_label }}{% if row.relative_label %} · {{ row.relative_label }}{% endif %}
+                </span>
+            </div>
+            <span class="poll-overview__state">
+                {# "Beendet" sagen schon Abschnitt und Metazeile; ein drittes Mal braucht es nicht. #}
+                {% if row.missing %}
+                    <span class="registration-missing">Antwort fehlt</span>
+                {% elseif row.has_voted and not row.is_closed %}
+                    <span class="badge text-bg-success">Abgestimmt</span>
+                {% endif %}
+            </span>
+        </li>
+    {% endfor %}
+</ul>

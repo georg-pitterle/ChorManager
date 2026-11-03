@@ -54,6 +54,7 @@ final class SessionAuthServicePermissionMappingTest extends TestCase
         'can_manage_own_voice_group',
         'can_assign_own_voice_group_to_project',
         'can_keep_voice_group_lists',
+        'can_manage_polls',
     ];
 
     protected function setUp(): void

@@ -1,0 +1,94 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+/**
+ * Eine Umfrage an eine Zielgruppe: entweder eine Frage mit festen Antworten
+ * (KIND_CHOICE) oder eine offene Frage, auf die jede Person selbst schreibt
+ * (KIND_TEXT). Die Art steht mit dem Start fest.
+ *
+ * Es gibt kein Statusfeld. Beendet ist eine Umfrage, deren Frist vorbei ist;
+ * "Jetzt beenden" setzt die Frist auf jetzt, Verlängern öffnet sie wieder.
+ */
+class Poll extends Model
+{
+    public const TITLE_MAX_LENGTH = 255;
+    public const OPTION_MAX_LENGTH = 200;
+    public const MIN_OPTIONS = 2;
+    public const MAX_OPTIONS = 20;
+
+    public const KIND_CHOICE = 'choice';
+    public const KIND_TEXT = 'text';
+
+    protected $table = 'polls';
+
+    /** Wie die Spaltenvorgabe; sonst trüge ein frisch angelegtes Modell null. */
+    protected $attributes = [
+        'answer_kind' => self::KIND_CHOICE,
+    ];
+
+    protected $fillable = [
+        'title',
+        'description',
+        'answer_kind',
+        'allows_multiple',
+        'is_anonymous',
+        'closes_at',
+        'created_by_user_id',
+    ];
+
+    protected $casts = [
+        'allows_multiple' => 'boolean',
+        'is_anonymous' => 'boolean',
+        'closes_at' => 'datetime',
+        'created_by_user_id' => 'integer',
+    ];
+
+    public function options(): HasMany
+    {
+        return $this->hasMany(PollOption::class, 'poll_id')->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function isOpenQuestion(): bool
+    {
+        return $this->answer_kind === self::KIND_TEXT;
+    }
+
+    public function textAnswers(): HasMany
+    {
+        return $this->hasMany(PollTextAnswer::class, 'poll_id');
+    }
+
+    public function votes(): HasMany
+    {
+        return $this->hasMany(PollVote::class, 'poll_id');
+    }
+
+    public function audienceFilters(): HasMany
+    {
+        return $this->hasMany(AudienceFilter::class, 'poll_id');
+    }
+
+    public function creator(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    public function isClosed(?Carbon $now = null): bool
+    {
+        return $this->closes_at === null || !$this->closes_at->greaterThan($now ?? Carbon::now());
+    }
+
+    /** Ob schon jemand abgestimmt hat - danach sind Antworten und Auswahlart gesperrt. */
+    public function hasVotes(): bool
+    {
+        return \Illuminate\Database\Capsule\Manager::table('poll_participants')->where('poll_id', $this->id)->exists();
+    }
+}

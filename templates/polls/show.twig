@@ -1,0 +1,97 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    {{ poll.title }} - Umfragen - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <h1 class="h2 mb-1 mt-2">{{ poll.title }}</h1>
+            <p class="text-muted mb-0 poll-meta">
+                {{ deadline_label }} ·
+                {% if poll.isOpenQuestion() %}
+                    Freie Antwort
+                {% else %}
+                    {{ poll.allows_multiple ? "Mehrere Antworten wählbar" : "Eine Antwort wählbar" }}
+                {% endif %}
+                {% if poll.is_anonymous %} · Anonym{% endif %}
+            </p>
+        </div>
+        <div class="page-actions">
+            <a href="/polls" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Alle Umfragen
+            </a>
+            {# Wer abstimmt, braucht diese Aktionen nie: Sie liegen hinter einem Knopf #}
+            {# statt am Handy zwei Zeilen vor der Frage. #}
+            {% if can_manage %}
+                <div class="dropdown">
+                    <button type="button"
+                            class="btn btn-outline-secondary dropdown-toggle w-100"
+                            data-bs-toggle="dropdown"
+                            aria-expanded="false">
+                        Umfrage verwalten
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a href="/polls/{{ poll.id }}/edit" class="dropdown-item">
+                                <i class="bi bi-pencil me-2" aria-hidden="true"></i>Bearbeiten
+                            </a>
+                        </li>
+                        {% if not is_closed %}
+                            <li>
+                                <form action="/polls/{{ poll.id }}/close" method="post">
+                                    <button type="submit" class="dropdown-item">
+                                        <i class="bi bi-stop-circle me-2" aria-hidden="true"></i>Jetzt beenden
+                                    </button>
+                                </form>
+                            </li>
+                        {% endif %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form action="/polls/{{ poll.id }}/delete"
+                                  method="post"
+                                  data-confirm="Umfrage „{{ poll.title }}“ mit allen Stimmen wirklich löschen?">
+                                <button type="submit" class="dropdown-item text-danger">
+                                    <i class="bi bi-trash me-2" aria-hidden="true"></i>Umfrage löschen
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            {% endif %}
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    <div class="poll">
+        {% if poll.description %}
+            <p class="poll__description">{{ poll.description|nl2br }}</p>
+        {% endif %}
+
+        {% if can_manage and not in_audience %}
+            <div class="alert alert-info">Du gehörst nicht zur Zielgruppe.</div>
+        {% endif %}
+
+        {# Ohne Stimmzettel, etwa bei einer schon gezählten anonymen Stimme, steht #}
+        {# die Meldung hier statt über den Antwortzeilen. #}
+        {% if vote_error and not show_ballot %}
+            <div class="alert alert-danger" role="alert">{{ vote_error }}</div>
+        {% endif %}
+
+        {# Ob das Ergebnis gezeigt werden darf, entscheidet allein der Controller: #}
+        {# results ist nur gesetzt, wenn die Person es sehen darf. #}
+        {% if show_ballot %}
+            {{ include("polls/_ballot.twig") }}
+        {% endif %}
+        {% if results %}
+            {{ include("polls/_result.twig") }}
+        {% endif %}
+    </div>
+{% endblock content %}
+
+{% block scripts %}
+    {{ parent() }}
+    <script src="/js/polls.js"></script>
+{% endblock scripts %}

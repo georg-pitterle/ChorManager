@@ -56,6 +56,16 @@
             </section>
         {% endif %}
 
+        {% if open_polls|default([]) is not empty %}
+            <section class="dashboard-section dashboard-section--flat" aria-labelledby="dashboard-polls-title">
+                <div class="dashboard-section-head">
+                    <h2 class="dashboard-section-title" id="dashboard-polls-title">Offene Umfragen</h2>
+                    <a href="/polls" class="btn btn-outline-secondary btn-sm">Alle Umfragen</a>
+                </div>
+                {{ include("polls/_overview_items.twig", {items: open_polls}) }}
+            </section>
+        {% endif %}
+
         <section class="dashboard-section dashboard-section--flat" aria-labelledby="dashboard-next-title">
             <div class="dashboard-section-head">
                 <h2 class="dashboard-section-title" id="dashboard-next-title">Als Nächstes</h2>

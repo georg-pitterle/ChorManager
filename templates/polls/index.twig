@@ -1,0 +1,37 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    Umfragen - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <h1 class="h2 mb-1 mt-2">Umfragen</h1>
+            <p class="text-muted mb-0">Fragen an den Chor: abstimmen oder selbst antworten.</p>
+        </div>
+        {% if can_manage %}
+            <div class="page-actions">
+                <a href="/polls/create" class="btn btn-primary">Neue Umfrage</a>
+            </div>
+        {% endif %}
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    <section class="poll-section" aria-labelledby="polls-open-title">
+        <h2 class="dashboard-section-title" id="polls-open-title">Offen</h2>
+        {% if open_polls is empty %}
+            <p class="text-muted">Zurzeit läuft keine Umfrage.</p>
+        {% else %}
+            {{ include("polls/_overview_items.twig", {items: open_polls}) }}
+        {% endif %}
+    </section>
+
+    {% if closed_polls is not empty %}
+        <section class="poll-section" aria-labelledby="polls-closed-title">
+            <h2 class="dashboard-section-title" id="polls-closed-title">Beendet</h2>
+            {{ include("polls/_overview_items.twig", {items: closed_polls}) }}
+        </section>
+    {% endif %}
+{% endblock content %}

@@ -110,6 +110,15 @@ class AudiencePreviewFeatureTest extends TestCase
         $this->assertSame(200, $status);
     }
 
+    public function testPollManagerWithoutFileRightsGetsCount(): void
+    {
+        $_SESSION = ['user_id' => (int) $this->createMember()->id, 'can_manage_polls' => true];
+
+        [$status] = $this->preview(['all' => '1']);
+
+        $this->assertSame(200, $status);
+    }
+
     public function testMemberWithoutAnyOfTheRightsIsRejected(): void
     {
         $_SESSION = ['user_id' => (int) $this->createMember()->id];

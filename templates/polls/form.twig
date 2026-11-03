@@ -1,0 +1,239 @@
+{% extends "layout.twig" %}
+
+{% set _is_new = poll is null %}
+
+{% block title %}
+    {{ _is_new ? "Neue Umfrage" : "Umfrage bearbeiten" }} - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <h1 class="h2 mb-1 mt-2">{{ _is_new ? "Neue Umfrage" : "Umfrage bearbeiten" }}</h1>
+        </div>
+        <div class="page-actions">
+            <a href="{{ _is_new ? "/polls" : "/polls/" ~ poll.id }}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>Zurück
+            </a>
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    {% set _action = _is_new ? "/polls" : "/polls/" ~ poll.id %}
+    <div class="row">
+        <div class="col-lg-8">
+            {% if form_error %}
+                <div class="alert alert-danger" role="alert">{{ form_error }}</div>
+            {% endif %}
+            {# Am Handy verdeckt die mitlaufende Leiste den Hinweis unter dem Datum; der Zustand #}
+            {# gehört deshalb nach oben. #}
+            {% if poll and poll.isClosed() %}
+                <div class="alert alert-info">
+                    Beendet am {{ poll.closes_at|date("d.m.") }} um {{ poll.closes_at|date("H:i") }} Uhr.
+                    Ein späteres Datum öffnet die Abstimmung wieder.
+                </div>
+            {% endif %}
+
+            <form action="{{ _action }}" method="post" class="poll-form">
+                <div class="mb-3">
+                    <label for="poll_title" class="form-label">Frage *</label>
+                    <input type="text"
+                           class="form-control"
+                           id="poll_title"
+                           name="title"
+                           maxlength="255"
+                           required
+                           value="{{ form.title }}">
+                </div>
+
+                <div class="mb-3">
+                    <label for="poll_description" class="form-label">Erklärung (optional)</label>
+                    <textarea class="form-control"
+                              id="poll_description"
+                              name="description"
+                              rows="2"
+                              maxlength="2000">{{ form.description }}</textarea>
+                </div>
+
+                {# Die Art steht wie die Anonymität mit dem Start fest. #}
+                {% set _is_text = form.answer_kind == "text" %}
+                {% set _show_choice = _is_new or not _is_text %}
+                {% if _is_new %}
+                    <fieldset class="mb-3">
+                        <legend class="form-label h6 mb-1">Art der Antwort</legend>
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="radio"
+                                   name="answer_kind" value="choice"
+                                   id="poll_kind_choice"
+                                   data-poll-kind
+                                   {% if not _is_text %}checked{% endif %}>
+                            <label class="form-check-label" for="poll_kind_choice">Antworten zur Auswahl</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input"
+                                   type="radio"
+                                   name="answer_kind" value="text"
+                                   id="poll_kind_text"
+                                   data-poll-kind
+                                   aria-describedby="poll_kind_text_help"
+                                   {% if _is_text %}checked{% endif %}>
+                            <label class="form-check-label" for="poll_kind_text">Freie Antwort</label>
+                            <div class="form-text mt-0" id="poll_kind_text_help">
+                                Jede Person schreibt selbst, etwa Vorschläge für einen Konzerttitel.
+                            </div>
+                        </div>
+                    </fieldset>
+                {% else %}
+                    <p class="poll-form__fixed">{{ _is_text ? "Freie Antwort" : "Antworten zur Auswahl" }}</p>
+                {% endif %}
+
+                {% if _show_choice %}
+                <div data-poll-choice-only {% if _is_text %}hidden{% endif %}>
+                <fieldset class="mb-3">
+                    <legend class="form-label h6 mb-1">Antworten *</legend>
+                    {% if is_locked %}
+                        <p class="form-text mt-0">
+                            Antworten und Auswahlart sind gesperrt, weil schon abgestimmt wurde.
+                        </p>
+                        <ol class="poll-form__locked">
+                            {% for label in form.options %}
+                                <li>{{ label }}</li>
+                            {% endfor %}
+                        </ol>
+                    {% else %}
+                        <div class="poll-form__options" data-poll-options data-max-options="{{ max_options }}">
+                            {% for label in form.options %}
+                                <div class="input-group mb-2 poll-form__option" data-poll-option>
+                                    <input type="text"
+                                           class="form-control"
+                                           name="options[]"
+                                           maxlength="200"
+                                           aria-label="Antwort {{ loop.index }}"
+                                           value="{{ label }}">
+                                    <button type="button"
+                                            class="btn btn-outline-secondary"
+                                            data-poll-option-remove
+                                            aria-label="Antwort entfernen">
+                                        <i class="bi bi-x-lg" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" data-poll-option-add>
+                            <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Antwort hinzufügen
+                        </button>
+                    {% endif %}
+                </fieldset>
+
+                {# Was feststeht, steht als Satz da: Ein ausgegrauter Schalter sagt nicht, ob er an ist. #}
+                {% if is_locked %}
+                    <p class="poll-form__fixed">
+                        {{ form.allows_multiple ? "Mehrere Antworten wählbar" : "Eine Antwort wählbar" }}
+                    </p>
+                {% else %}
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="poll_allows_multiple"
+                               name="allows_multiple"
+                               value="1"
+                               {% if form.allows_multiple %}checked{% endif %}>
+                        <label class="form-check-label" for="poll_allows_multiple">Mehrere Antworten erlauben</label>
+                    </div>
+                {% endif %}
+                </div>
+                {% endif %}
+
+                {% if _is_new %}
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="poll_is_anonymous"
+                               name="is_anonymous"
+                               value="1"
+                               aria-describedby="poll_is_anonymous_help"
+                               {% if form.is_anonymous %}checked{% endif %}>
+                        <label class="form-check-label" for="poll_is_anonymous">Anonym abstimmen</label>
+                        <div class="form-text" id="poll_is_anonymous_help">
+                            Lässt sich nach dem Start nicht mehr ändern. Bei sehr kleinen Zielgruppen erlaubt ein
+                            einstimmiges Ergebnis trotzdem Rückschlüsse.
+                        </div>
+                    </div>
+                {% else %}
+                    <p class="poll-form__fixed">
+                        {{ form.is_anonymous ? "Anonyme Abstimmung" : "Namentliche Abstimmung" }}
+                        <span class="form-text d-block mt-0">Ob eine Umfrage anonym ist, steht mit dem Start fest.</span>
+                    </p>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label class="form-label">Zielgruppe</label>
+                    {{ include("partials/audience/filter_rows.twig", {
+                        prefix: "audience",
+                        rows: audience_rows,
+                        options: audience_options,
+                    }) }}
+                </div>
+
+                <div class="mb-3">
+                    <label for="poll_closes_on" class="form-label">Abstimmen bis einschließlich *</label>
+                    <input type="date"
+                           class="form-control poll-form__date"
+                           id="poll_closes_on"
+                           name="closes_on"
+                           required
+                           {% if _is_new %}min="{{ min_date }}"{% endif %}
+                           value="{{ form.closes_on }}">
+                </div>
+
+                {% if _is_new %}
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               role="switch"
+                               id="poll_notify_members"
+                               name="notify_members"
+                               value="1"
+                               {% if form.notify_members %}checked{% endif %}>
+                        <label class="form-check-label" for="poll_notify_members">Mitglieder benachrichtigen</label>
+                    </div>
+                {% endif %}
+
+                <div class="form-action-bar">
+                    <a href="{{ _is_new ? "/polls" : "/polls/" ~ poll.id }}" class="btn btn-outline-secondary">Abbrechen</a>
+                    <button type="submit" class="btn btn-primary">{{ _is_new ? "Umfrage starten" : "Speichern" }}</button>
+                </div>
+            </form>
+
+            {% if _show_choice %}
+                <template data-poll-option-template>
+                    <div class="input-group mb-2 poll-form__option" data-poll-option>
+                        <input type="text" class="form-control" name="options[]" maxlength="200" aria-label="Antwort">
+                        <button type="button"
+                                class="btn btn-outline-secondary"
+                                data-poll-option-remove
+                                aria-label="Antwort entfernen">
+                            <i class="bi bi-x-lg" aria-hidden="true"></i>
+                        </button>
+                    </div>
+                </template>
+            {% endif %}
+        </div>
+    </div>
+{% endblock content %}
+
+{% block styles %}
+    <link rel="stylesheet" href="/vendor/tom-select/css/tom-select.bootstrap5.min.css">
+{% endblock styles %}
+
+{% block scripts %}
+    {{ parent() }}
+    <script src="/vendor/tom-select/js/tom-select.complete.min.js"></script>
+    <script src="/js/tom-select-init.js"></script>
+    <script src="/js/audience-filter.js"></script>
+    <script src="/js/polls.js"></script>
+{% endblock scripts %}

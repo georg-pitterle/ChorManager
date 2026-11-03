@@ -76,6 +76,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 setCheckedIfPresent('edit_can_manage_sheet_archive', this.getAttribute('data-sheet-archive') === '1');
                 setCheckedIfPresent('edit_can_manage_budget', this.getAttribute('data-budget') === '1');
                 setCheckedIfPresent('edit_can_manage_tasks', this.getAttribute('data-tasks') === '1');
+                setCheckedIfPresent('edit_can_manage_polls', this.getAttribute('data-polls') === '1');
                 setCheckedIfPresent('edit_can_manage_backups', this.getAttribute('data-backups') === '1');
                 setCheckedIfPresent('edit_can_manage_files', this.getAttribute('data-files') === '1');
                 setCheckedIfPresent('edit_can_manage_storage', this.getAttribute('data-storage') === '1');

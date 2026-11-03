@@ -55,6 +55,7 @@ final class RolePermissionCatalog
             ['key' => 'can_manage_newsletters', 'label' => 'Newsletter verwalten', 'module' => 'newsletter'],
             ['key' => 'can_manage_mail_queue', 'label' => 'Mailversand verwalten', 'module' => null],
             ['key' => 'can_manage_tasks', 'label' => 'Projektplanung (Aufgaben)', 'module' => 'tasks'],
+            ['key' => 'can_manage_polls', 'label' => 'Umfragen verwalten', 'module' => 'polls'],
             ['key' => 'can_manage_files', 'label' => 'Dateiverwaltung verwalten', 'module' => 'files'],
         ]],
         ['label' => 'Stammdaten & System', 'permissions' => [

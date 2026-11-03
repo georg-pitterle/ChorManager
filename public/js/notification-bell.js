@@ -27,7 +27,8 @@ document.addEventListener('DOMContentLoaded', function () {
         tasks: 'bi-check2-square',
         events: 'bi-calendar-event',
         projects: 'bi-folder2-open',
-        sponsoring: 'bi-briefcase'
+        sponsoring: 'bi-briefcase',
+        polls: 'bi-bar-chart'
     };
 
     var lastRequestedAt = 0;

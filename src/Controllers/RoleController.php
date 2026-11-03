@@ -87,6 +87,7 @@ class RoleController
             'can_assign_own_voice_group_to_project' =>
                 isset($data['can_assign_own_voice_group_to_project']) ? 1 : 0,
             'can_keep_voice_group_lists' => isset($data['can_keep_voice_group_lists']) ? 1 : 0,
+            'can_manage_polls' => isset($data['can_manage_polls']) ? 1 : 0,
         ];
 
         // Ein Vollrecht zieht sein kleineres Recht mit - aus

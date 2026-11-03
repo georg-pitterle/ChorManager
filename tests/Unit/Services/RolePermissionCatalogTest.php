@@ -18,6 +18,7 @@ final class RolePermissionCatalogTest extends TestCase
         'sheet_archive' => true,
         'tasks' => true,
         'files' => true,
+        'polls' => true,
     ];
 
     public function testCatalogCoversExactlyTheRolePermissions(): void
@@ -41,6 +42,7 @@ final class RolePermissionCatalogTest extends TestCase
             'can_manage_sheet_archive' => 'sheet_archive',
             'can_manage_newsletters' => 'newsletter',
             'can_manage_tasks' => 'tasks',
+            'can_manage_polls' => 'polls',
             'can_manage_files' => 'files',
         ], RolePermissionCatalog::moduleGates());
     }
@@ -57,7 +59,7 @@ final class RolePermissionCatalogTest extends TestCase
             ['key' => 'can_manage_events', 'label' => 'Termine verwalten'],
             $groups[0]['permissions'][3]
         );
-        $this->assertCount(23, array_merge(...array_column($groups, 'permissions')));
+        $this->assertCount(24, array_merge(...array_column($groups, 'permissions')));
     }
 
     public function testMissingModuleFlagHidesPermission(): void

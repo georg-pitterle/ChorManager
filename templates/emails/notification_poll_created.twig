@@ -1,0 +1,44 @@
+{# Eine neue Umfrage, an der die Empfängerin teilnehmen kann. #}
+{% extends "emails/_notification_layout.twig" %}
+{% import "emails/_components.twig" as ui %}
+
+{% block mail_title %}Neue Umfrage: {{ poll.title }}{% endblock %}
+
+{% block preheader %}{{ poll.title }} – {{ deadline_label }}.{% endblock %}
+
+{% block eyebrow %}Umfrage{% endblock %}
+
+{% block heading %}Deine Stimme ist gefragt{% endblock %}
+
+{% block content %}
+    <p class="cm-text" style="margin:0 0 24px 0; color:#1f2937">
+        es gibt eine neue Umfrage, an der du teilnehmen kannst:
+    </p>
+
+    <table role="presentation"
+           width="100%"
+           cellpadding="0"
+           cellspacing="0"
+           border="0"
+           class="cm-details"
+           style="background-color:#f5f7fa;
+                  border:1px solid #d9dee7;
+                  border-radius:8px;
+                  margin:0 0 26px 0">
+        <tr>
+            <td style="padding:18px 20px">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                    {{ ui.detail_row("Frage", poll.title, true) }}
+                    {{ ui.detail_row("Frist", deadline_label, false) }}
+                    {% if poll.is_anonymous %}
+                        {{ ui.detail_row("Abstimmung", "anonym", false) }}
+                    {% endif %}
+                </table>
+            </td>
+        </tr>
+    </table>
+
+    {{ ui.action_button(link, poll.isOpenQuestion() ? "Jetzt antworten" : "Jetzt abstimmen", brand_color, 200) }}
+
+    {{ ui.fallback_url(link) }}
+{% endblock %}

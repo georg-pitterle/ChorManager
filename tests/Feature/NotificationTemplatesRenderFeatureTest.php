@@ -109,6 +109,10 @@ final class NotificationTemplatesRenderFeatureTest extends TestCase
             'sponsoring_follow_up_due' => ['emails/notification_sponsoring_follow_up_due.twig', [
                 'contact' => $contact,
             ]],
+            'poll_created' => ['emails/notification_poll_created.twig', [
+                'poll' => (object) ['id' => 5, 'title' => 'Ausflug im Mai: wohin?', 'is_anonymous' => true],
+                'deadline_label' => 'Läuft bis Fr, 13.11.',
+            ]],
         ];
     }
 

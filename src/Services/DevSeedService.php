@@ -55,6 +55,7 @@ use App\Services\BackupService;
 use App\Services\CalendarSubscriptionService;
 use App\Services\WebdavAccessService;
 use App\Services\VoiceGroupListRows;
+use App\Services\PollAudienceService;
 use App\Services\Oidc\AccessTokenService;
 use App\Services\Oidc\OidcSigningKeyService;
 use App\Services\SecretBoxCryptoService;
@@ -63,6 +64,10 @@ use App\Services\Oidc\OidcClientService;
 use App\Services\FinanceJournalService;
 use App\Models\Setting;
 use App\Models\VoiceGroupList;
+use App\Models\Poll;
+use App\Models\PollOption;
+use App\Models\PollTextAnswer;
+use App\Models\PollVote;
 use App\Models\VoiceGroupListColumn;
 use App\Models\VoiceGroupListEntry;
 use App\Models\Song;
@@ -222,6 +227,11 @@ class DevSeedService
                 'voice_group_lists' => 0,
                 'voice_group_list_columns' => 0,
                 'voice_group_list_entries' => 0,
+                'polls' => 0,
+                'poll_options' => 0,
+                'poll_participants' => 0,
+                'poll_votes' => 0,
+                'poll_text_answers' => 0,
                 'project_logo_deadlines' => 0,
                 'sponsorships' => 0,
                 'sponsorship_benefits' => 0,
@@ -301,6 +311,7 @@ class DevSeedService
             $this->seedEventAudience($projectEvents, $roles, $voiceData);
             $this->configureEventRegistrations($projectEvents);
             $this->seedEventNotes($users['active']);
+            $this->seedPolls($voiceData, $users['active']);
 
             $this->seedAttendance($projectMembers, $projectEvents);
             $this->seedEventRegistrations($projectMembers, $projectEvents);
@@ -454,6 +465,7 @@ class DevSeedService
                 'can_manage_own_voice_group' => 1,
                 'can_assign_own_voice_group_to_project' => 0,
                 'can_keep_voice_group_lists' => 0,
+                'can_manage_polls' => 1,
             ],
             [
                 'name' => 'Kassier',
@@ -478,6 +490,7 @@ class DevSeedService
                 'can_manage_own_voice_group' => 1,
                 'can_assign_own_voice_group_to_project' => 0,
                 'can_keep_voice_group_lists' => 0,
+                'can_manage_polls' => 0,
             ],
             [
                 'name' => 'Chorleitung',
@@ -501,6 +514,7 @@ class DevSeedService
                 'can_manage_own_voice_group' => 1,
                 'can_assign_own_voice_group_to_project' => 0,
                 'can_keep_voice_group_lists' => 0,
+                'can_manage_polls' => 1,
             ],
             [
                 'name' => 'Stimmvertretung',
@@ -524,6 +538,7 @@ class DevSeedService
                 'can_manage_own_voice_group' => 1,
                 'can_assign_own_voice_group_to_project' => 1,
                 'can_keep_voice_group_lists' => 1,
+                'can_manage_polls' => 0,
             ],
             [
                 'name' => 'Ersatzvertretung',
@@ -547,6 +562,7 @@ class DevSeedService
                 'can_manage_own_voice_group' => 1,
                 'can_assign_own_voice_group_to_project' => 1,
                 'can_keep_voice_group_lists' => 1,
+                'can_manage_polls' => 0,
             ],
             [
                 'name' => 'Mitglied',
@@ -570,6 +586,7 @@ class DevSeedService
                 'can_manage_own_voice_group' => 0,
                 'can_assign_own_voice_group_to_project' => 0,
                 'can_keep_voice_group_lists' => 0,
+                'can_manage_polls' => 0,
             ],
         ];
     }
@@ -975,6 +992,173 @@ class DevSeedService
 
             foreach ($definitions as $definition) {
                 $this->seedVoiceGroupList($group, $definition);
+            }
+        }
+    }
+
+    /**
+     * Vier Umfragen, die jeden Zustand der Oberfläche zeigen: offen namentlich,
+     * offen anonym mit Mehrfachauswahl, beendet mit Sieger und beendet mit
+     * Gleichstand. Die erste aktive Person (Admin) hat bei den offenen noch
+     * nicht abgestimmt - so steht die Umfrage auf ihrer Startseite.
+     *
+     * Bei append bleibt eine schon vorhandene Umfrage gleichen Titels stehen.
+     *
+     * @param array{groups: array<string, VoiceGroup>} $voiceData
+     * @param array<User> $activeUsers
+     */
+    private function seedPolls(array $voiceData, array $activeUsers): void
+    {
+        $activeUsers = array_values($activeUsers);
+        $voters = array_slice($activeUsers, 1, 24);
+        if ($voters === []) {
+            return;
+        }
+        $creatorId = (int) $activeUsers[0]->id;
+
+        $sopran = $voiceData['groups']['Sopran'] ?? null;
+        $definitions = [
+            [
+                'title' => 'Ausflug im Mai: wohin?',
+                'description' => 'Ein Samstag im Mai, Abfahrt am Vormittag. Kosten übernimmt zur Hälfte der Verein.',
+                'options' => ['Wachau', 'Salzkammergut', 'Bleiben wir zu Hause'],
+                'anonymous' => false,
+                'multiple' => false,
+                'closes_at' => Carbon::today()->addDays(5)->setTime(23, 59, 59),
+                'audience' => [],
+                'choices' => [0, 1, 0, 0, 1, 0, 2, 0, 1, 0, 0, 1],
+            ],
+            [
+                'title' => 'Welche Farbe sollen die neuen Chor-T-Shirts haben?',
+                'description' => null,
+                'options' => ['Dunkelblau', 'Weinrot', 'Schwarz', 'Senfgelb'],
+                'anonymous' => true,
+                'multiple' => true,
+                'closes_at' => Carbon::today()->addDays(9)->setTime(23, 59, 59),
+                'audience' => $sopran !== null ? ['voice_group' => [(int) $sopran->id]] : [],
+                'choices' => [[0, 2], [1], [0], [2, 3], [0, 1], [2]],
+            ],
+            [
+                'title' => 'Probenbeginn ab Herbst',
+                'description' => null,
+                'options' => ['19:00 Uhr', '19:30 Uhr', '20:00 Uhr'],
+                'anonymous' => false,
+                'multiple' => false,
+                'closes_at' => Carbon::today()->subDays(12)->setTime(23, 59, 59),
+                'audience' => [],
+                'choices' => [1, 1, 0, 1, 2, 1, 1, 0, 1, 2, 1, 1, 0, 1],
+            ],
+            [
+                'title' => 'Weihnachtsfeier: Freitag oder Samstag?',
+                'description' => null,
+                'options' => ['Freitag', 'Samstag'],
+                'anonymous' => true,
+                'multiple' => false,
+                'closes_at' => Carbon::today()->subDays(40)->setTime(23, 59, 59),
+                'audience' => [],
+                'choices' => [0, 1, 0, 1, 1, 0, 0, 1],
+            ],
+            // Offene Fragen: "choices" sind hier die geschriebenen Antworten.
+            [
+                'title' => 'Vorschläge für den nächsten Konzerttitel',
+                'description' => 'Das Frühjahrskonzert dreht sich um Lieder vom Wasser. Wie soll es heißen?',
+                'kind' => Poll::KIND_TEXT,
+                'options' => [],
+                'anonymous' => false,
+                'multiple' => false,
+                'closes_at' => Carbon::today()->addDays(12)->setTime(23, 59, 59),
+                'audience' => [],
+                'choices' => [
+                    'Stimmen am Fluss',
+                    "Wellenklang\nOder kürzer: Wellen",
+                    'Von Quelle bis Meer',
+                    'Wasserfarben',
+                    'Strömungen – Lieder vom Wasser',
+                    'Am Ufer',
+                ],
+            ],
+            [
+                'title' => 'Was sollen wir bei der nächsten Probenklausur besser machen?',
+                'description' => null,
+                'kind' => Poll::KIND_TEXT,
+                'options' => [],
+                'anonymous' => true,
+                'multiple' => false,
+                'closes_at' => Carbon::today()->subDays(20)->setTime(23, 59, 59),
+                'audience' => [],
+                'choices' => [
+                    'Mehr Pausen am Nachmittag, dafür früher anfangen.',
+                    'Die Stimmproben waren super, gerne wieder getrennt.',
+                    'Das Essen war zu spät fertig.',
+                    'Noten bitte eine Woche vorher verschicken.',
+                ],
+            ],
+        ];
+
+        $audienceService = new PollAudienceService();
+        foreach ($definitions as $definition) {
+            if (Poll::where('title', $definition['title'])->exists()) {
+                continue;
+            }
+
+            $isText = ($definition['kind'] ?? Poll::KIND_CHOICE) === Poll::KIND_TEXT;
+            $poll = Poll::create([
+                'title' => $definition['title'],
+                'description' => $definition['description'],
+                'answer_kind' => $isText ? Poll::KIND_TEXT : Poll::KIND_CHOICE,
+                'allows_multiple' => $definition['multiple'],
+                'is_anonymous' => $definition['anonymous'],
+                'closes_at' => $definition['closes_at'],
+                'created_by_user_id' => $creatorId,
+            ]);
+            $this->report['counts']['polls']++;
+
+            $optionIds = [];
+            foreach ($definition['options'] as $index => $label) {
+                $optionIds[] = (int) PollOption::create([
+                    'poll_id' => $poll->id,
+                    'label' => $label,
+                    'sort_order' => $index,
+                ])->id;
+                $this->report['counts']['poll_options']++;
+            }
+
+            $audienceService->setAudience($poll, [$definition['audience']]);
+            $eligible = $audienceService->membersQuery($poll)->pluck('users.id')->map(static fn ($id): int => (int) $id)->all();
+
+            $voterIndex = 0;
+            foreach ($definition['choices'] as $choice) {
+                // Nur wer zur Zielgruppe gehört, stimmt ab - wie in der Anwendung.
+                while (isset($voters[$voterIndex]) && !in_array((int) $voters[$voterIndex]->id, $eligible, true)) {
+                    $voterIndex++;
+                }
+                if (!isset($voters[$voterIndex])) {
+                    break;
+                }
+
+                $userId = (int) $voters[$voterIndex]->id;
+                $voterIndex++;
+                Capsule::table('poll_participants')->insert(['poll_id' => $poll->id, 'user_id' => $userId]);
+                $this->report['counts']['poll_participants']++;
+
+                if ($isText) {
+                    PollTextAnswer::create([
+                        'poll_id' => $poll->id,
+                        'user_id' => $definition['anonymous'] ? null : $userId,
+                        'body' => (string) $choice,
+                    ]);
+                    $this->report['counts']['poll_text_answers']++;
+                    continue;
+                }
+
+                foreach ((array) $choice as $optionIndex) {
+                    PollVote::create([
+                        'poll_id' => $poll->id,
+                        'option_id' => $optionIds[$optionIndex],
+                        'user_id' => $definition['anonymous'] ? null : $userId,
+                    ]);
+                    $this->report['counts']['poll_votes']++;
+                }
             }
         }
     }
@@ -2450,6 +2634,11 @@ class DevSeedService
         if ($project !== null) {
             $entries[] = [NotificationType::PROJECT_MEMBER_ADDED, 'Neues Projekt: ' . $project->name,
                 'Du bist jetzt dabei', '/projects/' . $project->id . '/members', 'project', $project->id];
+        }
+        $poll = Poll::query()->where('closes_at', '>', Carbon::now())->orderBy('closes_at')->first();
+        if ($poll !== null) {
+            $entries[] = [NotificationType::POLL_CREATED, 'Neue Umfrage: ' . $poll->title,
+                'Läuft bis ' . $poll->closes_at?->format('d.m.'), '/polls/' . $poll->id, 'poll', $poll->id];
         }
         if ($sponsor !== null) {
             $entries[] = [NotificationType::SPONSORING_FOLLOW_UP_DUE, 'Wiedervorlage: ' . $sponsor->name,

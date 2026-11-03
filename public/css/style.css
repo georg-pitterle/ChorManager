@@ -1909,6 +1909,29 @@ thead th {
     font-weight: 600;
 }
 
+/* Auswahlfelder (Radio, Checkbox, Schalter): Bootstrap färbt sie fest blau, das trug keine
+   Vereinsfarbe. Gewählt jetzt in der lesbaren Vereinsfarbe, die auch bei sehr hellen Farben
+   4,5:1 hält; ungewählt mit einer Kontur, die man sieht, statt Bootstraps fast weißem Rand. */
+.form-check-input {
+    border-color: color-mix(in srgb, var(--theme-text-muted) 75%, #ffffff);
+}
+
+.form-check-input:checked,
+.form-check-input[type="checkbox"]:indeterminate {
+    background-color: var(--theme-primary-strong);
+    border-color: var(--theme-primary-strong);
+}
+
+.form-check-input:focus {
+    border-color: var(--theme-primary-strong);
+    box-shadow: 0 0 0 0.25rem rgba(var(--theme-primary-rgb), 0.35);
+}
+
+/* Ausgeschalteter Schalter mit Fokus: Bootstrap färbt den Knopf hellblau. */
+.form-switch .form-check-input:focus:not(:checked) {
+    --bs-form-switch-bg: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3e%3ccircle r='3' fill='rgba%2891, 101, 120, 0.85%29'/%3e%3c/svg%3e");
+}
+
 /* Outline Primary Button */
 .btn-outline-primary {
     --bs-btn-color: var(--theme-primary-strong);
@@ -5751,4 +5774,263 @@ html[data-vgl-ready] .voice-group-list-note-form:not(.is-dirty) .voice-group-lis
     .voice-group-list-columns__submit {
         padding-top: 2rem;
     }
+}
+
+/* ===== Umfragen =====
+   Stimmzettel und Ergebnis teilen sich Zeilen und Reihenfolge: Nach dem Abstimmen
+   werden aus denselben Zeilen Balken. Farben aus der Vereinsfarbe, damit es mit
+   jeder Einstellung trägt. */
+.poll-section + .poll-section {
+    margin-top: 2rem;
+}
+
+.poll-overview .list-group-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+    padding: 0.75rem 1rem;
+}
+
+.poll-overview__main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.poll-overview__title {
+    color: var(--theme-text);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+}
+
+.poll-overview__meta {
+    font-size: var(--font-size-small);
+    color: var(--theme-text-muted);
+}
+
+.poll {
+    max-width: 40rem;
+}
+
+.poll__description {
+    margin-bottom: 1rem;
+}
+
+.poll-ballot fieldset {
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.poll-ballot__rows,
+.poll-result__rows {
+    margin: 0 0 0.75rem;
+    padding: 0;
+    list-style: none;
+    background: var(--surface-fill);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--app-radius);
+}
+
+.poll-ballot__row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 44px;
+    margin: 0;
+    padding: 0.6rem 1rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.poll-ballot__row + .poll-ballot__row,
+.poll-result__row + .poll-result__row {
+    border-top-color: var(--surface-border);
+}
+
+/* Gewählt: 2px Kontur (Rand plus innerer Schatten, damit nichts springt) und eine Tönung
+   aus der lesbaren Vereinsfarbe - die helle Vereinsfarbe selbst verschwände auf Weiß. */
+.poll-ballot__row:has(.poll-ballot__input:checked) {
+    border-color: var(--theme-primary-strong);
+    box-shadow: inset 0 0 0 1px var(--theme-primary-strong);
+    background: color-mix(in srgb, var(--theme-primary-strong) 9%, var(--surface-fill));
+}
+
+.poll-ballot__row:has(.poll-ballot__input:focus-visible) {
+    outline: 2px solid var(--theme-primary-strong);
+    outline-offset: -2px;
+}
+
+.poll-ballot__input {
+    flex: 0 0 auto;
+    margin: 0;
+}
+
+.poll-ballot__label {
+    overflow-wrap: anywhere;
+}
+
+.poll-ballot__final {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.poll-result__participation {
+    margin-bottom: 0.75rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.poll-result__confirm {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+}
+
+.poll-result__confirm .bi {
+    color: var(--bs-success);
+    font-size: 1.25rem;
+}
+
+.poll-result__verdict {
+    font-weight: 700;
+}
+
+/* Dieselbe Geometrie wie .poll-ballot__row: Rand, Innenabstand, Spalte der Auswahl
+   (1em breit wie .form-check-input) und Abstand. So bleibt jede Antwort an ihrer Stelle,
+   wenn aus dem Stimmzettel das Ergebnis wird. */
+.poll-result__row {
+    display: grid;
+    grid-template-columns: 1em minmax(0, 1fr);
+    column-gap: 0.75rem;
+    align-items: start;
+    min-height: 44px;
+    padding: 0.6rem 1rem;
+    border: 1px solid transparent;
+}
+
+.poll-result__mark {
+    line-height: 1.5;
+    color: var(--theme-primary-strong);
+}
+
+.poll-result__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.25rem 1rem;
+    margin-bottom: 0.35rem;
+}
+
+.poll-result__label {
+    overflow-wrap: anywhere;
+}
+
+.poll-result__count {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
+    color: var(--theme-text-muted);
+}
+
+.poll-result__row--winner .poll-result__label,
+.poll-result__row--winner .poll-result__count {
+    font-weight: 700;
+    color: var(--theme-text);
+}
+
+.poll-result__mine {
+    margin-left: 0.35rem;
+    font-size: var(--font-size-small);
+    font-weight: 600;
+    color: var(--theme-primary-strong);
+    white-space: nowrap;
+}
+
+/* Balken in der Vereinsfarbe selbst; die Kontur in der lesbaren Variante hält auch eine
+   sehr helle Farbe auf der Spur sichtbar. */
+.poll-result__bar {
+    --bs-progress-bg: var(--surface-border);
+    height: 0.625rem;
+}
+
+.poll-result__bar .progress-bar {
+    background-color: var(--theme-primary);
+    box-shadow: inset 0 0 0 1px var(--theme-primary-strong);
+}
+
+.poll-result__voters {
+    margin-top: 0.35rem;
+    font-size: var(--font-size-small);
+}
+
+.poll-result__voters summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2rem;
+    color: var(--theme-primary-strong);
+    cursor: pointer;
+}
+
+@media (pointer: coarse) {
+    .poll-result__voters summary {
+        min-height: 44px;
+    }
+}
+
+.poll-result__actions {
+    margin-top: 0.75rem;
+}
+
+.poll-form__fixed {
+    margin-bottom: 1rem;
+}
+
+.poll-result__voters ul {
+    margin: 0.25rem 0 0;
+    padding-left: 1.25rem;
+}
+
+.poll-form__date {
+    max-width: 12rem;
+}
+
+/* Offene Fragen: das Textfeld steht dort, wo sonst die Zeilen stehen; das Ergebnis ist
+   dieselbe weiße Fläche mit Haarlinien, eine Antwort je Zeile. */
+.poll-ballot__text {
+    min-height: 7rem;
+}
+
+.poll-answers {
+    margin: 0 0 0.75rem;
+    padding: 0;
+    list-style: none;
+    background: var(--surface-fill);
+    border: 1px solid var(--surface-border);
+    border-radius: var(--app-radius);
+}
+
+.poll-answers__item {
+    padding: 0.75rem 1rem;
+}
+
+.poll-answers__item + .poll-answers__item {
+    border-top: 1px solid var(--surface-border);
+}
+
+.poll-answers__item--mine {
+    background: color-mix(in srgb, var(--theme-primary-strong) 6%, var(--surface-fill));
+}
+
+.poll-answers__body {
+    margin: 0;
+    overflow-wrap: anywhere;
+}
+
+.poll-answers__author {
+    margin: 0.25rem 0 0;
+    font-size: var(--font-size-small);
+    color: var(--theme-text-muted);
 }

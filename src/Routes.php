@@ -63,6 +63,7 @@ use App\Controllers\Oidc\AuthorizeController;
 use App\Controllers\Oidc\DiscoveryController;
 use App\Controllers\Oidc\TokenController;
 use App\Controllers\Oidc\UserinfoController;
+use App\Controllers\PollController;
 use App\Services\Oidc\OidcEndpoints;
 use App\Middleware\AuthMiddleware;
 use App\Middleware\RoleMiddleware;
@@ -268,6 +269,26 @@ return function (App $app) {
                     );
                 }
             )->add(new RoleMiddleware(gates: ['requiresVoiceGroupLists']));
+
+            // Umfragen: Wer eine Umfrage sieht und abstimmt, entscheiden Zielgruppe und
+            // PollPolicy; Verwalten verlangt can_manage_polls. Die festen Pfade
+            // (/create) stehen vor den Platzhaltern.
+            if ($settings['modules']['polls'] ?? false) {
+                $group->group(
+                    '/polls',
+                    function (RouteCollectorProxy $pollGroup) {
+                        $pollGroup->get('/create', [PollController::class, 'createForm']);
+                        $pollGroup->post('', [PollController::class, 'create']);
+                        $pollGroup->get('/{id:[0-9]+}/edit', [PollController::class, 'editForm']);
+                        $pollGroup->post('/{id:[0-9]+}', [PollController::class, 'update']);
+                        $pollGroup->post('/{id:[0-9]+}/close', [PollController::class, 'close']);
+                        $pollGroup->post('/{id:[0-9]+}/delete', [PollController::class, 'delete']);
+                    }
+                )->add(new RoleMiddleware(gates: ['requiresPollManagement']));
+                $group->get('/polls', [PollController::class, 'index']);
+                $group->get('/polls/{id:[0-9]+}', [PollController::class, 'show']);
+                $group->post('/polls/{id:[0-9]+}/vote', [PollController::class, 'vote']);
+            }
 
             // Trefferzahl einer Zielgruppen-Zeile; wer sie abfragen darf, prüft der Controller.
             $group->post('/audience-preview', [AudiencePreviewController::class, 'preview']);

@@ -432,6 +432,23 @@ class NavigationBuilderFeatureTest extends TestCase
         $this->assertTrue($this->entry($tree, '/events')['active']);
     }
 
+    public function testPollsAreVisibleToEveryoneOnlyWithTheModule(): void
+    {
+        $this->assertNull($this->entry($this->build([], []), '/polls'));
+
+        $entry = $this->entry($this->build([], ['polls' => true]), '/polls');
+        $this->assertNotNull($entry);
+        $this->assertSame('Umfragen', $entry['label']);
+        $this->assertSame('bi-bar-chart', $entry['icon']);
+        // Eine Umfrage ist Kommunikation mit den Mitgliedern, wie der Newsletter -
+        // und der Abschnitt steht auch, wenn das Newsletter-Modul aus ist.
+        $this->assertSame('communication', $this->sectionOf($this->build([], ['polls' => true]), '/polls'));
+        $this->assertSame(
+            'communication',
+            $this->sectionOf($this->build([], ['polls' => true, 'newsletter' => true]), '/newsletters/archive')
+        );
+    }
+
     public function testVoiceGroupListsAreVisibleOnlyWithTheirOwnRight(): void
     {
         $entry = $this->entry($this->build(['can_keep_voice_group_lists' => true]), '/voice-group-lists');

@@ -24,6 +24,7 @@ final class NotificationType
     public const EVENT_NOTE = 'event_note';
     public const PROJECT_MEMBER_ADDED = 'project_member_added';
     public const SPONSORING_FOLLOW_UP_DUE = 'sponsoring_follow_up_due';
+    public const POLL_CREATED = 'poll_created';
 
     /**
      * Gruppen für die Anzeige - dieselbe Ordnung im Profil und in der
@@ -40,6 +41,7 @@ final class NotificationType
         'events' => 'Termine',
         'projects' => 'Projekte',
         'sponsoring' => 'Sponsoring',
+        'polls' => 'Umfragen',
     ];
 
     /**
@@ -117,6 +119,13 @@ final class NotificationType
             'label' => 'Wiedervorlage wird fällig',
             'description' => 'Kurz vor dem Wiedervorlage-Datum eines Kontakts, den du protokolliert hast.',
             'module' => 'sponsoring',
+            'default' => true,
+        ],
+        self::POLL_CREATED => [
+            'group' => 'polls',
+            'label' => 'Neue Umfrage',
+            'description' => 'Wenn eine Umfrage startet, an der du teilnehmen kannst.',
+            'module' => 'polls',
             'default' => true,
         ],
     ];

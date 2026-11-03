@@ -29,6 +29,7 @@ x-app-environment: &app-environment
   FEATURE_SPONSORING: ${FEATURE_SPONSORING:-false}
   FEATURE_TASKS: ${FEATURE_TASKS:-false}
   FEATURE_REGISTRATION: ${FEATURE_REGISTRATION:-false}
+  FEATURE_POLLS: ${FEATURE_POLLS:-false}
   FEATURE_FILES: ${FEATURE_FILES:-false}
   # Must point into the file_data volume mounted on the app service. Files of
   # the file management module live only there, not in the database.

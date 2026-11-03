@@ -237,7 +237,8 @@ class AuthController
                 'can_manage_backups' => 1,
                 'can_manage_files' => 1,
                 'can_manage_storage' => 1,
-                'can_manage_own_voice_group' => 1
+                'can_manage_own_voice_group' => 1,
+                'can_manage_polls' => 1
             ]);
 
             // Create the first user

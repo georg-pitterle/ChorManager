@@ -167,6 +167,11 @@ class RoleMiddleware implements MiddlewareInterface
             'logged_permission' => 'can_keep_voice_group_lists',
             'message' => 'Zugriff verweigert: Sie haben keine Berechtigung für die Stimmgruppen-Listen.',
         ],
+        'requiresPollManagement' => [
+            'permissions' => ['can_manage_polls'],
+            'logged_permission' => 'can_manage_polls',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung, Umfragen zu verwalten.',
+        ],
         'requiresUserManagement' => [
             'permissions' => ['can_manage_users'],
             'logged_permission' => 'can_manage_users',
