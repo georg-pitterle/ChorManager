@@ -566,6 +566,18 @@ class RegistrationController
     /**
      * Fingerabdruck des gespeicherten Standes für genau diese Mitglieder.
      *
+     * Die beiden Trennzeichen sind Pflicht, nicht Zierde: `note` ist freier Text
+     * eines Mitglieds. Ohne sie wäre die Reihung nicht eindeutig - eine
+     * Begründung, die mit Kennung und Status der nächsten Zeile beginnt, ergäbe
+     * dieselbe Zeichenkette wie der Stand, in dem diese Zeile wirklich existiert
+     * und die Begründung leer ist. Zwei verschiedene Stände hätten denselben
+     * Fingerabdruck, und der Schutz gegen das Überschreiben fremder Angaben in
+     * saveProxy() liefe ins Leere. `\x1f` und `\x1e` stehen als Escape-Folge und
+     * nicht als rohes Byte in der Zeichenkette: Rohe Steuerzeichen sind in Editor,
+     * Diff und Review unsichtbar und überleben eine Normalisierung der Datei
+     * nicht zuverlässig. Dieselbe Schreibweise wie in
+     * AttendanceController::attendanceStateHash().
+     *
      * @param list<int> $userIds
      */
     private function registrationStateHash(int $eventId, array $userIds): string
@@ -578,14 +590,14 @@ class RegistrationController
             ->whereIn('user_id', $userIds)
             ->orderBy('user_id')
             ->get(['user_id', 'status', 'note'])
-            ->map(static fn(EventRegistration $row): string => implode("", [
+            ->map(static fn(EventRegistration $row): string => implode("\x1f", [
                 (string) $row->user_id,
                 (string) $row->status,
                 (string) $row->note,
             ]))
             ->all();
 
-        return hash('sha256', implode("", $parts));
+        return hash('sha256', implode("\x1e", $parts));
     }
 
     private function findRegistrationEvent(int $eventId): ?Event
