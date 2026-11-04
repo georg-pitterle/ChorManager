@@ -19,6 +19,10 @@ return function (ContainerBuilder $containerBuilder) {
             'db' => [
                 'driver' => 'mysql',
                 'host' => EnvHelper::read('DB_HOST', 'db'),
+                // Gesetzt, verbindet der Connector über den Unix-Socket und übergeht den
+                // Host. In Produktion teilen App und Datenbank ihn über ein Volume - siehe
+                // MysqldumpRunner, warum TCP dort nicht trägt.
+                'unix_socket' => EnvHelper::read('DB_SOCKET'),
                 'database' => EnvHelper::read('DB_DATABASE', 'db'),
                 'username' => EnvHelper::read('DB_USERNAME', 'db'),
                 'password' => EnvHelper::read('DB_PASSWORD', 'db'),

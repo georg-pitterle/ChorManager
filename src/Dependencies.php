@@ -648,7 +648,8 @@ return function (ContainerBuilder $containerBuilder) {
                 EnvHelper::read('DB_PORT', '3306'),
                 EnvHelper::read('DB_DATABASE', 'db'),
                 EnvHelper::read('DB_USERNAME', 'db'),
-                EnvHelper::read('DB_PASSWORD', 'db')
+                EnvHelper::read('DB_PASSWORD', 'db'),
+                EnvHelper::read('DB_SOCKET')
             );
         },
         // Eine Definition, ein Objekt: Erstellen, Löschen und Übernehmen müssen

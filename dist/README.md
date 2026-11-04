@@ -74,6 +74,9 @@ docker compose --env-file .env -f docker-compose.prod.yml up -d
 | `FILES_TOTAL_QUOTA_MB`    | Total limit across all team folders (`0` = unlimited)                | `0`             | No       |
 | `FILES_MAX_ZIP_MB`        | Upper limit for downloading a folder as ZIP                          | `500`           | No       |
 
+`DB_SOCKET` is fixed in the compose file, not a stack variable: the app reaches
+MySQL through its Unix socket (see "In-app backup and the auth plugin").
+
 SMTP is configured exclusively via environment variables. It is no longer managed in the application UI.
 
 The mailbox / webmail feature is separate from the transactional SMTP above:
@@ -506,8 +509,12 @@ see the key rotation section in the main `README.md`.
 
 ```bash
 docker compose -f docker-compose.prod.yml exec db \
-  mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" "$DB_DATABASE" > backup.sql
+  mysqldump -u root -p"$MYSQL_ROOT_PASSWORD" --single-transaction --set-gtid-purged=OFF \
+  "$DB_DATABASE" > backup.sql
 ```
+
+MySQL 9.7 runs with `gtid_mode=ON` by default. Without `--set-gtid-purged=OFF` the
+dump carries `SET @@GLOBAL.GTID_PURGED`, which a running server refuses on restore.
 
 Restore:
 
@@ -519,25 +526,65 @@ docker compose -f docker-compose.prod.yml exec -T db \
 ### In-app backup and the auth plugin
 
 The in-app backup feature shells out to `mysqldump` from the `app` image. That
-image is Alpine-based, whose `mysql-client` is really the MariaDB client. It
-cannot load the `caching_sha2_password` client plugin, so if the DB user
-authenticates with `caching_sha2_password` (the MySQL 8.4 default), backups fail
+image is Alpine-based, whose `mysql-client` is really the MariaDB client. MySQL
+9.7 only offers `caching_sha2_password`; the client plugin for it comes from
+`mariadb-connector-c`, which the `app` image installs. Without it, backups fail
 with `error 1045 ... Plugin caching_sha2_password could not be loaded`.
 
-The compose file pins `--authentication-policy=mysql_native_password`, so users
-created on a **fresh** `db_data` volume use `mysql_native_password` and backups
-work out of the box. A volume initialised **before** this setting was added keeps
-the old plugin; fix the existing user once:
+A full `caching_sha2_password` login needs a secure connection. Over TCP that
+means TLS, and the MariaDB client rejects MySQL's self-signed certificate
+(`error 2026 ... self-signed certificate in certificate chain`). The app
+therefore talks to MySQL through its Unix socket: `db` and `app` share the
+`db_socket` volume at `/var/run/mysqld`, and `DB_SOCKET` points the app,
+Phinx and the backup at `mysqld.sock`. A socket connection counts as secure and
+needs no certificate. Keep both mounts and `DB_SOCKET` together - without them
+the app falls back to TCP and backups fail with error 2026.
 
-```bash
-docker exec -it <stack>-db-1 sh -c '
-  mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "
-    ALTER USER \"$MYSQL_USER\"@\"%\" IDENTIFIED WITH mysql_native_password BY \"$MYSQL_PASSWORD\";
-    FLUSH PRIVILEGES;"'
-```
+### Upgrading from MySQL 8.4 to 9.7
 
-Verify with `SELECT user, host, plugin FROM mysql.user WHERE user = \"$MYSQL_USER\";`
-— `plugin` must read `mysql_native_password`.
+MySQL 9 removed `mysql_native_password`. Earlier versions of this compose file
+forced every account onto it, so on an existing `db_data` volume the app user and
+`root` usually still use it - and **cannot log in at all** once 9.7 starts. The
+first 9.7 start also upgrades the data directory; there is no way back to 8.4
+other than restoring a backup. Do the steps in this order:
+
+1. **Back up**, still on the old stack: an in-app backup and a manual dump (see
+   above), and copy both off the host.
+2. **Stop the `app` container.** From the next step on its accounts change; the
+   upgrade is a maintenance window.
+3. **Find accounts on the removed plugin**:
+
+   ```bash
+   docker exec -it <stack>-db-1 sh -c '
+     mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "
+       SELECT user, host, plugin FROM mysql.user WHERE plugin = \"mysql_native_password\";"'
+   ```
+
+4. **Move each listed account to `caching_sha2_password`**, typically the app
+   user and both `root` accounts:
+
+   ```bash
+   docker exec -it <stack>-db-1 sh -c '
+     mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "
+       ALTER USER \"$MYSQL_USER\"@\"%\" IDENTIFIED WITH caching_sha2_password BY \"$MYSQL_PASSWORD\";
+       ALTER USER \"root\"@\"%\" IDENTIFIED WITH caching_sha2_password BY \"$MYSQL_ROOT_PASSWORD\";
+       ALTER USER \"root\"@\"localhost\" IDENTIFIED WITH caching_sha2_password BY \"$MYSQL_ROOT_PASSWORD\";"'
+   ```
+
+   Repeat step 3 - it must return no rows.
+5. **Switch to the new compose file** and redeploy the whole stack: `mysql:9.7`
+   without the native-password flags, the shared `db_socket` volume and
+   `DB_SOCKET`, and the current `app` image. Watch the `db` log until the
+   upgrade finishes and the healthcheck turns healthy; `app` waits for that.
+6. **Verify**: `SELECT VERSION();` reports `9.7.x`, the app loads, and an in-app
+   backup succeeds - that one proves the socket and the client plugin.
+
+An account missed in step 4 fails on 9.7 with `ERROR 1524 ... Plugin
+'mysql_native_password' is not loaded`. As long as `root` still logs in, run the
+`ALTER USER` from step 4 for it as `root`. If `root` itself was missed, start
+`db` once with `--skip-grant-tables` added to `command`, run
+`mysql -uroot -e "FLUSH PRIVILEGES; ALTER USER ..."` inside the container (no
+password needed in that mode), then remove the flag and redeploy.
 
 ## Security Notes
 

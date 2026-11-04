@@ -6,13 +6,45 @@ namespace App\Services;
 
 final class MysqldumpRunner implements DumpRunnerInterface
 {
+    /**
+     * @param string $socket Pfad zum Unix-Socket von MySQL; leer heißt TCP über Host und Port.
+     *                       In Produktion ist er gesetzt: caching_sha2_password verlangt über
+     *                       TCP bei der vollen Anmeldung TLS, und der MariaDB-Client im
+     *                       App-Image lehnt das selbstsignierte Zertifikat von MySQL ab. Über
+     *                       den Socket gilt die Verbindung als sicher, ganz ohne Zertifikat.
+     */
     public function __construct(
         private readonly string $host,
         private readonly string $port,
         private readonly string $database,
         private readonly string $username,
-        private readonly string $password
+        private readonly string $password,
+        private readonly string $socket = ''
     ) {
+    }
+
+    /**
+     * Verbindungsangaben für mysqldump und mysql. Das Passwort steht nie darin - es geht
+     * über MYSQL_PWD, damit es nicht in der Prozessliste auftaucht.
+     *
+     * @return list<string>
+     */
+    public function clientConnectionArguments(): array
+    {
+        $endpoint = $this->socket !== ''
+            ? ['--socket=' . $this->socket]
+            : ['--host=' . $this->host, '--port=' . $this->port];
+
+        return [...$endpoint, '--user=' . $this->username];
+    }
+
+    public function pdoDsn(): string
+    {
+        $endpoint = $this->socket !== ''
+            ? 'unix_socket=' . $this->socket
+            : sprintf('host=%s;port=%s', $this->host, $this->port);
+
+        return sprintf('mysql:%s;dbname=%s;charset=utf8mb4', $endpoint, $this->database);
     }
 
     public function dump(string $destinationPath, bool $gzip): void
@@ -25,9 +57,7 @@ final class MysqldumpRunner implements DumpRunnerInterface
         $process = proc_open(
             [
                 'mysqldump',
-                '--host=' . $this->host,
-                '--port=' . $this->port,
-                '--user=' . $this->username,
+                ...$this->clientConnectionArguments(),
                 '--single-transaction',
                 '--routines',
                 '--triggers',
@@ -118,9 +148,7 @@ final class MysqldumpRunner implements DumpRunnerInterface
         $process = proc_open(
             [
                 'mysql',
-                '--host=' . $this->host,
-                '--port=' . $this->port,
-                '--user=' . $this->username,
+                ...$this->clientConnectionArguments(),
                 $this->database,
             ],
             [
@@ -212,7 +240,7 @@ final class MysqldumpRunner implements DumpRunnerInterface
     private function dropAllTables(): void
     {
         $pdo = new \PDO(
-            sprintf('mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4', $this->host, $this->port, $this->database),
+            $this->pdoDsn(),
             $this->username,
             $this->password,
             [\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION]

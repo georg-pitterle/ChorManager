@@ -5,6 +5,12 @@ x-app-environment: &app-environment
   DB_USERNAME: ${DB_USERNAME:?set in Portainer}
   DB_PASSWORD: ${DB_PASSWORD:?set in Portainer}
   DB_PORT: ${DB_PORT:-3306}
+  # The app reaches MySQL through its Unix socket, shared via the db_socket
+  # volume. Over TCP, caching_sha2_password needs TLS for a full login, and the
+  # backup client in the app image rejects MySQL's self-signed certificate. A
+  # socket connection counts as secure and needs no certificate. DB_HOST and
+  # DB_PORT only apply when this is empty.
+  DB_SOCKET: /var/run/mysqld/mysqld.sock
   SMTP_HOST: ${SMTP_HOST:?set in Portainer}
   SMTP_PORT: ${SMTP_PORT:-587}
   SMTP_AUTH: ${SMTP_AUTH:-1}
@@ -94,6 +100,8 @@ services:
       # Stored files of the file management module. Without this volume every
       # recreate would discard all uploaded files.
       - file_data:${FILES_STORAGE_PATH:-/var/lib/chormanager-files}
+      # MySQL's socket directory, see DB_SOCKET above.
+      - db_socket:/var/run/mysqld
     depends_on:
       db:
         condition: service_healthy 
@@ -122,7 +130,10 @@ services:
         max-file: "3"
 
   db:
-    image: mysql:8.4
+    # MySQL 9.x no longer ships mysql_native_password. Accounts still using it
+    # cannot log in after the upgrade - convert them on 8.4 first, see
+    # "Upgrading from MySQL 8.4 to 9.7" in dist/README.md.
+    image: mysql:9.7
     restart: unless-stopped
     labels:
       logs.job: "chormanager"
@@ -133,15 +144,6 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
       - --skip-name-resolve
-      # mysql_native_password is disabled by default in MySQL 8.4; enable it so
-      # the plugin exists at all.
-      - --mysql-native-password=ON
-      # Force new accounts (incl. the MYSQL_USER created on first init) to use
-      # mysql_native_password instead of the 8.4 default caching_sha2_password.
-      # The app image's dump tool is the Alpine MariaDB client, which cannot
-      # load the caching_sha2_password client plugin, so backups would otherwise
-      # fail to authenticate (error 1045). See dist/README.md.
-      - --authentication-policy=mysql_native_password
     environment:
       MYSQL_DATABASE: ${DB_DATABASE:?set in Portainer}
       MYSQL_USER: ${DB_USERNAME:?set in Portainer}
@@ -150,6 +152,8 @@ services:
       TZ: ${TZ:-Europe/Vienna}
     volumes:
       - db_data:/var/lib/mysql
+      # Shares mysqld.sock with the app, see DB_SOCKET above.
+      - db_socket:/var/run/mysqld
     networks:
       - internal
     healthcheck:
@@ -256,6 +260,8 @@ volumes:
   session_data:
   file_data:
   maintenance_data:
+  # Only holds mysqld.sock and the pid file; nothing in it needs a backup.
+  db_socket:
 
 
 networks:

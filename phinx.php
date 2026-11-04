@@ -17,6 +17,9 @@ return [
             'user'     => getenv('DB_USERNAME') ?: 'db',
             'pass'     => getenv('DB_PASSWORD') ?: 'db',
             'port'     => getenv('DB_PORT') ?: '3306',
+            // Gesetzt, verbindet Phinx über den Unix-Socket statt über Host und Port -
+            // wie die Anwendung (src/Settings.php).
+            'unix_socket' => getenv('DB_SOCKET') ?: '',
             'charset'  => 'utf8mb4',
             // Ohne diese Zeile setzt Phinx seine eigene Vorgabe
             // und legt neue Tabellen neben dem übrigen Schema an -

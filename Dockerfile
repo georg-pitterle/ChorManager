@@ -24,10 +24,16 @@ FROM php:8.5-fpm-alpine
 # Node fehlt hier bewusst: die Frontend-Pakete werden in der assets-Stufe
 # installiert und fertig herüberkopiert. Zur Laufzeit ruft nichts node auf -
 # bin/copy-assets.php ist PHP -, also gehört die Werkzeugkette nicht ins Abbild.
+#
+# mysql-client ist unter Alpine der MariaDB-Client; das App-Backup ruft daraus
+# mysqldump und mysql auf. MySQL 9.7 kennt nur noch caching_sha2_password, und
+# das Client-Plugin dafür liefert erst mariadb-connector-c mit - ohne es bricht
+# jede Anmeldung mit Fehler 1045 ab.
 RUN apk add --no-cache \
     git \
     curl \
     mysql-client \
+    mariadb-connector-c \
     libzip \
     libpng \
     libjpeg-turbo \
@@ -55,6 +61,12 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
     libpng-dev \
     libjpeg-turbo-dev \
     freetype-dev
+
+# Einhängepunkt für das Socket-Volume von MySQL (DB_SOCKET in
+# dist/docker-compose.prod.yml). Hängt die App das leere Volume vor der
+# Datenbank ein, übernimmt es Rechte von hier; mit 1777 wie im mysql-Image darf
+# mysqld seinen Socket trotzdem anlegen.
+RUN mkdir -p /var/run/mysqld && chmod 1777 /var/run/mysqld
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer

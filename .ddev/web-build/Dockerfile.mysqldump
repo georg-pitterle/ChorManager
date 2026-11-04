@@ -1,0 +1,15 @@
+# Optionen für den Oracle-mysqldump im Web-Container (ddev mit MySQL 9.7).
+#
+# MySQL 9.7 läuft ab Werk mit gtid_mode=ON. Der Oracle-mysqldump schreibt dann
+# SET @@GLOBAL.GTID_PURGED in den Dump und setzt dafür vorher FLUSH TABLES ab.
+# Beides passt nicht zum App-Backup (src/Services/MysqldumpRunner.php):
+# - FLUSH TABLES verlangt RELOAD bzw. FLUSH_TABLES, das der Anwendungsbenutzer
+#   nicht hat - der Dump bricht mit Fehler 1227 ab.
+# - GTID_PURGED lässt sich nur in einen Server mit leerem GTID_EXECUTED
+#   einspielen; die Wiederherstellung in die laufende Datenbank scheiterte.
+#
+# Die Produktion braucht das nicht: Ihr App-Image sichert mit dem
+# MariaDB-Client, der ohne --gtid nichts davon tut. Die Option steht deshalb in
+# der Konfiguration dieses Containers und nicht im Aufruf - der MariaDB-Client
+# kennt --set-gtid-purged nicht und bräche daran ab.
+RUN printf '[mysqldump]\nset-gtid-purged=OFF\n' > /etc/my.cnf

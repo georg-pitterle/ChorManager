@@ -18,6 +18,30 @@ final class PhinxMigrationRunnerTest extends TestCase
         $this->addToAssertionCount(1);
     }
 
+    /**
+     * php-fpm leert die Umgebung; ohne Weitergabe liefe phinx in Produktion über TCP,
+     * während die Anwendung den Socket nutzt.
+     */
+    public function testDatabaseSocketIsPassedToPhinx(): void
+    {
+        $previous = $_ENV['DB_SOCKET'] ?? null;
+        $_ENV['DB_SOCKET'] = '/var/run/mysqld/mysqld.sock';
+        putenv('DB_SOCKET');
+        $script = 'if (getenv("DB_SOCKET") !== "/var/run/mysqld/mysqld.sock") {'
+            . ' fwrite(STDOUT, "DB_SOCKET fehlt\n"); exit(1); }';
+
+        try {
+            (new PhinxMigrationRunner([PHP_BINARY, '-r', $script], sys_get_temp_dir()))->migrate();
+            $this->addToAssertionCount(1);
+        } finally {
+            if ($previous === null) {
+                unset($_ENV['DB_SOCKET']);
+            } else {
+                $_ENV['DB_SOCKET'] = $previous;
+            }
+        }
+    }
+
     public function testFailingCommandThrowsWithTheFirstErrorLine(): void
     {
         $script = 'fwrite(STDOUT, "using config\n"); fwrite(STDOUT, "PDOException: Table x already exists\n"); exit(1);';

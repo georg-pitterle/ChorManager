@@ -260,7 +260,7 @@ Die Anwendung kann auch klassisch mit Nginx oder Apache betrieben werden.
 - PHP 8.5
 - Composer 2
 - Node.js 24+ und npm
-- MySQL oder MariaDB
+- MySQL 9.7 (Entwicklung unter ddev und Produktion laufen darauf; MariaDB wird nicht mehr getestet)
 - Webserver mit PHP-FPM oder Apache (Rewrite-Unterstützung)
 
 Erforderliche PHP-Erweiterungen:

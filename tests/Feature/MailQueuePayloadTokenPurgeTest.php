@@ -19,7 +19,7 @@ require_once dirname(__DIR__, 2) . '/db/migrations/20261104120000_purge_tokens_f
  *
  * Geprüft wird deshalb die echte Anweisung gegen eine Wegwerf-Tabelle in der
  * echten Datenbank, nicht eine Nachbildung: Was `JSON_REMOVE`,
- * `JSON_CONTAINS_PATH` und `JSON_VALID` in dieser MariaDB-Fassung tun, ist
+ * `JSON_CONTAINS_PATH` und `JSON_VALID` in dieser MySQL-Fassung tun, ist
  * genau die Annahme, auf der die Migration steht.
  */
 final class MailQueuePayloadTokenPurgeTest extends TestCase

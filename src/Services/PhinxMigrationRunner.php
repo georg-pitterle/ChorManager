@@ -8,7 +8,7 @@ use App\Util\EnvHelper;
 
 final class PhinxMigrationRunner implements MigrationRunnerInterface
 {
-    private const DATABASE_VARIABLES = ['DB_HOST', 'DB_PORT', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD'];
+    private const DATABASE_VARIABLES = ['DB_HOST', 'DB_PORT', 'DB_SOCKET', 'DB_DATABASE', 'DB_USERNAME', 'DB_PASSWORD'];
 
     /**
      * @param list<string>|null $command Vorgabe ist `phinx migrate`; ein anderer Befehl dient dem Test.
