@@ -3100,9 +3100,12 @@ class DevSeedService
             'recipient_email' => $sampleUser->email,
             'subject' => 'Queue: Passwort zurücksetzen',
             'body_html' => '<p>Seeded failed password reset mail.</p>',
+            // Ohne Token in der Nutzlast: MailQueueService nimmt ihn nicht mehr
+            // an, und 20261104120000 hat ihn aus den Altbeständen entfernt. Ein
+            // Seed, der ihn weiter einsetzt, zeigte einen Zustand, den die
+            // Anwendung nicht mehr herstellen kann.
             'payload_json' => [
                 'user_id' => $sampleUser->id,
-                'reset_token' => 'seed-reset-token',
             ],
             'status' => 'failed',
             'attempts' => 1,
@@ -3115,14 +3118,20 @@ class DevSeedService
             'is_retryable' => true,
         ];
 
+        // Liegengebliebene Einladung: Mailtext und Token sind bewusst leer. Eine
+        // Mail mit Geheimnis im Text verliert ihn nicht nur beim Erfolg, sondern
+        // auch beim endgültigen Scheitern (MailDeliveryService::handleFailure) -
+        // sie geht nicht mehr hinaus und braucht ihn nicht mehr. Dieser Eintrag
+        // ist deshalb in Dev der einzige Ort, an dem die Einzelansicht ihren
+        // Hinweis statt des Rahmens zeigt und der Knopf "erneut einreihen"
+        // fehlt (MailQueue::canRetry()).
         $entries[] = [
             'mail_type' => MailQueue::MAIL_TYPE_INVITATION,
             'recipient_email' => 'invalid-seed-address',
-            'subject' => 'Queue: Einladung',
-            'body_html' => '<p>Seeded dead-letter invitation.</p>',
+            'subject' => 'Queue: Einladung (liegengeblieben)',
+            'body_html' => null,
             'payload_json' => [
                 'user_id' => $sampleUser->id,
-                'invitation_token' => 'seed-invite-token',
             ],
             'status' => 'dead',
             'attempts' => 3,

@@ -164,7 +164,7 @@
                                             {% endif %}
                                         </td>
                                         <td data-label="Aktionen">
-                                            {% if entry.status == 'dead' %}
+                                            {% if entry.canRetry %}
                                                 <div class="btn-group"
                                                      role="group"
                                                      aria-label="Aktionen für Queue-Eintrag {{ entry.id }}">

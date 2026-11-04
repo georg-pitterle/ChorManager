@@ -152,9 +152,17 @@
 
             <div class="surface-card card border-0">
                 <div class="card-body">
-                    <iframe srcdoc="{{ entry.body_html|escape('html_attr') }}"
-                            sandbox="allow-popups allow-popups-to-escape-sandbox allow-downloads"
-                            class="mail-queue-preview-frame"></iframe>
+                    {% if entry.body_html %}
+                        <iframe srcdoc="{{ entry.body_html|escape('html_attr') }}"
+                                sandbox="allow-popups allow-popups-to-escape-sandbox allow-downloads"
+                                class="mail-queue-preview-frame"></iframe>
+                    {% else %}
+                        <p class="mb-0 text-muted">
+                            Der Mailtext wurde entfernt. Er enthielt einen Einmal-Link zum Konto,
+                            und der hat hier nichts mehr verloren, sobald die Mail zugestellt ist
+                            oder endgültig liegen bleibt.
+                        </p>
+                    {% endif %}
                 </div>
             </div>
         </section>
@@ -168,7 +176,7 @@
 
             <div class="surface-card card border-0">
                 <div class="card-body d-grid gap-2">
-                    {% if entry.status == 'dead' %}
+                    {% if entry.canRetry %}
                         <form method="post"
                               action="/admin/mail-queue/{{ entry.id }}/retry"
                               class="d-grid">

@@ -11,7 +11,7 @@ use App\Models\NewsletterRecipientSource;
 use App\Models\User;
 use App\Services\Audience\AudienceFilterNormalizer;
 use App\Services\Audience\AudienceFilterService;
-use App\Services\Audience\AudienceFormInput;
+use App\Services\Audience\AudienceOwnerService;
 use App\Services\Audience\InvalidAudienceFilterException;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Eloquent\Collection;
@@ -21,15 +21,21 @@ use Illuminate\Database\Eloquent\Collection;
  * Zielgruppen der gewählten Termine. Ohne Zeile und ohne Termin gibt es keine
  * Empfänger; gespeichert werden darf trotzdem, erst der Versand verlangt welche.
  */
-class NewsletterRecipientService
+class NewsletterRecipientService extends AudienceOwnerService
 {
     public const OWNER = 'newsletter_id';
 
     public function __construct(
-        private readonly AudienceFilterService $filters = new AudienceFilterService(),
-        private readonly AudienceFilterNormalizer $normalizer = new AudienceFilterNormalizer(),
+        AudienceFilterService $filters = new AudienceFilterService(),
+        AudienceFilterNormalizer $normalizer = new AudienceFilterNormalizer(),
         private readonly EventAudienceService $events = new EventAudienceService()
     ) {
+        parent::__construct($filters, $normalizer);
+    }
+
+    protected function ownerColumn(): string
+    {
+        return self::OWNER;
     }
 
     /**
@@ -43,7 +49,10 @@ class NewsletterRecipientService
      */
     public function readAudience(array $data): array
     {
-        $sets = $this->normalizer->normalizeRows(AudienceFormInput::rows($data['audience'] ?? []));
+        // rowsFrom() statt readRows(): Termin und Umfrage brauchen mindestens
+        // eine Zeile, der Newsletter nicht - er darf ohne Zielgruppe
+        // gespeichert werden, erst der Versand verlangt Empfänger.
+        $sets = $this->rowsFrom($data);
 
         $ids = [];
         foreach (is_array($data['event_ids'] ?? null) ? $data['event_ids'] : [] as $value) {
@@ -66,7 +75,7 @@ class NewsletterRecipientService
     public function setAudience(Newsletter $newsletter, array $sets, array $eventIds): void
     {
         Capsule::connection()->transaction(function () use ($newsletter, $sets, $eventIds): void {
-            $this->filters->replaceForOwner(self::OWNER, (int) $newsletter->id, $sets);
+            $this->replaceAudienceFor($newsletter, $sets);
             $newsletter->recipientSources()->delete();
             foreach ($eventIds as $eventId) {
                 $newsletter->recipientSources()->create([
@@ -78,9 +87,10 @@ class NewsletterRecipientService
 
         // Ohne dieses Verwerfen läse resolveRecipients() die vorab geladene und
         // eben gelöschte Auswahl weiter - der Newsletter ginge an die vorherige
-        // Zielgruppe statt an die gerade gespeicherte.
+        // Zielgruppe statt an die gerade gespeicherte. Die Filter selbst hat
+        // replaceAudienceFor() schon verworfen; die Termin-Auswahl hängt nicht
+        // daran und wird hier nachgezogen.
         $newsletter->unsetRelation('recipientSources');
-        $newsletter->unsetRelation('audienceFilters');
 
         $this->setRecipients(
             $newsletter,
@@ -124,7 +134,7 @@ class NewsletterRecipientService
      */
     public function resolveFor(array $sets, array $eventIds): Collection
     {
-        $ids = $this->filters->membersQueryForSets($sets)->pluck('users.id')->all();
+        $ids = $this->membersQueryForSets($sets)->pluck('users.id')->all();
         foreach ($eventIds as $eventId) {
             $ids = array_merge($ids, $this->getEventAudience($eventId)->pluck('id')->all());
         }

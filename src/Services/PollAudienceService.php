@@ -5,47 +5,26 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Poll;
+use App\Services\Audience\AudienceOwnerService;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as DB;
-use App\Models\User;
-use App\Services\Audience\AudienceFilterNormalizer;
-use App\Services\Audience\AudienceFilterService;
-use App\Services\Audience\AudienceFormInput;
-use App\Services\Audience\InvalidAudienceFilterException;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
+use App\Models\User;
 
 /**
  * Zielgruppen von Umfragen: Formular lesen, Filter speichern, Mitglieder
  * auflösen und sichtbare Umfragen finden. Die Regel selbst steht in
- * AudienceFilterService; ausgewertet wird live wie bei Terminen
- * (EventAudienceService).
+ * AudienceFilterService, das gemeinsame Durchreichen in AudienceOwnerService;
+ * ausgewertet wird live wie bei Terminen (EventAudienceService).
  */
-class PollAudienceService
+class PollAudienceService extends AudienceOwnerService
 {
     public const OWNER = 'poll_id';
 
-    public function __construct(
-        private readonly AudienceFilterService $filters = new AudienceFilterService(),
-        private readonly AudienceFilterNormalizer $normalizer = new AudienceFilterNormalizer()
-    ) {
-    }
-
-    /**
-     * Zielgruppe aus dem Formular. Eine Umfrage braucht mindestens eine Zeile;
-     * "alle Mitglieder" ist eine Zeile mit Häkchen, kein leeres Formular.
-     *
-     * @param array<string, mixed> $data
-     * @return list<array<string, list<int>>>
-     * @throws InvalidAudienceFilterException
-     */
-    public function readRows(array $data): array
+    protected function ownerColumn(): string
     {
-        $sets = $this->normalizer->normalizeRows(AudienceFormInput::rows($data['audience'] ?? []));
-        if ($sets === []) {
-            throw new InvalidAudienceFilterException('Bitte mindestens eine Zielgruppe angeben.');
-        }
-
-        return $sets;
+        return self::OWNER;
     }
 
     /**
@@ -53,8 +32,7 @@ class PollAudienceService
      */
     public function setAudience(Poll $poll, array $conditionSets): void
     {
-        $this->filters->replaceForOwner(self::OWNER, (int) $poll->id, $conditionSets);
-        $poll->unsetRelation('audienceFilters');
+        $this->replaceAudienceFor($poll, $conditionSets);
     }
 
     /**
@@ -62,7 +40,7 @@ class PollAudienceService
      */
     public function conditionSets(Poll $poll): array
     {
-        return $this->filters->conditionSetsForOwners(self::OWNER, [(int) $poll->id])[(int) $poll->id];
+        return $this->conditionSetsFor($poll);
     }
 
     /**
@@ -72,18 +50,12 @@ class PollAudienceService
      */
     public function membersQuery(Poll $poll): Builder
     {
-        return $this->filters
-            ->membersQueryForOwner(self::OWNER, (int) $poll->id)
-            ->select(array_map(static fn (string $column): string => 'users.' . $column, User::LIST_COLUMNS));
+        return $this->membersQueryFor($poll);
     }
 
     public function isMember(Poll $poll, int $userId): bool
     {
-        if ($userId <= 0) {
-            return false;
-        }
-
-        return $this->membersQuery($poll)->where('users.id', $userId)->exists();
+        return $this->hasMember($this->membersQuery($poll), $userId);
     }
 
     public function memberCount(Poll $poll): int
@@ -98,18 +70,16 @@ class PollAudienceService
      */
     public function visiblePollIds(int $userId): array
     {
-        $profile = $this->filters->profileOf($userId);
-
-        return $profile === null ? [] : $this->filters->matchingOwnerIds($profile, self::OWNER);
+        return $this->ownerIdsVisibleTo($userId);
     }
 
     /**
      * Offene Umfragen, bei denen das Mitglied noch abstimmen kann - die
      * kürzeste Frist zuerst.
      *
-     * @return \Illuminate\Database\Eloquent\Collection<int, Poll>
+     * @return Collection<int, Poll>
      */
-    public function awaitingVote(int $userId): \Illuminate\Database\Eloquent\Collection
+    public function awaitingVote(int $userId): Collection
     {
         // Erst die offenen Umfragen ohne eigene Stimme, dann nur deren
         // Zielgruppen prüfen: Die Startseite lädt bei jedem Aufruf, und beendete

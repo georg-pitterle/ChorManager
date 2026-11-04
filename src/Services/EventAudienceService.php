@@ -5,46 +5,23 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Event;
-use App\Models\User;
-use App\Services\Audience\AudienceFilterNormalizer;
-use App\Services\Audience\AudienceFilterService;
-use App\Services\Audience\AudienceFormInput;
-use App\Services\Audience\InvalidAudienceFilterException;
+use App\Services\Audience\AudienceOwnerService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use App\Models\User;
 
 /**
  * Zielgruppen von Terminen: Formular lesen, Filter speichern, berechtigte
  * Mitglieder auflösen und sichtbare Termine finden. Die Regel selbst steht in
- * AudienceFilterService.
+ * AudienceFilterService, das gemeinsame Durchreichen in AudienceOwnerService.
  */
-class EventAudienceService
+class EventAudienceService extends AudienceOwnerService
 {
     public const OWNER = 'event_id';
 
-    public function __construct(
-        private readonly AudienceFilterService $filters = new AudienceFilterService(),
-        private readonly AudienceFilterNormalizer $normalizer = new AudienceFilterNormalizer()
-    ) {
-    }
-
-    /**
-     * Zielgruppe aus dem Formular. Ein Termin braucht mindestens eine Zeile;
-     * "alle Mitglieder" ist eine Zeile mit Häkchen, kein leeres Formular - sonst
-     * gäbe ein versehentlich geleertes Formular den Termin für alle frei.
-     *
-     * @param array<string, mixed> $data
-     * @return list<array<string, list<int>>>
-     * @throws InvalidAudienceFilterException
-     */
-    public function readRows(array $data): array
+    protected function ownerColumn(): string
     {
-        $sets = $this->normalizer->normalizeRows(AudienceFormInput::rows($data['audience'] ?? []));
-        if ($sets === []) {
-            throw new InvalidAudienceFilterException('Bitte mindestens eine Zielgruppe angeben.');
-        }
-
-        return $sets;
+        return self::OWNER;
     }
 
     /**
@@ -52,12 +29,7 @@ class EventAudienceService
      */
     public function setAudience(Event $event, array $conditionSets): void
     {
-        $this->filters->replaceForOwner(self::OWNER, (int) $event->id, $conditionSets);
-
-        // Eine vorab geladene Beziehung (`with('audienceFilters.conditions')`)
-        // trägt noch die eben gelöschten Filter. Jede Auswertung, die den
-        // geladenen Stand bevorzugt, arbeitete danach mit der alten Zielgruppe.
-        $event->unsetRelation('audienceFilters');
+        $this->replaceAudienceFor($event, $conditionSets);
     }
 
     /**
@@ -84,19 +56,20 @@ class EventAudienceService
      * das Modell trug Wissen über die Auflösung von Zielgruppen, das nirgends
      * sonst in `src/Models` steht. Hier liegt der Dienst ohnehin schon bereit.
      *
-     * Geladen werden nur User::LIST_COLUMNS. Die Aufrufer reichen die Modelle
-     * unverändert an Templates und Mail-Erzeugung weiter; der Passwort-Hash hat
-     * dort nichts verloren. Wer eine weitere Spalte braucht, nimmt sie in
-     * LIST_COLUMNS auf - nicht in einen eigenen select() an der Aufrufstelle,
-     * sonst fällt die Grenze wieder auseinander.
+     * Geladen werden nur User::LIST_COLUMNS - die Begrenzung steht in
+     * AudienceOwnerService::membersQueryForSets(), damit sie für Termine,
+     * Umfragen und Newsletter dieselbe ist.
+     *
+     * Die Bedingungsmengen kommen hier aus dem Model und nicht über
+     * `conditionSetsFor()`: `$event->audienceConditionSets()` nutzt eine vorab
+     * geladene Beziehung, und genau darauf baut `eligibleUserIdsForEvents()`
+     * auf, um für eine Terminserie nicht je Termin nachzufragen.
      *
      * @return Builder<User>
      */
     public function eligibleUsersQuery(Event $event): Builder
     {
-        return $this->filters
-            ->membersQueryForSets($event->audienceConditionSets())
-            ->select(array_map(static fn (string $column): string => 'users.' . $column, User::LIST_COLUMNS));
+        return $this->membersQueryForSets($event->audienceConditionSets());
     }
 
     /**
@@ -147,9 +120,7 @@ class EventAudienceService
 
     public function isUserEligible(Event $event, int $userId): bool
     {
-        return $this->eligibleUsersQuery($event)
-            ->where('users.id', $userId)
-            ->exists();
+        return $this->hasMember($this->eligibleUsersQuery($event), $userId);
     }
 
     /**
@@ -157,8 +128,7 @@ class EventAudienceService
      */
     public function visibleEventsQuery(int $userId): Builder
     {
-        $profile = $this->filters->profileOf($userId);
-        $ids = $profile === null ? [] : $this->filters->matchingOwnerIds($profile, self::OWNER);
+        $ids = $this->ownerIdsVisibleTo($userId);
 
         return Event::query()->whereIn('events.id', $ids === [] ? [0] : $ids);
     }

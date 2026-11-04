@@ -113,8 +113,14 @@ class MailQueue extends Model
      * sonst reicht das Recht "Mail-Warteschlange verwalten" aus, um über die
      * Einzelansicht jedes Konto zu übernehmen, auch eines mit mehr Rechten.
      *
-     * Gelöscht wird erst nach erfolgreichem Versand, nie vorher: Ein Eintrag,
-     * der noch zugestellt werden muss, braucht seinen Text.
+     * Gelöscht wird, sobald der Eintrag seinen Text nicht mehr braucht: nach
+     * erfolgreichem Versand, und ebenso beim endgültigen Scheitern - ein
+     * Eintrag auf `dead` geht nicht mehr hinaus. Nie vorher: Solange noch ein
+     * Versuch aussteht, braucht der Eintrag seinen Text.
+     *
+     * Der zweite Fall kam später dazu. Zuvor fiel der Text nur beim Erfolg, und
+     * eine liegengebliebene Zurücksetzung behielt ihren lebenden Link - lesbar
+     * über die Einzelansicht für jeden, der die Warteschlange verwalten darf.
      *
      * @var list<string>
      */
@@ -255,9 +261,15 @@ class MailQueue extends Model
      * can be retried"). Die beiden Antworten liefen auseinander, weil die
      * Verwaltung ihre eigene Bedingung mitbrachte statt zu fragen; sie fragt
      * jetzt hier.
+     *
+     * Eine Mail mit Geheimnis im Text ist ausgenommen. Ihr Text fällt mit dem
+     * endgültigen Scheitern (MailDeliveryService::handleFailure), sie ginge also
+     * leer hinaus. Fachlich hilft das Wiederholen dort ohnehin nicht: Bis jemand
+     * den Knopf drückt, ist der Einmal-Link abgelaufen - wer ihn braucht,
+     * fordert eine neue Zurücksetzung an.
      */
     public function canRetry(): bool
     {
-        return $this->status === self::STATUS_DEAD;
+        return $this->status === self::STATUS_DEAD && !$this->bodyHoldsSecret();
     }
 }

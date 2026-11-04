@@ -163,7 +163,9 @@ class MailQueueAdminService
         // dieselbe Frage und gaben verschiedene Antworten, weil jede ihre eigene
         // Bedingung mitbrachte.
         if (!$entry->canRetry()) {
-            throw new Exception("Only dead entries can be retried. Current status: {$entry->status}");
+            throw new Exception(
+                "This entry cannot be retried. Status: {$entry->status}, mail type: {$entry->mail_type}"
+            );
         }
 
         $entry->update([
@@ -179,13 +181,23 @@ class MailQueueAdminService
     }
 
     /**
-     * Retry all dead-letter entries.
+     * Stellt alle endgültig liegengebliebenen Mails erneut ein - außer denen,
+     * deren Text ein Geheimnis trug.
      *
-     * @return int Number of entries retried
+     * Letztere haben ihren Mailtext beim Scheitern verloren
+     * (MailDeliveryService::handleFailure) und gingen leer an ein Mitglied
+     * hinaus. Die Bedingung steht hier zusätzlich zu `MailQueue::canRetry()`,
+     * weil dieser Weg über ein Sammel-`update()` läuft und kein Modell in der
+     * Hand hat, das man fragen könnte. Beide stützen sich auf dieselbe Liste
+     * `MailQueue::SECRET_BODY_MAIL_TYPES`, damit sie nicht auseinanderlaufen.
+     *
+     * @return int Zahl der erneut eingereihten Mails
      */
     public function retryAllDead(): int
     {
-        return MailQueue::dead()->update([
+        return MailQueue::dead()
+            ->whereNotIn('mail_type', MailQueue::SECRET_BODY_MAIL_TYPES)
+            ->update([
             'status' => MailQueue::STATUS_QUEUED,
             'next_attempt_at' => Carbon::now(),
             'attempts' => 0,

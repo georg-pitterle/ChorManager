@@ -346,6 +346,14 @@ class MailDeliveryService
             $entry->update([
                 'status' => MailQueue::STATUS_DEAD,
                 'is_retryable' => false,
+                // Dieselbe Begründung wie beim Erfolg, nur der andere Weg aus
+                // der Warteschlange heraus: Ein Eintrag auf `dead` wird nicht
+                // mehr zugestellt und braucht seinen Text nicht mehr. Der
+                // Einmal-Link darin wäre ab jetzt nur noch ein zweiter Weg zum
+                // Konto, lesbar für jeden, der die Warteschlange verwalten darf.
+                // Mit dem Text entfällt auch das Wiederholen von Hand -
+                // MailQueue::canRetry() verneint für diese Mailarten.
+                'body_html' => $entry->bodyHoldsSecret() ? null : $entry->body_html,
             ]);
 
             // Sync to NewsletterRecipient if applicable
