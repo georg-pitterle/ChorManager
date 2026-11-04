@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Models\Attachment;
 use App\Models\Project;
+use App\Models\Song;
 use App\Util\DownloadFileName;
 
 /**
@@ -103,9 +104,16 @@ class WebdavTreeService
         }
 
         $projects = $this->loadProjects($userId);
+        $songDates = [];
         $projectDates = [];
         foreach ($projects as $project) {
-            $projectDates[(int) $project->id] = $this->newestContentDate($project);
+            $dates = [self::EMPTY_FOLDER_DATE];
+            foreach ($project->assignedSongs as $song) {
+                $songDates[(int) $song->id] ??= $this->newestSongDate($song);
+                $dates[] = $songDates[(int) $song->id];
+            }
+
+            $projectDates[(int) $project->id] = max($dates);
         }
 
         $root = new WebdavNode('', '', true, null, 0, '', max([self::EMPTY_FOLDER_DATE, ...array_values($projectDates)]));
@@ -138,7 +146,7 @@ class WebdavTreeService
                     null,
                     0,
                     '',
-                    $this->formatDate($song->created_at)
+                    $songDates[(int) $song->id]
                 );
 
                 $nodes[$songPath] = $songNode;
@@ -244,20 +252,27 @@ class WebdavTreeService
     }
 
     /**
-     * `projects` führt keine Zeitstempel, deshalb zählt der jüngste Inhalt. Das
-     * passt auch fachlich: Am Datum sieht ein Klient, ob sich darunter etwas
-     * geändert hat.
+     * Das Datum eines Liedordners: sein eigenes Anlagedatum oder das jüngste
+     * seiner Notenblätter, was später liegt.
+     *
+     * Nur das Anlagedatum genügt nicht. Ein nachgereichtes Notenblatt ließe den
+     * Liedordner unverändert, während Projekt und Wurzel darüber sich sehr wohl
+     * ändern - ein Klient, der am Ordnerdatum entscheidet, liest dann genau den
+     * Ordner nicht neu, in dem die neue Datei liegt. Das Datum eines Projekts
+     * ist seinerseits das jüngste seiner Liedordner, `projects` führt keine
+     * eigenen Zeitstempel. Damit gilt eine Regel für jede Ebene: Am Datum sieht
+     * ein Klient, ob sich darunter etwas geändert hat.
+     *
+     * Der feste Ersatzwert ist der Boden: Ein Lied ohne lesbares Anlagedatum
+     * bekommt dasselbe Datum wie ein leerer Ordner, statt gar keines - ohne
+     * Datum bleibt `getlastmodified` leer, und daran scheiterte MobileSheets.
      */
-    private function newestContentDate(Project $project): string
+    private function newestSongDate(Song $song): string
     {
-        $dates = [self::EMPTY_FOLDER_DATE];
+        $dates = [self::EMPTY_FOLDER_DATE, (string) $this->formatDate($song->created_at)];
 
-        foreach ($project->assignedSongs as $song) {
-            $dates[] = (string) $this->formatDate($song->created_at);
-
-            foreach ($song->attachments as $attachment) {
-                $dates[] = (string) $this->formatDate($attachment->created_at);
-            }
+        foreach ($song->attachments as $attachment) {
+            $dates[] = (string) $this->formatDate($attachment->created_at);
         }
 
         return max($dates);

@@ -1207,8 +1207,7 @@ class UserController
                 recipientEmail: $targetUser->email,
                 subject: 'Einladung zu ' . $branding['app_name'],
                 bodyHtml: $htmlBody,
-                userId: (int) $targetUser->id,
-                invitationToken: $token
+                userId: (int) $targetUser->id
             );
 
             $this->logger->info('Invitation created.', [

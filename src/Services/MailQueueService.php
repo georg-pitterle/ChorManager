@@ -41,22 +41,18 @@ class MailQueueService
     }
 
     /**
-     * Enqueue an invitation mail.
+     * Reiht eine Einladung ein.
      *
-     * @param string $recipientEmail
-     * @param string $subject
-     * @param string $bodyHtml
-     * @param int $userId
-     * @param string $invitationToken
-     * @return MailQueue
+     * Der Einladungs-Token steckt im Link des Mailtextes und wird nicht
+     * zusätzlich gespeichert - Begründung bei `enqueuePasswordResetMail()`.
+     *
      * @throws Exception
      */
     public function enqueueInvitationMail(
         string $recipientEmail,
         string $subject,
         string $bodyHtml,
-        int $userId,
-        string $invitationToken
+        int $userId
     ): MailQueue {
         return $this->enqueueGenericMail(
             mailType: MailQueue::MAIL_TYPE_INVITATION,
@@ -65,28 +61,28 @@ class MailQueueService
             bodyHtml: $bodyHtml,
             payload: [
                 'user_id' => $userId,
-                'invitation_token' => $invitationToken,
             ]
         );
     }
 
     /**
-     * Enqueue a password reset mail.
+     * Reiht eine Passwort-Zurücksetzung ein.
      *
-     * @param string $recipientEmail
-     * @param string $subject
-     * @param string $bodyHtml
-     * @param int $userId
-     * @param string $resetToken
-     * @return MailQueue
+     * Den Token nimmt die Warteschlange nicht an. Er stand zuvor in der
+     * Nutzlast, und dort las ihn niemand: Geprüft wird gegen `password_resets`,
+     * aus der Nutzlast holt sich nur `user_id` jemand ab. Ein Einmal-Link zum
+     * Konto, den kein Ablauf wieder entfernt, ist damit reine Hinterlassenschaft
+     * - und eine, die der Mailtext ohnehin enthält, dessen Spalte
+     * MailDeliveryService nach dem Zustellen genau deswegen leert. Ohne
+     * Parameter kann ihn auch kein künftiger Aufrufer wieder hereingeben.
+     *
      * @throws Exception
      */
     public function enqueuePasswordResetMail(
         string $recipientEmail,
         string $subject,
         string $bodyHtml,
-        int $userId,
-        string $resetToken
+        int $userId
     ): MailQueue {
         return $this->enqueueGenericMail(
             mailType: MailQueue::MAIL_TYPE_PASSWORD_RESET,
@@ -95,7 +91,6 @@ class MailQueueService
             bodyHtml: $bodyHtml,
             payload: [
                 'user_id' => $userId,
-                'reset_token' => $resetToken,
             ]
         );
     }

@@ -366,6 +366,30 @@ final class WebdavFeatureTest extends TestCase
         );
     }
 
+    /**
+     * Dieselbe Regel eine Ebene tiefer: Der Liedordner ist der Ordner, in dem
+     * die Noten wirklich liegen. Trüge er nur das Anlagedatum des Liedes, bliebe
+     * sein Datum beim Nachreichen eines Notenblattes stehen, während Projekt und
+     * Wurzel darüber sich änderten - ein Klient, der am Ordnerdatum entscheidet,
+     * liest genau den Ordner nicht neu, in dem die neue Datei steht.
+     */
+    public function testASongFolderCarriesTheDateOfItsNewestAttachment(): void
+    {
+        $this->assignSong($this->project, 'Ave Maria', 'ave.pdf', 'Noteninhalt');
+        Capsule::table('songs')->update(['created_at' => '2026-01-10 12:00:00']);
+        Capsule::table('attachments')->update(['created_at' => '2026-03-15 12:00:00']);
+
+        $response = $this->call('PROPFIND', 'Herbstkonzert', $this->token, ['Depth' => '1']);
+
+        $this->assertSame(
+            ['Sun, 15 Mar 2026', 'Sun, 15 Mar 2026'],
+            array_map(
+                static fn(string $date): string => substr($date, 0, 16),
+                $this->lastModifiedValues($response)
+            )
+        );
+    }
+
     private function assertEveryEntryHasADate(ResponseInterface $response): void
     {
         $this->assertSame(207, $response->getStatusCode());

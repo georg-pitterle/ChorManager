@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+use App\Models\PollTextAnswer;
 use RuntimeException;
 
 /** Eine abgewiesene Stimme; der Grund steht in $reason, die Meldung ist für die Oberfläche. */
@@ -21,7 +22,8 @@ final class PollVoteException extends RuntimeException
 
     private const MESSAGES = [
         self::EMPTY_ANSWER => 'Bitte eine Antwort eingeben.',
-        self::ANSWER_TOO_LONG => 'Eine Antwort darf höchstens 500 Zeichen lang sein.',
+        self::ANSWER_TOO_LONG => 'Eine Antwort darf höchstens '
+            . PollTextAnswer::MAX_LENGTH . ' Zeichen lang sein.',
         self::WRONG_KIND => 'Diese Umfrage erwartet eine andere Art von Antwort.',
         self::EMPTY_CHOICE => 'Bitte eine Antwort wählen.',
         self::TOO_MANY => 'Bei dieser Umfrage ist nur eine Antwort möglich.',

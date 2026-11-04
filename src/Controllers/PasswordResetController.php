@@ -158,8 +158,7 @@ class PasswordResetController
                 recipientEmail: $email,
                 subject: 'Passwort zurücksetzen - ' . $branding['app_name'],
                 bodyHtml: $htmlBody,
-                userId: (int) $user->id,
-                resetToken: $token
+                userId: (int) $user->id
             );
             $_SESSION['success'] = 'Existiert die E-Mail-Adresse, wurde ein Link zum Zurücksetzen des Passworts gesendet.';
         } catch (\Exception $e) {
