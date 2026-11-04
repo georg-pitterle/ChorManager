@@ -63,6 +63,26 @@ ensure_apt_updated() {
     fi
 }
 
+# Erste unkommentierte Zuweisung eines Schlüssels aus .env, ohne Anführungszeichen.
+# Leer, wenn die Datei fehlt oder der Schlüssel nicht gesetzt ist - der Aufrufer
+# setzt dann seinen Vorgabewert ein.
+env_value() {
+    [ -f .env ] || return 0
+
+    sed -n "s/^$1=//p" .env \
+        | head -n1 \
+        | sed -e 's/^"//' -e 's/"$//' -e "s/^'//" -e "s/'\$//"
+}
+
+# Legt ein Verzeichnis an und übergibt es dem Benutzer von PHP-FPM. Rekursiv, weil
+# ältere Läufe als root schon Dateien darin hinterlassen haben können; 750 wie in
+# entrypoint.sh.
+claim_for_web_user() {
+    mkdir -p "$1"
+    chown -R www-data:www-data "$1"
+    chmod 750 "$1"
+}
+
 # "8.5" >= "8.4"? Nutzt sort -V, damit 8.10 nicht kleiner als 8.9 wirkt.
 version_at_least() {
     [ "$(printf '%s\n%s\n' "$2" "$1" | sort -V | head -n1)" = "$2" ]
@@ -461,6 +481,47 @@ if [ -f package-lock.json ]; then
     else
         log "WARNUNG: npm ci fehlgeschlagen, Oberfläche bleibt ohne Assets (siehe $LOG_DIR/npm-session-start.log)"
     fi
+fi
+
+# ------------------------------------------------- Schreibverzeichnisse ----
+# Drei Konsolenbefehle legen root ab und laufen als www-data weiter
+# (App\Util\RootPrivilegeDrop::enforceForCli in bin/dev_seed.php,
+# bin/create_backup.php und bin/import_backup.php). Im frischen Container
+# gehören die Verzeichnisse, in die sie schreiben, aber root - und root legt
+# seine Rechte hier gerade ab. `php bin/dev_seed.php` scheiterte deshalb an
+# "Could not create storage directory" und danach an "Another backup operation
+# is running"; letzteres sah nach einer hängenden Sperre aus, war aber nur eine
+# Sperrdatei, die www-data nicht anlegen durfte.
+#
+# In Produktion erledigt das entrypoint.sh bei jedem Start (dort mit derselben
+# Begründung: ein frisch angelegtes Named Volume kommt als root:root). Der
+# Cloud-Container hat keinen Entrypoint, also steht es hier - mit denselben
+# Rechten, damit sich beide Umgebungen gleich verhalten.
+#
+# Die Vorgabewerte sind die aus src/Settings.php, nicht die aus entrypoint.sh:
+# Dort liegt das Projekt unter /var/www/html, hier unter $PROJECT_DIR.
+#
+# Was die Tests als root in diesen Verzeichnissen anlegen, gehört danach wieder
+# root. Das stört niemanden - root schreibt ohnehin überall - und der nächste
+# Sitzungsstart zieht die Rechte erneut nach.
+if id -u www-data >/dev/null 2>&1; then
+    log "Schreibverzeichnisse auf www-data umschreiben"
+
+    backup_dir="$(env_value BACKUP_DIR)"
+    files_dir="$(env_value FILES_STORAGE_PATH)"
+
+    claim_for_web_user "${backup_dir:-$PROJECT_DIR/var/backups}"
+    claim_for_web_user "${files_dir:-$PROJECT_DIR/var/files}"
+
+    # Die übrigen Schreibziele liegen immer im Projekt: var/cache (Office-
+    # Discovery, Scaleway-Zertifikate, Speicherübersicht), var/tmp (Backup-Pakete
+    # in BackupPackageService), var/rate-limits (RateLimiterService) und
+    # var/htmlpurifier (HtmlSanitizer).
+    for runtime_dir in cache tmp rate-limits htmlpurifier; do
+        claim_for_web_user "$PROJECT_DIR/var/$runtime_dir"
+    done
+else
+    log "WARNUNG: Benutzer www-data fehlt; dev_seed und Backup-Befehle bleiben bei root"
 fi
 
 # -------------------------------------------------------------- Migrationen ----
