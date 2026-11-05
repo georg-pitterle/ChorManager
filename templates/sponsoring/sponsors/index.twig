@@ -107,7 +107,7 @@
                                             <i class="bi bi-image text-muted" title="Logo vorhanden" aria-label="Logo vorhanden"></i>
                                         {% endif %}
                                         <div class="text-muted small">
-                                            {{ sponsor.type == "organization" ? "Organisation" : "Einzelperson" }}{% if sponsor.category_id %} · {{ sponsor.category.name }}{% endif %}{% if sponsor.contact_person %} · {{ sponsor.contact_person }}{% endif %}
+                                            <span class="sponsor-row-type">{{ type_short_labels[sponsor.type] ?? sponsor.type }}</span>{% if sponsor.category_id %} · {{ sponsor.category.name }}{% endif %}{% if sponsor.contact_person %} · {{ sponsor.contact_person }}{% endif %}
                                         </div>
                                     </td>
                                     <td data-label="Zustand">
@@ -211,8 +211,10 @@
                             <div class="col-md-6">
                                 <label for="sponsors-index-type" class="form-label">Typ</label>
                                 <select name="type" class="form-select" id="sponsors-index-type">
-                                    <option value="organization">Organisation oder Firma</option>
-                                    <option value="person" {{ (_f.type ?? "") == "person" ? "selected" : "" }}>Einzelperson</option>
+                                    {% set _selected_type = _f.type ?? "" %}
+                                    {% for type_key, type_label in type_labels %}
+                                        <option value="{{ type_key }}" {{ _selected_type == type_key ? "selected" : "" }}>{{ type_label }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-6 d-flex align-items-end">

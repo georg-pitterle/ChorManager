@@ -529,25 +529,18 @@ class SponsoringDashboardController
 
     private function mapRecentContact(SponsoringContact $contact): array
     {
-        $typeLabels = [
-            'call' => 'Anruf',
-            'email' => 'E-Mail',
-            'meeting' => 'Treffen',
-            'letter' => 'Brief',
-            'other' => 'Sonstiges',
-        ];
-
         $contactDate = $contact->contact_date;
         $sponsor = $contact->sponsor;
         $ownerName = $this->buildOwnerName($contact);
-        $contactType = (string) ($contact->type ?? 'other');
+        $contactType = (string) ($contact->type ?? SponsoringContact::TYPE_OTHER);
 
         return [
             'contact_date_display' => $contactDate ? $contactDate->format('d.m.Y') : '-',
             'contact_date_sort' => $contactDate ? $contactDate->format('Y-m-d') : '',
             'sponsor_name' => $sponsor ? (string) $sponsor->name : '-',
             'sponsor_url' => $sponsor ? '/sponsoring/sponsors/' . $sponsor->id : '',
-            'contact_type_label' => $typeLabels[$contactType] ?? 'Sonstiges',
+            'contact_type_label' => SponsoringContact::TYPE_LABELS[$contactType]
+                ?? SponsoringContact::TYPE_LABELS[SponsoringContact::TYPE_OTHER],
             'contact_type_sort' => $contactType,
             'summary' => (string) ($contact->summary ?? ''),
             'owner_name' => $ownerName,

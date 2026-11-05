@@ -31,6 +31,25 @@ class SponsoringContact extends Model
         self::TYPE_OTHER,
     ];
 
+    /**
+     * Beschriftung je Kontaktart.
+     *
+     * Stand zweimal da: als Twig-Zuordnung in `sponsoring/sponsors/detail.twig`
+     * und als lokales Array in
+     * `SponsoringDashboardController::mapRecentContact()`, dort bei jedem
+     * Aufruf neu gebaut. Gleiche Begründung wie bei
+     * `MailQueue::MAIL_TYPE_LABELS`.
+     *
+     * @var array<string, string>
+     */
+    public const TYPE_LABELS = [
+        self::TYPE_CALL => 'Anruf',
+        self::TYPE_EMAIL => 'E-Mail',
+        self::TYPE_MEETING => 'Treffen',
+        self::TYPE_LETTER => 'Brief',
+        self::TYPE_OTHER => 'Sonstiges',
+    ];
+
     protected $table = 'sponsoring_contacts';
     public $timestamps = false;
 

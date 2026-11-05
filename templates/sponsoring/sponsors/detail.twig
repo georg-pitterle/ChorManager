@@ -11,7 +11,6 @@
    sp.project): Ist die Relation leer, ruft Twig die gleichnamige Methode auf und
    bekommt ein Relationsobjekt, das als wahr gilt - "Ohne Projekt" erschien nie,
    der Titel blieb leer. #}
-{% set contact_type_labels = {call: "Anruf", email: "E-Mail", meeting: "Treffen", letter: "Brief", other: "Sonstiges"} %}
 {% set contact_type_icons = {call: "bi-telephone", email: "bi-envelope", meeting: "bi-people", letter: "bi-file-text", other: "bi-chat-dots"} %}
 {% set today_iso = "now"|date("Y-m-d") %}
 
@@ -21,7 +20,7 @@
             <h1 class="h2 mb-1">{{ sponsor.name }}</h1>
             <p class="text-muted mb-0 sponsor-head-meta">
                 <span class="badge {{ state_badges[sponsor_state] }}">{{ state_labels[sponsor_state] }}</span>
-                {{ sponsor.type == "organization" ? "Organisation oder Firma" : "Einzelperson" }}
+                {{ type_labels[sponsor.type] ?? sponsor.type }}
             </p>
             {% if sponsor.requests_blocked and sponsor.requests_blocked_note %}
                 <p class="text-muted small mb-0 mt-1">{{ sponsor.requests_blocked_note }}</p>
@@ -657,8 +656,10 @@
                             <div class="col-md-6">
                                 <label for="sponsors-detail-type" class="form-label">Typ</label>
                                 <select name="type" class="form-select" id="sponsors-detail-type">
-                                    <option value="organization" {{ (_f.type ?? sponsor.type) == "organization" ? "selected" : "" }}>Organisation oder Firma</option>
-                                    <option value="person" {{ (_f.type ?? sponsor.type) == "person" ? "selected" : "" }}>Einzelperson</option>
+                                    {% set _selected_type = _f.type ?? sponsor.type %}
+                                    {% for type_key, type_label in type_labels %}
+                                        <option value="{{ type_key }}" {{ _selected_type == type_key ? "selected" : "" }}>{{ type_label }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-6">

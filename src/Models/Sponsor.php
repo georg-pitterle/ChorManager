@@ -41,6 +41,40 @@ class Sponsor extends Model
         self::TYPE_PERSON,
     ];
 
+    /**
+     * Beschriftung je Typ, ausgeschrieben - für das Auswahlfeld und die
+     * Kopfzeile der Einzelansicht.
+     *
+     * Steht hier und nicht in den Vorlagen, gleiche Begründung wie bei
+     * `MailQueue::MAIL_TYPE_LABELS`: Die Zuordnung stand dreimal da, in
+     * `sponsoring/sponsors/detail.twig` zweimal und in
+     * `sponsoring/sponsors/index.twig` einmal.
+     *
+     * @var array<string, string>
+     */
+    public const TYPE_LABELS = [
+        self::TYPE_ORGANIZATION => 'Organisation oder Firma',
+        self::TYPE_PERSON => 'Einzelperson',
+    ];
+
+    /**
+     * Dieselben Typen, knapp - für die Meta-Zeile der Übersicht, in der der Typ
+     * mit Kategorie und Kontaktperson durch `·` getrennt in einer Zeile steht.
+     *
+     * Eine zweite Zuordnung und nicht die ausgeschriebene auch dort: Die
+     * Übersicht schrieb schon vorher "Organisation" statt "Organisation oder
+     * Firma", und das ist in dieser Zeile die richtige Länge. Die Doppelung
+     * bleibt damit, aber benannt - vorher standen beide Fassungen unbenannt in
+     * je einer Vorlage, und dass sie verschieden sind, war an keiner der beiden
+     * Stellen zu sehen.
+     *
+     * @var array<string, string>
+     */
+    public const TYPE_SHORT_LABELS = [
+        self::TYPE_ORGANIZATION => 'Organisation',
+        self::TYPE_PERSON => 'Einzelperson',
+    ];
+
     protected $table = 'sponsors';
     public $timestamps = true;
 

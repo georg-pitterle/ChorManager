@@ -11,6 +11,7 @@ use Slim\Views\Twig;
 use App\Controllers\Concerns\AttachmentUploadJson;
 use App\Models\Sponsor;
 use App\Models\SponsorCategory;
+use App\Models\SponsoringContact;
 use App\Models\SponsorPackage;
 use App\Models\Sponsorship;
 use App\Models\User;
@@ -117,6 +118,11 @@ class SponsorController
             'state_options'  => SponsorEngagementState::options(),
             'state_badges'   => SponsorEngagementState::badgeClasses(),
             'state_labels'   => SponsorEngagementState::labels(),
+            // Die knappe Fassung für die Meta-Zeile unter dem Namen, die
+            // ausgeschriebene für das Auswahlfeld im Anlegen-Dialog. Siehe
+            // Sponsor::TYPE_SHORT_LABELS.
+            'type_labels'    => Sponsor::TYPE_LABELS,
+            'type_short_labels' => Sponsor::TYPE_SHORT_LABELS,
             'categories'     => $this->categories(),
             'create_form'    => $this->takeFormState(self::CREATE_FORM_SCOPE),
             'success'        => $success,
@@ -312,6 +318,10 @@ class SponsorController
             'responsibility' => SponsorResponsibility::forSponsor($sponsor),
             'state_labels'   => SponsorEngagementState::labels(),
             'state_badges'   => SponsorEngagementState::badgeClasses(),
+            'type_labels'    => Sponsor::TYPE_LABELS,
+            // Die Kontaktarten stehen hier und nicht als `{% set %}` in der
+            // Vorlage: Das Dashboard braucht dieselbe Zuordnung.
+            'contact_type_labels' => SponsoringContact::TYPE_LABELS,
             // Je Zeile vorberechnet, damit das Template nur ein Kennzeichen
             // abfragt und die Regel an einer Stelle steht.
             'visible_details' => $this->buildDetailVisibility($sponsor),

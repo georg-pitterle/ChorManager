@@ -327,6 +327,18 @@ final class SponsoringPagesFeatureTest extends TestCase
         return (string) $response->getBody();
     }
 
+    private function renderIndex(): string
+    {
+        $response = (new SponsorController(
+            $this->createAppTwig('/sponsoring/sponsors'),
+            new SponsoringPolicy($_SESSION),
+            $this->attachmentService()
+        ))->index($this->makeRequest('GET', '/sponsoring/sponsors'), $this->makeResponse());
+        $this->assertSame(200, $response->getStatusCode());
+
+        return (string) $response->getBody();
+    }
+
     /** @return array<string, mixed> */
     private function sponsorIndexData(): array
     {
@@ -403,6 +415,90 @@ final class SponsoringPagesFeatureTest extends TestCase
             'password' => PasswordHasher::hash('x'),
             'is_active' => 1,
         ]);
+    }
+
+    // ---- Beschriftungen ----------------------------------------------------
+
+    /**
+     * Typ und Kontaktart stehen in der Oberfläche als deutsche Beschriftung da,
+     * nicht als englischer Schlüssel.
+     *
+     * Die Zuordnungen liegen seit Lauf 65 an den Modellen
+     * (`Sponsor::TYPE_LABELS`, `Sponsor::TYPE_SHORT_LABELS`,
+     * `SponsoringContact::TYPE_LABELS`) und kommen über den Controller in die
+     * Vorlage. `SponsorTypeValuesTest` hält fest, dass die Zuordnungen
+     * vollständig sind und nicht mehr in Vorlage oder Controller stehen - das
+     * sagt aber nichts darüber, ob sie auch ankommen. Vergisst ein Controller
+     * die Übergabe, greift in der Vorlage der `??`-Zweig und es steht
+     * "organization" da, ohne dass irgendetwas scheitert. Deshalb hier gegen
+     * das erzeugte HTML.
+     */
+    public function testDieUebersichtZeigtDenTypAlsKnappeBeschriftung(): void
+    {
+        $this->makeSponsor();
+
+        $html = $this->renderIndex();
+
+        // Auf den eigenen Behälter geprüft und nicht auf die Zeichenkette
+        // irgendwo im HTML: "Organisation" steht als Teil von "Organisation oder
+        // Firma" auch im Auswahlfeld des Anlegen-Dialogs, und eine Prüfung
+        // darauf blieb grün, als die Übergabe von `type_short_labels` zum
+        // Versuch entfernt wurde. Der Behälter `sponsor-row-type` trägt genau
+        // den einen Wert, und der `??`-Zweig der Vorlage fällt damit auf.
+        $this->assertStringContainsString(
+            '<span class="sponsor-row-type">' . Sponsor::TYPE_SHORT_LABELS[Sponsor::TYPE_ORGANIZATION] . '</span>',
+            $html
+        );
+        $this->assertStringNotContainsString(
+            '<span class="sponsor-row-type">' . Sponsor::TYPE_ORGANIZATION . '</span>',
+            $html,
+            'Die Meta-Zeile zeigt den rohen Spaltenwert - type_short_labels kam nicht in der Vorlage an.'
+        );
+    }
+
+    /**
+     * Das Auswahlfeld im Anlegen-Dialog trägt die ausgeschriebene Fassung, und
+     * zwar für jeden Typ - vorher stand dort eine Aufzählung von Hand, in der
+     * ein Typ hätte fehlen können.
+     */
+    public function testDasAuswahlfeldDerUebersichtKenntJedenTyp(): void
+    {
+        $html = $this->renderIndex();
+
+        foreach (Sponsor::TYPES as $type) {
+            $this->assertStringContainsString(
+                sprintf('value="%s"', $type),
+                $html,
+                sprintf('Der Typ "%s" fehlt im Auswahlfeld.', $type)
+            );
+            $this->assertStringContainsString(Sponsor::TYPE_LABELS[$type], $html);
+        }
+    }
+
+    public function testDieEinzelansichtZeigtTypUndKontaktartAlsBeschriftung(): void
+    {
+        $sponsor = Sponsor::create([
+            'name' => 'Beschriftungstest ' . bin2hex(random_bytes(4)),
+            'type' => Sponsor::TYPE_PERSON,
+            'created_by_user_id' => $this->manager->id,
+        ]);
+        SponsoringContact::create([
+            'sponsor_id' => $sponsor->id,
+            'user_id' => $this->manager->id,
+            'contact_date' => '2026-11-01',
+            'type' => SponsoringContact::TYPE_MEETING,
+            'summary' => 'Beschriftungstest',
+        ]);
+
+        $html = $this->renderDetail($sponsor);
+
+        $this->assertStringContainsString(Sponsor::TYPE_LABELS[Sponsor::TYPE_PERSON], $html);
+        $this->assertStringContainsString(SponsoringContact::TYPE_LABELS[SponsoringContact::TYPE_MEETING], $html);
+        $this->assertStringNotContainsString(
+            SponsoringContact::TYPE_LABELS[SponsoringContact::TYPE_OTHER] . '</span>',
+            $html,
+            'Die Kontaktart fiel auf "Sonstiges" zurück - die Zuordnung kam nicht in der Vorlage an.'
+        );
     }
 
     private function makeSponsor(): Sponsor

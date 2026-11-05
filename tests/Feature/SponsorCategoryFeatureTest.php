@@ -161,7 +161,15 @@ final class SponsorCategoryFeatureTest extends TestCase
         $this->assertStringContainsString('data-category="' . $sponsor->category_id . '"', $html);
         // In der Unterzeile unter dem Namen, keine eigene Spalte: Eine weitere
         // Spalte ließ die Tabelle schon bei 1440 px in die Kartenansicht kippen.
-        $this->assertStringContainsString('Organisation · Einzelhandel', $html);
+        //
+        // Der Typ steht seit Lauf 65 in `<span class="sponsor-row-type">`. Der
+        // Behälter ist der Angriffspunkt, an dem SponsoringPagesFeatureTest
+        // prüft, dass dort die Beschriftung aus `Sponsor::TYPE_SHORT_LABELS`
+        // ankommt und nicht der rohe Spaltenwert.
+        $this->assertStringContainsString(
+            '<span class="sponsor-row-type">Organisation</span> · Einzelhandel',
+            $html
+        );
         $this->assertStringNotContainsString('data-label="Kategorie"', $html);
     }
 
