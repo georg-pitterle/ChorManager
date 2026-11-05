@@ -15,7 +15,8 @@ use App\Util\InputValidator;
 
 class SponsoringContactController
 {
-    private const ALLOWED_CONTACT_TYPES = ['call', 'email', 'meeting', 'letter', 'other'];
+    /** Siehe `SponsoringContact::TYPES` - die Werte spiegeln das ENUM der Spalte. */
+    private const ALLOWED_CONTACT_TYPES = SponsoringContact::TYPES;
     private const MAX_SUMMARY_LENGTH = 2000;
 
     public const BLOCKED_ERROR = 'Dieser Sponsor hat sich weitere Anfragen verbeten.';

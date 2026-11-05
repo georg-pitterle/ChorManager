@@ -28,6 +28,18 @@ class Poll extends Model
     public const KIND_CHOICE = 'choice';
     public const KIND_TEXT = 'text';
 
+    /**
+     * Die Werte spiegeln das ENUM der Spalte `polls.answer_kind` (Migration
+     * 20261103123000). Die Konstanten gab es schon, die Liste nicht - und erst
+     * sie hält ModelSchemaConsistencyTest gegen die Spalte.
+     *
+     * @var list<string>
+     */
+    public const ANSWER_KINDS = [
+        self::KIND_CHOICE,
+        self::KIND_TEXT,
+    ];
+
     protected $table = 'polls';
 
     /** Wie die Spaltenvorgabe; sonst trüge ein frisch angelegtes Modell null. */

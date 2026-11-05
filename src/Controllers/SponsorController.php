@@ -755,7 +755,7 @@ class SponsorController
         return [
             'error' => null,
             'values' => [
-                'type'           => in_array($type, ['organization', 'person'], true) ? $type : 'organization',
+                'type'           => in_array($type, Sponsor::TYPES, true) ? $type : Sponsor::TYPE_ORGANIZATION,
                 'category_id'    => $category['id'],
                 'name'           => $name,
                 'contact_person' => $contactPerson,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Models;
 
+use App\Util\EntityType;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use PHPUnit\Framework\TestCase;
@@ -57,6 +59,16 @@ final class ModelSchemaConsistencyTest extends TestCase
      * MailQueueMailTypesTest einen eigenen Wächter, der zusätzlich die Labels
      * prüft.
      *
+     * Mit Lauf 65 kamen die letzten sechs Namen dazu. Bis dahin hatten elf
+     * ENUM-Spalten keine Liste am Modell, die dieser Test hätte prüfen können -
+     * `polls.answer_kind`, `finance_accounts.type`, `finance_revisions.action`,
+     * `budget_categories.type`, `sponsors.type`, `sponsoring_contacts.type`,
+     * `attachments.delivery_mode`, `mail_delivery_events.source_channel`,
+     * `user_mail_accounts.imap_encryption` und die beiden `source_type`. Teils
+     * gab es die Einzelkonstanten schon, teils standen die Werte als Aufzählung
+     * in einem Controller oder Dienst. Beides hält eine Migration nicht auf:
+     * Genau so überlebte `queued` die Migration 20260419223000 ein halbes Jahr.
+     *
      * @var array<string, string>
      */
     private const ENUM_MIRRORING_LISTS = [
@@ -70,6 +82,26 @@ final class ModelSchemaConsistencyTest extends TestCase
         'PAYMENT_METHODS' => 'payment_method',
         'PRIORITIES' => 'priority',
         'RESOURCE_TYPES' => 'resource_type',
+        'ACTIONS' => 'action',
+        'ANSWER_KINDS' => 'answer_kind',
+        'DELIVERY_MODES' => 'delivery_mode',
+        'SOURCE_CHANNELS' => 'source_channel',
+        'SOURCE_TYPES' => 'source_type',
+        'IMAP_ENCRYPTIONS' => 'imap_encryption',
+    ];
+
+    /**
+     * ENUM-Spalten, die bewusst keine Werteliste am Modell haben.
+     *
+     * Die Liste bleibt klein und wird einzeln begründet - sie ist der Ort, an
+     * dem jemand bewusst sagt "diese Spalte wird anderswo bewacht".
+     *
+     * @var array<string, string> "tabelle.spalte" => Begründung
+     */
+    private const ENUM_WITHOUT_LIST = [
+        // MailQueueMailTypesTest hält `MailQueue::SUPPORTED_MAIL_TYPES` gegen
+        // das ENUM und prüft zusätzlich, dass jede Mailart ein Label hat.
+        'mail_queue.mail_type' => 'Eigener Wächter in MailQueueMailTypesTest.',
     ];
 
     /** @var array<string, list<string>>|null */
@@ -243,22 +275,56 @@ final class ModelSchemaConsistencyTest extends TestCase
     }
 
     /**
-     * Schützt davor, dass der Test oben leer durchläuft, weil keine einzige
-     * Werteliste mehr gefunden wird.
+     * Umgekehrte Richtung: Jede ENUM-Spalte im Schema braucht eine Werteliste
+     * an ihrem Modell.
+     *
+     * Der Test oben prüft die Listen, die es gibt. Er sagt nichts über die, die
+     * fehlen - und genau daran lag es: Elf ENUM-Spalten hatten keine, und der
+     * Test lief über sie hinweg, ohne etwas zu melden. Eine neue ENUM-Spalte
+     * fällt jetzt sofort auf, und zwar an derselben Stelle, an der auch die
+     * Abweichung einer bestehenden Liste auffällt.
+     *
+     * Ersetzt die frühere Zählprobe ("mindestens acht Listen gefunden"). Die
+     * sollte verhindern, dass der Test leer durchläuft, hat aber nur die
+     * Untergrenze bewacht: Dass eine Spalte ohne Liste dasteht, konnte sie
+     * nicht sehen. Diese Prüfung leistet beides - sie läuft nie leer, weil das
+     * Schema die Liste der Fälle vorgibt.
      */
-    public function testEsGibtUeberhauptStatuslistenZuPruefen(): void
+    public function testJedeEnumSpalteHatEineWerteliste(): void
     {
-        $found = 0;
+        $listsByColumn = [];
 
         foreach (self::modelProvider() as [$class]) {
             $reflection = new ReflectionClass($class);
+            $table = (new $class())->getTable();
 
-            foreach (array_keys(self::ENUM_MIRRORING_LISTS) as $name) {
-                $found += $reflection->hasConstant($name) ? 1 : 0;
+            foreach (self::ENUM_MIRRORING_LISTS as $name => $column) {
+                if ($reflection->hasConstant($name)) {
+                    $listsByColumn[$table . '.' . $column] = true;
+                }
             }
         }
 
-        self::assertGreaterThanOrEqual(8, $found, 'Es wurde kaum eine Werteliste erkannt.');
+        $problems = [];
+        $checked = 0;
+
+        foreach ($this->enumColumns() as $qualified) {
+            $checked++;
+
+            if (isset(self::ENUM_WITHOUT_LIST[$qualified]) || isset($listsByColumn[$qualified])) {
+                continue;
+            }
+
+            $problems[] = sprintf(
+                '%s ist ein ENUM, aber kein Modell führt dazu eine Werteliste. Entweder eine Liste '
+                    . 'anlegen und ihren Namen in ENUM_MIRRORING_LISTS eintragen oder in '
+                    . 'ENUM_WITHOUT_LIST begründen.',
+                $qualified
+            );
+        }
+
+        self::assertSame([], $problems, implode("\n", $problems));
+        self::assertGreaterThan(20, $checked, 'Es wurde kaum eine ENUM-Spalte gefunden.');
     }
 
     /**
@@ -292,6 +358,26 @@ final class ModelSchemaConsistencyTest extends TestCase
                 $foreignKey = $relation->getForeignKeyName();
                 $this->requireColumn($problems, $label, $relation->getRelated()->getTable(), $foreignKey);
                 $this->requireColumn($problems, $label, $model->getTable(), $relation->getLocalKeyName());
+                continue;
+            }
+
+            // Vor BelongsTo, denn MorphTo erbt davon: Ein MorphTo hat keine feste
+            // Gegenseite, `getOwnerKeyName()` ist an einer leeren Instanz null.
+            // Geprüft werden deshalb die beiden eigenen Spalten und der
+            // Schlüssel jeder Klasse, die die Morph-Map nennt.
+            if ($relation instanceof MorphTo) {
+                $this->requireColumn($problems, $label, $model->getTable(), $relation->getForeignKeyName());
+                $this->requireColumn($problems, $label, $model->getTable(), $relation->getMorphType());
+
+                foreach (EntityType::map() as $alias => $target) {
+                    $related = new $target();
+                    $this->requireColumn(
+                        $problems,
+                        $label . ' über "' . $alias . '"',
+                        $related->getTable(),
+                        $related->getKeyName()
+                    );
+                }
                 continue;
             }
 
@@ -614,6 +700,28 @@ final class ModelSchemaConsistencyTest extends TestCase
             }
 
             $columns[] = str_contains($column, '.') ? substr(strrchr($column, '.') ?: '', 1) : $column;
+        }
+
+        return $columns;
+    }
+
+    /**
+     * Alle ENUM-Spalten des Schemas als "tabelle.spalte".
+     *
+     * @return list<string>
+     */
+    private function enumColumns(): array
+    {
+        $this->loadSchema();
+
+        $columns = [];
+
+        foreach (self::$typesByTable ?? [] as $table => $types) {
+            foreach ($types as $column => $type) {
+                if (preg_match('/^enum\(/i', $type) === 1) {
+                    $columns[] = $table . '.' . $column;
+                }
+            }
         }
 
         return $columns;

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Models\Attachment;
+use App\Models\Newsletter;
 use Illuminate\Support\Collection;
 
 /**
@@ -21,10 +22,16 @@ use Illuminate\Support\Collection;
  */
 class NewsletterAttachmentService
 {
-    public const ENTITY_TYPE = 'newsletter';
+    /** Siehe `Newsletter::ENTITY_TYPE` - der Wert steht am Modell. */
+    public const ENTITY_TYPE = Newsletter::ENTITY_TYPE;
 
-    public const MODE_ATTACH = 'attach';
-    public const MODE_LINK = 'link';
+    /**
+     * Die beiden Zustellwege. Die Werte stehen an `Attachment`, weil sie die
+     * Spalte `attachments.delivery_mode` spiegeln und von
+     * ModelSchemaConsistencyTest gegen deren ENUM gehalten werden.
+     */
+    public const MODE_ATTACH = Attachment::DELIVERY_MODE_ATTACH;
+    public const MODE_LINK = Attachment::DELIVERY_MODE_LINK;
 
     /**
      * Bis hierher schlägt die Oberfläche "An die Mail hängen" vor, darüber

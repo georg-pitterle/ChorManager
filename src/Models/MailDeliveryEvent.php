@@ -8,6 +8,24 @@ use Illuminate\Database\Eloquent\Model;
 
 final class MailDeliveryEvent extends Model
 {
+    /**
+     * Woher die Rückmeldung kam: aus dem Webhook des Versanddienstleisters oder
+     * aus einer Unzustellbarkeitsnachricht im Postfach (DSN). Die Werte
+     * spiegeln das ENUM der Spalte `mail_delivery_events.source_channel`.
+     *
+     * Sie standen nur als `Controllers\Concerns\MailDeliveryIngest::CHANNEL_*`
+     * in der HTTP-Schicht; gegen das ENUM stand damit nichts. Der Trait
+     * verweist jetzt hierauf.
+     */
+    public const SOURCE_CHANNEL_DSN = 'dsn';
+    public const SOURCE_CHANNEL_WEBHOOK = 'webhook';
+
+    /** @var list<string> */
+    public const SOURCE_CHANNELS = [
+        self::SOURCE_CHANNEL_DSN,
+        self::SOURCE_CHANNEL_WEBHOOK,
+    ];
+
     protected $table = 'mail_delivery_events';
 
     protected $fillable = [

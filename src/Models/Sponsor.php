@@ -23,6 +23,24 @@ class Sponsor extends Model
      */
     public const LOGO_ENTITY_TYPE = 'sponsor_logo';
 
+    /**
+     * Ob hinter dem Sponsor eine Organisation oder eine Einzelperson steht. Die
+     * Werte spiegeln das ENUM der Spalte `sponsors.type`.
+     *
+     * Vorher standen sie nirgends benannt: `SponsorController` brachte
+     * `['organization', 'person']` als eigene Aufzählung mit, drei Vorlagen
+     * verglichen gegen Zeichenketten. Ein Vertipper wäre still geblieben, denn
+     * das ENUM weist einen unbekannten Wert nicht in jedem Modus ab.
+     */
+    public const TYPE_ORGANIZATION = 'organization';
+    public const TYPE_PERSON = 'person';
+
+    /** @var list<string> */
+    public const TYPES = [
+        self::TYPE_ORGANIZATION,
+        self::TYPE_PERSON,
+    ];
+
     protected $table = 'sponsors';
     public $timestamps = true;
 

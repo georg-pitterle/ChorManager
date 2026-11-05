@@ -16,6 +16,16 @@ class NewsletterTemplateRecipientSource extends Model
 {
     public const TYPE_EVENT_ATTENDEES = NewsletterRecipientSource::TYPE_EVENT_ATTENDEES;
 
+    /**
+     * Dieselbe Liste wie beim Newsletter - die Vorlage spiegelt seine Quellen.
+     * Die eigene Konstante ist nötig, weil ModelSchemaConsistencyTest sie am
+     * Modell der Tabelle sucht und hier `newsletter_template_recipient_sources`
+     * geprüft wird.
+     *
+     * @var list<string>
+     */
+    public const SOURCE_TYPES = NewsletterRecipientSource::SOURCE_TYPES;
+
     protected $table = 'newsletter_template_recipient_sources';
     public $timestamps = false;
 

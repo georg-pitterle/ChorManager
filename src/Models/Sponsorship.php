@@ -21,6 +21,21 @@ class Sponsorship extends Model
     /** Der Wert, unter dem Anhänge an dieser Vereinbarung hängen. */
     public const ENTITY_TYPE = 'sponsorship';
 
+    /**
+     * Die Werte spiegeln das ENUM der Spalte `sponsorships.status`. Geführt
+     * werden sie in `App\Util\SponsorshipStatus` - dort hängen Labels, Farben
+     * und die Auswertungsgruppen daran, und die Liste wird von dort genommen
+     * statt hier ein zweites Mal aufgeschrieben.
+     *
+     * Dass sie trotzdem am Modell steht: ModelSchemaConsistencyTest sucht die
+     * Liste am Modell der Tabelle. Vorher hielt `SponsorshipStatusFeatureTest`
+     * die fünf Werte gegen eine im Test abgeschriebene Aufzählung - gegen das
+     * ENUM der Spalte stand nichts.
+     *
+     * @var list<string>
+     */
+    public const STATUSES = SponsorshipStatus::ALL;
+
     protected $table = 'sponsorships';
     public $timestamps = true;
 

@@ -8,6 +8,29 @@ use Illuminate\Database\Eloquent\Model;
 
 class SponsoringContact extends Model
 {
+    /**
+     * Auf welchem Weg der Kontakt zustande kam. Die Werte spiegeln das ENUM der
+     * Spalte `sponsoring_contacts.type`.
+     *
+     * Vorher standen sie als `SponsoringContactController::ALLOWED_CONTACT_TYPES`
+     * in der HTTP-Schicht, also als Aufzählung neben dem ENUM statt als dessen
+     * Spiegel. Der Controller verweist jetzt hierauf.
+     */
+    public const TYPE_CALL = 'call';
+    public const TYPE_EMAIL = 'email';
+    public const TYPE_MEETING = 'meeting';
+    public const TYPE_LETTER = 'letter';
+    public const TYPE_OTHER = 'other';
+
+    /** @var list<string> */
+    public const TYPES = [
+        self::TYPE_CALL,
+        self::TYPE_EMAIL,
+        self::TYPE_MEETING,
+        self::TYPE_LETTER,
+        self::TYPE_OTHER,
+    ];
+
     protected $table = 'sponsoring_contacts';
     public $timestamps = false;
 

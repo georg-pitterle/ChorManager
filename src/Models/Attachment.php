@@ -4,10 +4,33 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Util\EntityType;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class Attachment extends Model
 {
+    /**
+     * Wie ein Anhang beim Empfänger ankommt: an der Mail oder als Link auf die
+     * Leseseite. Die Werte spiegeln das ENUM der Spalte
+     * `attachments.delivery_mode` (Migration 20260719181000).
+     *
+     * Sie standen bis hierher nur als `NewsletterAttachmentService::MODE_ATTACH`
+     * und `MODE_LINK` in der Dienstschicht und als Zeichenketten in
+     * `newsletters/edit.twig`. Gegen das ENUM stand damit nichts - eine per
+     * Migration ergänzte Zustellart hätte keine Prüfmethode erkannt, und
+     * `NewsletterAttachmentService::updateMode()` hätte sie abgewiesen, obwohl
+     * die Spalte sie kennt. Der Dienst verweist jetzt hierauf.
+     */
+    public const DELIVERY_MODE_ATTACH = 'attach';
+    public const DELIVERY_MODE_LINK = 'link';
+
+    /** @var list<string> */
+    public const DELIVERY_MODES = [
+        self::DELIVERY_MODE_ATTACH,
+        self::DELIVERY_MODE_LINK,
+    ];
+
     protected $table = 'attachments';
     public $timestamps = false;
 
@@ -69,27 +92,39 @@ class Attachment extends Model
     ];
 
     /**
-     * Rückrichtung des polymorphen Anhangs auf das Lied. entity_type steht auf
-     * der Anhang-Zeile selbst; als Relations-Bedingung landete die Spalte in der
-     * Abfrage auf songs und ließ die Relation mit einem SQL-Fehler auflaufen.
-     * Die Unterscheidung gehört deshalb vor die Abfrage.
+     * Meldet die Morph-Map an, bevor die erste Zeile gelesen wird.
      *
-     * Nur für den Einzelzugriff ($attachment->song). Eager Loading
-     * (Attachment::with('song')) trägt hier nicht: Eloquent baut die
-     * Eager-Bedingung aus einer leeren Modellinstanz, deren entity_type null
-     * ist - die Relation bleibt dann für jede Zeile leer. Wer viele Anhänge
-     * mit ihrem Lied braucht, filtert vorher auf entity_type = 'song' und holt
-     * die Lieder in einer eigenen Abfrage. Sauber lösen ließe sich das nur
-     * mit morphTo und einer Morph-Map über alle Entitätstypen.
+     * `booted()` läuft einmal je Prozess, beim ersten Zugriff auf das Modell -
+     * also immer vor dem Auflösen eines `entity_type`. Warum hier und nicht in
+     * `src/Dependencies.php`, steht in `EntityType::register()`.
      */
-    public function song()
+    protected static function booted(): void
     {
-        $relation = $this->belongsTo(Song::class, 'entity_id', 'id');
+        EntityType::register();
+    }
 
-        if ($this->entity_type !== Song::ENTITY_TYPE) {
-            $relation->whereRaw('1 = 0');
-        }
-
-        return $relation;
+    /**
+     * Rückrichtung des polymorphen Anhangs auf seine Entität - Lied, Projekt,
+     * Aufgabe, Sponsor, Vereinbarung, Buchung, Newsletter.
+     *
+     * Bis hierher gab es nur `song()`: eine belongsTo auf Lieder, die sich mit
+     * `whereRaw('1 = 0')` selbst abschaltete, wenn die Zeile etwas anderes
+     * meinte. Das trug nur den Einzelzugriff. Eager Loading
+     * (`Attachment::with('song')`) blieb für jede Zeile leer, weil Eloquent die
+     * Eager-Bedingung aus einer leeren Modellinstanz baut, deren `entity_type`
+     * null ist - und für alles außer Liedern gab es die Rückrichtung überhaupt
+     * nicht.
+     *
+     * `morphTo` kennt das Muster: Es gruppiert die geladenen Zeilen nach
+     * `entity_type`, löst jeden Namen über die Map in `App\Util\EntityType` auf
+     * und holt je Tabelle eine Abfrage. Eine gemischte Liste kostet damit so
+     * viele Abfragen, wie Entitätsarten darin vorkommen, statt einer je Zeile.
+     *
+     * Eine Zeile ohne passende Entität liefert `null`: Anhänge stehen ohne
+     * Fremdschlüssel da, eine verwaiste Zeile ist also möglich.
+     */
+    public function entity(): MorphTo
+    {
+        return $this->morphTo(__FUNCTION__, 'entity_type', 'entity_id');
     }
 }

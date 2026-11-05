@@ -57,11 +57,30 @@ final class SponsorshipStatus
     ];
 
     /**
+     * Alle Status, in der Reihenfolge des Durchlaufs - und derselbe Satz, den
+     * das ENUM der Spalte `sponsorships.status` zulässt.
+     *
+     * Als Konstante und nicht nur als `all()`: `Sponsorship::STATUSES` verweist
+     * darauf, und ein Methodenaufruf ist in einem Konstanten-Initialisierer
+     * nicht erlaubt. Ohne diesen Weg hätte das Modell die fünf Werte ein
+     * zweites Mal aufzählen müssen, und genau das soll diese Klasse verhindern.
+     *
+     * @var list<string>
+     */
+    public const ALL = [
+        self::REQUESTED,
+        self::REMINDED,
+        self::ACCEPTED,
+        self::DECLINED,
+        self::CLOSED,
+    ];
+
+    /**
      * @return list<string>
      */
     public static function all(): array
     {
-        return array_keys(self::LABELS);
+        return self::ALL;
     }
 
     /**

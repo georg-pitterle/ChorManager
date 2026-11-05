@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers\Concerns;
 
+use App\Models\MailDeliveryEvent;
 use Psr\Http\Message\ResponseInterface as Response;
 
 /**
@@ -38,8 +39,8 @@ trait MailDeliveryIngest
      * "Cannot access trait constant ... directly"; das ist eine Eigenheit von
      * Trait-Konstanten und keine Nachlässigkeit hier.
      */
-    public const CHANNEL_WEBHOOK = 'webhook';
-    public const CHANNEL_DSN = 'dsn';
+    public const CHANNEL_WEBHOOK = MailDeliveryEvent::SOURCE_CHANNEL_WEBHOOK;
+    public const CHANNEL_DSN = MailDeliveryEvent::SOURCE_CHANNEL_DSN;
 
     /**
      * @param array<array-key, mixed> $payload

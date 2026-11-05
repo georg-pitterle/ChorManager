@@ -11,6 +11,22 @@ class FinanceAccount extends Model
     public const TYPE_CASH = 'cash';
     public const TYPE_BANK = 'bank';
 
+    /**
+     * Die Werte spiegeln das ENUM der Spalte `finance_accounts.type`. Die
+     * Konstanten gab es schon, die Liste nicht - und erst sie hält
+     * ModelSchemaConsistencyTest gegen die Spalte.
+     *
+     * Nicht zu verwechseln mit `Finance::TYPES`: Das ist die Richtung einer
+     * Buchung (Einnahme/Ausgabe), hier steht die Art des Kontos. Beide heißen
+     * `type` und meinen Verschiedenes - siehe `paymentMethod()` weiter unten.
+     *
+     * @var list<string>
+     */
+    public const TYPES = [
+        self::TYPE_CASH,
+        self::TYPE_BANK,
+    ];
+
     protected $table = 'finance_accounts';
 
     protected $fillable = [

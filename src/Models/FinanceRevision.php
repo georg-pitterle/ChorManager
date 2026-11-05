@@ -18,6 +18,20 @@ class FinanceRevision extends Model
     /** Buchungsabschluss verschoben - hängt an keiner einzelnen Buchung. */
     public const ACTION_LOCK = 'lock';
 
+    /**
+     * Die Werte spiegeln das ENUM der Spalte `finance_revisions.action`. Die
+     * Konstanten gab es schon und FinanceJournalService benutzt sie durchweg;
+     * gefehlt hat die Liste, und ohne sie stand die Spalte ungeprüft da.
+     *
+     * @var list<string>
+     */
+    public const ACTIONS = [
+        self::ACTION_CREATE,
+        self::ACTION_UPDATE,
+        self::ACTION_REVERSE,
+        self::ACTION_LOCK,
+    ];
+
     protected $table = 'finance_revisions';
     public $timestamps = false;
 

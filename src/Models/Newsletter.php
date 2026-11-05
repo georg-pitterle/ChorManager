@@ -13,6 +13,21 @@ class Newsletter extends Model
 {
     use HasAudienceConditionSets;
 
+    /**
+     * Der Wert, unter dem Anhänge an diesem Newsletter hängen.
+     *
+     * Stand bis hierher nur als `NewsletterAttachmentService::ENTITY_TYPE` in
+     * der Dienstschicht - der einzige `entity_type`, der nicht an seinem Modell
+     * hing. Für die Morph-Map (`App\Util\EntityType`) braucht die Zuordnung ihn
+     * hier, denn Modelle ziehen nichts aus `App\Services`; der Dienst verweist
+     * jetzt hierauf.
+     *
+     * Der Newsletter benutzt `Concerns\HasEntityAttachments` nicht: Seine
+     * Anhänge tragen zusätzlich `delivery_mode`, und NewsletterAttachmentService
+     * führt sie mit eigenen Abfragen.
+     */
+    public const ENTITY_TYPE = 'newsletter';
+
     public const STATUS_DRAFT = 'draft';
     public const STATUS_SENT = 'sent';
     public const SUPPORTED_STATUSES = [

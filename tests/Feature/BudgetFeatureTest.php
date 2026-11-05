@@ -179,11 +179,24 @@ final class BudgetFeatureTest extends TestCase
         $this->assertTrue(method_exists(\App\Controllers\BudgetController::class, 'deleteItem'));
     }
 
+    /**
+     * Der Controller prüft die Art gegen `BudgetCategory::TYPES` und nicht gegen
+     * eine eigene Aufzählung.
+     *
+     * Vorher stand hier die Aufzählung `['income', 'expense']` als Text im Test.
+     * Das hielt nur fest, dass im Controller irgendetwas steht - gegen das ENUM
+     * der Spalte stand weder im Controller noch hier etwas. Jetzt zeigt der
+     * Controller auf die Liste am Modell, und
+     * `ModelSchemaConsistencyTest::testWertelistenDeckenDasEnumAb` hält diese
+     * Liste gegen `budget_categories.type`. Die Werte stehen damit genau einmal
+     * da, und zwar an der Spalte gemessen.
+     */
     public function testBudgetControllerValidatesTypeEnum(): void
     {
         $content = file_get_contents(dirname(__DIR__, 2) . '/src/Controllers/BudgetController.php');
         $this->assertIsString($content);
-        $this->assertStringContainsString("in_array(\$type, ['income', 'expense'], true)", $content);
+        $this->assertStringContainsString('in_array($type, BudgetCategory::TYPES, true)', $content);
+        $this->assertSame(['income', 'expense'], BudgetCategory::TYPES);
     }
 
     public function testBudgetControllerValidatesYearRange(): void

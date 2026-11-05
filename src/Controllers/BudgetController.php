@@ -67,7 +67,7 @@ class BudgetController
         if (
             $fiscalYear < 1900 || $fiscalYear > 2200
             || $financeGroupId === null
-            || !in_array($type, ['income', 'expense'], true)
+            || !in_array($type, BudgetCategory::TYPES, true)
         ) {
             $_SESSION['error'] = 'Ungültige Eingabe. Bitte alle Felder ausfüllen.';
 

@@ -38,8 +38,17 @@ class ProfileController
      * deshalb nicht mehr wählbar. Bestehende Zeilen behalten ihren Wert (die
      * Spalte kennt ihn weiterhin); wer seine Anbindung das nächste Mal
      * speichert, muss sich für ssl oder tls entscheiden.
+     *
+     * Heißt deshalb `SELECTABLE_...` und nicht wie die Spalte: Der vollständige
+     * Satz steht als `UserMailAccount::IMAP_ENCRYPTIONS` am Modell und spiegelt
+     * das ENUM. Dieselbe Trennung wie bei `Attendance::RECORDED_STATUSES`
+     * gegenüber `SUPPORTED_STATUSES` - eine bewusste Teilmenge heißt anders,
+     * sonst liest sie sich wie die Spalte und wird irgendwann dagegen geprüft.
      */
-    private const IMAP_ENCRYPTIONS = ['ssl', 'tls'];
+    private const SELECTABLE_IMAP_ENCRYPTIONS = [
+        UserMailAccount::IMAP_ENCRYPTION_SSL,
+        UserMailAccount::IMAP_ENCRYPTION_TLS,
+    ];
 
     private Twig $view;
     private UserQuery $userQuery;
@@ -454,7 +463,7 @@ class ProfileController
         // Zugangsdaten, und auch er wird von einem anderen Laufzeitsystem
         // (Tachyon) benutzt. Ein `none` fällt hier still weg, statt den ganzen
         // Zugang abzulehnen - das Feld ist freiwillig und war es immer.
-        $validEncryptions = self::IMAP_ENCRYPTIONS;
+        $validEncryptions = self::SELECTABLE_IMAP_ENCRYPTIONS;
 
         $attributes = [
             'imap_host' => $imapHost,
@@ -632,7 +641,7 @@ class ProfileController
             return 'Der Port muss zwischen 1 und 65535 liegen.';
         }
 
-        if (!in_array($imapEncryption, self::IMAP_ENCRYPTIONS, true)) {
+        if (!in_array($imapEncryption, self::SELECTABLE_IMAP_ENCRYPTIONS, true)) {
             return 'Bitte wähle eine Verschlüsselung (SSL oder TLS). '
                 . 'Ohne Verschlüsselung ginge dein Passwort im Klartext über das Netz.';
         }

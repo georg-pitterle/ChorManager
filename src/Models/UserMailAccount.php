@@ -8,6 +8,28 @@ use Illuminate\Database\Eloquent\Model;
 
 class UserMailAccount extends Model
 {
+    /**
+     * Wie die Verbindung zum Postfach verschlüsselt wird. Die Werte spiegeln das
+     * ENUM der Spalte `user_mail_accounts.imap_encryption`.
+     *
+     * `none` steht hier, weil die Spalte es kennt und bestehende Zeilen es
+     * tragen. Wählen lässt es sich nicht mehr: Ohne Verschlüsselung ging das
+     * Passwort im Klartext über das Netz. Die engere Liste dafür ist
+     * `ProfileController::SELECTABLE_IMAP_ENCRYPTIONS` und heißt bewusst anders -
+     * gleiche Trennung wie bei `Attendance::RECORDED_STATUSES` gegenüber
+     * `SUPPORTED_STATUSES`.
+     */
+    public const IMAP_ENCRYPTION_SSL = 'ssl';
+    public const IMAP_ENCRYPTION_TLS = 'tls';
+    public const IMAP_ENCRYPTION_NONE = 'none';
+
+    /** @var list<string> */
+    public const IMAP_ENCRYPTIONS = [
+        self::IMAP_ENCRYPTION_SSL,
+        self::IMAP_ENCRYPTION_TLS,
+        self::IMAP_ENCRYPTION_NONE,
+    ];
+
     public $timestamps = true;
 
     protected $table = 'user_mail_accounts';
