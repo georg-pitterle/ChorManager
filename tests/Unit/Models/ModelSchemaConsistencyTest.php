@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Builder as EloquentBuilder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
 use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Database\Query\Builder as QueryBuilder;
@@ -310,6 +311,61 @@ final class ModelSchemaConsistencyTest extends TestCase
     }
 
     /**
+     * Eine Relation auf eine Tabelle mit `sort_order` muss auch danach sortieren.
+     *
+     * `sort_order` gibt es nur zu einem Zweck: Die Zeilen sollen in einer
+     * festgelegten Reihenfolge stehen, und zwar in der eingestellten, nicht in
+     * der der Datenbank. Steht die Sortierung nicht an der Relation, hängt sie
+     * am Aufrufer - und dann hat sie der eine und der andere nicht. Genau so
+     * stand es bei `Song::categories()`: Die Einzelansicht lud die Kategorien
+     * mit `orderBy('sort_order')` vor, die Übersicht ohne, und dieselben
+     * Abzeichen standen je nach Seite anders herum. Bei
+     * `SheetArchive::lineItems()` dasselbe - die Einzelansicht sortiert, die
+     * JSON-Antwort des Speichern-Endpunkts nicht.
+     *
+     * Gleiche Begründung wie bei `HasEntityComments::comments()`,
+     * `Task::activities()` und `Event::audienceFilters()`: Ohne `ORDER BY` ist
+     * die Reihenfolge nicht zugesichert, und sie gehört an die eine Stelle, die
+     * jeder Aufrufer ohnehin benutzt.
+     *
+     * @param class-string<Model> $class
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('modelProvider')]
+    public function testRelationenSortierenNachSortOrder(string $class): void
+    {
+        $problems = [];
+
+        foreach ($this->relationMethodsOf($class) as $name => $relation) {
+            // Nur Relationen mit mehreren Zeilen: Bei einer einzelnen - belongsTo
+            // auf das Konto einer Buchung, hasOne auf die Zielgruppe einer
+            // Freigabe - gibt es keine Reihenfolge zu sichern.
+            if (!$relation instanceof HasMany && !$relation instanceof BelongsToMany) {
+                continue;
+            }
+
+            $table = $relation->getRelated()->getTable();
+
+            if (!in_array('sort_order', $this->columnsOf($table), true)) {
+                continue;
+            }
+
+            if (in_array('sort_order', $this->orderColumnsOf($relation), true)) {
+                continue;
+            }
+
+            $problems[] = sprintf(
+                '%s::%s() zeigt auf "%s" mit einer Spalte sort_order, sortiert aber nicht danach. '
+                    . 'Die Sortierung gehört an die Relation, nicht in den Eager-Load eines einzelnen Aufrufers.',
+                $class,
+                $name,
+                $table
+            );
+        }
+
+        self::assertSame([], $problems, implode("\n", $problems));
+    }
+
+    /**
      * Eine parameterlose Methode, die einen Query Builder liefert, muss auf
      * `Query` enden.
      *
@@ -536,6 +592,31 @@ final class ModelSchemaConsistencyTest extends TestCase
         preg_match_all("/'((?:[^']|'')*)'/", $match[1], $values);
 
         return array_map(static fn (string $value): string => str_replace("''", "'", $value), $values[1]);
+    }
+
+    /**
+     * Die Spalten, nach denen eine Relation sortiert - ohne Tabellenpräfix,
+     * damit ein qualifiziertes `audience_filters.id` genauso zählt wie ein
+     * blankes `sort_order`.
+     *
+     * @param Relation<Model, Model, mixed> $relation
+     * @return list<string>
+     */
+    private function orderColumnsOf(Relation $relation): array
+    {
+        $columns = [];
+
+        foreach ($relation->getQuery()->getQuery()->orders ?? [] as $order) {
+            $column = (string) ($order['column'] ?? '');
+
+            if ($column === '') {
+                continue;
+            }
+
+            $columns[] = str_contains($column, '.') ? substr(strrchr($column, '.') ?: '', 1) : $column;
+        }
+
+        return $columns;
     }
 
     /**

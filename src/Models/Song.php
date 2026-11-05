@@ -35,6 +35,18 @@ class Song extends Model
         'created_at' => 'datetime',
     ];
 
+    /**
+     * Die Repertoire-Kategorien in der eingestellten Reihenfolge, der Name
+     * bricht den Gleichstand.
+     *
+     * Die Sortierung steht hier und nicht im Eager-Load eines Aufrufers:
+     * `repertoire_categories.sort_order` gibt es nur, damit die Kategorien in
+     * der eingestellten Ordnung stehen. Vorher sortierte allein
+     * `SongLibraryController::show()`, während die Übersicht sie ohne
+     * `ORDER BY` lud - dieselben Abzeichen standen damit auf der Einzelansicht
+     * und in `songs/manage.twig` unterschiedlich herum. Gleiche Begründung wie
+     * bei `Event::audienceFilters()`.
+     */
     public function categories()
     {
         return $this->belongsToMany(
@@ -42,7 +54,7 @@ class Song extends Model
             'song_category_assignments',
             'song_id',
             'repertoire_category_id'
-        );
+        )->orderBy('repertoire_categories.sort_order')->orderBy('repertoire_categories.name');
     }
 
     /**

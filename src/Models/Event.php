@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Models\Concerns\HasAudienceConditionSets;
 use App\Models\Concerns\HasEntityComments;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -90,11 +91,11 @@ class Event extends Model
         return $this->hasMany(EventRegistration::class, 'event_id', 'id');
     }
 
-    public function registrationDeadlineAt(): \Carbon\Carbon
+    public function registrationDeadlineAt(): Carbon
     {
         $deadline = $this->registration_deadline ?? $this->starts_at;
 
-        return \Carbon\Carbon::parse($deadline);
+        return Carbon::parse($deadline);
     }
 
     public function isRegistrationOpen(): bool
@@ -104,6 +105,6 @@ class Event extends Model
         }
 
         return $this->registrationDeadlineAt()->isFuture()
-            && \Carbon\Carbon::parse($this->starts_at)->isFuture();
+            && Carbon::parse($this->starts_at)->isFuture();
     }
 }

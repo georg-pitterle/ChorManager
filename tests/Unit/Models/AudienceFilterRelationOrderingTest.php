@@ -7,6 +7,7 @@ namespace Tests\Unit\Models;
 use App\Models\Event;
 use App\Models\Newsletter;
 use App\Models\NewsletterTemplate;
+use App\Models\Poll;
 use Illuminate\Database\Eloquent\Model;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
@@ -23,6 +24,13 @@ use Tests\Unit\Bootstrap;
  * verwirft die Beziehung mit `unsetRelation()` und lädt nach. Für dieselbe
  * Zielgruppe konnte der Beschreibungstext aus `summarizeSets()` damit in zwei
  * verschiedenen Reihenfolgen entstehen, je nachdem, über welche Seite man kam.
+ *
+ * Die Umfrage kam zuletzt dazu und war die einzige der vier Besitzer ohne
+ * Sortierung. Sie löst ihre Zielgruppe heute über AudienceFilterService auf und
+ * nicht über die Relation - die Regel gilt trotzdem: Wer `audienceFilters`
+ * vorlädt, bekommt sonst eine andere Reihenfolge als die drei anderen Besitzer,
+ * und dass die Relation gerade keinen Leser hat, hält nicht den Nächsten davon
+ * ab, einen zu werden.
  *
  * Dass die Datenbank die Zeilen in der Praxis meist ohnehin nach `id` liefert,
  * trägt nicht: Ohne `ORDER BY` ist die Reihenfolge nicht zugesichert, und ein
@@ -47,6 +55,7 @@ final class AudienceFilterRelationOrderingTest extends TestCase
             'Event' => [Event::class],
             'Newsletter' => [Newsletter::class],
             'NewsletterTemplate' => [NewsletterTemplate::class],
+            'Poll' => [Poll::class],
         ];
     }
 

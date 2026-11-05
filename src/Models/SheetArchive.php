@@ -24,9 +24,23 @@ class SheetArchive extends Model
         return $this->belongsTo(Song::class, 'song_id', 'id');
     }
 
+    /**
+     * Die Positionen in der erfassten Reihenfolge. `id` bricht den Gleichstand.
+     *
+     * Die Sortierung steht hier und nicht im Eager-Load eines Aufrufers:
+     * `sort_order` wird beim Speichern durchnummeriert (SheetArchiveService) und
+     * hat nur den einen Zweck, die Reihenfolge festzuhalten. Vorher sortierte
+     * allein `SongLibraryController::show()`, und die JSON-Antwort des
+     * Speichern-Endpunkts sowie `SheetArchiveService::getArchiveData()` bekamen
+     * die Positionen in der Reihenfolge der Datenbank - ohne `ORDER BY` ist die
+     * nicht zugesichert. Gleiche Begründung wie bei
+     * `HasEntityComments::comments()` und `Event::audienceFilters()`.
+     */
     public function lineItems(): HasMany
     {
-        return $this->hasMany(SheetArchiveLineItem::class, 'sheet_archive_id', 'id');
+        return $this->hasMany(SheetArchiveLineItem::class, 'sheet_archive_id', 'id')
+            ->orderBy('sort_order')
+            ->orderBy('id');
     }
 
     /**

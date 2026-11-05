@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use Carbon\Carbon;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -71,9 +72,22 @@ class Poll extends Model
         return $this->hasMany(PollVote::class, 'poll_id');
     }
 
+    /**
+     * Zielgruppen-Zeilen, aufsteigend nach `id` - gleiche Begründung wie bei
+     * Event::audienceFilters(): Ohne die Sortierung steht die vorab geladene
+     * Zielgruppe anders herum als eine nachgeladene, und die Umfrage stünde
+     * anders als Termin, Newsletter und Vorlage. Darüber wacht
+     * tests/Unit/Models/AudienceFilterRelationOrderingTest.
+     *
+     * Aufgelöst wird die Zielgruppe heute nicht über diese Relation, sondern
+     * über AudienceFilterService (PollAudienceService) - die Relation ist der
+     * gemeinsame Zugang, den AudienceOwnerService mit `unsetRelation()`
+     * voraussetzt.
+     */
     public function audienceFilters(): HasMany
     {
-        return $this->hasMany(AudienceFilter::class, 'poll_id');
+        return $this->hasMany(AudienceFilter::class, 'poll_id')
+            ->orderBy('audience_filters.id');
     }
 
     public function creator(): BelongsTo
@@ -89,6 +103,6 @@ class Poll extends Model
     /** Ob schon jemand abgestimmt hat - danach sind Antworten und Auswahlart gesperrt. */
     public function hasVotes(): bool
     {
-        return \Illuminate\Database\Capsule\Manager::table('poll_participants')->where('poll_id', $this->id)->exists();
+        return Capsule::table('poll_participants')->where('poll_id', $this->id)->exists();
     }
 }

@@ -113,19 +113,18 @@ class SongLibraryController
     {
         $songId = (int) ($args['id'] ?? 0);
         $song = Song::with([
-            'categories' => function ($query) {
-                $query->orderBy('sort_order', 'asc')->orderBy('name', 'asc');
-            },
             'attachments' => function ($query) {
                 $query->orderBy('original_name', 'asc');
             },
-            // Ohne eigenen Verschluss: Filter und Sortierung stehen in
-            // Song::linkResources().
+            // Ohne eigenen Verschluss: Filter und Sortierung stehen in der
+            // jeweiligen Relation - Song::categories(), Song::linkResources()
+            // und SheetArchive::lineItems(). Vorher sortierte diese Seite die
+            // Kategorien und die Archivpositionen selbst, und die Übersicht in
+            // index() bekam dieselben Zeilen ungeordnet.
+            'categories',
             'linkResources',
             'projectAssignments.project',
-            'sheetArchive.lineItems' => function ($query) {
-                $query->orderBy('sort_order', 'asc');
-            },
+            'sheetArchive.lineItems',
         ])->find($songId);
 
         if (!$song) {
