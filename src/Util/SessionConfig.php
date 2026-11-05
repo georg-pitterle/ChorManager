@@ -71,6 +71,23 @@ class SessionConfig
         return ini_set('session.save_path', $path) !== false;
     }
 
+    private static bool $released = false;
+
+    /**
+     * Vermerkt, dass Sitzung und Verbindung zum Browser freigegeben sind.
+     * Danach startet `ensureStarted()` keine Sitzung mehr.
+     */
+    public static function markReleased(): void
+    {
+        self::$released = true;
+    }
+
+    /** Nur für Tests: nimmt den Vermerk der Freigabe zurück. */
+    public static function resetReleased(): void
+    {
+        self::$released = false;
+    }
+
     /**
      * Startet die Sitzung, falls noch keine läuft.
      *
@@ -89,6 +106,12 @@ class SessionConfig
      */
     public static function ensureStarted(): bool
     {
+        // Nach der Freigabe (AfterResponse) sind die Header längst draußen;
+        // session_start() würde nur noch warnen und könnte nichts mehr setzen.
+        if (self::$released) {
+            return false;
+        }
+
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }

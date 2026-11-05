@@ -48,6 +48,7 @@ final class AfterResponse
                 }
                 if (function_exists('fastcgi_finish_request')) {
                     fastcgi_finish_request();
+                    SessionConfig::markReleased();
                 }
             },
             !in_array(PHP_SAPI, ['cli', 'phpdbg'], true)
