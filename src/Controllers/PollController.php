@@ -123,7 +123,7 @@ class PollController
         $query = $request->getQueryParams();
         $isClosed = $poll->isClosed();
         $hasVoted = $this->votes->hasVoted($poll, $userId);
-        $canVote = $this->policy->canVote($inAudience) && !$isClosed;
+        $canVote = $this->policy->canVote($inAudience, $isClosed);
         $wantsChange = ($query['change'] ?? '') === '1' && !$poll->is_anonymous;
         $wantsResults = ($query['results'] ?? '') === '1';
         $canSeeResults = $this->policy->canSeeResults($inAudience, $hasVoted, $isClosed);

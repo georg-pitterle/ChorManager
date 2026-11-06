@@ -20,9 +20,9 @@ final class PollPolicyTest extends TestCase
         $policy = new PollPolicy(['user_id' => 7]);
 
         $this->assertTrue($policy->canView(true));
-        $this->assertTrue($policy->canVote(true));
+        $this->assertTrue($policy->canVote(inAudience: true, isClosed: false));
         $this->assertFalse($policy->canView(false));
-        $this->assertFalse($policy->canVote(false));
+        $this->assertFalse($policy->canVote(inAudience: false, isClosed: false));
         $this->assertFalse($policy->canManage());
     }
 
@@ -32,7 +32,27 @@ final class PollPolicyTest extends TestCase
 
         $this->assertTrue($policy->canManage());
         $this->assertTrue($policy->canView(false));
-        $this->assertFalse($policy->canVote(false));
+        $this->assertFalse($policy->canVote(inAudience: false, isClosed: false));
+    }
+
+    /**
+     * Die Frist gehört zur Abstimmberechtigung, nicht an die Aufrufstelle.
+     *
+     * Sie stand zuvor als `&& !$isClosed` im PollController, obwohl
+     * canSeeResults() den Stand der Umfrage schon als Parameter nahm. Damit
+     * beantwortete die Policy nur die halbe Frage: Eine zweite Aufrufstelle -
+     * eine neue Route, ein weiteres Template - hätte mit canVote($inAudience)
+     * einen Stimmzettel für eine beendete Umfrage angeboten, und aufgefallen
+     * wäre es erst an der Abweisung in PollVoteService. Mit der Frist in der
+     * Signatur kann die Prüfung die Frist nicht mehr übergehen.
+     */
+    public function testNobodyVotesAfterTheDeadline(): void
+    {
+        $member = new PollPolicy(['user_id' => 7]);
+        $manager = new PollPolicy(['user_id' => 7, 'can_manage_polls' => true]);
+
+        $this->assertFalse($member->canVote(inAudience: true, isClosed: true));
+        $this->assertFalse($manager->canVote(inAudience: true, isClosed: true));
     }
 
     public function testResultsAfterOwnVoteOrAfterTheDeadline(): void

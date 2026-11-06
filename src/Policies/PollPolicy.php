@@ -11,7 +11,8 @@ namespace App\Policies;
  * es nur mit dem Recht can_manage_polls und dem Stand der Umfrage verknüpft.
  *
  * - Sehen: Zielgruppe oder Recht.
- * - Abstimmen: nur die Zielgruppe. Verwalten ist kein Stimmrecht.
+ * - Abstimmen: nur die Zielgruppe, und nur bis zum Fristende. Verwalten ist
+ *   kein Stimmrecht.
  * - Ergebnis: nach der eigenen Stimme, nach Fristende für die ganze
  *   Zielgruppe, mit dem Recht immer. Vorher nicht, damit der Zwischenstand
  *   Unentschlossene nicht beeinflusst.
@@ -43,9 +44,21 @@ class PollPolicy
         return $inAudience || $this->canManage;
     }
 
-    public function canVote(bool $inAudience): bool
+    /**
+     * Die Frist gehört dazu: Nach ihrem Ablauf stimmt niemand mehr ab, auch
+     * nicht die Zielgruppe.
+     *
+     * Sie stand zuvor als `&& !$isClosed` an der Aufrufstelle im
+     * PollController, während canSeeResults() den Stand der Umfrage schon
+     * selbst als Parameter nahm - dieselbe Angabe auf zwei Wegen. Eine zweite
+     * Aufrufstelle hätte mit canVote($inAudience) einen Stimmzettel für eine
+     * beendete Umfrage angeboten; abgewiesen hätte ihn erst PollVoteService,
+     * das die Frist unter der Zeilensperre noch einmal prüft und dabei bleibt.
+     * Mit der Frist in der Signatur kann die Prüfung sie nicht mehr übergehen.
+     */
+    public function canVote(bool $inAudience, bool $isClosed): bool
     {
-        return $inAudience;
+        return $inAudience && !$isClosed;
     }
 
     public function canSeeResults(bool $inAudience, bool $hasVoted, bool $isClosed): bool
