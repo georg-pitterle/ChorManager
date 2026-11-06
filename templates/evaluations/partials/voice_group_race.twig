@@ -1,0 +1,43 @@
+{#
+    Stimmen im Vergleich: Hauptgruppen in Chor-Reihenfolge, die führende markiert, die
+    übrigen mit ihrem Abstand. Ein Balken in der Vereinsfarbe statt Ampelfarben und kein
+    Zähler "unter X %" - das bleibt der Verwaltung vorbehalten.
+#}
+{% import "evaluations/partials/standing_macros.twig" as fmt %}
+
+<section class="dashboard-section h-100" aria-labelledby="voice-group-race-title">
+    <div class="dashboard-section-head">
+        <h2 class="dashboard-section-title" id="voice-group-race-title">Stimmen im Vergleich</h2>
+        <p class="dashboard-section-lead mb-0">Durchschnittliche Anwesenheit je Stimmgruppe.</p>
+    </div>
+
+    {% if voice_group_race is empty %}
+        <p class="text-muted mb-0">Sobald für eine Stimmgruppe ein Pflichttermin galt, steht sie hier.</p>
+    {% else %}
+        <ul class="voice-race list-unstyled mb-0">
+            {% for group in voice_group_race %}
+                <li class="voice-race__row{{ group.is_own ? " voice-race__row--own" : "" }}">
+                    <span class="voice-race__name">
+                        {{ group.name }}
+                        {% if group.is_own %}
+                            <span class="voice-race__own">deine Stimme</span>
+                        {% endif %}
+                    </span>
+                    <span class="voice-race__track" aria-hidden="true">
+                        <span class="voice-race__bar" style="--quota-value: {{ group.average }}%"></span>
+                    </span>
+                    <span class="voice-race__value">{{ fmt.percent(group.average) }}</span>
+                    <span class="voice-race__meta">
+                        {% if group.is_leader %}
+                            <span class="voice-race__lead">
+                                <i class="bi bi-star-fill" aria-hidden="true"></i> führt
+                            </span>
+                        {% else %}
+                            {{ group.gap|number_format(1, ",", ".") }}&nbsp;Punkte dahinter
+                        {% endif %}
+                    </span>
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</section>

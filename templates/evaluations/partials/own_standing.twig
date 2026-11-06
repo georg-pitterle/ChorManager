@@ -1,0 +1,86 @@
+{#
+    Der eigene Stand: nur für die angemeldete Person. Bewusst ohne Ampelfarben und
+    Warnzeichen - eine niedrige Quote wird genannt, aber nicht bewertet. Die Hinweise
+    darunter zeigen nur, was trifft: eine Serie, den Weg zu "Immer dabei", den Vergleich
+    mit dem eigenen Vorprojekt.
+#}
+{% import "evaluations/partials/standing_macros.twig" as fmt %}
+{% set own = own_standing %}
+{% set _reachable = own.events_to_always_there > 0 and own.events_to_always_there <= 8 %}
+{% set _streak = own.streak >= min_events_for_recognition %}
+{% set _has_note = own.is_always_there or _reachable or _streak or own.previous %}
+
+<section class="dashboard-section mb-4" aria-labelledby="own-standing-title">
+    <div class="dashboard-section-head">
+        <h2 class="dashboard-section-title" id="own-standing-title">Dein Stand</h2>
+        <p class="dashboard-section-lead mb-0">Nur für dich sichtbar.</p>
+    </div>
+
+    {% if own.total_events == 0 %}
+        <p class="text-muted mb-0">Für dich galt in diesem Projekt noch kein Pflichttermin.</p>
+    {% else %}
+        <div class="standing">
+            <div class="standing__main">
+                <p class="standing__summary">
+                    Du warst bei <strong>{{ own.present_count }} von {{ own.total_events }}</strong>
+                    {{ own.total_events == 1 ? "Pflichttermin" : "Pflichtterminen" }} dabei
+                    {%- if own.excused_count > 0 -%}
+                        , bei {{ own.excused_count }} entschuldigt
+                    {%- endif -%}.
+                </p>
+                <dl class="standing__figures">
+                    <div class="standing__figure">
+                        <dt class="standing__label">Anwesenheit</dt>
+                        <dd class="standing__value">{{ fmt.percent(own.percentage) }}</dd>
+                        <dd class="standing__hint">da gewesen</dd>
+                    </div>
+                    <div class="standing__figure">
+                        <dt class="standing__label">Verlässlichkeit</dt>
+                        <dd class="standing__value">{{ fmt.percent(own.reliability) }}</dd>
+                        <dd class="standing__hint">da gewesen oder entschuldigt</dd>
+                    </div>
+                </dl>
+            </div>
+
+            <ul class="standing__notes list-unstyled mb-0">
+                {% if own.is_always_there %}
+                    <li class="standing__note standing__note--highlight">
+                        <i class="bi bi-star-fill" aria-hidden="true"></i>
+                        <span>Du stehst bei <strong>„Immer dabei“</strong>. Danke!</span>
+                    </li>
+                {% elseif _reachable %}
+                    <li class="standing__note">
+                        <i class="bi bi-star" aria-hidden="true"></i>
+                        <span>
+                            Noch {{ own.events_to_always_there }}
+                            {{ own.events_to_always_there == 1 ? "Pflichttermin" : "Pflichttermine" }} in Folge dabei,
+                            dann stehst du bei „Immer dabei“.
+                        </span>
+                    </li>
+                {% endif %}
+                {% if _streak %}
+                    <li class="standing__note">
+                        <i class="bi bi-music-note-beamed" aria-hidden="true"></i>
+                        <span>{{ own.streak }} Pflichttermine in Folge dabei.</span>
+                    </li>
+                {% endif %}
+                {% if own.previous %}
+                    {% set _trend = own.previous.delta > 0 ? "up-right" : (own.previous.delta < 0 ? "down-right" : "right") %}
+                    <li class="standing__note">
+                        <i class="bi bi-arrow-{{ _trend }}" aria-hidden="true"></i>
+                        <span>
+                            {{ fmt.points(own.previous.delta) }}&nbsp;Punkte gegenüber
+                            „{{ own.previous.project_name }}“ ({{ fmt.percent(own.previous.percentage) }}).
+                        </span>
+                    </li>
+                {% endif %}
+                {% if not _has_note %}
+                    <li class="standing__note">
+                        <i class="bi bi-music-note-beamed" aria-hidden="true"></i>
+                        <span>Jeder Pflichttermin, bei dem du dabei bist, hebt deine Quote.</span>
+                    </li>
+                {% endif %}
+            </ul>
+        </div>
+    {% endif %}
+</section>

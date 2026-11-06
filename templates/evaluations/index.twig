@@ -37,7 +37,7 @@
                     {{ total_events }} {{ total_events == 1 ? "Pflichttermin" : "Pflichttermine" }} bisher
                     &middot; Stand {{ "now"|date("d.m.Y") }}
                 {% else %}
-                    Wer wie oft bei den Pflichtterminen eines Projekts war.
+                    Wie oft du und deine Stimme bei den Pflichtterminen eines Projekts dabei wart.
                 {% endif %}
             </p>
         </div>
@@ -67,20 +67,33 @@
 {% endblock page_header %}
 
 {% block content %}
-    {% if selected_project and stats|length > 0 %}
-        <p class="quota-explainer text-muted mb-4">
-            Die Quote rechnet die Anwesenheit gegen alle stattgefundenen Pflichttermine, die für die
-            Person gelten. Termine ohne geführte Liste zählen mit; wie viele erfasst sind, steht unter
-            <strong>Erfasst</strong>.
-        </p>
+    {% if selected_project and empty_reason is null %}
+        {% if own_standing %}
+            {{ include("evaluations/partials/own_standing.twig") }}
+        {% endif %}
 
+        <div class="row g-4 mb-4">
+            <div class="col-12 col-lg-6">
+                {{ include("evaluations/partials/voice_group_race.twig") }}
+            </div>
+            <div class="col-12 col-lg-6">
+                {{ include("evaluations/partials/always_there.twig") }}
+            </div>
+        </div>
+
+        {% if can_view_details and stats|length > 0 %}
         <section class="dashboard-section mb-4" aria-labelledby="quota-by-voice-group-title">
             <div class="dashboard-section-head">
                 <h2 class="dashboard-section-title" id="quota-by-voice-group-title">Nach Stimmgruppe</h2>
-                <p class="dashboard-section-lead mb-0">
-                    Durchschnitt der Quoten. Gut ab {{ quota_good }}&nbsp;%, niedrig unter {{ quota_low }}&nbsp;%.
-                </p>
+                <p class="dashboard-section-lead mb-0">Nur für die Anwesenheitsverwaltung sichtbar.</p>
             </div>
+            <p class="quota-explainer text-muted">
+                {{ details_scope == "own_voice_group" ? "Hier für deine Stimmgruppe. " : "" -}}
+                Durchschnitt der Quoten; gut ab {{ quota_good }}&nbsp;%, niedrig unter {{ quota_low }}&nbsp;%.
+                Die Quote rechnet die Anwesenheit gegen alle stattgefundenen Pflichttermine, die für die
+                Person gelten. Termine ohne geführte Liste zählen mit; wie viele erfasst sind, steht unter
+                <strong>Erfasst</strong>.
+            </p>
             <ul class="quota-summary list-unstyled mb-0">
                 {% for group in voice_group_summary %}
                     {% set group_medium = group.average >= quota_low ? "medium" : "low" %}
@@ -163,6 +176,7 @@
                 </div>
             </div>
         </section>
+        {% endif %}
     {% elseif selected_project and empty_reason == "no_events" %}
         <p class="text-muted text-center py-5 mb-0">
             In diesem Projekt hat noch kein Pflichttermin stattgefunden. Die Quoten erscheinen nach dem

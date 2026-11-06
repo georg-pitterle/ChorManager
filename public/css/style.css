@@ -4389,6 +4389,196 @@ a:hover {
     }
 }
 
+/* Mitgliedersicht: "Dein Stand", "Stimmen im Vergleich", "Immer dabei".
+   Ansporn statt Ampel - die Werte stehen in Tinte, Akzent ist allein die Vereinsfarbe.
+   Rot und Warnzeichen gehören zur Verwaltungstabelle darunter, nicht hierher. */
+.standing {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 1.25rem 2.5rem;
+    align-items: start;
+}
+
+.standing__summary {
+    font-size: var(--font-size-lead);
+    margin-bottom: 1rem;
+    max-width: 60ch;
+}
+
+.standing__figures {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem 2.5rem;
+    margin: 0;
+}
+
+.standing__figure {
+    display: grid;
+    gap: 0.1rem;
+}
+
+.standing__figure dd {
+    margin: 0;
+}
+
+.standing__label {
+    font-size: var(--font-size-label);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--theme-text-muted);
+}
+
+.standing__value {
+    font-size: var(--font-size-kpi);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+    color: var(--theme-text);
+}
+
+.standing__hint {
+    font-size: var(--font-size-meta);
+    color: var(--theme-text-muted);
+}
+
+.standing__notes {
+    display: grid;
+    gap: 0.65rem;
+    padding-top: 0.25rem;
+}
+
+.standing__note {
+    display: grid;
+    grid-template-columns: 1.25rem minmax(0, 1fr);
+    gap: 0.6rem;
+    align-items: baseline;
+}
+
+.standing__note .bi {
+    color: var(--theme-text-muted);
+}
+
+.standing__note--highlight .bi {
+    color: var(--theme-primary-strong);
+}
+
+.voice-race__row {
+    display: grid;
+    grid-template-columns: minmax(6.5rem, 10rem) minmax(4rem, 1fr) 5rem;
+    grid-template-areas:
+        "name track value"
+        "name meta meta";
+    align-items: center;
+    gap: 0.15rem 1rem;
+    padding: 0.6rem 0.5rem;
+    border-bottom: 1px solid var(--theme-border);
+}
+
+.voice-race__row:last-child {
+    border-bottom: 0;
+}
+
+.voice-race__row--own {
+    background: rgba(var(--theme-primary-rgb), 0.08);
+    border-radius: var(--app-radius);
+}
+
+/* Oben ausgerichtet: Der Name steht auf einer Linie mit Balken und Wert, "deine Stimme"
+   darunter auf Höhe der Abstandszeile. */
+.voice-race__name {
+    grid-area: name;
+    align-self: start;
+    display: grid;
+    font-weight: 600;
+    line-height: 1.3;
+}
+
+.voice-race__own {
+    font-size: var(--font-size-meta);
+    font-weight: 400;
+    color: var(--theme-text-muted);
+}
+
+.voice-race__track {
+    grid-area: track;
+    height: 0.5rem;
+    border-radius: 999px;
+    background: var(--quota-track);
+    overflow: hidden;
+}
+
+.voice-race__bar {
+    display: block;
+    height: 100%;
+    width: var(--quota-value, 0%);
+    border-radius: inherit;
+    background: var(--theme-primary);
+}
+
+.voice-race__value {
+    grid-area: value;
+    text-align: right;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.voice-race__meta {
+    grid-area: meta;
+    font-size: var(--font-size-meta);
+    color: var(--theme-text-muted);
+}
+
+.voice-race__lead {
+    font-weight: 600;
+    color: var(--theme-text);
+}
+
+.voice-race__lead .bi {
+    color: var(--theme-primary-strong);
+}
+
+.always-there {
+    columns: 2 11rem;
+    column-gap: 1.5rem;
+}
+
+.always-there__name {
+    break-inside: avoid;
+    padding: 0.2rem 0;
+}
+
+.always-there__name--self {
+    font-weight: 600;
+}
+
+.always-there__self {
+    font-weight: 400;
+    color: var(--theme-text-muted);
+}
+
+@media (max-width: 767.98px) {
+    .standing {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .voice-race__row {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            "name value"
+            "track track"
+            "meta meta";
+    }
+
+    .voice-race__name {
+        display: block;
+    }
+
+    .voice-race__own::before {
+        content: " · ";
+    }
+}
+
 /* Karten am Telefon: Name und Quote in der Kopfzeile, die Stimmgruppe darunter, die vier
    Zähler nebeneinander - eine Person braucht damit rund ein Drittel der Höhe einer
    Karte mit einem Wertepaar pro Zeile. */

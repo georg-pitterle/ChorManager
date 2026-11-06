@@ -15,6 +15,8 @@ use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Policies\ProjectMemberPolicy;
 use App\Queries\ProjectQuery;
+use App\Services\AttendanceScopeService;
+use App\Services\AttendanceStanding;
 use App\Services\EventAudienceService;
 use App\Services\NameFormatterService;
 use App\Util\InputValidator;
@@ -105,6 +107,32 @@ class EvaluationController
 
     private const NO_VOICE_GROUP = 'Ohne Stimmgruppe';
 
+    /**
+     * Ab dieser Anwesenheit steht man namentlich bei "Immer dabei". Bewusst über
+     * QUOTA_GOOD: Die Liste soll eine Auszeichnung sein, kein Normalzustand.
+     */
+    private const ALWAYS_THERE_THRESHOLD = 90;
+
+    /**
+     * Erst ab so vielen stattgefundenen Pflichtterminen gibt es "Immer dabei" und
+     * einen Vergleich mit dem Vorprojekt - nach einem Termin stünden sonst alle
+     * Anwesenden bei 100 %.
+     */
+    private const MIN_EVENTS_FOR_RECOGNITION = 3;
+
+    /** So viele frühere Projekte werden höchstens nach einem Vergleichswert durchsucht. */
+    private const PREVIOUS_PROJECT_CANDIDATES = 3;
+
+    /**
+     * Die Seite ist für jedes Mitglied offen, zeigt aber nicht jedem dasselbe.
+     *
+     * Was andere Personen betrifft, sieht ein Mitglied nur im Positiven: die
+     * Stimmgruppen im Vergleich und die Liste "Immer dabei". Der eigene Stand
+     * bleibt privat. Die namentliche Tabelle mit Unentschuldigt-Zählern und die
+     * Zusammenfassung mit "unter X %" bekommt nur, wer Anwesenheit verwaltet, und
+     * zwar im Umfang seines Rechts. Ausgeblendet wird hier, nicht in der Vorlage:
+     * Was ein Mitglied nicht sehen soll, steht gar nicht erst in den Daten.
+     */
     public function index(Request $request, Response $response): Response
     {
         $params = $request->getQueryParams();
@@ -132,85 +160,7 @@ class EvaluationController
             if ($selectedProject) {
                 $this->rememberSelectedProject($userId, $projectId);
 
-                $projectEvents = $selectedProject->eventsQuery()
-                    ->where('attendance_required', true)
-                    ->where('starts_at', '<=', Carbon::now())
-                    ->with('audienceFilters.conditions')
-                    ->get();
-                $totalEvents = $projectEvents->count();
-
-                // Ein Termin "Sopran UND Projekt" gehört zum Projekt, gilt aber nicht für
-                // die Alt-Stimmen darin. Nenner und Zählung laufen deshalb je Mitglied
-                // über die Termine, deren Zielgruppe es trifft.
-                $eventIdsByUser = [];
-                foreach ((new EventAudienceService())->eligibleUserIdsForEvents($projectEvents) as $eventId => $memberIds) {
-                    foreach ($memberIds as $memberId) {
-                        $eventIdsByUser[$memberId][$eventId] = true;
-                    }
-                }
-
-                if ($totalEvents > 0) {
-                    // Get all active users, eager load their attendances for this specific project's events
-                    $userQuery = User::where('is_active', 1)
-                        ->whereHas('projects', function ($projectQuery) use ($projectId) {
-                            $projectQuery->where('projects.id', $projectId);
-                        })
-                        ->with(['voiceGroups', 'attendances' => function ($q) use ($projectId) {
-                            $q->whereHas('event', function ($sq) use ($projectId) {
-                                $sq->where('attendance_required', true)
-                                    ->where('starts_at', '<=', Carbon::now())
-                                    ->forProject((int) $projectId);
-                            });
-                        }]);
-
-                    $this->nameFormatter->applyNameOrder($userQuery);
-
-                    $users = $userQuery->get();
-
-                    foreach ($users as $user) {
-                        $vgName = $user->voiceGroups->pluck('name')->implode(', ');
-                        // Die Relation sortiert nach voice_groups.id, und das ist die
-                        // Chor-Reihenfolge (Sopran, Alt, Tenor, Bass). Die erste Gruppe
-                        // ordnet die Person ein, wie in der Besetzung.
-                        $primaryVoiceGroup = $user->voiceGroups->first();
-                        $ownEvents = $eventIdsByUser[(int) $user->id] ?? [];
-                        $ownTotal = count($ownEvents);
-                        $attendances = $user->attendances
-                            ->filter(static fn ($attendance): bool => isset($ownEvents[(int) $attendance->event_id]));
-
-                        $present = $attendances->where('status', Attendance::STATUS_PRESENT)->count();
-                        $excused = $attendances->where('status', Attendance::STATUS_EXCUSED)->count();
-                        $unexcused = $attendances->where('status', Attendance::STATUS_UNEXCUSED)->count();
-                        // Offene Einträge tragen nur eine Notiz und sind keine Erfassung.
-                        $totalRecorded = $attendances
-                            ->whereIn('status', Attendance::RECORDED_STATUSES)
-                            ->count();
-
-                        // Bezugsgröße ist jeder stattgefundene Pflichttermin, nicht nur der
-                        // erfasste: Eine nicht geführte Liste ist eine fehlende Angabe, keine
-                        // Abwesenheit - sie darf die Quote der übrigen aber auch nicht
-                        // schönrechnen. Wie viele Termine tatsächlich erfasst wurden, steht
-                        // daneben in der Spalte "Erfasst" und macht den Unterschied sichtbar.
-                        // Gilt für jemanden kein einziger Termin, gibt es keine Quote:
-                        // 0 % behauptete ein Fehlen, das nie stattfand.
-                        $percentage = $ownTotal > 0 ? round(($present / $ownTotal) * 100, 1) : null;
-
-                        $stats[] = [
-                            'user_id' => (int) $user->id,
-                            'first_name' => $user->first_name,
-                            'last_name' => $user->last_name,
-                            'voice_group_name' => $vgName,
-                            'primary_voice_group' => $primaryVoiceGroup?->name ?? self::NO_VOICE_GROUP,
-                            'voice_group_rank' => $primaryVoiceGroup !== null ? (int) $primaryVoiceGroup->id : PHP_INT_MAX,
-                            'present_count' => $present,
-                            'excused_count' => $excused,
-                            'unexcused_count' => $unexcused,
-                            'total_recorded' => $totalRecorded,
-                            'total_events' => $ownTotal,
-                            'percentage' => $percentage
-                        ];
-                    }
-                }
+                ['total_events' => $totalEvents, 'stats' => $stats] = $this->collectStats($selectedProject);
 
                 // Der Leerzustand nennt den Grund, statt zwei Möglichkeiten zu raten.
                 if ($totalEvents === 0) {
@@ -221,18 +171,286 @@ class EvaluationController
             }
         }
 
+        $scope = new AttendanceScopeService($_SESSION);
+        $canViewDetails = $scope->canManageOthers();
+        $detailStats = $canViewDetails ? $this->limitToManageable($stats, $scope) : [];
+        $ownStat = $this->statForUser($stats, $userId);
+        $ownVoiceGroup = $ownStat !== null && $ownStat['voice_group_rank'] !== PHP_INT_MAX
+            ? (string) $ownStat['primary_voice_group']
+            : null;
+        $recognitionReady = $totalEvents >= self::MIN_EVENTS_FOR_RECOGNITION;
+
         return $this->view->render($response, 'evaluations/index.twig', [
             'projects' => $projects,
             'selected_project' => $selectedProject,
-            'stats' => $stats,
+            'stats' => $detailStats,
             'total_events' => $totalEvents,
-            'voice_group_summary' => $this->summarizeByVoiceGroup($stats),
+            'voice_group_summary' => $this->summarizeByVoiceGroup($detailStats),
+            'can_view_details' => $canViewDetails,
+            'details_scope' => $canViewDetails ? ($this->canSeeAllProjects() ? 'all' : 'own_voice_group') : null,
+            'own_standing' => $ownStat !== null && $selectedProject !== null
+                ? $this->buildOwnStanding($ownStat, $ownVoiceGroup, $selectedProject, $userId)
+                : null,
+            'voice_group_race' => AttendanceStanding::voiceGroupRace(
+                $this->summarizeByVoiceGroup($stats),
+                $ownVoiceGroup,
+                self::NO_VOICE_GROUP
+            ),
+            'always_there' => $recognitionReady ? $this->alwaysThere($stats, $userId) : [],
+            'always_there_ready' => $recognitionReady,
+            'always_there_threshold' => self::ALWAYS_THERE_THRESHOLD,
+            'min_events_for_recognition' => self::MIN_EVENTS_FOR_RECOGNITION,
             'empty_reason' => $emptyReason,
             'quota_low' => self::QUOTA_LOW,
             'quota_good' => self::QUOTA_GOOD,
             'can_manage_members' => $selectedProject !== null
                 && $this->memberPolicy->canViewMembers((int) $selectedProject->id),
         ]);
+    }
+
+    /**
+     * Zählungen und Quote je aktivem Projektmitglied über die stattgefundenen
+     * Pflichttermine, die für die Person gelten.
+     *
+     * @return array{total_events: int, stats: list<array<string, mixed>>}
+     */
+    private function collectStats(Project $project, ?int $onlyUserId = null): array
+    {
+        $projectId = (int) $project->id;
+        $projectEvents = $project->eventsQuery()
+            ->where('attendance_required', true)
+            ->where('starts_at', '<=', Carbon::now())
+            ->with('audienceFilters.conditions')
+            ->get()
+            // Jüngster zuerst: Die Serie zählt vom letzten Termin rückwärts.
+            ->sortByDesc(static fn (Event $event): string => (string) $event->starts_at)
+            ->values();
+        $totalEvents = $projectEvents->count();
+
+        if ($totalEvents === 0) {
+            return ['total_events' => 0, 'stats' => []];
+        }
+
+        // Ein Termin "Sopran UND Projekt" gehört zum Projekt, gilt aber nicht für
+        // die Alt-Stimmen darin. Nenner und Zählung laufen deshalb je Mitglied
+        // über die Termine, deren Zielgruppe es trifft.
+        $eventIdsByUser = [];
+        foreach ((new EventAudienceService())->eligibleUserIdsForEvents($projectEvents) as $eventId => $memberIds) {
+            foreach ($memberIds as $memberId) {
+                $eventIdsByUser[$memberId][$eventId] = true;
+            }
+        }
+
+        // Get all active users, eager load their attendances for this specific project's events
+        $userQuery = User::where('is_active', 1)
+            ->whereHas('projects', function ($projectQuery) use ($projectId) {
+                $projectQuery->where('projects.id', $projectId);
+            })
+            ->with(['voiceGroups', 'attendances' => function ($q) use ($projectId) {
+                $q->whereHas('event', function ($sq) use ($projectId) {
+                    $sq->where('attendance_required', true)
+                        ->where('starts_at', '<=', Carbon::now())
+                        ->forProject((int) $projectId);
+                });
+            }]);
+        if ($onlyUserId !== null) {
+            $userQuery->where('users.id', $onlyUserId);
+        }
+
+        $this->nameFormatter->applyNameOrder($userQuery);
+
+        $stats = [];
+        foreach ($userQuery->get() as $user) {
+            $vgName = $user->voiceGroups->pluck('name')->implode(', ');
+            // Die Relation sortiert nach voice_groups.id, und das ist die
+            // Chor-Reihenfolge (Sopran, Alt, Tenor, Bass). Die erste Gruppe
+            // ordnet die Person ein, wie in der Besetzung.
+            $primaryVoiceGroup = $user->voiceGroups->first();
+            $ownEvents = $eventIdsByUser[(int) $user->id] ?? [];
+            $ownTotal = count($ownEvents);
+            $attendances = $user->attendances
+                ->filter(static fn ($attendance): bool => isset($ownEvents[(int) $attendance->event_id]));
+
+            $present = $attendances->where('status', Attendance::STATUS_PRESENT)->count();
+            $excused = $attendances->where('status', Attendance::STATUS_EXCUSED)->count();
+            $unexcused = $attendances->where('status', Attendance::STATUS_UNEXCUSED)->count();
+            // Offene Einträge tragen nur eine Notiz und sind keine Erfassung.
+            $totalRecorded = $attendances
+                ->whereIn('status', Attendance::RECORDED_STATUSES)
+                ->count();
+
+            $statusByEvent = $attendances->pluck('status', 'event_id')->all();
+            $statusesNewestFirst = [];
+            foreach ($projectEvents as $event) {
+                if (isset($ownEvents[(int) $event->id])) {
+                    $statusesNewestFirst[] = $statusByEvent[(int) $event->id] ?? null;
+                }
+            }
+
+            // Bezugsgröße ist jeder stattgefundene Pflichttermin, nicht nur der
+            // erfasste: Eine nicht geführte Liste ist eine fehlende Angabe, keine
+            // Abwesenheit - sie darf die Quote der übrigen aber auch nicht
+            // schönrechnen. Wie viele Termine tatsächlich erfasst wurden, steht
+            // daneben in der Spalte "Erfasst" und macht den Unterschied sichtbar.
+            // Gilt für jemanden kein einziger Termin, gibt es keine Quote:
+            // 0 % behauptete ein Fehlen, das nie stattfand.
+            $percentage = $ownTotal > 0 ? round(($present / $ownTotal) * 100, 1) : null;
+
+            $stats[] = [
+                'user_id' => (int) $user->id,
+                'first_name' => $user->first_name,
+                'last_name' => $user->last_name,
+                'voice_group_name' => $vgName,
+                'primary_voice_group' => $primaryVoiceGroup?->name ?? self::NO_VOICE_GROUP,
+                'voice_group_rank' => $primaryVoiceGroup !== null ? (int) $primaryVoiceGroup->id : PHP_INT_MAX,
+                'present_count' => $present,
+                'excused_count' => $excused,
+                'unexcused_count' => $unexcused,
+                'total_recorded' => $totalRecorded,
+                'total_events' => $ownTotal,
+                'percentage' => $percentage,
+                // Verlässlich ist, wer da war oder sich entschuldigt hat.
+                'reliability' => $ownTotal > 0 ? round((($present + $excused) / $ownTotal) * 100, 1) : null,
+                'streak' => AttendanceStanding::streak($statusesNewestFirst),
+            ];
+        }
+
+        return ['total_events' => $totalEvents, 'stats' => $stats];
+    }
+
+    /**
+     * Die namentliche Tabelle im Umfang des Verwaltungsrechts: alle Mitglieder
+     * oder nur die der eigenen Stimmgruppen - dieselbe Menge, für die die Person
+     * auch Anwesenheit eintragen darf.
+     *
+     * @param list<array<string, mixed>> $stats
+     * @return list<array<string, mixed>>
+     */
+    private function limitToManageable(array $stats, AttendanceScopeService $scope): array
+    {
+        $manageable = array_flip($scope->getManageableUserIds());
+
+        return array_values(array_filter(
+            $stats,
+            static fn (array $stat): bool => isset($manageable[(int) $stat['user_id']])
+        ));
+    }
+
+    /**
+     * @param list<array<string, mixed>> $stats
+     * @return array<string, mixed>|null
+     */
+    private function statForUser(array $stats, int $userId): ?array
+    {
+        foreach ($stats as $stat) {
+            if ((int) $stat['user_id'] === $userId) {
+                return $stat;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Der eigene Stand: nur für die Person selbst, deshalb auch mit dem Abstand
+     * zur Schwelle und dem Vergleich zum eigenen Vorprojekt.
+     *
+     * @param array<string, mixed> $ownStat
+     * @return array<string, mixed>
+     */
+    private function buildOwnStanding(array $ownStat, ?string $voiceGroup, Project $project, int $userId): array
+    {
+        $present = (int) $ownStat['present_count'];
+        $total = (int) $ownStat['total_events'];
+        $toThreshold = AttendanceStanding::eventsToThreshold(
+            $present,
+            $total,
+            self::ALWAYS_THERE_THRESHOLD,
+            self::MIN_EVENTS_FOR_RECOGNITION
+        );
+
+        $previous = $ownStat['percentage'] !== null ? $this->previousProjectQuota($project, $userId) : null;
+
+        return [
+            'present_count' => $present,
+            'excused_count' => (int) $ownStat['excused_count'],
+            'total_events' => $total,
+            'percentage' => $ownStat['percentage'],
+            'reliability' => $ownStat['reliability'],
+            'streak' => (int) $ownStat['streak'],
+            'voice_group' => $voiceGroup,
+            'is_always_there' => $total > 0 && $toThreshold === 0,
+            'events_to_always_there' => $toThreshold,
+            'previous' => $previous === null ? null : [
+                'project_name' => $previous['project_name'],
+                'percentage' => $previous['percentage'],
+                'delta' => round((float) $ownStat['percentage'] - $previous['percentage'], 1),
+            ],
+        ];
+    }
+
+    /**
+     * Quote der Person im jüngsten früheren Projekt, in dem für sie mindestens
+     * MIN_EVENTS_FOR_RECOGNITION Pflichttermine stattfanden. "Früher" heißt:
+     * früheres Startdatum. Ohne Startdatum gibt es keine Reihenfolge und damit
+     * keinen Vergleich.
+     *
+     * @return array{project_name: string, percentage: float}|null
+     */
+    private function previousProjectQuota(Project $project, int $userId): ?array
+    {
+        if ($project->start_date === null) {
+            return null;
+        }
+
+        $candidates = Project::whereHas('users', static function ($query) use ($userId): void {
+            $query->where('users.id', $userId);
+        })
+            ->where('projects.id', '!=', (int) $project->id)
+            ->whereNotNull('start_date')
+            ->where('start_date', '<', $project->start_date->format('Y-m-d'))
+            ->orderBy('start_date', 'desc')
+            ->orderBy('projects.id', 'desc')
+            ->limit(self::PREVIOUS_PROJECT_CANDIDATES)
+            ->get();
+
+        foreach ($candidates as $candidate) {
+            $stat = $this->statForUser($this->collectStats($candidate, $userId)['stats'], $userId);
+            if ($stat !== null && $stat['total_events'] >= self::MIN_EVENTS_FOR_RECOGNITION) {
+                return ['project_name' => (string) $candidate->name, 'percentage' => (float) $stat['percentage']];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * "Immer dabei": wer bei mindestens ALWAYS_THERE_THRESHOLD % liegt und für wen
+     * genug Termine galten. Nur Namen - ohne Quote und ohne Rang, in Namensordnung,
+     * wie die Abfrage sie liefert. Wer darunter liegt, taucht nirgends auf.
+     *
+     * @param list<array<string, mixed>> $stats
+     * @return list<array{user_id: int, first_name: string, last_name: string, is_self: bool}>
+     */
+    private function alwaysThere(array $stats, int $userId): array
+    {
+        $names = [];
+        foreach ($stats as $stat) {
+            $qualifies = $stat['percentage'] !== null
+                && $stat['total_events'] >= self::MIN_EVENTS_FOR_RECOGNITION
+                && $stat['percentage'] >= self::ALWAYS_THERE_THRESHOLD;
+            if (!$qualifies) {
+                continue;
+            }
+            $names[] = [
+                'user_id' => (int) $stat['user_id'],
+                'first_name' => (string) $stat['first_name'],
+                'last_name' => (string) $stat['last_name'],
+                'is_self' => (int) $stat['user_id'] === $userId,
+            ];
+        }
+
+        return $names;
     }
 
     /**

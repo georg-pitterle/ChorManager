@@ -1,0 +1,13 @@
+{# Zahlformat der Mitgliedersicht: eine Nachkommastelle, deutsches Komma, geschütztes Leerzeichen. #}
+{% macro percent(value) %}{{ value|number_format(1, ",", ".") }}&nbsp;%{% endmacro %}
+
+{# Punkte mit Vorzeichen; das Minus ist ein echtes Minuszeichen, kein Bindestrich. #}
+{% macro points(value) %}
+    {%- if value > 0 -%}
+        +{{ value|number_format(1, ",", ".") }}
+    {%- elseif value < 0 -%}
+        &minus;{{ (0 - value)|number_format(1, ",", ".") }}
+    {%- else -%}
+        &plusmn;0,0
+    {%- endif -%}
+{% endmacro %}

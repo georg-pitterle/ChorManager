@@ -1829,12 +1829,16 @@ class DevSeedService
             $memberIds = $projectMembers[$projectId] ?? [];
             foreach ($events as $event) {
                 foreach ($memberIds as $userId) {
-                    if (mt_rand(1, 100) > 92) {
+                    // Etwa jedes siebte Mitglied ist fast immer da. Ohne diesen Kern
+                    // läge bei gleichverteiltem Würfeln niemand über 90 %, und die
+                    // Liste "Immer dabei" in den Anwesenheitsquoten bliebe leer.
+                    $isCore = $userId % 7 === 0;
+                    if (mt_rand(1, 100) > ($isCore ? 99 : 92)) {
                         continue;
                     }
 
                     $roll = mt_rand(1, 100);
-                    if ($roll <= 78) {
+                    if ($roll <= ($isCore ? 97 : 78)) {
                         $status = $statuses[0];
                     } elseif ($roll <= 93) {
                         $status = $statuses[1];

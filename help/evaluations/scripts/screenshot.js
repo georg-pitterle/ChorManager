@@ -20,6 +20,10 @@ const { prepareSidebarForScreenshots } = require('../../screenshot-support');
 const BASE_URL = process.env.BASE_URL || 'https://chormanager.ddev.site';
 const LOGIN_EMAIL = process.env.LOGIN_EMAIL || 'seed.001@chor.local';
 const LOGIN_PASSWORD = process.env.LOGIN_PASSWORD || 'seed';
+// Ein einfaches Mitglied ohne Anwesenheitsrecht aus dem zuverlaessigen Kern des Seeds
+// (Kennung durch 7 teilbar, siehe DevSeedService::seedAttendance): zeigt die
+// Mitgliedersicht samt eigenem Eintrag bei "Immer dabei".
+const MEMBER_EMAIL = process.env.MEMBER_EMAIL || 'seed.028@chor.local';
 const IMAGES_DIR = path.join(__dirname, '..', 'screenshots');
 
 const VIEWPORT = { width: 1440, height: 900 };
@@ -39,9 +43,24 @@ async function shotCapped(page, name, maxHeight = 1400) {
     console.log(`gespeichert: ${path.relative(process.cwd(), filePath)} (${VIEWPORT.width}x${height})`);
 }
 
-async function login(page) {
+/**
+ * Ab einer Ueberschrift abwaerts, auf maxHeight beschnitten: zeigt den Verwaltungsteil
+ * der Anwesenheitsquoten ohne die Mitgliederbereiche darueber zu wiederholen.
+ */
+async function shotSection(page, name, headingSelector, maxHeight = 1300) {
+    const top = await page.locator(headingSelector).evaluate(
+        (el) => Math.max(0, Math.floor(el.closest('section').getBoundingClientRect().top + window.scrollY) - 24)
+    );
+    const fullHeight = await page.evaluate(() => Math.ceil(document.documentElement.scrollHeight));
+    const height = Math.min(fullHeight - top, maxHeight);
+    const filePath = path.join(IMAGES_DIR, `${name}.png`);
+    await page.screenshot({ path: filePath, fullPage: true, clip: { x: 0, y: top, width: VIEWPORT.width, height } });
+    console.log(`gespeichert: ${path.relative(process.cwd(), filePath)} (${VIEWPORT.width}x${height})`);
+}
+
+async function login(page, email = LOGIN_EMAIL) {
     await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
-    await page.locator('#emailInput').fill(LOGIN_EMAIL);
+    await page.locator('#emailInput').fill(email);
     await page.locator('#passwordInput').fill(LOGIN_PASSWORD);
     await Promise.all([
         page.waitForURL((url) => !url.pathname.startsWith('/login'), { waitUntil: 'networkidle' }),
@@ -64,12 +83,20 @@ async function main() {
     const page = await context.newPage();
 
     try {
+        // 1. Anwesenheitsquoten aus Sicht eines Mitglieds: eigener Stand,
+        // Stimmen im Vergleich, Immer dabei - ohne namentliche Tabelle.
+        await login(page, MEMBER_EMAIL);
+        await page.goto(`${BASE_URL}/evaluations`, { waitUntil: 'networkidle' });
+        await page.locator('#own-standing-title').waitFor({ state: 'visible' });
+        await shotCapped(page, '01-attendance-rates');
+        await context.clearCookies();
+
         await login(page);
 
-        // 1. Anwesenheitsquoten
+        // 5. Verwaltungsteil der Anwesenheitsquoten: Nach Stimmgruppe und Tabelle
         await page.goto(`${BASE_URL}/evaluations`, { waitUntil: 'networkidle' });
         await page.locator('#evaluationsTable').waitFor({ state: 'visible' });
-        await shotCapped(page, '01-attendance-rates');
+        await shotSection(page, '05-attendance-details', '#quota-by-voice-group-title');
 
         // 2. Anmelde-Auswertung, nur kommende Termine
         await page.goto(`${BASE_URL}/evaluations/registrations`, { waitUntil: 'networkidle' });

@@ -1,0 +1,29 @@
+{#
+    "Immer dabei": nur Namen, alphabetisch, ohne Quote und ohne Rang - ein Kreis, zu dem
+    man gehören will, keine Rangliste. Wer darunter liegt, taucht nirgends auf.
+#}
+<section class="dashboard-section h-100" aria-labelledby="always-there-title">
+    <div class="dashboard-section-head">
+        <h2 class="dashboard-section-title" id="always-there-title">Immer dabei</h2>
+        <p class="dashboard-section-lead mb-0">
+            Bei mindestens {{ always_there_threshold }}&nbsp;% der Pflichttermine dabei.
+        </p>
+    </div>
+
+    {% if not always_there_ready %}
+        <p class="text-muted mb-0">
+            Ab dem {{ min_events_for_recognition }}.&nbsp;Pflichttermin stehen hier alle, die fast immer dabei sind.
+        </p>
+    {% elseif always_there is empty %}
+        <p class="text-muted mb-0">Noch steht hier niemand &ndash; der nächste Termin zählt.</p>
+    {% else %}
+        <ul class="always-there list-unstyled mb-0">
+            {% for person in always_there %}
+                <li class="always-there__name{{ person.is_self ? " always-there__name--self" : "" }}">
+                    {{ person|person_name }}
+                    {%- if person.is_self %} <span class="always-there__self">(du)</span>{% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</section>

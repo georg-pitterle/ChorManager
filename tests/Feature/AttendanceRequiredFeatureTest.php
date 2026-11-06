@@ -368,7 +368,9 @@ class AttendanceRequiredFeatureTest extends TestCase
         ]);
 
         $_SESSION['user_id'] = $member->id;
-        $_SESSION['can_manage_users'] = true;
+        // Die namentliche Tabelle, aus der unten gelesen wird, sieht nur die
+        // Anwesenheitsverwaltung; hier geht es um die Zählung, nicht um die Sicht.
+        $_SESSION['can_manage_attendance_all'] = true;
 
         $controller = new EvaluationController($this->createTwig(), new ProjectQuery(new \App\Services\NameFormatterService()), new \App\Services\NameFormatterService());
 

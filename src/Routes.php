@@ -403,9 +403,11 @@ return function (App $app) {
             // Auswertungen sind bewusst für jedes angemeldete Mitglied offen: Der Chor
             // sieht seine Anwesenheit als gemeinsame Angelegenheit, und die Liste zeigt
             // nur Projekte, zu denen der Nutzer über ProjectQuery::getAccessibleProjects()
-            // ohnehin Zugang hat. Wer die namentlichen Fehlzeiten enger fassen will,
-            // hängt die Routen an RoleMiddleware(requiresAttendanceManagement: true) -
-            // die Sichtbarkeit ist hier die Entscheidung, nicht ein Versehen.
+            // ohnehin Zugang hat. Was andere Personen betrifft, sieht ein Mitglied dort
+            // nur im Positiven ("Immer dabei", Stimmgruppen-Vergleich); die namentlichen
+            // Fehlzeiten filtert EvaluationController::index() auf den Umfang des
+            // Anwesenheitsrechts - die Sichtbarkeit ist hier die Entscheidung, nicht ein
+            // Versehen.
             $group->get('/evaluations', [EvaluationController::class, 'index']);
             $group->get('/evaluations/project-members', [EvaluationController::class, 'projectMembers']);
 
