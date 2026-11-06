@@ -50,6 +50,20 @@ wieder auftaucht.
 | App, Beispielzeilen je Ereignis | `{job="chormanager", service="app", level=~"…"} \| json event="context.event" \| event="<event>"` mit `limit=20` |
 | Web (nginx-Fehlerlog) | `{job="chormanager", service="web"}` |
 | Datenbank | `{job="chormanager", service="db"} \|~ "(?i)error\|warn"` |
+| Reverse Proxy, Status nach Stack | `sum by (stack, status) (count_over_time({job="chormanager", service="proxy"} != "Uptime-Kuma" \| json status [24h]))` |
+| Reverse Proxy, 5xx und Fehlerlog | `{job="chormanager", service="proxy"} \| json status \| status=~"5.." or filename=~".*error.log"` |
+| Reverse Proxy, Erreichbarkeit | `sum by (stack) (count_over_time({job="chormanager", service="proxy"} \|= "Uptime-Kuma" [1m]))` — Lücken zeigen Ausfälle vor dem Proxy |
+
+Der Proxy liefert seine Dateilogs über einen eigenen Abzweig in Alloy: nur Zeilen der
+ChorManager-Hosts plus globale Ereignisse (Reload, Start, `[emerg]`/`[alert]`/`[crit]`),
+`stack` aus dem Host abgeleitet, globale Zeilen unter `stack="edge"`. Query-Strings
+(`args`, `request`, Referer), Token im Pfad (`/s/…`, `/…/export/….ics`) und
+Adressfelder sind dort bereits maskiert.
+
+**Ausfälle eingrenzen.** Uptime Kuma fragt jede Minute an. Meldet es einen Ausfall,
+zeigt der Proxy-Log, wo er lag: Kommt in der Minute keine Kuma-Zeile an, hat die
+Anfrage den Proxy nie erreicht (Cloudflare `522`, Netz oder Host). Kommt sie an, steht
+im `status` und im `upstream_status`, ob der Proxy oder `web`/`app` versagt hat.
 
 Die Boot-Ereignisse aus `dist/README.md` (`app.boot.*`) gehören dazu: ein
 `app.boot.migration_failed` ist immer ein Befund.
