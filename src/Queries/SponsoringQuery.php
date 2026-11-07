@@ -27,6 +27,12 @@ use Illuminate\Database\Eloquent\Collection;
  * führt. getActiveUsers() wäre auch der falsche Weg gewesen: Es lädt Rollen,
  * Stimmgruppen und Projekte vorab, für eine Auswahlliste drei Abfragen, die
  * niemand ausliest.
+ *
+ * Seit Lauf 67 steht hier nicht nur die Auswahl, sondern auch ihre Gegenprobe.
+ * Die drei Abfragen standen bis dahin im SponsorshipController, und Angebot und
+ * Prüfung stimmten nur deshalb überein, weil beide Seiten zufällig denselben
+ * Scope aufriefen. Eine Bedingung mehr an der Auswahl hätte ein Formular
+ * ergeben, das eine Person anbietet, die das Speichern danach ablehnt.
  */
 class SponsoringQuery
 {
@@ -74,5 +80,70 @@ class SponsoringQuery
         $this->nameFormatter->applyNameOrder($query);
 
         return $query->get();
+    }
+
+    /**
+     * Die Gegenprobe zu getAssignableUsers(): Steht diese Person in der Menge,
+     * die das Formular anbietet?
+     *
+     * Dieselbe Frage, dieselbe Quelle - `User::withSponsoringAccess()`. Dass
+     * beides hier nebeneinander steht, ist der ganze Zweck der Methode: Die
+     * Prüfung lag bis Lauf 67 als eigene Abfrage im SponsorshipController und
+     * hätte eine Änderung an der Auswahl überlebt, ohne davon zu erfahren.
+     *
+     * Eine Kennung <= 0 trägt kein Konto und kommt ohne Datenbankzugriff aus -
+     * dieselbe Abkürzung wie in ProjectQuery::getUserVoiceGroupIds().
+     */
+    public function isAssignable(int $userId): bool
+    {
+        if ($userId <= 0) {
+            return false;
+        }
+
+        return User::withSponsoringAccess()->whereKey($userId)->exists();
+    }
+
+    /**
+     * Ob hinter der Kennung überhaupt ein aktives Mitglied steht.
+     *
+     * Trennt die beiden Ablehnungen des Speicherns voneinander: Ein aktives
+     * Mitglied ohne Sponsoring-Recht kommt aus einer Rollenpflege, die jemand
+     * nebenbei geändert hat, eine unbekannte oder archivierte Kennung aus einer
+     * veralteten oder manipulierten Eingabe. Die Oberfläche sagt deshalb zwei
+     * verschiedene Sätze dazu (SponsorshipController::ASSIGNEE_NO_ACCESS_ERROR
+     * und ::ASSIGNEE_ERROR).
+     *
+     * Gefragt wird erst, wenn isAssignable() schon nein gesagt hat - auf dem
+     * Weg, der durchgeht, kostet die Unterscheidung keine Abfrage.
+     */
+    public function isActiveMember(int $userId): bool
+    {
+        if ($userId <= 0) {
+            return false;
+        }
+
+        return User::query()->whereKey($userId)->where('is_active', 1)->exists();
+    }
+
+    /**
+     * Die eingetragene Person für die Meldung nach dem Zuweisen.
+     *
+     * Nur die Listenspalten: Gebraucht werden Vor- und Nachname für
+     * NameFormatterService, und ein User::find() hätte dafür die ganze Zeile
+     * samt Passwort-Hash geholt. Dass das Ergebnis nicht in eine Vorlage geht,
+     * sondern in eine Flash-Meldung, ändert an der Regel nichts.
+     *
+     * Ohne Filter auf `is_active`, anders als bei isActiveMember(): Gefragt wird
+     * unmittelbar nach einem erfolgreichen Zuweisen, die Person ist an dieser
+     * Stelle schon geprüft. Ein Filter hier würde aus einem Konto, das in der
+     * Zwischenzeit archiviert wurde, eine namenlose Meldung machen.
+     */
+    public function findAssignee(int $userId): ?User
+    {
+        if ($userId <= 0) {
+            return null;
+        }
+
+        return User::select(User::LIST_COLUMNS)->find($userId);
     }
 }

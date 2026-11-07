@@ -12,6 +12,7 @@ use App\Models\Sponsor;
 use App\Models\Sponsorship;
 use App\Models\User;
 use App\Policies\SponsoringPolicy;
+use App\Queries\SponsoringQuery;
 use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use App\Util\SponsorResponsibility;
@@ -697,6 +698,114 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
             'can_manage_sponsoring' => $manager,
             'can_create_own_sponsorships' => !$manager,
         ];
+    }
+
+    /**
+     * Angebot und Gegenprobe kommen aus einer Quelle.
+     *
+     * Bis hierher fragte SponsorshipController::validateAssignedUser() mit zwei
+     * eigenen Abfragen direkt am Modell nach, während das Formular seine Auswahl
+     * aus SponsoringQuery bezog. Beide stimmten nur deshalb überein, weil sie
+     * zufällig denselben Scope aufriefen - eine Bedingung mehr auf der einen
+     * Seite wäre auf der anderen nicht aufgefallen, und das Formular hätte eine
+     * Person angeboten, die das Speichern danach ablehnt. Der Test hält
+     * zusammen, was die Auswahl anbietet und was die Prüfung annimmt.
+     */
+    public function testTheOfferedSetAndTheAcceptedSetComeFromOneSource(): void
+    {
+        $roleId = (int) $this->anna->roles()->firstOrFail()->id;
+
+        $archivedWithRight = $this->person('Archiv', 'Mitrecht');
+        $archivedWithRight->roles()->attach($roleId);
+        $archivedWithRight->update(['is_active' => 0]);
+
+        $query = new SponsoringQuery(new NameFormatterService());
+        $offered = $query->getAssignableUsers()
+            ->map(static fn ($user): int => (int) $user->id)
+            ->all();
+
+        // Die beiden Mengen müssen auch dort übereinstimmen, wo es gar kein Konto
+        // gibt: 0 steht für "nichts ausgewählt", eine negative Kennung trägt kein
+        // Konto, und die letzte ist einfach unbekannt.
+        $candidates = [
+            (int) $this->anna->id,
+            (int) $this->bernd->id,
+            (int) $this->manager->id,
+            (int) $this->person('Ohne', 'Recht')->id,
+            (int) $archivedWithRight->id,
+            0,
+            -1,
+            999999,
+        ];
+
+        foreach ($candidates as $id) {
+            $this->assertSame(
+                in_array($id, $offered, true),
+                $query->isAssignable($id),
+                'isAssignable() und getAssignableUsers() widersprechen sich bei Konto ' . $id
+            );
+        }
+    }
+
+    /**
+     * Die zweite Hälfte der Gegenprobe: Sie trennt die beiden Ablehnungen.
+     *
+     * Ein aktives Mitglied ohne Sponsoring-Recht bekommt eine andere Meldung als
+     * eine unbekannte oder archivierte Kennung, weil die beiden Fälle verschieden
+     * zu lesen sind - das eine kommt aus einer Rollenpflege, das andere aus einer
+     * veralteten oder manipulierten Eingabe.
+     */
+    public function testTheActiveMemberCheckSeparatesTheTwoRefusals(): void
+    {
+        $query = new SponsoringQuery(new NameFormatterService());
+
+        $this->assertTrue($query->isActiveMember((int) $this->person('Ohne', 'Rechte')->id));
+        $this->assertFalse($query->isActiveMember((int) $this->archivedPerson()->id));
+        $this->assertFalse($query->isActiveMember(999999));
+        $this->assertFalse($query->isActiveMember(0));
+    }
+
+    /**
+     * Die Meldung nach dem Zuweisen braucht nur den Namen - und lädt deshalb auch
+     * nur die Listenspalten. Zuvor stand dort ein User::find(), das die ganze
+     * Zeile samt Passwort-Hash holte, um daraus zwei Felder zu formatieren.
+     */
+    public function testTheAssigneeLookupLeavesThePasswordHashInTheDatabase(): void
+    {
+        $assignee = (new SponsoringQuery(new NameFormatterService()))->findAssignee((int) $this->anna->id);
+
+        $this->assertNotNull($assignee);
+        $this->assertArrayNotHasKey(
+            'password',
+            $assignee->getAttributes(),
+            'Für einen Namen in einer Flash-Meldung muss der Hash nicht aus der Datenbank.'
+        );
+        $this->assertSame('Anna', $assignee->first_name);
+    }
+
+    public function testTheAssigneeLookupAnswersNullForAnUnknownAccount(): void
+    {
+        $this->assertNull((new SponsoringQuery(new NameFormatterService()))->findAssignee(999999));
+    }
+
+    /**
+     * Keine Personenabfrage mehr im Controller.
+     *
+     * Genau dafür ist SponsoringQuery angelegt: Eine Abfrage, die im Controller
+     * steht, fällt durch jeden Wächter der Abfrageschicht hindurch -
+     * UserColumnExposureFeatureTest etwa sieht sie nie, obwohl ihre Regel für sie
+     * genauso gilt. Der Test schließt den Weg zurück.
+     */
+    public function testTheSponsorshipControllerHoldsNoPersonQueryOfItsOwn(): void
+    {
+        $file = (new \ReflectionClass(SponsorshipController::class))->getFileName();
+        $this->assertIsString($file);
+
+        $this->assertStringNotContainsString(
+            'User::',
+            (string) file_get_contents($file),
+            'SponsorshipController fragt wieder selbst am User-Modell - das gehört in SponsoringQuery.'
+        );
     }
 
     private function person(string $firstName, string $lastName): User

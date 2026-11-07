@@ -564,7 +564,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(SponsoringPolicy::class),
                 $c->get(EntityAttachmentService::class),
                 $c->get(LoggerInterface::class),
-                $c->get(NameFormatterService::class)
+                $c->get(NameFormatterService::class),
+                $c->get(SponsoringQuery::class)
             );
         },
         VoiceGroupListController::class => function (ContainerInterface $c) {

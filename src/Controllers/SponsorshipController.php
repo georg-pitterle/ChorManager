@@ -17,8 +17,8 @@ use App\Models\SponsorPackage;
 use App\Models\Sponsorship;
 use App\Models\SponsorshipBenefit;
 use App\Models\SponsorshipDeliverable;
-use App\Models\User;
 use App\Policies\SponsoringPolicy;
+use App\Queries\SponsoringQuery;
 use App\Services\EntityAttachmentService;
 use App\Services\NameFormatterService;
 use App\Util\AmountNormalizer;
@@ -48,17 +48,22 @@ class SponsorshipController
     private EntityAttachmentService $attachments;
     private LoggerInterface $logger;
     private NameFormatterService $nameFormatter;
+    private SponsoringQuery $sponsoringQuery;
 
     public function __construct(
         SponsoringPolicy $policy,
         EntityAttachmentService $attachments,
         ?LoggerInterface $logger = null,
-        ?NameFormatterService $nameFormatter = null
+        ?NameFormatterService $nameFormatter = null,
+        ?SponsoringQuery $sponsoringQuery = null
     ) {
         $this->policy = $policy;
         $this->attachments = $attachments;
         $this->logger = $logger ?? new NullLogger();
         $this->nameFormatter = $nameFormatter ?? new NameFormatterService();
+        // Dieselbe Namensreihenfolge wie die Auswahl, die die Abfrage ausliefert:
+        // Ein zweiter NameFormatterService daneben wäre anders einstellbar.
+        $this->sponsoringQuery = $sponsoringQuery ?? new SponsoringQuery($this->nameFormatter);
     }
 
     /**
@@ -355,6 +360,11 @@ class SponsorshipController
      * eintrug, erzeugte einen Vorgang, der versorgt aussah, während die Person
      * auf /sponsoring eine 403 bekam.
      *
+     * Gefragt wird dafür dieselbe Klasse, die die Auswahl ausliefert
+     * (SponsoringQuery::isAssignable()). Bis Lauf 67 stand die Prüfung als
+     * eigene Abfrage am Modell hier im Controller und stimmte mit dem Angebot
+     * nur deshalb überein, weil beide Seiten zufällig denselben Scope aufriefen.
+     *
      * Eine Ausnahme gilt für die bereits eingetragene Person: Sie bleibt gültig,
      * auch wenn sie inzwischen archiviert wurde oder ihr Recht verloren hat.
      * Sonst scheiterte ein Speichern aus einem ganz anderen Grund - ein
@@ -388,14 +398,11 @@ class SponsorshipController
             return ['error' => null, 'value' => $submitted];
         }
 
-        if (User::query()->whereKey($submitted)->withSponsoringAccess()->exists()) {
+        if ($this->sponsoringQuery->isAssignable($submitted)) {
             return ['error' => null, 'value' => $submitted];
         }
 
-        $isActiveMember = User::query()
-            ->whereKey($submitted)
-            ->where('is_active', 1)
-            ->exists();
+        $isActiveMember = $this->sponsoringQuery->isActiveMember($submitted);
 
         return [
             'error' => $isActiveMember ? self::ASSIGNEE_NO_ACCESS_ERROR : self::ASSIGNEE_ERROR,
@@ -463,7 +470,8 @@ class SponsorshipController
             'assigned_user_id' => $assignee['value'],
             'user_id' => $this->policy->currentUserId(),
         ]);
-        $_SESSION['success'] = $this->nameFormatter->formatPerson(User::find($assignee['value']))
+        $assigned = $this->sponsoringQuery->findAssignee((int) $assignee['value']);
+        $_SESSION['success'] = $this->nameFormatter->formatPerson($assigned)
             . ' ist jetzt für ' . ($sponsorship->sponsor->name ?? 'diesen Sponsor') . ' zuständig.';
 
         return $back;
