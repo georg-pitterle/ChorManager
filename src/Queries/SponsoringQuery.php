@@ -9,19 +9,19 @@ use App\Services\NameFormatterService;
 use Illuminate\Database\Eloquent\Collection;
 
 /**
- * Die Personenabfragen des Sponsorings.
+ * Die Personenabfrage des Sponsorings.
  *
- * Beide standen bis hierher als private Methoden in ihrem Controller - und
- * fielen damit durch jeden Wächter der Abfrageschicht hindurch, obwohl dessen
- * Regeln für sie genauso gelten: Sie reichen ihre User-Modelle unverändert an
- * die Vorlage weiter. Entsprechend hatten beide die ganze Zeile samt
- * Passwort-Hash geladen und ihre Reihenfolge hart nach dem Nachnamen gesetzt,
- * statt sie aus NameFormatterService zu nehmen.
+ * Sie stand bis hierher als private Methode in ihrem Controller - und fiel
+ * damit durch jeden Wächter der Abfrageschicht hindurch, obwohl dessen Regeln
+ * für sie genauso gelten: Sie reicht ihre User-Modelle unverändert an die
+ * Vorlage weiter. Entsprechend hatte sie die ganze Zeile samt Passwort-Hash
+ * geladen und ihre Reihenfolge hart nach dem Nachnamen gesetzt, statt sie aus
+ * NameFormatterService zu nehmen.
  *
  * Hier greift UserColumnExposureFeatureTest von selbst, ohne dass jemand einen
  * eigenen Test dafür schreiben muss.
  *
- * Eine eigene Klasse und nicht zwei Methoden in UserQuery: Die Grenze zwischen
+ * Eine eigene Klasse und nicht eine Methode in UserQuery: Die Grenze zwischen
  * den Abfrageklassen ist hier nicht die Entität, sondern der Aufrufer - wie
  * schon bei ProjectQuery, das die nutzerbezogenen Abfragen der Projektmaske
  * führt. getActiveUsers() wäre auch der falsche Weg gewesen: Es lädt Rollen,
@@ -54,6 +54,13 @@ class SponsoringQuery
      * und bot jedes aktive Mitglied an; zwei Mengen für dieselbe Frage sind eine
      * Einladung zum Auseinanderlaufen.
      *
+     * Nur die Listenspalten, weil das Ergebnis unverändert in die View geht -
+     * der Passwort-Hash bleibt damit in der Datenbank (siehe
+     * UserQuery::orderedListQuery()). Und die Reihenfolge kommt aus
+     * NameFormatterService, weil die Vorlage daneben `person_name` ausgibt: Wer
+     * hier nach dem Nachnamen sortiert, während "Vorname Nachname" eingestellt
+     * ist, liefert eine Auswahl, die sich unsortiert liest.
+     *
      * Dass die Auswahl eng ist, ist dabei keine Absicherung:
      * SponsorshipController::validateAssignedUser() prüft dieselbe Menge beim
      * Speichern nach.
@@ -62,25 +69,10 @@ class SponsoringQuery
      */
     public function getAssignableUsers(): Collection
     {
-        return $this->orderedSelect(User::withSponsoringAccess()->select(User::LIST_COLUMNS));
-    }
+        $query = User::withSponsoringAccess()->select(User::LIST_COLUMNS);
 
-    /**
-     * Die gemeinsame Hälfte beider Auswahlen: Listenspalten und die eingestellte
-     * Namensreihenfolge.
-     *
-     * Nur die Listenspalten, weil das Ergebnis unverändert in die View geht -
-     * der Passwort-Hash bleibt damit in der Datenbank (siehe
-     * UserQuery::orderedListQuery()). Und die Reihenfolge kommt aus
-     * NameFormatterService, weil die Vorlage daneben `person_name` ausgibt: Wer
-     * hier nach dem Nachnamen sortiert, während "Vorname Nachname" eingestellt
-     * ist, liefert eine Auswahl, die sich unsortiert liest.
-     *
-     * @param \Illuminate\Database\Eloquent\Builder<User> $query
-     * @return Collection<int, User>
-     */
-    private function orderedSelect($query): Collection
-    {
-        return $this->nameFormatter->applyNameOrder($query)->get();
+        $this->nameFormatter->applyNameOrder($query);
+
+        return $query->get();
     }
 }
