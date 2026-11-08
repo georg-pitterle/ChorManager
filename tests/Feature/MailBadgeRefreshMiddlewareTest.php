@@ -11,6 +11,9 @@ use App\Services\MailBadgeService;
 use App\Services\MailCredentialCryptoService;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
+use Illuminate\Database\QueryException;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -315,5 +318,137 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
         $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
 
         $this->assertSame(1, $attempts);
+    }
+
+    /**
+     * Eine kurze Datenbank-Störung ist kein Fehler.
+     *
+     * Dieselbe Regel setzen MailQueueProcessingMiddleware und
+     * OpportunisticReminderMiddleware schon um: Startet der db-Container beim
+     * Ausrollen neu, ist die nebenbei erledigte Arbeit Kür, und der nächste
+     * Aufruf holt sie nach. Hier fehlte die Unterscheidung - jede Anfrage eines
+     * angemeldeten Mitglieds mit Postfach schrieb in diesen Sekunden eine
+     * Fehlerzeile, und die tägliche Log-Analyse muss jede davon anschauen.
+     */
+    public function testTransientDatabaseOutageIsLoggedAsSkippedNotAsFailure(): void
+    {
+        $user = $this->createUser();
+        $_SESSION['user_id'] = $user->id;
+        $crypto = new MailCredentialCryptoService();
+
+        UserMailAccount::create([
+            'user_id' => $user->id,
+            'imap_host' => '127.0.0.1',
+            'imap_port' => 1,
+            'imap_encryption' => 'none',
+            'imap_username' => 'someone@example.test',
+            'imap_password_enc' => $crypto->encrypt('irrelevant'),
+            'imap_enabled' => true,
+            'mail_badge_enabled' => true,
+            'mail_last_unseen_count' => 9,
+            'mail_last_uid_seen' => '77',
+            'mail_last_checked_at' => Carbon::now()->subMinutes(10),
+        ]);
+
+        $logHandler = new TestHandler();
+        $logger = new Logger('test', [$logHandler]);
+
+        $middleware = new MailBadgeRefreshMiddleware(
+            fn (): MailBadgeService => $this->makeFailingBadgeService($this->queryException()),
+            $logger
+        );
+        $response = $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertContains('mail_badge.middleware.skipped', $this->loggedEvents($logHandler));
+        $this->assertNotContains('mail_badge.middleware.failed', $this->loggedEvents($logHandler));
+        $this->assertTrue($logHandler->hasWarningRecords());
+        $this->assertFalse($logHandler->hasErrorRecords());
+    }
+
+    /**
+     * Alles andere bleibt ein Fehler - sonst verdeckte die neue Unterscheidung
+     * genau die Fehlschläge, für die die Protokollzeile da ist.
+     */
+    public function testAnyOtherFailureIsStillLoggedAsAnError(): void
+    {
+        $user = $this->createUser();
+        $_SESSION['user_id'] = $user->id;
+        $crypto = new MailCredentialCryptoService();
+
+        UserMailAccount::create([
+            'user_id' => $user->id,
+            'imap_host' => '127.0.0.1',
+            'imap_port' => 1,
+            'imap_encryption' => 'none',
+            'imap_username' => 'someone@example.test',
+            'imap_password_enc' => $crypto->encrypt('irrelevant'),
+            'imap_enabled' => true,
+            'mail_badge_enabled' => true,
+            'mail_last_unseen_count' => 9,
+            'mail_last_uid_seen' => '77',
+            'mail_last_checked_at' => Carbon::now()->subMinutes(10),
+        ]);
+
+        $logHandler = new TestHandler();
+        $logger = new Logger('test', [$logHandler]);
+
+        $middleware = new MailBadgeRefreshMiddleware(
+            static function (): MailBadgeService {
+                throw new \RuntimeException('MAIL_CREDENTIAL_KEY ist nicht richtig gesetzt');
+            },
+            $logger
+        );
+        $response = $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertContains('mail_badge.middleware.failed', $this->loggedEvents($logHandler));
+        $this->assertNotContains('mail_badge.middleware.skipped', $this->loggedEvents($logHandler));
+        $this->assertTrue($logHandler->hasErrorRecords());
+    }
+
+    /**
+     * @return list<string|null>
+     */
+    private function loggedEvents(TestHandler $logHandler): array
+    {
+        return array_map(
+            static fn (\Monolog\LogRecord $record): ?string => $record->context['event'] ?? null,
+            $logHandler->getRecords()
+        );
+    }
+
+    private function queryException(): QueryException
+    {
+        return new QueryException(
+            'mysql',
+            'select * from `user_mail_accounts` where `user_id` = ?',
+            [1],
+            new \PDOException('SQLSTATE[HY000] [2002] Connection refused')
+        );
+    }
+
+    /**
+     * Ein Badge-Dienst, dessen Abgleich an der genannten Störung scheitert -
+     * `MailBadgeService::refresh()` schreibt seine Ergebnisspalten selbst in die
+     * Datenbank und ist damit die Stelle, an der eine Störung ankommt.
+     */
+    private function makeFailingBadgeService(\Throwable $failure): MailBadgeService
+    {
+        return new class (new MailCredentialCryptoService(), new NullLogger(), 1, $failure) extends MailBadgeService {
+            public function __construct(
+                MailCredentialCryptoService $crypto,
+                NullLogger $logger,
+                int $connectTimeoutSeconds,
+                private readonly \Throwable $failure
+            ) {
+                parent::__construct($crypto, $logger, $connectTimeoutSeconds);
+            }
+
+            public function refresh(UserMailAccount $account): bool
+            {
+                throw $this->failure;
+            }
+        };
     }
 }

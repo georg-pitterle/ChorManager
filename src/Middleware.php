@@ -23,7 +23,6 @@ use Slim\Exception\HttpNotFoundException;
 use Slim\Views\Twig;
 
 return function (App $app): void {
-    // Example health endpoint middleware stack can stay empty for now.
     $displayErrorDetails = AppEnvironment::isDebugEnabled();
     $logger = null;
     $container = $app->getContainer();

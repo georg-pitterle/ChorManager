@@ -89,12 +89,10 @@ class AuthMiddleware implements MiddlewareInterface
             return LoginRedirect::respond($request);
         }
 
-        // Refresh rights snapshot on every protected request.
+        // Der Rechte-Abzug der Sitzung wird bei jeder geschützten Anfrage neu
+        // gesetzt: Eine Rollenänderung wirkt damit beim nächsten Aufruf, nicht
+        // erst nach der nächsten Anmeldung.
         $this->sessionAuthService->setAuthenticatedUser($currentUser);
-
-        // Pass session data to view globally, can be done via middleware or Twig extension.
-        // For simplicity, we can inject globals into Twig in Dependencies.php, but since we use Slim-Twig,
-        // we can also do it there.
 
         return $handler->handle($request);
     }

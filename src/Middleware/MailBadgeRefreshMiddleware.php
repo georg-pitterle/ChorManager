@@ -10,6 +10,7 @@ use App\Services\MailBadgeService;
 use App\Util\SessionConfig;
 use Carbon\Carbon;
 use Closure;
+use Illuminate\Database\QueryException;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
@@ -86,6 +87,21 @@ class MailBadgeRefreshMiddleware implements MiddlewareInterface
             $this->clearForceSignal();
 
             $this->refreshWithBackOff($account);
+        } catch (QueryException $exception) {
+            // Kurze Datenbank-Störung (z. B. der db-Container startet beim
+            // Ausrollen neu). Dieselbe Regel wie bei Mailwarteschlange und
+            // Erinnerungen: Der Abgleich ist Kür, der nächste Aufruf holt ihn
+            // nach - erwartbares Rauschen, kein Fehler. Als Fehlerzeile schrieb
+            // in diesen Sekunden jede Anfrage eines angemeldeten Mitglieds mit
+            // Postfach eine, und die tägliche Log-Analyse muss jede davon
+            // anschauen.
+            $this->logger->warning(
+                'Mail badge opportunistic refresh skipped (database unavailable).',
+                [
+                    'event' => 'mail_badge.middleware.skipped',
+                    'exception' => $exception,
+                ]
+            );
         } catch (\Throwable $exception) {
             $this->logger->error(
                 'Mail badge opportunistic refresh failed.',
