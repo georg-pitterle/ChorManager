@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\UserMailAccount;
 use App\Services\MailBadgeService;
 use App\Services\MailCredentialCryptoService;
+use App\Util\AfterResponse;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
@@ -40,6 +41,14 @@ final class MailBadgeForcedRefreshFeatureTest extends TestCase
     private ?string $originalEnvValue = null;
     private bool $hadEnvValue = false;
 
+    /**
+     * Der IMAP-Abgleich läuft seit Lauf 68 erst nach der Antwort - außer am
+     * Badge-Endpunkt, dessen Antwort den Zählerstand selbst trägt. `runPending()`
+     * steht deshalb hinter jeder Anfrage: Es ist die Stelle, an der in einer
+     * echten Anfrage `fastcgi_finish_request` ausgelöst hätte.
+     */
+    private AfterResponse $afterResponse;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -61,6 +70,9 @@ final class MailBadgeForcedRefreshFeatureTest extends TestCase
         }
 
         $_SESSION = [];
+
+        $this->afterResponse = new AfterResponse(static function (): void {
+        }, false);
     }
 
     protected function tearDown(): void
@@ -141,7 +153,7 @@ final class MailBadgeForcedRefreshFeatureTest extends TestCase
             return new MailBadgeService(new MailCredentialCryptoService(), new NullLogger(), 1);
         };
 
-        return new MailBadgeRefreshMiddleware($factory, new NullLogger());
+        return new MailBadgeRefreshMiddleware($factory, new NullLogger(), $this->afterResponse);
     }
 
     public function testSessionSignalForcesRefreshInsideTheStalenessWindow(): void
@@ -155,6 +167,7 @@ final class MailBadgeForcedRefreshFeatureTest extends TestCase
         $attempts = 0;
         $this->makeMiddleware($attempts)
             ->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
 
         $this->assertSame(1, $attempts, 'Der Vermerk aus der Session muss die Wartezeit aufheben.');
     }
@@ -168,6 +181,7 @@ final class MailBadgeForcedRefreshFeatureTest extends TestCase
         $attempts = 0;
         $this->makeMiddleware($attempts)
             ->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
 
         $this->assertSame(0, $attempts, 'Ohne Signal bleibt die Wartezeit von fünf Minuten unangetastet.');
     }
@@ -183,6 +197,7 @@ final class MailBadgeForcedRefreshFeatureTest extends TestCase
         $attempts = 0;
         $this->makeMiddleware($attempts)
             ->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
 
         $this->assertArrayNotHasKey(
             MailBadgeController::FORCE_SESSION_KEY,
@@ -200,6 +215,7 @@ final class MailBadgeForcedRefreshFeatureTest extends TestCase
         $attempts = 0;
         $this->makeMiddleware($attempts)
             ->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
 
         $this->assertSame(0, $attempts);
         $this->assertArrayNotHasKey(MailBadgeController::FORCE_SESSION_KEY, $_SESSION);
@@ -216,6 +232,7 @@ final class MailBadgeForcedRefreshFeatureTest extends TestCase
         $attempts = 0;
         $this->makeMiddleware($attempts)
             ->process($this->makeRequest('GET', '/logo'), $this->makeHandler());
+        $this->afterResponse->runPending();
 
         $this->assertSame(0, $attempts);
 
@@ -238,6 +255,7 @@ final class MailBadgeForcedRefreshFeatureTest extends TestCase
         $attempts = 0;
         $this->makeMiddleware($attempts)
             ->process($this->makeRequest('GET', MailBadgeController::REFRESH_PATH), $this->makeHandler());
+        $this->afterResponse->runPending();
 
         $this->assertSame(
             1,
@@ -255,6 +273,7 @@ final class MailBadgeForcedRefreshFeatureTest extends TestCase
         $attempts = 0;
         $this->makeMiddleware($attempts)
             ->process($this->makeRequest('GET', MailBadgeController::REFRESH_PATH), $this->makeHandler());
+        $this->afterResponse->runPending();
 
         // Ohne Untergrenze baut jeder Fokuswechsel im Browser eine eigene
         // IMAP-Verbindung auf - beim schnellen Hin- und Herschalten zwischen Tabs
@@ -271,6 +290,7 @@ final class MailBadgeForcedRefreshFeatureTest extends TestCase
         $attempts = 0;
         $this->makeMiddleware($attempts)
             ->process($this->makeRequest('GET', MailBadgeController::REFRESH_PATH), $this->makeHandler());
+        $this->afterResponse->runPending();
 
         $this->assertSame(1, $attempts);
     }
@@ -288,6 +308,7 @@ final class MailBadgeForcedRefreshFeatureTest extends TestCase
         $attempts = 0;
         $this->makeMiddleware($attempts)
             ->process($this->makeRequest('GET', MailBadgeController::REFRESH_PATH), $this->makeHandler());
+        $this->afterResponse->runPending();
 
         $this->assertSame(0, $attempts, 'Ein abgeschaltetes Badge wird auch auf Zuruf nicht abgeglichen.');
     }

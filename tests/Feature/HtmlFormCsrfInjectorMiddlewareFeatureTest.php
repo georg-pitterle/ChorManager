@@ -17,6 +17,44 @@ class HtmlFormCsrfInjectorMiddlewareFeatureTest extends TestCase
     use TestHttpHelpers;
 
 
+    /**
+     * Keine Seite mit Formular, kein Token.
+     *
+     * `ensureStarted()` stand vor dem Aufruf des Handlers und damit vor jeder
+     * Anfrage - auch vor denen, deren Antwort gar keine Seite ist. Weil die
+     * CsrfMiddleware ihre Ausnahmepfade seit Lauf 68 vor der Sitzung prüft, wäre
+     * diese Zeile die letzte gewesen, die für einen WebDAV-Aufruf oder eine
+     * Provider-Rückmeldung noch eine Sitzung angelegt hätte.
+     */
+    public function testAResponseWithoutAFormCreatesNoTokenAndNoSession(): void
+    {
+        // Eine laufende Sitzung schließen und ihre Kennung ablegen: Sonst
+        // entschiede die Testreihenfolge über `session_status()` - im parallelen
+        // Lauf liegen mehrere Testklassen in einem Prozess.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_write_close();
+        }
+        @session_id('');
+        unset($_COOKIE[(string) session_name()]);
+        $_SESSION = [];
+
+        $middleware = new HtmlFormCsrfInjectorMiddleware();
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                $response = new Response();
+                $response->getBody()->write('<?xml version="1.0"?><multistatus/>');
+
+                return $response->withHeader('Content-Type', 'application/xml; charset=utf-8');
+            }
+        };
+
+        $middleware->process($this->createStub(ServerRequestInterface::class), $handler);
+
+        $this->assertArrayNotHasKey(Csrf::SESSION_KEY, $_SESSION);
+        $this->assertSame(PHP_SESSION_NONE, session_status());
+    }
+
     public function testInjectsCsrfIntoHtmlPostFormsWithoutToken(): void
     {
         $_SESSION = [];

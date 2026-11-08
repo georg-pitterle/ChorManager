@@ -29,7 +29,7 @@ final class RequestContextMiddlewareFeatureTest extends TestCase
 
     protected function tearDown(): void
     {
-        unset($_ENV['TRUSTED_PROXIES'], $_SERVER['TRUSTED_PROXIES']);
+        unset($_ENV['TRUSTED_PROXIES'], $_SERVER['TRUSTED_PROXIES'], $_COOKIE[(string) session_name()]);
         $this->discardSession();
         parent::tearDown();
     }
@@ -103,6 +103,38 @@ final class RequestContextMiddlewareFeatureTest extends TestCase
         $this->assertArrayNotHasKey('user_id', $data);
     }
 
+    /**
+     * Eine Anfrage ohne Sitzung bekommt auch keine.
+     *
+     * Hier stand `ensureStarted()`, und weil diese Middleware ganz außen hängt,
+     * legte damit jede Anfrage eine Sitzungsdatei an und bekam ein Set-Cookie -
+     * auch der Noten-Ordner über WebDAV, die Rückmeldungen der Mailprovider,
+     * Collabora über WOPI und der Token-Endpunkt des OIDC-Providers. Eine
+     * Benutzerkennung stand darin nie: Wer sich nicht angemeldet hat, hat keine.
+     * Seit die Leerlaufgrenze bei acht Stunden liegt, blieb jede dieser Dateien
+     * acht Stunden liegen (Lauf 68).
+     */
+    public function testAnAnonymousRequestStartsNoSession(): void
+    {
+        unset($_COOKIE[(string) session_name()]);
+
+        $context = new RequestContext();
+        $middleware = new RequestContextMiddleware($context);
+
+        $middleware->process(
+            (new ServerRequestFactory())->createServerRequest(
+                'PROPFIND',
+                '/webdav/Projekt',
+                ['REMOTE_ADDR' => '203.0.113.9']
+            ),
+            $this->passthroughHandler()
+        );
+
+        $this->assertSame(PHP_SESSION_NONE, session_status());
+        $this->assertSame('', session_id());
+        $this->assertArrayNotHasKey('user_id', $context->all());
+    }
+
     public function testAuthenticatedRequestCapturesUserIdFromSession(): void
     {
         // Reproduces the real timing bug: a previous request already authenticated
@@ -120,6 +152,11 @@ final class RequestContextMiddlewareFeatureTest extends TestCase
         session_write_close();
 
         $_SESSION = [];
+
+        // Die Kennung kommt in einer echten Anfrage aus dem Sitzungs-Cookie, und
+        // genau daran erkennt die Middleware seit Lauf 68, dass diese Anfrage zu
+        // einer Sitzung gehört.
+        $_COOKIE[(string) session_name()] = $sessionId;
         session_id($sessionId);
 
         $context = new RequestContext();

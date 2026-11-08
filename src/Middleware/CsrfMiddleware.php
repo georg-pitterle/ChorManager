@@ -86,15 +86,31 @@ class CsrfMiddleware implements MiddlewareInterface
         $this->rememberRestore = $rememberRestore;
     }
 
+    /**
+     * Die Ausnahmepfade werden geprüft, bevor eine Sitzung entsteht.
+     *
+     * Vorher stand `ensureStarted()` samt `ensureToken()` darüber, und damit
+     * legte jede Anfrage an einen Ausnahmepfad eine Sitzung samt CSRF-Token an -
+     * für Absender, die beides nie vorzeigen können und auch nicht sollen: Der
+     * Noten-Ordner weist sich über Basic-Auth aus, Collabora über sein
+     * Zugangstoken, die Mailprovider über Signatur bzw. Ingest-Token, die
+     * angeschlossene Anwendung am Token-Endpunkt über Client-Secret und
+     * code_verifier. Keiner dieser Controller liest die Sitzung.
+     *
+     * Für jeden anderen Pfad bleibt es beim bisherigen Ablauf: Die Sitzung
+     * entsteht hier, und sie muss es - die Wiederherstellung per Remember-Me
+     * weiter unten tauscht die Sitzungskennung, und das geht nur in einer
+     * laufenden Sitzung.
+     */
     public function process(Request $request, RequestHandler $handler): Response
     {
-        SessionConfig::ensureStarted();
-
-        Csrf::ensureToken();
-
         if ($this->isExemptPath($request->getUri()->getPath())) {
             return $handler->handle($request);
         }
+
+        SessionConfig::ensureStarted();
+
+        Csrf::ensureToken();
 
         return $this->withCurrentToken($this->guard($request, $handler));
     }
@@ -109,7 +125,7 @@ class CsrfMiddleware implements MiddlewareInterface
      */
     private function withCurrentToken(Response $response): Response
     {
-        if ($this->isPubliclyCacheable($response)) {
+        if ($this->mayBeStored($response)) {
             return $response;
         }
 
@@ -122,30 +138,49 @@ class CsrfMiddleware implements MiddlewareInterface
     }
 
     /**
-     * Weist sich die Antwort selbst als `public` zwischenspeicherbar aus?
+     * Darf diese Antwort aufbewahrt werden?
      *
-     * Dann bekommt sie den Token nicht. Ein gemeinsamer Zwischenspeicher -
-     * Reverse Proxy, CDN - darf eine solche Antwort samt Kopfzeilen aufbewahren
-     * und dem nächsten Abruf ausliefern. Mit dem Token darin kennt eine fremde
-     * Person den Token einer anderen Sitzung, und genau damit lässt sich die
-     * Fälschungs-Sperre aushebeln, gegen die er schützt.
+     * Dann bekommt sie den Token nicht. Zwei Wege führen von einer aufbewahrten
+     * Antwort zurück:
      *
-     * Eine Route weist sich so aus: das OIDC-Discovery-Dokument samt
-     * Schlüsselsatz. Es ist ein JSON-Dokument, kein Formular, das seinen Token
-     * nachziehen müsste - es geht also nichts verloren. Die Hilfe-Bilder standen
-     * hier ebenfalls, bis sie auf `private` umgestellt wurden: Eine Antwort
-     * hinter der Anmeldung gehört in keinen gemeinsamen Zwischenspeicher, und
-     * damit entfällt der Weg, über den der Token überhaupt hätte abfließen
-     * können. Die Regel bleibt, weil sie das Discovery-Dokument weiter deckt -
-     * und die nächste `public`-Antwort von sich aus mitnimmt.
+     * - Ein gemeinsamer Zwischenspeicher - Reverse Proxy, CDN - darf eine
+     *   `public`-Antwort samt Kopfzeilen aufbewahren und dem nächsten Abruf
+     *   ausliefern. Dann kennt eine fremde Person den Token einer anderen
+     *   Sitzung, und genau damit lässt sich die Fälschungs-Sperre aushebeln,
+     *   gegen die er schützt. Das deckte diese Prüfung schon seit Lauf 61.
+     * - Der Zwischenspeicher des aufrufenden Browsers behält eine
+     *   `private`-Antwort mit Dauer genauso samt Kopfzeilen, nur auf dessen
+     *   Platte. Zwei Routen weisen sich so aus: die Hilfe-Bilder
+     *   (`private, max-age=86400`) und das Logo (`private, max-age=300`). Weil
+     *   alles andere `no-store` trägt, lag der Token damit als einziges
+     *   überhaupt auf der Platte - und public/js/csrf-token-sync.js übernimmt
+     *   ihn aus **jeder** fetch-Antwort in Seite und Formulare. Holte künftig
+     *   ein fetch eine dieser Routen und der Browser lieferte sie aus seinem
+     *   Zwischenspeicher, überschriebe die Seite ihren gültigen Token mit dem
+     *   alten, und der nächste POST endete in "Ungültiger CSRF-Token". Heute
+     *   holt kein fetch eine solche Route; die Prüfung nimmt der nächsten
+     *   Änderung die Falle weg (Lauf 68).
      *
-     * Alles andere behält den Kopf: Die SecurityHeadersMiddleware setzt für
-     * Antworten ohne eigene Angabe `no-store`, und `private` gilt nur für den
-     * aufrufenden Browser.
+     * Verloren geht nichts: Was eine Dauer nennt, ist hier ein Bild - kein
+     * Formular, das seinen Token nachziehen müsste. Alles andere behält den
+     * Kopf, und das ist der Regelfall: Ohne eigene Angabe setzt die
+     * SecurityHeadersMiddleware `no-store`, und die hängt außerhalb dieser
+     * Middleware - hier steht dann noch gar kein `Cache-Control`.
      */
-    private function isPubliclyCacheable(Response $response): bool
+    private function mayBeStored(Response $response): bool
     {
-        return str_contains(strtolower($response->getHeaderLine('Cache-Control')), 'public');
+        $cacheControl = strtolower($response->getHeaderLine('Cache-Control'));
+
+        if ($cacheControl === '' || str_contains($cacheControl, 'no-store')) {
+            return false;
+        }
+
+        if (str_contains($cacheControl, 'public')) {
+            return true;
+        }
+
+        // Eine Dauer von 0 ist keine Aufbewahrung.
+        return (bool) preg_match('/\b(?:s-maxage|max-age)\s*=\s*[1-9]\d*/', $cacheControl);
     }
 
     private function guard(Request $request, RequestHandler $handler): Response

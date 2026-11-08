@@ -23,10 +23,18 @@ class HtmlFormCsrfInjectorMiddleware implements MiddlewareInterface
         $this->logger = $logger;
     }
 
+    /**
+     * Die Sitzung entsteht erst, wenn tatsächlich ein Token gebraucht wird.
+     *
+     * `ensureStarted()` stand vor dem Aufruf des Handlers und damit vor jeder
+     * Anfrage, die diese Middleware durchläuft - auch vor denen, deren Antwort
+     * gar keine Seite mit Formular ist. Weil die CsrfMiddleware ihre
+     * Ausnahmepfade inzwischen vor der Sitzung prüft, wäre diese Zeile die
+     * letzte gewesen, die für einen WebDAV-Aufruf oder eine
+     * Provider-Rückmeldung noch eine Sitzungsdatei angelegt hätte.
+     */
     public function process(Request $request, RequestHandler $handler): Response
     {
-        SessionConfig::ensureStarted();
-
         $response = $handler->handle($request);
 
         if (!$this->isRewritableHtml($response)) {
@@ -37,6 +45,8 @@ class HtmlFormCsrfInjectorMiddleware implements MiddlewareInterface
         if ($body === '' || stripos($body, '<form') === false) {
             return $response;
         }
+
+        SessionConfig::ensureStarted();
 
         $token = Csrf::ensureToken();
 

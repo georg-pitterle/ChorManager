@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Models\UserMailAccount;
 use App\Services\MailBadgeService;
 use App\Services\MailCredentialCryptoService;
+use App\Controllers\MailBadgeController;
+use App\Util\AfterResponse;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
@@ -32,6 +34,13 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
     private ?string $originalEnvValue = null;
     private bool $hadEnvValue = false;
 
+    /**
+     * Die aufgeschobene Arbeit dieser Anfrage. `runAtShutdown` ist aus: Im Test
+     * gibt es keine Antwort, hinter die man warten könnte - `runPending()` steht
+     * dort, wo in einer echten Anfrage `fastcgi_finish_request` ausgelöst hätte.
+     */
+    private AfterResponse $afterResponse;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -46,6 +55,9 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
         putenv(self::ENV_KEY . '=' . $generatedKey);
 
         $_SESSION = [];
+
+        $this->afterResponse = new AfterResponse(static function (): void {
+        }, false);
     }
 
     protected function tearDown(): void
@@ -117,7 +129,11 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
 
         unset($_SESSION['user_id']);
 
-        $middleware = new MailBadgeRefreshMiddleware(fn () => $this->makeBadgeService(), new NullLogger());
+        $middleware = new MailBadgeRefreshMiddleware(
+            fn () => $this->makeBadgeService(),
+            new NullLogger(),
+            $this->afterResponse
+        );
         $response = $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
 
         $this->assertSame(200, $response->getStatusCode());
@@ -132,7 +148,11 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
         $user = $this->createUser();
         $_SESSION['user_id'] = $user->id;
 
-        $middleware = new MailBadgeRefreshMiddleware(fn () => $this->makeBadgeService(), new NullLogger());
+        $middleware = new MailBadgeRefreshMiddleware(
+            fn () => $this->makeBadgeService(),
+            new NullLogger(),
+            $this->afterResponse
+        );
         $response = $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
 
         $this->assertSame(200, $response->getStatusCode());
@@ -161,7 +181,11 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
             'mail_last_checked_at' => $checkedAt,
         ]);
 
-        $middleware = new MailBadgeRefreshMiddleware(fn () => $this->makeBadgeService(), new NullLogger());
+        $middleware = new MailBadgeRefreshMiddleware(
+            fn () => $this->makeBadgeService(),
+            new NullLogger(),
+            $this->afterResponse
+        );
         $response = $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
 
         $this->assertSame(200, $response->getStatusCode());
@@ -201,8 +225,9 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
             throw new \RuntimeException('MAIL_CREDENTIAL_KEY is not configured correctly');
         };
 
-        $middleware = new MailBadgeRefreshMiddleware($factory, new NullLogger());
+        $middleware = new MailBadgeRefreshMiddleware($factory, new NullLogger(), $this->afterResponse);
         $response = $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
 
         $this->assertSame(200, $response->getStatusCode());
 
@@ -233,8 +258,13 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
             'mail_last_checked_at' => $staleCheckedAt,
         ]);
 
-        $middleware = new MailBadgeRefreshMiddleware(fn () => $this->makeBadgeService(), new NullLogger());
+        $middleware = new MailBadgeRefreshMiddleware(
+            fn () => $this->makeBadgeService(),
+            new NullLogger(),
+            $this->afterResponse
+        );
         $response = $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
 
         $this->assertSame(200, $response->getStatusCode());
 
@@ -267,8 +297,13 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
             'mail_last_checked_at' => $staleCheckedAt,
         ]);
 
-        $middleware = new MailBadgeRefreshMiddleware(fn () => $this->makeBadgeService(), new NullLogger());
+        $middleware = new MailBadgeRefreshMiddleware(
+            fn () => $this->makeBadgeService(),
+            new NullLogger(),
+            $this->afterResponse
+        );
         $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
 
         // MailBadgeService::refresh() lässt mail_last_checked_at bei einem Fehlschlag
         // unberührt. Ohne einen eigenen Vermerk bliebe der Zeitstempel für immer alt und
@@ -313,9 +348,11 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
             return $this->makeBadgeService();
         };
 
-        $middleware = new MailBadgeRefreshMiddleware($factory, new NullLogger());
+        $middleware = new MailBadgeRefreshMiddleware($factory, new NullLogger(), $this->afterResponse);
         $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
         $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
 
         $this->assertSame(1, $attempts);
     }
@@ -355,9 +392,11 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
 
         $middleware = new MailBadgeRefreshMiddleware(
             fn (): MailBadgeService => $this->makeFailingBadgeService($this->queryException()),
-            $logger
+            $logger,
+            $this->afterResponse
         );
         $response = $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertContains('mail_badge.middleware.skipped', $this->loggedEvents($logHandler));
@@ -397,14 +436,196 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
             static function (): MailBadgeService {
                 throw new \RuntimeException('MAIL_CREDENTIAL_KEY ist nicht richtig gesetzt');
             },
-            $logger
+            $logger,
+            $this->afterResponse
         );
         $response = $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertContains('mail_badge.middleware.failed', $this->loggedEvents($logHandler));
         $this->assertNotContains('mail_badge.middleware.skipped', $this->loggedEvents($logHandler));
         $this->assertTrue($logHandler->hasErrorRecords());
+    }
+
+    /**
+     * Der IMAP-Abgleich wartet, bis die Antwort draußen ist.
+     *
+     * Vorher lief er vor dem Controller: Alle fünf Minuten wartete genau die
+     * Person, deren Aufruf ihn auslöste, zusätzlich auf DNS, TLS, LOGIN und
+     * STATUS - bei einem nicht erreichbaren Server bis zur
+     * Verbindungszeitüberschreitung von fünf Sekunden. Für die Seite, die
+     * gerade gebaut wird, braucht den Zählerstand niemand; die Navigationsleiste
+     * zeigt ihn aus den zwischengespeicherten Spalten, und die Oberfläche fragt
+     * ihn beim Zurückwechseln in den Tab ohnehin selbst nach.
+     *
+     * Dieselbe Entscheidung wie bei Mailwarteschlange und Erinnerungen.
+     */
+    public function testTheImapRefreshRunsOnlyAfterTheResponseIsOut(): void
+    {
+        $user = $this->createUser();
+        $_SESSION['user_id'] = $user->id;
+        $this->createDueAccount($user);
+
+        $calls = new \ArrayObject();
+        $logHandler = new TestHandler();
+
+        $middleware = new MailBadgeRefreshMiddleware(
+            fn (): MailBadgeService => $this->makeRecordingBadgeService($calls),
+            new Logger('test', [$logHandler]),
+            $this->afterResponse
+        );
+
+        $response = $middleware->process(
+            $this->makeRequest('GET', '/dashboard'),
+            $this->makeRecordingHandler($calls)
+        );
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(
+            ['handler'],
+            $calls->getArrayCopy(),
+            'Der Abgleich darf die Antwort nicht aufhalten.'
+        );
+
+        $this->afterResponse->runPending();
+
+        $this->assertSame(['handler', 'refresh'], $calls->getArrayCopy());
+        $this->assertSame([], $logHandler->getRecords(), 'Kein stiller Fehlschlag.');
+    }
+
+    /**
+     * Die eine Ausnahme: Der Badge-Endpunkt trägt den Zählerstand in seiner
+     * eigenen Antwort. Hier muss der Abgleich davor stehen, sonst liefert er den
+     * Stand von vorher - und genau diesen Endpunkt fragt die Oberfläche beim
+     * Zurückwechseln in den Tab ab, weil der angezeigte Stand überholt sein
+     * könnte.
+     */
+    public function testTheBadgeEndpointItselfRefreshesBeforeItsOwnResponse(): void
+    {
+        $user = $this->createUser();
+        $_SESSION['user_id'] = $user->id;
+        $this->createDueAccount($user);
+
+        $calls = new \ArrayObject();
+        $logHandler = new TestHandler();
+
+        $middleware = new MailBadgeRefreshMiddleware(
+            fn (): MailBadgeService => $this->makeRecordingBadgeService($calls),
+            new Logger('test', [$logHandler]),
+            $this->afterResponse
+        );
+
+        $middleware->process(
+            $this->makeRequest('GET', MailBadgeController::REFRESH_PATH),
+            $this->makeRecordingHandler($calls)
+        );
+
+        $this->assertSame(['refresh', 'handler'], $calls->getArrayCopy());
+
+        $this->afterResponse->runPending();
+
+        $this->assertSame(
+            ['refresh', 'handler'],
+            $calls->getArrayCopy(),
+            'Kein zweiter Abgleich nach der Antwort.'
+        );
+        $this->assertSame([], $logHandler->getRecords(), 'Kein stiller Fehlschlag.');
+    }
+
+    /**
+     * Der Vermerk aus der Session wird noch vor der Antwort abgeräumt.
+     *
+     * Nach der Freigabe durch AfterResponse ist die Sitzung geschrieben und
+     * geschlossen: Ein `unset($_SESSION[...])` von dort erreicht die Platte
+     * nicht mehr. Bliebe der Vermerk stehen, liefe jede folgende Anfrage als
+     * erzwungener Abgleich - also gegen die Untergrenze von 15 Sekunden statt
+     * gegen die reguläre Wartezeit von fünf Minuten.
+     */
+    public function testTheForceSignalIsConsumedBeforeTheResponse(): void
+    {
+        $user = $this->createUser();
+        $_SESSION['user_id'] = $user->id;
+        $_SESSION[MailBadgeController::FORCE_SESSION_KEY] = true;
+        $this->createDueAccount($user);
+
+        $calls = new \ArrayObject();
+        $logHandler = new TestHandler();
+
+        $middleware = new MailBadgeRefreshMiddleware(
+            fn (): MailBadgeService => $this->makeRecordingBadgeService($calls),
+            new Logger('test', [$logHandler]),
+            $this->afterResponse
+        );
+
+        $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+
+        $this->assertArrayNotHasKey(MailBadgeController::FORCE_SESSION_KEY, $_SESSION);
+
+        $this->afterResponse->runPending();
+        $this->assertSame(['refresh'], $calls->getArrayCopy());
+        $this->assertSame([], $logHandler->getRecords(), 'Kein stiller Fehlschlag.');
+    }
+
+    private function createDueAccount(User $user): UserMailAccount
+    {
+        return UserMailAccount::create([
+            'user_id' => $user->id,
+            'imap_host' => '127.0.0.1',
+            'imap_port' => 1,
+            'imap_encryption' => 'none',
+            'imap_username' => 'someone@example.test',
+            'imap_password_enc' => (new MailCredentialCryptoService())->encrypt('irrelevant'),
+            'imap_enabled' => true,
+            'mail_badge_enabled' => true,
+            'mail_last_unseen_count' => 9,
+            'mail_last_uid_seen' => '77',
+            'mail_last_checked_at' => Carbon::now()->subMinutes(10),
+        ]);
+    }
+
+    /**
+     * Aufgezeichnet wird in ein Objekt, nicht in ein Feld per Referenz: Die
+     * Fabrik des Badge-Dienstes wird als Closure übergeben, und eine Closure
+     * fängt ihre Umgebung als Kopie ein. Über eine Referenz lief die Aufzeichnung
+     * dann ins Leere, und weil OpportunisticWork jeden Fehlschlag bei sich
+     * behält, sah das aus wie ein Abgleich, der nie stattfand.
+     */
+    private function makeRecordingHandler(\ArrayObject $calls): RequestHandlerInterface
+    {
+        return new class ($calls) implements RequestHandlerInterface {
+            public function __construct(private readonly \ArrayObject $calls)
+            {
+            }
+
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                $this->calls->append('handler');
+
+                return (new Response())->withStatus(200);
+            }
+        };
+    }
+
+    private function makeRecordingBadgeService(\ArrayObject $calls): MailBadgeService
+    {
+        return new class (new MailCredentialCryptoService(), new NullLogger(), 1, $calls) extends MailBadgeService {
+            public function __construct(
+                MailCredentialCryptoService $crypto,
+                NullLogger $logger,
+                int $connectTimeoutSeconds,
+                private readonly \ArrayObject $calls
+            ) {
+                parent::__construct($crypto, $logger, $connectTimeoutSeconds);
+            }
+
+            public function refresh(UserMailAccount $account): bool
+            {
+                $this->calls->append('refresh');
+
+                return true;
+            }
+        };
     }
 
     /**

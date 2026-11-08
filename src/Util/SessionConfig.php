@@ -120,6 +120,56 @@ class SessionConfig
     }
 
     /**
+     * Startet die Sitzung nur, wenn die Anfrage schon zu einer gehört.
+     *
+     * Die äußerste Middleware startete für jede Anfrage eine Sitzung, nur um
+     * die Benutzerkennung ins Protokoll zu schreiben. PHP legt dabei sofort
+     * eine Sitzungsdatei an und schickt ein Set-Cookie - auch an Absender, die
+     * beides nie wieder vorzeigen: der Noten-Ordner über WebDAV (ein Auflisten
+     * fragt viele Pfade nacheinander ab), die Rückmeldungen der Mailprovider,
+     * Collabora über WOPI, der Token-Endpunkt des OIDC-Providers. Seit die
+     * Leerlaufgrenze bei acht Stunden liegt (IDLE_LIFETIME_SECONDS), bleibt
+     * jede davon acht Stunden liegen.
+     *
+     * Erkannt wird die Zugehörigkeit am Sitzungs-Cookie der Anfrage. Eine im
+     * Prozess bereits gesetzte Kennung zählt mit: Dann hat jemand sie
+     * absichtlich gesetzt, und die Sitzung ist gemeint.
+     *
+     * Wer eine Sitzung erst anlegen muss, nimmt weiterhin `ensureStarted()` -
+     * die CsrfMiddleware für jeden Pfad, der kein Ausnahmepfad ist, die
+     * AuthMiddleware für die Wiederherstellung per Remember-Me und die
+     * Twig-Fabrik für den Token einer gerenderten Seite. Eine Anfrage, die eine
+     * Seite bekommt, bekommt damit ihre Sitzung wie bisher.
+     *
+     * @return bool Ob danach eine Sitzung läuft.
+     */
+    public static function ensureStartedForKnownSession(): bool
+    {
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            return true;
+        }
+
+        if (!self::carriesSessionId()) {
+            return false;
+        }
+
+        return self::ensureStarted();
+    }
+
+    /**
+     * Bringt diese Anfrage die Kennung einer Sitzung mit?
+     */
+    private static function carriesSessionId(): bool
+    {
+        $cookie = $_COOKIE[(string) session_name()] ?? null;
+        if (is_string($cookie) && $cookie !== '') {
+            return true;
+        }
+
+        return session_id() !== '';
+    }
+
+    /**
      * Decide whether the session cookie must carry the Secure flag.
      *
      * APP_ENV is read via EnvHelper: Dotenv::safeLoad() only fills $_ENV/$_SERVER, so a value that

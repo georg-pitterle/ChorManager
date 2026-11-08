@@ -35,6 +35,37 @@ class CsrfMiddlewareFeatureTest extends TestCase
         $_SESSION = [];
     }
 
+    /**
+     * Ein Ausnahmepfad bekommt keinen Token - und damit keine Sitzung.
+     *
+     * `ensureStarted()` und `ensureToken()` standen über der Ausnahmeprüfung.
+     * Damit legte jede Anfrage an einen Ausnahmepfad eine Sitzung samt Token an:
+     * jede WebDAV-Abfrage des Noten-Ordners, jede Rückmeldung eines
+     * Mailproviders, jeder WOPI-Zugriff von Collabora, jeder Aufruf des
+     * OIDC-Token-Endpunkts. Keiner dieser Absender zeigt Cookie oder Token je
+     * wieder vor, und keiner der Controller liest die Sitzung - sie weisen sich
+     * über Basic-Auth, Zugangstoken, Signatur bzw. Client-Secret aus. Seit die
+     * Leerlaufgrenze bei acht Stunden liegt, blieb jede dieser Sitzungsdateien
+     * acht Stunden liegen (Lauf 68).
+     */
+    public function testAnExemptPathGetsNoCsrfToken(): void
+    {
+        $middleware = new CsrfMiddleware();
+
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return (new Response())->withStatus(207);
+            }
+        };
+
+        $result = $middleware->process($this->makeRequest('PROPFIND', '/webdav/Projekt'), $handler);
+
+        $this->assertSame(207, $result->getStatusCode());
+        $this->assertArrayNotHasKey(Csrf::SESSION_KEY, $_SESSION);
+        $this->assertFalse($result->hasHeader(Csrf::RESPONSE_HEADER));
+    }
+
     public function testGetRequestPassesWithoutCsrfValidation(): void
     {
         $middleware = new CsrfMiddleware();
@@ -673,10 +704,28 @@ class CsrfMiddlewareFeatureTest extends TestCase
     }
 
     /**
-     * Umgekehrt bleibt alles, was nur der aufrufende Browser aufbewahren darf,
-     * beim Token - sonst nähme die Sperre oben den Seiten ihren Abgleich weg.
+     * `private` mit Aufbewahrungsdauer bekommt den Token ebenfalls nicht.
+     *
+     * Hier stand die umgekehrte Erwartung, und ihre Begründung war, die Sperre
+     * nähme den Seiten sonst ihren Token-Abgleich weg. Das trifft keine echte
+     * Seite: Ohne eigene Angabe setzt die SecurityHeadersMiddleware `no-store`,
+     * und genau zwei Routen weisen sich mit Dauer aus - die Hilfe-Bilder
+     * (`private, max-age=86400`, HelpController::image) und das Logo
+     * (`private, max-age=300`, AppSettingController). Beide sind ein Bild, kein
+     * Formular, das seinen Token nachziehen müsste.
+     *
+     * Zwei Dinge sprechen dagegen, ihn dort zu lassen. Erstens liegt der Token
+     * damit als einziges überhaupt auf der Platte: Alles andere trägt
+     * `no-store`, diese beiden Antworten bleiben samt Kopfzeilen einen Tag bzw.
+     * fünf Minuten im Zwischenspeicher des Browsers. Zweitens übernimmt
+     * public/js/csrf-token-sync.js den Token aus **jeder** fetch-Antwort in
+     * Seite und Formulare. Holte künftig ein fetch eine dieser Routen und der
+     * Browser lieferte sie aus seinem Zwischenspeicher, überschriebe die Seite
+     * ihren gültigen Token mit dem alten - und der nächste POST endete in
+     * "Ungültiger CSRF-Token". Heute holt kein fetch eine solche Route; es ist
+     * also keine Lücke, sondern eine Falle für den nächsten Umbau (Lauf 68).
      */
-    public function testPrivatelyCacheableResponseStillCarriesTheToken(): void
+    public function testPrivatelyButDurablyCacheableResponseDoesNotCarryTheToken(): void
     {
         $middleware = new CsrfMiddleware();
         $_SESSION['user_id'] = 7;
@@ -690,6 +739,75 @@ class CsrfMiddlewareFeatureTest extends TestCase
         };
 
         $result = $middleware->process($this->makeRequest('GET', '/settings/logo'), $handler);
+
+        $this->assertFalse($result->hasHeader(Csrf::RESPONSE_HEADER));
+    }
+
+    /**
+     * Was der Browser nicht aufbewahren darf, behält den Token - sonst nähme die
+     * Sperre den Seiten ihren Abgleich weg. Das ist der Regelfall: Antworten
+     * ohne eigene Angabe bekommen von der SecurityHeadersMiddleware `no-store`,
+     * und zwei Routen sagen es selbst (HelpController::topics,
+     * PublicFileLinkController).
+     */
+    public function testAResponseThatMustNotBeStoredStillCarriesTheToken(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION['user_id'] = 7;
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return (new Response())->withHeader('Cache-Control', 'private, no-store');
+            }
+        };
+
+        $result = $middleware->process($this->makeRequest('GET', '/help/topics.json'), $handler);
+
+        $this->assertSame($_SESSION[Csrf::SESSION_KEY], $result->getHeaderLine(Csrf::RESPONSE_HEADER));
+    }
+
+    /**
+     * Der Regelfall einer Seite: keine eigene Angabe, also auch keine Dauer -
+     * `no-store` setzt erst die SecurityHeadersMiddleware, und die hängt
+     * außerhalb dieser Middleware.
+     */
+    public function testAResponseWithoutAnyCacheControlStillCarriesTheToken(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION['user_id'] = 7;
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return new Response();
+            }
+        };
+
+        $result = $middleware->process($this->makeRequest('GET', '/dashboard'), $handler);
+
+        $this->assertSame($_SESSION[Csrf::SESSION_KEY], $result->getHeaderLine(Csrf::RESPONSE_HEADER));
+    }
+
+    /**
+     * `max-age=0` ist keine Aufbewahrung - der Token bleibt.
+     */
+    public function testAZeroMaxAgeIsNoStorageAndKeepsTheToken(): void
+    {
+        $middleware = new CsrfMiddleware();
+        $_SESSION['user_id'] = 7;
+        $_SESSION[Csrf::SESSION_KEY] = bin2hex(random_bytes(32));
+
+        $handler = new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return (new Response())->withHeader('Cache-Control', 'no-store, max-age=0');
+            }
+        };
+
+        $result = $middleware->process($this->makeRequest('GET', '/dashboard'), $handler);
 
         $this->assertSame($_SESSION[Csrf::SESSION_KEY], $result->getHeaderLine(Csrf::RESPONSE_HEADER));
     }

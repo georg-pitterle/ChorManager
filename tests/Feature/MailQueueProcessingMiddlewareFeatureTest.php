@@ -10,6 +10,9 @@ use App\Services\MailDeliveryService;
 use App\Util\AfterResponse;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
+use Illuminate\Database\QueryException;
+use Monolog\Handler\TestHandler;
+use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -129,6 +132,109 @@ final class MailQueueProcessingMiddlewareFeatureTest extends TestCase
         $afterResponse->runPending();
 
         $this->assertSame(['handler'], $delivery->calls);
+    }
+
+    /**
+     * Eine kurze Datenbank-Störung ist erwartbares Rauschen, kein Fehler.
+     *
+     * Startet der db-Container beim Ausrollen neu, ist die Datenbank für ein
+     * paar Sekunden weg. Der Versand im Anfrageweg ist Kür - der eigene
+     * Cron-Lauf holt ihn nach -, und als Fehlerzeile müsste die tägliche
+     * Log-Analyse jede einzelne davon anschauen.
+     *
+     * Hier stand bis Review-Lauf 68 eine Prüfung, die den Quelltext der
+     * Middleware nach `catch (QueryException $exception)` durchsuchte
+     * (MailQueueFeatureTest). Ein Grep auf den Quelltext bewacht aber nicht die
+     * Regel, sondern ihre Schreibweise: Er wird rot, sobald die Regel in einen
+     * gemeinsamen Helfer zieht, und bliebe grün, wenn der Zweig dastünde und
+     * nichts täte.
+     */
+    public function testATransientDatabaseOutageIsLoggedAsSkippedNotAsFailure(): void
+    {
+        $logHandler = new TestHandler();
+        $afterResponse = new AfterResponse(static function (): void {
+        }, false);
+
+        $middleware = new MailQueueProcessingMiddleware(
+            $this->failingDeliveryService($this->queryException()),
+            new Logger('test', [$logHandler]),
+            $afterResponse
+        );
+
+        $response = $middleware->process(
+            (new ServerRequestFactory())->createServerRequest('GET', '/dashboard'),
+            $this->passthroughHandler()
+        );
+        $afterResponse->runPending();
+
+        $this->assertSame(200, $response->getStatusCode());
+
+        $records = $logHandler->getRecords();
+        $this->assertCount(1, $records);
+        $this->assertSame('warning', strtolower($records[0]->level->getName()));
+        $this->assertSame('mail_queue.opportunistic.skipped', $records[0]->context['event']);
+        $this->assertArrayHasKey('exception', $records[0]->context);
+    }
+
+    public function testAnyOtherFailureIsStillLoggedAsAnError(): void
+    {
+        $logHandler = new TestHandler();
+        $afterResponse = new AfterResponse(static function (): void {
+        }, false);
+
+        $middleware = new MailQueueProcessingMiddleware(
+            $this->failingDeliveryService(new \RuntimeException('Mailserver antwortet nicht')),
+            new Logger('test', [$logHandler]),
+            $afterResponse
+        );
+
+        $response = $middleware->process(
+            (new ServerRequestFactory())->createServerRequest('GET', '/dashboard'),
+            $this->passthroughHandler()
+        );
+        $afterResponse->runPending();
+
+        $this->assertSame(200, $response->getStatusCode());
+
+        $records = $logHandler->getRecords();
+        $this->assertCount(1, $records);
+        $this->assertSame('error', strtolower($records[0]->level->getName()));
+        $this->assertSame('mail_queue.opportunistic.failed', $records[0]->context['event']);
+        $this->assertArrayHasKey('exception', $records[0]->context);
+    }
+
+    private function queryException(): QueryException
+    {
+        return new QueryException(
+            'mysql',
+            'select * from `mail_queue` limit 50',
+            [],
+            new \PDOException('SQLSTATE[HY000] [2002] Connection refused')
+        );
+    }
+
+    private function failingDeliveryService(\Throwable $failure): MailDeliveryService
+    {
+        return new class ($failure) extends MailDeliveryService {
+            public function __construct(private readonly \Throwable $failure)
+            {
+            }
+
+            public function processDueEntries(int $batchSize = 50): array
+            {
+                throw $this->failure;
+            }
+        };
+    }
+
+    private function passthroughHandler(): RequestHandlerInterface
+    {
+        return new class implements RequestHandlerInterface {
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return new Response(200);
+            }
+        };
     }
 
     private function middleware(

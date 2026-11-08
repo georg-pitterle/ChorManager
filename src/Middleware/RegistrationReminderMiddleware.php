@@ -17,13 +17,8 @@ class RegistrationReminderMiddleware extends OpportunisticReminderMiddleware
         return 'registration_reminder_last_check_at';
     }
 
-    protected function failureEvent(): string
+    protected function eventPrefix(): string
     {
-        return 'registration_reminder.opportunistic.failed';
-    }
-
-    protected function skippedEvent(): string
-    {
-        return 'registration_reminder.opportunistic.skipped';
+        return 'registration_reminder.opportunistic';
     }
 }

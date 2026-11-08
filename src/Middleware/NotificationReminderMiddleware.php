@@ -19,13 +19,8 @@ class NotificationReminderMiddleware extends OpportunisticReminderMiddleware
         return 'notification_reminder_last_check_at';
     }
 
-    protected function failureEvent(): string
+    protected function eventPrefix(): string
     {
-        return 'notification_reminder.opportunistic.failed';
-    }
-
-    protected function skippedEvent(): string
-    {
-        return 'notification_reminder.opportunistic.skipped';
+        return 'notification_reminder.opportunistic';
     }
 }

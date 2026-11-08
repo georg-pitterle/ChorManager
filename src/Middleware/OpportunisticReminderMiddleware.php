@@ -7,8 +7,8 @@ namespace App\Middleware;
 use App\Util\AfterResponse;
 use App\Util\AppUrlResolver;
 use App\Util\OpportunisticRunGate;
+use App\Util\OpportunisticWork;
 use Closure;
-use Illuminate\Database\QueryException;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
@@ -60,14 +60,16 @@ abstract class OpportunisticReminderMiddleware implements MiddlewareInterface
     abstract protected function markerKey(): string;
 
     /**
-     * Der `event`-Schlüssel, unter dem ein Fehlschlag ins Protokoll geht.
+     * Der gemeinsame Stamm der beiden `event`-Schlüssel: daraus werden
+     * "<stamm>.skipped" für eine Datenbank-Störung und "<stamm>.failed" für
+     * jeden anderen Fehlschlag.
+     *
+     * Hier standen die beiden Schlüssel als eigene Methoden. Zwei Namen, die
+     * sich nur in der letzten Silbe unterscheiden durften, sind zwei
+     * Gelegenheiten, sie auseinanderlaufen zu lassen - und eine Ableitung mit
+     * vertauschten Schlüsseln sähe von außen aus wie eine, die funktioniert.
      */
-    abstract protected function failureEvent(): string;
-
-    /**
-     * Der `event`-Schlüssel, unter dem eine Datenbank-Störung ins Protokoll geht.
-     */
-    abstract protected function skippedEvent(): string;
+    abstract protected function eventPrefix(): string;
 
     /**
      * Gearbeitet wird erst, wenn die Antwort beim Browser und die Sitzung
@@ -94,31 +96,27 @@ abstract class OpportunisticReminderMiddleware implements MiddlewareInterface
         return $response;
     }
 
+    /**
+     * Die Meldung ist für beide Erinnerungen dieselbe; unterschieden wird über
+     * den `event`-Schlüssel, und der ist laut Logging-Standard ohnehin der
+     * stabile Bezeichner einer Logzeile. Die Fehlerbehandlung selbst - eine
+     * kurze Datenbank-Störung als `warning`, alles andere als `error` - liegt
+     * in `OpportunisticWork`, gemeinsam mit Mailwarteschlange und Mail-Badge.
+     */
     private function processIfDue(Request $request): void
     {
-        try {
-            if (!OpportunisticRunGate::tryClaim($this->markerKey(), static::CHECK_INTERVAL_SECONDS)) {
-                return;
-            }
+        OpportunisticWork::run(
+            $this->logger,
+            'Opportunistic reminder processing',
+            $this->eventPrefix(),
+            function () use ($request): void {
+                if (!OpportunisticRunGate::tryClaim($this->markerKey(), static::CHECK_INTERVAL_SECONDS)) {
+                    return;
+                }
 
-            $reminderService = ($this->reminderServiceFactory)();
-            $reminderService->processDue(AppUrlResolver::resolveBaseUrl($request));
-        } catch (QueryException $exception) {
-            // Kurze Datenbank-Störung (z. B. der db-Container startet beim
-            // Ausrollen neu). Die Nebenbei-Arbeit ist Kür und der nächste Lauf
-            // holt sie nach - wie bei der Mailqueue erwartbar, kein Fehler.
-            $this->logger->warning('Opportunistic reminder processing skipped (database unavailable).', [
-                'event' => $this->skippedEvent(),
-                'exception' => $exception,
-            ]);
-        } catch (\Throwable $exception) {
-            // Die Meldung ist für beide dieselbe; unterschieden wird über den
-            // `event`-Schlüssel, und der ist laut Logging-Standard ohnehin der
-            // stabile Bezeichner einer Logzeile.
-            $this->logger->error('Opportunistic reminder processing failed.', [
-                'event' => $this->failureEvent(),
-                'exception' => $exception,
-            ]);
-        }
+                $reminderService = ($this->reminderServiceFactory)();
+                $reminderService->processDue(AppUrlResolver::resolveBaseUrl($request));
+            }
+        );
     }
 }

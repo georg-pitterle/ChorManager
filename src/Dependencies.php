@@ -845,7 +845,8 @@ return function (ContainerBuilder $containerBuilder) {
             // during middleware construction and 500-ing every request.
             return new MailBadgeRefreshMiddleware(
                 static fn (): MailBadgeService => $c->get(MailBadgeService::class),
-                $c->get(LoggerInterface::class)
+                $c->get(LoggerInterface::class),
+                $c->get(AfterResponse::class)
             );
         },
         RegistrationReminderMiddleware::class => function (ContainerInterface $c) {

@@ -8,7 +8,7 @@ use App\Models\AppSetting;
 use App\Services\MailDeliveryService;
 use App\Util\AfterResponse;
 use App\Util\OpportunisticRunGate;
-use Illuminate\Database\QueryException;
+use App\Util\OpportunisticWork;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
@@ -42,41 +42,33 @@ class MailQueueProcessingMiddleware implements MiddlewareInterface
         return $response;
     }
 
+    /**
+     * Die Fehlerbehandlung - eine kurze Datenbank-Störung als `warning`, alles
+     * andere als `error` - liegt in `OpportunisticWork`, gemeinsam mit den
+     * Erinnerungen und dem Mail-Badge. Meldungen und `event`-Schlüssel sind
+     * dieselben wie vorher.
+     */
     private function processQueueIfDue(): void
     {
-        try {
-            // Anders als bei den beiden Erinnerungen ist die Wartezeit hier nicht fest,
-            // sondern folgt der eingestellten Obergrenze an Läufen pro Minute.
-            $rateLimit = max(1, (int) $this->getSetting('mailqueue_opportunistic_rate_limit', '10'));
-            $minimumIntervalSeconds = max(1, (int) ceil(60 / $rateLimit));
+        OpportunisticWork::run(
+            $this->logger,
+            'Opportunistic mail queue processing',
+            'mail_queue.opportunistic',
+            function (): void {
+                // Anders als bei den beiden Erinnerungen ist die Wartezeit hier nicht fest,
+                // sondern folgt der eingestellten Obergrenze an Läufen pro Minute.
+                $rateLimit = max(1, (int) $this->getSetting('mailqueue_opportunistic_rate_limit', '10'));
+                $minimumIntervalSeconds = max(1, (int) ceil(60 / $rateLimit));
 
-            if (!OpportunisticRunGate::tryClaim(self::MARKER_KEY, $minimumIntervalSeconds)) {
-                return;
+                if (!OpportunisticRunGate::tryClaim(self::MARKER_KEY, $minimumIntervalSeconds)) {
+                    return;
+                }
+
+                $batchSize = max(1, (int) $this->getSetting('mailqueue_batch_size', '50'));
+
+                $this->deliveryService->processDueEntries($batchSize);
             }
-
-            $batchSize = max(1, (int) $this->getSetting('mailqueue_batch_size', '50'));
-
-            $this->deliveryService->processDueEntries($batchSize);
-        } catch (QueryException $exception) {
-            // Transient database outage (e.g. the db container restarting during a
-            // deploy). Opportunistic processing is best-effort and the dedicated
-            // worker will catch up, so this is expected noise, not a failure.
-            $this->logger->warning(
-                'Opportunistic mail queue processing skipped (database unavailable).',
-                [
-                    'event' => 'mail_queue.opportunistic.skipped',
-                    'exception' => $exception,
-                ]
-            );
-        } catch (\Throwable $exception) {
-            $this->logger->error(
-                'Opportunistic mail queue processing failed.',
-                [
-                    'event' => 'mail_queue.opportunistic.failed',
-                    'exception' => $exception,
-                ]
-            );
-        }
+        );
     }
 
     private function getSetting(string $key, ?string $default = null): ?string
