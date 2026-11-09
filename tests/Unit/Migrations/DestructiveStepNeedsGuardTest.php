@@ -13,16 +13,35 @@ use PHPUnit\Framework\TestCase;
  * **vor** dem Schritt, nicht danach. Danach sind die Daten fort, und nachholen
  * lässt sich das nicht, weil Phinx den Lauf bereits in `phinxlog` verbucht hat.
  *
- * Geprüft hat das bisher `DestructiveMigrationGuardTest`, aber nur für vier
- * handverlesene Fälle: Es lässt die Zählabfragen dieser vier gegen
- * Wegwerf-Tabellen laufen und stellt fest, dass sie die betroffene Zeile
- * wirklich finden. Das ist die schärfere Prüfung, sie kostet aber je Migration
- * eine eigene Konstante und ein eigenes Szenario. Eine neue Migration ohne
- * Prüfung fiel deshalb durch beide Netze.
+ * Geprüft hat das bisher `DestructiveMigrationGuardTest`, aber nur für
+ * handverlesene Fälle: Es lässt deren Zählabfragen gegen Wegwerf-Tabellen
+ * laufen und stellt fest, dass sie die betroffene Zeile wirklich finden. Das
+ * ist die schärfere Prüfung, sie kostet aber je Migration eine eigene
+ * Konstante und ein eigenes Szenario. Eine neue Migration ohne Prüfung fiel
+ * deshalb durch beide Netze.
  *
  * Dieser Test zieht die Regel für alle Migrationen nach, dafür nur statisch: Er
  * fragt nicht, ob eine Prüfung das Richtige zählt, sondern ob überhaupt eine da
  * ist und vor dem destruktiven Schritt steht.
+ *
+ * ## Wo gesucht wird
+ *
+ * Gelesen werden `up()`, `down()` und `change()` - und in deren Rumpf alles,
+ * was von dort aus erreichbar ist: der Wert einer Klassenkonstante und der
+ * Rumpf einer eigenen Hilfsmethode werden an der Stelle ihres Aufrufs
+ * eingesetzt, bevor gesucht wird. Ohne dieses Einsetzen reichte das Netz nur
+ * so weit, wie die Anweisung wörtlich im Rumpf stand, und zwei vom Projekt
+ * selbst empfohlene Schreibweisen führten daran vorbei: eine Anweisung als
+ * `public const` (so verlangt es `/phinx-migration`, damit
+ * `DestructiveMigrationGuardTest` genau sie prüfen kann) und eine Anweisung in
+ * einer eigenen privaten Methode, wie sie 20260825120100 für zwei Tabellen in
+ * einer Schleife benutzt. Nachgestellt in Lauf 69: Eine Wegwerf-Migration, die
+ * `users` über eine Konstante leert und `voice_groups` aus einer Hilfsmethode
+ * löscht, lief ohne Beanstandung durch.
+ *
+ * Weil der Wert der Konstante an die Stelle des Aufrufs tritt, bleibt die
+ * Reihenfolge erhalten: Eine Prüfung vor dem Aufruf steht auch vor der
+ * eingesetzten Anweisung.
  *
  * ## Was als destruktiv gilt
  *
@@ -59,13 +78,17 @@ final class DestructiveStepNeedsGuardTest extends TestCase
     private const MIGRATION_DIR = __DIR__ . '/../../../db/migrations';
 
     /**
-     * Zwei Migrationen aus der Frühzeit kommen ohne Prüfung aus, weil die
-     * Umschreibung unmittelbar davor bedingungslos läuft und aus einer Quelle
-     * liest, die keine Lücke haben kann. Eine Prüfung wäre dort nachweislich
-     * toter Code - sie könnte nie anschlagen.
+     * Diese Migrationen kommen ohne Prüfung aus, weil an ihrer Stelle
+     * nachweislich nichts verloren geht: Entweder läuft die Umschreibung
+     * unmittelbar davor bedingungslos und liest aus einer Quelle, die keine
+     * Lücke haben kann, oder die getroffenen Zeilen waren schon vor der
+     * Migration ohne Wert. Eine Prüfung wäre dort toter Code - sie könnte nie
+     * anschlagen oder würde den Lauf dauerhaft blockieren.
      *
      * Die Liste ist bewusst kurz und soll es bleiben: Eine neue Migration gehört
-     * nicht hier hinein, sondern bekommt ihre Prüfung.
+     * nicht hier hinein, sondern bekommt ihre Prüfung. Die zwei Einträge aus Lauf
+     * 69 sind keine neuen Migrationen - sie stehen seit August im Repo und waren
+     * nur unsichtbar, weil das Netz nicht bis zu ihrer Anweisung reichte.
      *
      * @var array<string, string>
      */
@@ -85,6 +108,23 @@ final class DestructiveStepNeedsGuardTest extends TestCase
                 . 'würde den Lauf dauerhaft blockieren. Die Prüfung, auf die es ankommt - '
                 . 'bleibt eine Zeile ohne Hash zurück - steht davor und bewacht das '
                 . 'removeColumn(token).',
+        '20260825120000_add_user_foreign_key_to_calendar_subscription_tokens.php' =>
+            'Das DELETE trifft nur Zeilen, deren user_id auf kein Mitglied mehr zeigt. '
+                . 'Der Feed lief damit schon vorher auf 404, die Zeile war also wertlos, und '
+                . 'ohne das Aufräumen scheiterte das ALTER an genau diesen Zeilen. Die '
+                . 'Zählabfrage davor steht da, bricht aber bewusst nicht ab, sondern '
+                . 'entscheidet, ob überhaupt gelöscht werden muss. Aufgefallen in Lauf 69, '
+                . 'weil die mehrtabellige Form "DELETE t FROM ..." vorher durch das Muster '
+                . 'fiel.',
+        '20260825120100_add_unique_index_to_audience_sources.php' =>
+            'Das DELETE führt Duplikate zusammen und behält je Kombination aus '
+                . 'Elternzeile, source_type und reference_id die kleinste id. Fachlich sind '
+                . 'die entfernten Zeilen dieselbe Quelle wie die stehengebliebene - es geht '
+                . 'keine Angabe verloren, und ohne das Zusammenführen wäre der eindeutige '
+                . 'Index danach nicht anzulegen. Eine Prüfung davor könnte nur auf genau '
+                . 'diese Duplikate anschlagen und würde den Lauf dauerhaft blockieren. '
+                . 'Aufgefallen in Lauf 69, weil das DELETE in einer privaten Methode steht '
+                . 'und vorher kein Netz dorthin reichte.',
     ];
 
     /**
@@ -266,8 +306,9 @@ final class DestructiveStepNeedsGuardTest extends TestCase
 
     /**
      * Die Rümpfe von up(), down() und change(), je über die Zeilen aus der
-     * Reflection geschnitten. Klammern zu zählen scheitert an Ausdrücken wie
-     * "{$assignments}" in 20260731090100.
+     * Reflection geschnitten und um alles ergänzt, was von dort aus erreichbar
+     * ist. Klammern zu zählen scheitert an Ausdrücken wie "{$assignments}" in
+     * 20260731090100.
      *
      * @return array<string, string>
      */
@@ -281,22 +322,70 @@ final class DestructiveStepNeedsGuardTest extends TestCase
         $lines = preg_split('/(?<=\n)/', $source, -1, PREG_SPLIT_NO_EMPTY);
         self::assertIsArray($lines, 'Migration nicht zeilenweise lesbar: ' . $file);
 
+        $own = [];
+        foreach ((new \ReflectionClass($class))->getMethods() as $method) {
+            if ($method->getDeclaringClass()->getName() !== $class) {
+                continue;
+            }
+
+            $start = $method->getStartLine() - 1;
+            $own[$method->getName()] = implode('', array_slice($lines, $start, $method->getEndLine() - $start));
+        }
+
+        $constants = array_filter(
+            (new \ReflectionClass($class))->getConstants(),
+            static fn (mixed $value): bool => is_string($value)
+        );
+
         $bodies = [];
         foreach (['up', 'down', 'change'] as $method) {
-            if (!method_exists($class, $method)) {
+            if (!isset($own[$method])) {
                 continue;
             }
 
-            $reflection = new \ReflectionMethod($class, $method);
-            if ($reflection->getDeclaringClass()->getName() !== $class) {
-                continue;
-            }
-
-            $start = $reflection->getStartLine() - 1;
-            $bodies[$method] = implode('', array_slice($lines, $start, $reflection->getEndLine() - $start));
+            $bodies[$method] = $this->reachableFrom($own[$method], $own, $constants, []);
         }
 
         return $bodies;
+    }
+
+    /**
+     * Setzt den Wert jeder Klassenkonstante und den Rumpf jeder eigenen
+     * Hilfsmethode an der Stelle ein, an der der Rumpf sie benutzt. Damit
+     * findet die Suche auch Anweisungen, die nicht wörtlich in up() oder down()
+     * stehen - und die Reihenfolge bleibt erhalten, weil der eingesetzte Text
+     * an der Stelle des Aufrufs steht.
+     *
+     * Eingesetzt wird nur, was die Migration selbst deklariert: `$this->table()`
+     * und `$this->execute()` stammen von AbstractMigration und bleiben
+     * unberührt. `$seen` bricht eine Rekursion ab, falls zwei Hilfsmethoden
+     * einander aufrufen.
+     *
+     * @param array<string, string> $methods
+     * @param array<string, string> $constants
+     * @param array<string, true>   $seen
+     */
+    private function reachableFrom(string $body, array $methods, array $constants, array $seen): string
+    {
+        $withConstants = preg_replace_callback(
+            '/(?:self|static)::([A-Z][A-Z0-9_]*)\b/',
+            static fn (array $match): string => $constants[$match[1]] ?? $match[0],
+            $body
+        ) ?? $body;
+
+        return preg_replace_callback(
+            '/\$this->(\w+)\s*\(/',
+            function (array $match) use ($methods, $constants, $seen): string {
+                $name = $match[1];
+                if (!isset($methods[$name]) || isset($seen[$name]) || in_array($name, ['up', 'down', 'change'], true)) {
+                    return $match[0];
+                }
+
+                return $this->reachableFrom($methods[$name], $methods, $constants, $seen + [$name => true])
+                    . $match[0];
+            },
+            $withConstants
+        ) ?? $withConstants;
     }
 
     /**
@@ -328,12 +417,19 @@ final class DestructiveStepNeedsGuardTest extends TestCase
                 '/DROP\s+TABLE\s+(?:IF\s+EXISTS\s+)?`?(\w+)`?/i',
             ],
             // Zeilen statt Struktur. Der Name darf interpoliert sein
-            // (`DELETE FROM {$table}`); dann steht der Ausdruck selbst als Ziel
-            // und trifft auf keine selbst angelegte Tabelle - die strengere
+            // (`DELETE FROM {$table}`) oder ein Platzhalter aus sprintf
+            // (`DELETE FROM %1$s`); dann steht der Ausdruck selbst als Ziel und
+            // trifft auf keine selbst angelegte Tabelle - die strengere
             // Richtung, denn so bleibt die Prüfung verlangt.
+            //
+            // Zwischen DELETE und FROM dürfen Aliasse stehen: Die mehrtabellige
+            // Form `DELETE duplicate FROM x duplicate` löscht genauso Zeilen,
+            // fiel aber durch das Muster, das unmittelbar FROM erwartete. Das
+            // `(?<!ON\s)` hält `ON DELETE SET NULL` aus einer Fremdschlüssel-
+            // Angabe heraus.
             'rows' => [
-                '/DELETE\s+FROM\s+`?(\{?\$?\w+\}?)`?/i',
-                '/TRUNCATE\s+(?:TABLE\s+)?`?(\{?\$?\w+\}?)`?/i',
+                '/(?<!ON\s)\bDELETE\s+(?:`?\w+`?\s*\.?\*?\s*,?\s+){0,4}FROM\s+`?([^\s`,;()]+)`?/i',
+                '/TRUNCATE\s+(?:TABLE\s+)?`?([^\s`,;()]+)`?/i',
             ],
         ];
 

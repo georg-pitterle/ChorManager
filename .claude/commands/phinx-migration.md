@@ -31,6 +31,13 @@ The change is purely application logic with no schema modification.
   `tests/Unit/Migrations/DestructiveStepNeedsGuardTest` checks this statically
   for every migration; `tests/Feature/DestructiveMigrationGuardTest` runs the
   count queries of the guarded ones against throwaway tables.
+- **Die Prüfung gilt unabhängig davon, wo die Anweisung steht.** Das statische
+  Netz liest `up()`, `down()` und `change()` und setzt dabei den Wert jeder
+  Klassenkonstante und den Rumpf jeder eigenen Hilfsmethode an der Stelle ihres
+  Aufrufs ein. Eine Anweisung als `public const` oder in einer privaten Methode
+  zählt also genauso - bis Lauf 69 war das nicht so, und zwei Migrationen
+  löschten Zeilen, die kein Netz sah. Erkannt wird auch die mehrtabellige Form
+  `DELETE <alias> FROM <tabelle>`.
 - **Eine Tabelle zu löschen ist nie ausgenommen, auch nicht im eigenen `down()`.**
   Dass das `up()` sie angelegt hat, bedeutet nur, dass sie *am Anfang* leer war -
   ihr Inhalt kam im Betrieb dazu und steht nirgends sonst. Ein `drop()` oder
