@@ -303,9 +303,15 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
 
         $this->assertSame(
             [
-                ['name' => $high->name, 'member_count' => 2, 'average' => 25.0, 'below_low' => 1],
-                ['name' => $low->name, 'member_count' => 1, 'average' => 100.0, 'below_low' => 0],
-                ['name' => 'Ohne Stimmgruppe', 'member_count' => 1, 'average' => 100.0, 'below_low' => 0],
+                ['name' => $high->name, 'member_count' => 2, 'quota_count' => 2, 'average' => 25.0, 'below_low' => 1],
+                ['name' => $low->name, 'member_count' => 1, 'quota_count' => 1, 'average' => 100.0, 'below_low' => 0],
+                [
+                    'name' => 'Ohne Stimmgruppe',
+                    'member_count' => 1,
+                    'quota_count' => 1,
+                    'average' => 100.0,
+                    'below_low' => 0,
+                ],
             ],
             $data['voice_group_summary'],
             'Genau 50 % liegt nicht unter der Schwelle.'
@@ -353,7 +359,15 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
 
         $this->assertNull($this->statFor($data, (int) $alto->id)['percentage']);
         $this->assertSame(
-            ['name' => 'Ohne Stimmgruppe', 'member_count' => 1, 'average' => null, 'below_low' => 0],
+            [
+                'name' => 'Ohne Stimmgruppe',
+                'member_count' => 1,
+                // Mitglied ohne Quote: Es zählt zur Gruppe, trägt aber keinen
+                // Durchschnitt - genau der Unterschied, den quota_count trägt.
+                'quota_count' => 0,
+                'average' => null,
+                'below_low' => 0,
+            ],
             end($data['voice_group_summary'])
         );
     }

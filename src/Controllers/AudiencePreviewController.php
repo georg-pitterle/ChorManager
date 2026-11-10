@@ -17,7 +17,11 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 /**
  * Trefferzahl einer Zielgruppen-Zeile, während sie bearbeitet wird. Nur die
  * Zahl, keine Namen; nur für Personen, die irgendwo Zielgruppen festlegen:
- * Termine bearbeiten, Newsletter bearbeiten oder Freigaben verwalten.
+ * Termine, Newsletter oder Umfragen bearbeiten oder Freigaben verwalten.
+ *
+ * Die Aufzählung hier und die Prüfung in maySetAudiences() müssen
+ * zusammenpassen: Mit den Umfragen kam ein Recht hinzu, das nur in der Prüfung
+ * landete und in dieser Beschreibung fehlte.
  */
 final class AudiencePreviewController
 {
@@ -50,12 +54,12 @@ final class AudiencePreviewController
 
     private function maySetAudiences(): bool
     {
-        if ((bool) ($_SESSION['can_manage_events'] ?? false) || (bool) ($_SESSION['can_manage_newsletters'] ?? false)) {
-            return true;
-        }
-
-        if ((bool) ($_SESSION['can_manage_polls'] ?? false)) {
-            return true;
+        // Ein Recht je Zeile, statt zweier Blöcke mit derselben Aussage: Das
+        // Recht für Umfragen stand nur deshalb für sich, weil es später dazukam.
+        foreach (['can_manage_events', 'can_manage_newsletters', 'can_manage_polls'] as $permission) {
+            if ((bool) ($_SESSION[$permission] ?? false)) {
+                return true;
+            }
         }
 
         $actor = FileActor::fromSession($_SESSION ?? []);

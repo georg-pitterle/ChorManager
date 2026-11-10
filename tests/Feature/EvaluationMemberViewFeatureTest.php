@@ -243,11 +243,15 @@ final class EvaluationMemberViewFeatureTest extends TestCase
     public function testVoiceGroupRaceRanksMainGroupsWithoutLowCounters(): void
     {
         $self = $this->member('Selbst', $this->soprano);
+        // Zweite Sopranstimme mit derselben Quote: Der Durchschnitt der Gruppe
+        // bleibt 50 %, aber er ruht nicht mehr auf einer einzigen Person.
+        $sopranoB = $this->member('SopranB', $this->soprano);
         $altoA = $this->member('AltA', $this->alto);
         $altoB = $this->member('AltB', $this->alto);
         $loose = $this->member('Lose', null);
         $this->events(4, [
             $self->id => ['present', 'present', 'unexcused', 'unexcused'],
+            $sopranoB->id => ['present', 'unexcused', 'present', 'unexcused'],
             $altoA->id => ['present', 'present', 'present', 'present'],
             $altoB->id => ['present', 'present', 'present', 'unexcused'],
             $loose->id => ['present', 'present', 'present', 'present'],
@@ -290,8 +294,10 @@ final class EvaluationMemberViewFeatureTest extends TestCase
         $this->assertTrue($data['can_view_details']);
         $this->assertEqualsCanonicalizing([(int) $lead->id, (int) $sister->id], $this->userIds($data['stats']));
         $this->assertSame([$this->soprano->name], array_column($data['voice_group_summary'], 'name'));
-        // Der Vergleich bleibt chorweit.
-        $this->assertCount(2, $data['voice_group_race']);
+        // Der Vergleich bleibt chorweit - aber nur mit den Gruppen, deren
+        // Durchschnitt auf mehr als einer Quote ruht. Die fremde Stimmgruppe hat
+        // hier nur eine und tritt deshalb nicht an.
+        $this->assertSame([$this->soprano->name], array_column($data['voice_group_race'], 'name'));
     }
 
     public function testComparisonWithTheOwnPreviousProject(): void
@@ -350,5 +356,57 @@ final class EvaluationMemberViewFeatureTest extends TestCase
         $this->assertStringNotContainsString('Unentschuldigt', $body);
         $this->assertStringNotContainsString('id="evaluationsTable"', $body);
         $this->assertStringNotContainsString('bi-exclamation-triangle', $body);
+    }
+
+
+    /**
+     * Ruht der Durchschnitt einer Stimmgruppe auf einer einzigen Quote, dann
+     * *ist* er diese Quote - und der Vergleich zeigte jedem Mitglied den Stand
+     * einer Person, die über die Besetzung namentlich zu bestimmen ist. Genau
+     * das soll die Seite nicht: Fremdes erscheint nur im Positiven, der eigene
+     * Stand bleibt privat.
+     */
+    public function testRaceDoesNotPublishTheQuotaOfALoneVoiceGroupMember(): void
+    {
+        $lonely = $this->member('Allein', $this->soprano);
+        $altoA = $this->member('AltA', $this->alto);
+        $altoB = $this->member('AltB', $this->alto);
+        $this->events(4, [
+            $lonely->id => ['unexcused', 'unexcused', 'unexcused', 'present'],
+            $altoA->id => ['present', 'present', 'present', 'present'],
+            $altoB->id => ['present', 'present', 'present', 'unexcused'],
+        ]);
+
+        $race = $this->renderAs(['user_id' => (int) $altoA->id])['voice_group_race'];
+
+        $this->assertSame([$this->alto->name], array_column($race, 'name'));
+        $this->assertNotContains(25.0, array_column($race, 'average'), 'Die Quote der Einzelperson ist 25 %.');
+    }
+
+    /**
+     * Dieselbe Lage am gerenderten Seitentext: Weder Gruppenname noch Quote der
+     * allein gezählten Person stehen im HTML.
+     */
+    public function testRenderedPageHidesTheLoneGroupFromTheComparison(): void
+    {
+        $lonely = $this->member('Allein', $this->soprano);
+        $altoA = $this->member('AltA', $this->alto);
+        $altoB = $this->member('AltB', $this->alto);
+        $this->events(4, [
+            $lonely->id => ['unexcused', 'unexcused', 'unexcused', 'present'],
+            $altoA->id => ['present', 'present', 'present', 'present'],
+            $altoB->id => ['present', 'present', 'present', 'unexcused'],
+        ]);
+
+        $_SESSION = ['user_id' => (int) $altoA->id];
+        $body = (string) $this->controller($this->createAppTwig('/evaluations'))->index(
+            $this->makeRequest('GET', '/evaluations', [], ['project_id' => (string) $this->project->id]),
+            $this->makeResponse()
+        )->getBody();
+
+        $this->assertStringContainsString('Stimmen im Vergleich', $body);
+        $this->assertStringContainsString($this->alto->name, $body);
+        $this->assertStringNotContainsString($this->soprano->name, $body);
+        $this->assertStringNotContainsString('25,0&nbsp;%', $body);
     }
 }

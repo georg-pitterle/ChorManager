@@ -16,6 +16,24 @@ use App\Models\Attendance;
 final class AttendanceStanding
 {
     /**
+     * So viele Quoten müssen den Durchschnitt einer Stimmgruppe tragen, damit
+     * sie im Vergleich antritt.
+     *
+     * Der Vergleich ist der einzige Teil der Mitgliedersicht, der etwas über
+     * andere Personen sagt, und er darf das nur als Gruppenwert tun. Ruht der
+     * Durchschnitt auf einer einzigen Quote, dann *ist* er diese Quote: Die
+     * Seite zeigte damit jedem Mitglied den Anwesenheitsstand einer Person, die
+     * über die Besetzung (`/evaluations/project-members`, für alle
+     * Projektmitglieder offen) namentlich zu bestimmen ist - und zwar auch nach
+     * unten, während die Seite Fremdes ausdrücklich nur im Positiven zeigt.
+     *
+     * Eine Stimmgruppe mit genau einer gezählten Person ist in einem kleinen
+     * Chor der Regelfall, nicht die Ausnahme: Gezählt wird nur, wer eine Quote
+     * hat, also wen überhaupt ein Pflichttermin betraf.
+     */
+    public const MIN_RACE_QUOTAS = 2;
+
+    /**
      * Pflichttermine in Folge dabei, vom jüngsten rückwärts gezählt.
      *
      * Entschuldigt bricht die Serie wie unentschuldigt: Sie zählt Anwesenheit,
@@ -61,16 +79,32 @@ final class AttendanceStanding
     /**
      * Stimmgruppen im Vergleich: Reihenfolge wie im Chor, die führende Gruppe
      * markiert, jede andere mit ihrem Abstand. Wer keiner Stimmgruppe angehört,
-     * tritt nicht an; eine Gruppe ohne Durchschnitt (kein Termin galt) ebenso.
+     * tritt nicht an; eine Gruppe ohne Durchschnitt (kein Termin galt) ebenso,
+     * und ebenso eine, deren Durchschnitt auf weniger als MIN_RACE_QUOTAS
+     * Quoten ruht.
      *
-     * @param list<array{name: string, member_count: int, average: ?float}> $summary in Chor-Reihenfolge
+     * `quota_count` ist die Zahl der Quoten hinter dem Durchschnitt, nicht die
+     * Zahl der Mitglieder: `member_count` zählt auch Personen ohne Quote mit und
+     * taugt deshalb nicht als Maß. Eine fehlende Angabe zählt als zu wenig - die
+     * sichere Richtung, denn ein zu kleiner Vergleich fällt auf der Seite sofort
+     * auf, eine offengelegte Quote nicht.
+     *
+     * Die Mindestzahl entscheidet nur über das Antreten. Die Führung wird unter
+     * den Antretenden bestimmt, damit eine ausgeschlossene Gruppe den Abstand
+     * der übrigen nicht verschiebt - und über ihren Abstand nicht doch verrät,
+     * wo sie stünde.
+     *
+     * @param list<array{name: string, member_count: int, average: ?float, quota_count?: int}> $summary
+     *     in Chor-Reihenfolge
      * @return list<array{name: string, member_count: int, average: float, is_leader: bool, gap: float, is_own: bool}>
      */
     public static function voiceGroupRace(array $summary, ?string $ownGroup, string $noVoiceGroup): array
     {
         $contenders = array_values(array_filter(
             $summary,
-            static fn (array $group): bool => $group['name'] !== $noVoiceGroup && $group['average'] !== null
+            static fn (array $group): bool => $group['name'] !== $noVoiceGroup
+                && $group['average'] !== null
+                && (int) ($group['quota_count'] ?? 0) >= self::MIN_RACE_QUOTAS
         ));
         if ($contenders === []) {
             return [];

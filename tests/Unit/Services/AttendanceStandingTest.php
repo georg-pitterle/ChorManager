@@ -44,10 +44,10 @@ final class AttendanceStandingTest extends TestCase
     public function testRaceKeepsChoirOrderAndSkipsGroupsWithoutAverage(): void
     {
         $race = AttendanceStanding::voiceGroupRace([
-            ['name' => 'Sopran', 'member_count' => 3, 'average' => 70.0],
-            ['name' => 'Alt', 'member_count' => 2, 'average' => 82.5],
-            ['name' => 'Tenor', 'member_count' => 1, 'average' => null],
-            ['name' => 'Ohne Stimmgruppe', 'member_count' => 4, 'average' => 99.0],
+            ['name' => 'Sopran', 'member_count' => 3, 'average' => 70.0, 'quota_count' => 3],
+            ['name' => 'Alt', 'member_count' => 2, 'average' => 82.5, 'quota_count' => 2],
+            ['name' => 'Tenor', 'member_count' => 1, 'average' => null, 'quota_count' => 0],
+            ['name' => 'Ohne Stimmgruppe', 'member_count' => 4, 'average' => 99.0, 'quota_count' => 4],
         ], 'Sopran', 'Ohne Stimmgruppe');
 
         $this->assertSame(['Sopran', 'Alt'], array_column($race, 'name'));
@@ -59,10 +59,66 @@ final class AttendanceStandingTest extends TestCase
     public function testTiedLeadersAreBothMarked(): void
     {
         $race = AttendanceStanding::voiceGroupRace([
-            ['name' => 'Sopran', 'member_count' => 3, 'average' => 80.0],
-            ['name' => 'Bass', 'member_count' => 2, 'average' => 80.0],
+            ['name' => 'Sopran', 'member_count' => 3, 'average' => 80.0, 'quota_count' => 3],
+            ['name' => 'Bass', 'member_count' => 2, 'average' => 80.0, 'quota_count' => 2],
         ], null, 'Ohne Stimmgruppe');
 
         $this->assertSame([true, true], array_column($race, 'is_leader'));
+    }
+
+    /**
+     * Eine einzige Quote hinter dem Durchschnitt heißt: Der Durchschnitt *ist*
+     * diese Quote. Die Gruppe tritt deshalb nicht an - sonst stünde der Stand
+     * einer namentlich bestimmbaren Person für alle sichtbar auf der Seite.
+     */
+    public function testGroupCarriedByASingleQuotaDoesNotCompete(): void
+    {
+        $race = AttendanceStanding::voiceGroupRace([
+            ['name' => 'Sopran', 'member_count' => 4, 'average' => 70.0, 'quota_count' => 3],
+            ['name' => 'Tenor', 'member_count' => 3, 'average' => 25.0, 'quota_count' => 1],
+        ], 'Tenor', 'Ohne Stimmgruppe');
+
+        $this->assertSame(['Sopran'], array_column($race, 'name'));
+    }
+
+    /**
+     * Auch die eigene Gruppe nicht: Gerechnet wird für alle dasselbe, und was
+     * für die Person selbst harmlos wäre, steht bei jeder anderen auf derselben
+     * Seite. Der eigene Stand steht ohnehin im eigenen Abschnitt.
+     */
+    public function testEvenTheOwnGroupNeedsASecondQuota(): void
+    {
+        $race = AttendanceStanding::voiceGroupRace([
+            ['name' => 'Bass', 'member_count' => 1, 'average' => 100.0, 'quota_count' => 1],
+        ], 'Bass', 'Ohne Stimmgruppe');
+
+        $this->assertSame([], $race);
+    }
+
+    /** Eine fehlende Angabe zählt als zu wenig - die sichere Richtung. */
+    public function testGroupWithoutQuotaCountDoesNotCompete(): void
+    {
+        $race = AttendanceStanding::voiceGroupRace([
+            ['name' => 'Alt', 'member_count' => 5, 'average' => 80.0],
+        ], null, 'Ohne Stimmgruppe');
+
+        $this->assertSame([], $race);
+    }
+
+    /**
+     * Die Mindestzahl entscheidet über das Antreten, nicht über die Führung:
+     * Eine ausgeschlossene Gruppe darf den Abstand der übrigen nicht verschieben.
+     */
+    public function testExcludedGroupDoesNotSetTheLead(): void
+    {
+        $race = AttendanceStanding::voiceGroupRace([
+            ['name' => 'Sopran', 'member_count' => 3, 'average' => 60.0, 'quota_count' => 3],
+            ['name' => 'Alt', 'member_count' => 2, 'average' => 70.0, 'quota_count' => 2],
+            ['name' => 'Tenor', 'member_count' => 2, 'average' => 100.0, 'quota_count' => 1],
+        ], null, 'Ohne Stimmgruppe');
+
+        $this->assertSame(['Sopran', 'Alt'], array_column($race, 'name'));
+        $this->assertSame([10.0, 0.0], array_column($race, 'gap'), 'Führend ist Alt mit 70 %, nicht Tenor.');
+        $this->assertSame([false, true], array_column($race, 'is_leader'));
     }
 }

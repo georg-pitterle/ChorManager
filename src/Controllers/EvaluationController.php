@@ -461,8 +461,14 @@ class EvaluationController
      * Wer keine Quote hat, weil für ihn kein Termin galt, zählt als Mitglied, geht
      * aber nicht in den Durchschnitt ein.
      *
+     * `quota_count` neben `member_count`: Nur Erstes sagt, auf wie vielen Quoten
+     * der Durchschnitt ruht - `member_count` zählt auch Personen mit, für die
+     * kein Termin galt. Der Stimmgruppen-Vergleich braucht genau diese Zahl, um
+     * eine Gruppe auszulassen, deren Durchschnitt die Quote einer einzelnen
+     * Person ist (AttendanceStanding::MIN_RACE_QUOTAS).
+     *
      * @param list<array<string, mixed>> $stats
-     * @return list<array{name: string, member_count: int, average: ?float, below_low: int}>
+     * @return list<array{name: string, member_count: int, quota_count: int, average: ?float, below_low: int}>
      */
     private function summarizeByVoiceGroup(array $stats): array
     {
@@ -487,6 +493,7 @@ class EvaluationController
             $summary[] = [
                 'name' => $name,
                 'member_count' => $group['member_count'],
+                'quota_count' => count($quotas),
                 'average' => $quotas === [] ? null : round(array_sum($quotas) / count($quotas), 1),
                 'below_low' => count(array_filter($quotas, static fn (float $quota): bool => $quota < self::QUOTA_LOW)),
             ];
