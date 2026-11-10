@@ -118,7 +118,20 @@ class TokenController
             $claims['aud'] = $clientId;
             $claims['iat'] = $issuedAt;
             $claims['exp'] = $issuedAt + self::ID_TOKEN_TTL_SECONDS;
-            $claims['auth_time'] = $issuedAt;
+            // `auth_time` ist die Anmeldezeit der Sitzung, aus der der Code
+            // stammt, nicht die Ausstellungszeit des Zeugnisses. Hier stand
+            // zuvor `$issuedAt`: Damit meldete jedes Zeugnis eine gerade
+            // erfolgte Anmeldung, auch bei einer Sitzung, die über "Angemeldet
+            // bleiben" seit Wochen läuft - eine angeschlossene Anwendung, die
+            // nach einer Frist eine neue Anmeldung verlangt, war so nicht zu
+            // bedienen. Kennt der Code die Zeit nicht (Sitzung von vor
+            // Migration 20261110120000), bleibt die Angabe weg: Der Standard
+            // verlangt sie nur bei einer Altersanfrage, und eine fehlende
+            // Angabe ist ehrlich, eine geratene nicht.
+            $authenticatedAt = $code->authenticated_at;
+            if ($authenticatedAt !== null) {
+                $claims['auth_time'] = $authenticatedAt->getTimestamp();
+            }
             if (($code->nonce ?? null) !== null) {
                 $claims['nonce'] = (string) $code->nonce;
             }

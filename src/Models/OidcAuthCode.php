@@ -14,6 +14,12 @@ use Illuminate\Database\Eloquent\Model;
  * calendar_subscription_tokens. Eingelöst wird genau einmal - `used_at` bleibt
  * danach stehen, statt die Zeile zu löschen, damit eine zweite Einlösung als
  * das erkennbar ist, was sie ist: ein Diebstahlsverdacht.
+ *
+ * `authenticated_at` ist die Anmeldezeit der Sitzung, aus der der Code stammt -
+ * nicht seine Ausstellungszeit, die steht in `created_at`. Sie reist hier mit,
+ * weil der Token-Endpunkt keine Sitzung sieht, und wird als `auth_time` ins
+ * Anmeldezeugnis gelegt. Bei einer Sitzung, die vor Migration 20261110120000
+ * begann, bleibt sie leer.
  */
 class OidcAuthCode extends Model
 {
@@ -32,6 +38,7 @@ class OidcAuthCode extends Model
         'expires_at',
         'used_at',
         'created_at',
+        'authenticated_at',
     ];
 
     /** @var list<string> */
@@ -45,6 +52,7 @@ class OidcAuthCode extends Model
         'expires_at' => 'datetime',
         'used_at' => 'datetime',
         'created_at' => 'datetime',
+        'authenticated_at' => 'datetime',
     ];
 
     public function user()

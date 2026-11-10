@@ -1588,6 +1588,13 @@ class DevSeedService
      * Die Challenge ist fest und ihr Verifier steht im Bericht: Nur so lässt
      * sich der Tausch am Token-Endpunkt im Dev von Hand nachspielen.
      *
+     * Die beiden Codes tragen verschieden alte Anmeldezeiten: Der offene kommt
+     * aus einer Sitzung von vor zehn Minuten, der verbrauchte aus einer von vor
+     * acht Stunden. Damit zeigt der Bestand beides, was `auth_time` im
+     * Anmeldezeugnis unterscheiden soll - frisch angemeldet und lange
+     * angemeldet. Ohne Angabe sähen beide Zeugnisse gleich aus, und der Wert
+     * wäre im Dev nicht zu prüfen.
+     *
      * @param array<int, \App\Models\User> $users
      */
     private function seedOidcGrants(OidcClient $client, array $users): void
@@ -1600,17 +1607,22 @@ class DevSeedService
             '='
         );
 
+        $freshLogin = time() - 10 * 60;
+        $oldLogin = time() - 8 * 3600;
+
         $openCode = $codeService->issue(
             $client,
             (int) $users[0]->id,
             $redirectUri,
             $scope,
             bin2hex(random_bytes(8)),
-            $challenge
+            $challenge,
+            $freshLogin
         );
         $this->report['counts']['oidc_auth_codes']++;
         $this->report['oidc']['open_code'] = $openCode;
         $this->report['oidc']['code_verifier'] = self::DEV_SEED_CODE_VERIFIER;
+        $this->report['oidc']['open_code_authenticated_at'] = date('Y-m-d H:i:s', $freshLogin);
 
         if (!isset($users[1])) {
             return;
@@ -1622,9 +1634,11 @@ class DevSeedService
             $redirectUri,
             $scope,
             bin2hex(random_bytes(8)),
-            $challenge
+            $challenge,
+            $oldLogin
         );
         $this->report['counts']['oidc_auth_codes']++;
+        $this->report['oidc']['used_code_authenticated_at'] = date('Y-m-d H:i:s', $oldLogin);
 
         $stored = OidcAuthCode::query()
             ->where('code_hash', AuthorizationCodeService::hashCode($usedCode))

@@ -117,6 +117,9 @@ final class OidcDiscoveryFeatureTest extends TestCase
         $this->assertContains('openid', $document['scopes_supported']);
         $this->assertContains('groups', $document['scopes_supported']);
         $this->assertContains('groups', $document['claims_supported']);
+        // Angeboten wird, was auch geliefert wird: Das Anmeldezeugnis trägt die
+        // echte Anmeldezeit, also steht `auth_time` hier.
+        $this->assertContains('auth_time', $document['claims_supported']);
 
         // `plain` würde PKCE aushebeln: Der Verifier stünde dann unverschlüsselt
         // in der Authorize-Anfrage und wäre für jeden mitlesenden Zwischenschritt

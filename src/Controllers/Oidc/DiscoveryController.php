@@ -55,6 +55,10 @@ class DiscoveryController
                 'aud',
                 'exp',
                 'iat',
+                // Seit die Angabe die echte Anmeldezeit trägt, steht sie auch
+                // hier. Sie fehlte in dieser Liste, während jedes Zeugnis sie
+                // führte - angeboten wurde also etwas anderes als geliefert.
+                'auth_time',
                 'nonce',
                 'name',
                 'preferred_username',

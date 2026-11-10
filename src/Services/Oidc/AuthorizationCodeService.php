@@ -44,13 +44,19 @@ class AuthorizationCodeService
      * Stellt einen Code aus. Der zurückgegebene Klartext ist die einzige
      * Gelegenheit, ihn weiterzugeben.
      */
+    /**
+     * @param int|null $authenticatedAt Anmeldezeit der Sitzung als Unix-Zeit. Sie
+     *     reist im Code mit, weil der Token-Endpunkt keine Sitzung sieht. `null`
+     *     heißt "unbekannt" - dann trägt das Zeugnis später kein `auth_time`.
+     */
     public function issue(
         OidcClient $client,
         int $userId,
         string $redirectUri,
         string $scope,
         ?string $nonce,
-        string $codeChallenge
+        string $codeChallenge,
+        ?int $authenticatedAt = null
     ): string {
         $code = bin2hex(random_bytes(32));
 
@@ -65,6 +71,9 @@ class AuthorizationCodeService
             'code_challenge_method' => self::CHALLENGE_METHOD,
             'expires_at' => date('Y-m-d H:i:s', time() + self::CODE_TTL_SECONDS),
             'created_at' => date('Y-m-d H:i:s'),
+            'authenticated_at' => $authenticatedAt === null
+                ? null
+                : date('Y-m-d H:i:s', $authenticatedAt),
         ]);
 
         $this->logger->info('OIDC authorization code granted.', [

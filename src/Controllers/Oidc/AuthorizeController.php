@@ -130,13 +130,22 @@ class AuthorizeController
 
         $this->codeService->clearExpired();
 
+        // Die Anmeldezeit dieser Sitzung reist im Code mit: Der Token-Endpunkt
+        // bedient eine Anwendung ohne Browser und sieht keine Sitzung mehr, muss
+        // `auth_time` aber kennen. `auth_epoch` setzt SessionAuthService beim
+        // Entstehen der Sitzung und lässt es beim Rechte-Abzug stehen; eine
+        // Sitzung, die vor Migration 20261110120000 begann, hat keines - dann
+        // bleibt die Angabe leer, statt geraten zu werden.
+        $authEpoch = (int) ($_SESSION['auth_epoch'] ?? 0);
+
         $code = $this->codeService->issue(
             $client,
             $userId,
             $redirectUri,
             $scope,
             $nonce,
-            $challenge
+            $challenge,
+            $authEpoch > 0 ? $authEpoch : null
         );
 
         return $this->redirect($response, $redirectUri, ['code' => $code, 'state' => $state]);
