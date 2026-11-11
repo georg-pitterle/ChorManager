@@ -328,13 +328,17 @@ class NewsletterFeatureTest extends TestCase
      * auf. Welche Personen tatsächlich herauskommen, prüft
      * NewsletterEventAudienceRecipientsFeatureTest; hier steht nur der
      * Wächter gegen einen Rückfall.
+     *
+     * Aufgelöst wird seit Lauf 71 für alle gewählten Termine auf einmal
+     * (`eligibleUserIdsForEvents()` statt `eligibleUsersQuery()` je Termin) -
+     * dieselbe Zielgruppe, nur ohne eine Abfrageserie je Termin.
      */
     public function testRecipientServiceResolvesEventSourceViaAudienceNotAttendance(): void
     {
         $recipientService = file_get_contents(dirname(__DIR__) . '/../src/Services/NewsletterRecipientService.php');
 
         $this->assertIsString($recipientService);
-        $this->assertStringContainsString('eligibleUsersQuery($event)', $recipientService);
+        $this->assertStringContainsString('eligibleUserIdsForEvents(', $recipientService);
         $this->assertStringNotContainsString("->where('status', 'present')", $recipientService);
         $this->assertStringNotContainsString("->where('attended', 1)", $recipientService);
     }

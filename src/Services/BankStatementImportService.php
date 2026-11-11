@@ -20,6 +20,9 @@ class BankStatementImportService
     private const DESCRIPTION_MAX_LENGTH = 255;
     private const DELIMITER = ';';
 
+    /** Siehe readCsvRecords(): CSV nach RFC 4180 kennt kein Fluchtzeichen. */
+    private const ESCAPE = '';
+
     /**
      * MIME-Typen, die ein Browser für eine .csv-Datei realistisch meldet.
      *
@@ -151,6 +154,13 @@ class BankStatementImportService
      * mehrzeiliger Verwendungszweck steht als eingebetteter Zeilenumbruch im
      * Anführungszeichen-Feld und zerfiele sonst in zwei kaputte Zeilen.
      *
+     * Ohne Fluchtzeichen (`escape: ''`), also genau nach RFC 4180: Dort gibt es
+     * nur das verdoppelte Anführungszeichen. Mit dem alten Rückwärtsschrägstrich
+     * verschluckte ein Feld, das auf ihn endet ("Kiosk\\"), das abschließende
+     * Anführungszeichen - das Feld lief weiter, und alle folgenden Spalten der
+     * Zeile rutschten hinein. Kein Bank-Export erzeugt solche Fluchtzeichen; sie
+     * zu deuten konnte deshalb nur schaden.
+     *
      * @return list<list<string|null>>
      */
     private function readCsvRecords(string $content): array
@@ -165,7 +175,7 @@ class BankStatementImportService
             fwrite($handle, $content);
             rewind($handle);
 
-            while (($fields = fgetcsv($handle, 0, self::DELIMITER, '"', '\\')) !== false) {
+            while (($fields = fgetcsv($handle, 0, self::DELIMITER, '"', self::ESCAPE)) !== false) {
                 if ($this->isBlankRecord($fields)) {
                     continue;
                 }
@@ -293,7 +303,7 @@ class BankStatementImportService
         }
 
         $signedAmount = (float) $rawAmount;
-        $type = $signedAmount < 0 ? 'expense' : 'income';
+        $type = $signedAmount < 0 ? Finance::TYPE_EXPENSE : Finance::TYPE_INCOME;
 
         // Gegenpartei ist immer die Seite, die nicht das eigene Konto ist. Bei
         // Lastschriften ist der Auftraggeber die Gegenpartei, obwohl der Betrag

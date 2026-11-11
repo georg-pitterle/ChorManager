@@ -261,6 +261,31 @@ final class BankStatementImportServiceTest extends TestCase
         $this->assertStringContainsString('Zeile 2', $result['rows'][0]['description']);
     }
 
+    /**
+     * Ein Verwendungszweck oder Name, der auf einen Rückwärtsschrägstrich endet,
+     * darf die Spalten nicht verschieben.
+     *
+     * `fgetcsv()` kannte als Fluchtzeichen den Rückwärtsschrägstrich. Damit galt
+     * das Anführungszeichen am Feldende als Teil des Inhalts, das Feld lief
+     * weiter, und alle folgenden Spalten der Zeile rutschten hinein - Kennung des
+     * Gegenkontos und Verwendungszweck standen danach leer in der Vorschau. CSV
+     * nach RFC 4180 kennt kein solches Fluchtzeichen; verdoppelt wird das
+     * Anführungszeichen.
+     */
+    public function testABackslashAtTheEndOfAFieldDoesNotShiftTheColumns(): void
+    {
+        $result = $this->service->parse($this->csv(
+            '08.02.2026;10.02.2026;-12,00;EUR;Chorkuma;AT91;BTV;"Kiosk\\";AT42;HYP;Text;Zweck'
+        ));
+
+        $this->assertSame([], $result['errors']);
+        $this->assertCount(1, $result['rows']);
+        $row = $result['rows'][0];
+        $this->assertNull($row['error']);
+        $this->assertSame('AT42', $row['counterparty_iban']);
+        $this->assertSame('Zweck', $row['purpose']);
+    }
+
     public function testRejectsUploadsThatAreNotCsvFiles(): void
     {
         $this->assertNotNull(BankStatementImportService::validateUpload('auszug.txt', 1024, 'text/plain'));

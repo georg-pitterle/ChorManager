@@ -135,8 +135,8 @@ class NewsletterRecipientService extends AudienceOwnerService
     public function resolveFor(array $sets, array $eventIds): Collection
     {
         $ids = $this->membersQueryForSets($sets)->pluck('users.id')->all();
-        foreach ($eventIds as $eventId) {
-            $ids = array_merge($ids, $this->getEventAudience($eventId)->pluck('id')->all());
+        foreach ($this->events->eligibleUserIdsForEvents($this->eventsWithAudience($eventIds)) as $eventUserIds) {
+            $ids = array_merge($ids, $eventUserIds);
         }
 
         $uniqueIds = array_values(array_unique(array_map(static fn ($id): int => (int) $id, $ids)));
@@ -151,31 +151,35 @@ class NewsletterRecipientService extends AudienceOwnerService
     }
 
     /**
-     * Die Mitglieder, für die ein Termin gilt - seine Zielgruppe.
+     * Die gewählten Termine samt ihrer Zielgruppe, in einem Zug geladen.
      *
-     * Aufgelöst wurde das bis Lauf 22 über die Anwesenheitsliste
-     * (`attendances.status = 'present'`). Die füllt sich erst, nachdem der
-     * Termin stattgefunden hat und jemand sie eingetragen hat. Im Formular
-     * stehen aber alle Termine zur Auswahl: Wer einen bevorstehenden nahm -
-     * der übliche Fall, "Infos zur Probe am Freitag" -, bekam kommentarlos
-     * null Empfänger und konnte den Newsletter gar nicht senden, ohne dass
-     * irgendwo stand, woran es lag.
+     * Was ein Termin zur Empfängerliste beiträgt, ist seine Zielgruppe - und
+     * nicht seine Anwesenheitsliste. Aufgelöst wurde das bis Lauf 22 über
+     * `attendances.status = 'present'`. Die Spalte füllt sich erst, nachdem der
+     * Termin stattgefunden hat und jemand die Liste eingetragen hat. Im Formular
+     * stehen aber alle Termine zur Auswahl: Wer einen bevorstehenden nahm - der
+     * übliche Fall, "Infos zur Probe am Freitag" -, bekam kommentarlos null
+     * Empfänger und konnte den Newsletter gar nicht senden, ohne dass irgendwo
+     * stand, woran es lag. Massgeblich ist deshalb dieselbe Zielgruppe, über die
+     * auch Einladung und Anwesenheitsliste laufen; sie filtert `is_active`
+     * bereits selbst.
      *
-     * Massgeblich ist deshalb dieselbe Zielgruppe, über die auch Einladung und
-     * Anwesenheitsliste laufen. `EventAudienceService::eligibleUsersQuery()`
-     * filtert `is_active` bereits selbst.
+     * Alle Termine auf einmal und mit vorab geladenen Filtern: Vorher holte sich
+     * jeder Termin seine Zeile, seine Filter und seine Mitglieder selbst - vier
+     * Abfragen je Termin. Ein Newsletter zur Probenwoche nennt die ganze Serie,
+     * und die teilt sich ihre Zielgruppe. `eligibleUserIdsForEvents()` nutzt
+     * genau das und fragt je verschiedener Zielgruppe nur einmal.
      *
-     * @param int $eventId
-     * @return Collection<int, User>
+     * @param list<int> $eventIds
+     * @return Collection<int, Event>
      */
-    public function getEventAudience(int $eventId): Collection
+    private function eventsWithAudience(array $eventIds): Collection
     {
-        $event = Event::find($eventId);
-        if (!$event) {
+        if ($eventIds === []) {
             return new Collection();
         }
 
-        return $this->events->eligibleUsersQuery($event)->get();
+        return Event::query()->whereIn('id', $eventIds)->with('audienceFilters.conditions')->get();
     }
 
     /**

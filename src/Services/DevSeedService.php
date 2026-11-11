@@ -5578,7 +5578,7 @@ class DevSeedService
             return;
         }
 
-        // Deckt sich mit NewsletterRecipientService::getEventAudience(), damit
+        // Deckt sich mit NewsletterRecipientService::resolveFor(), damit
         // recipient_count der tatsächlich aufgelösten Personenzahl entspricht.
         $eventAudienceUserIds = (new EventAudienceService())->eligibleUsersQuery($audienceEvent)->pluck('id')->all();
 
