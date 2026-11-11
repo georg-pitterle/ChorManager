@@ -12,7 +12,16 @@
     </div>
 
     {% if voice_group_race is empty %}
-        <p class="text-muted mb-0">Sobald für eine Stimmgruppe ein Pflichttermin galt, steht sie hier.</p>
+        {#
+            Die Mindestzahl kommt aus der Rechenregel selbst, damit der Satz nicht
+            stehenbleibt, wenn sie sich ändert.
+        #}
+        {% set _min_quotas = constant("App\\Services\\AttendanceStanding::MIN_RACE_QUOTAS") %}
+        <p class="text-muted mb-0">
+            Eine Stimmgruppe steht hier, sobald mindestens {{ _min_quotas }} ihrer Mitglieder eine
+            Anwesenheitsquote haben. Aus einem Durchschnitt über weniger ließe sich der Stand
+            einzelner Personen zurückrechnen.
+        </p>
     {% else %}
         <ul class="voice-race list-unstyled mb-0">
             {% for group in voice_group_race %}

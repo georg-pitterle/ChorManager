@@ -138,6 +138,7 @@ use App\Services\Storage\BackupUsageProvider;
 use App\Services\Storage\DatabaseUsageProvider;
 use App\Services\Storage\FileStorageUsageProvider;
 use App\Services\Storage\StorageUsageService;
+use App\Services\Storage\WriteAccessCheck;
 use App\Services\Storage\VarDirectoryUsageProvider;
 use App\Util\AttachmentPreview;
 use App\Util\ByteFormatter;
@@ -740,7 +741,18 @@ return function (ContainerBuilder $containerBuilder) {
             return new StorageUsageService(
                 $providers,
                 $settings['storage']['summary_cache'],
-                $c->get(LoggerInterface::class)
+                $c->get(LoggerInterface::class),
+                null,
+                // Was zu prüfen ist und was der Ausfall bedeutet, steht hier und
+                // nicht in der Prüfklasse: Der Pfad der Anmeldebegrenzung hängt
+                // an RATE_LIMIT_STORE_DIR und ist deshalb nur dem Dienst selbst
+                // bekannt.
+                new WriteAccessCheck([[
+                    'label' => 'Anmeldebegrenzung',
+                    'path' => $c->get(RateLimiterService::class)->storeDir(),
+                    'consequence' => 'Anmeldeversuche werden nicht mehr begrenzt - der Schutz gegen '
+                        . 'Passwort-Durchprobieren ist aus, solange hier nicht geschrieben werden kann.',
+                ]])
             );
         },
         StorageController::class => \DI\autowire(),

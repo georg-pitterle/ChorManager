@@ -35,6 +35,25 @@
 {% block content %}
     {% set _total = report.totalBytes %}
 
+    {#
+        Ablagen ohne Schreibzugriff zuerst: Eine Anmeldebegrenzung, die nichts mehr zählen
+        kann, lässt jeden Versuch durch, ohne dass es irgendwo auffällt. Das gehört vor
+        die Zahlen, nicht dahinter.
+    #}
+    {% for problem in report.writeProblems %}
+        <div class="alert alert-danger d-flex gap-2" role="alert">
+            <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+            <div>
+                <strong>{{ problem.label }}: kein Schreibzugriff</strong>
+                <p class="mb-1">{{ problem.consequence }}</p>
+                <p class="mb-0 small">
+                    Verzeichnis: <code>{{ problem.path }}</code> - Besitzer und Rechte des
+                    Verzeichnisses prüfen.
+                </p>
+            </div>
+        </div>
+    {% endfor %}
+
     <div class="storage-summary">
         <article class="surface-card storage-kpi">
             <p class="storage-kpi__label">Gesamt</p>

@@ -8,6 +8,7 @@ use App\Controllers\StorageController;
 use App\Services\Storage\StorageUsageNode;
 use App\Services\Storage\StorageUsageProvider;
 use App\Services\Storage\StorageUsageService;
+use App\Services\Storage\WriteAccessCheck;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 
@@ -111,6 +112,71 @@ final class StoragePageFeatureTest extends TestCase
         $this->assertStringContainsString('--usage-share:', $body);
         $this->assertStringContainsString('data-storage-key="files.versions.old"', $body);
         $this->assertStringContainsString('data-storage-key="database.attachments.finance"', $body);
+    }
+
+    /**
+     * Eine Ablage ohne Schreibzugriff steht ganz oben auf der Seite.
+     *
+     * Die Anmeldebegrenzung zählt die Versuche in Dateien; lässt sich dort nicht
+     * schreiben, lässt sie jeden Versuch durch (`RateLimiterService`). Bemerkt
+     * wurde das bisher nur über eine Warnung im Protokoll - also erst in der
+     * Log-Analyse. Jetzt fällt es beim Blick in die Verwaltung auf.
+     *
+     * Geprüft wird mit einer auswechselbaren Schreibprobe statt mit echten
+     * Dateirechten: Der Testlauf läuft je nach Umgebung als root, und für root
+     * bejaht `is_writable()` auch ein Verzeichnis ohne Schreibrecht.
+     */
+    public function testPageLeadsWithAnAreaThatCannotBeWritten(): void
+    {
+        $service = new StorageUsageService(
+            [$this->fixed(StorageUsageNode::sum('database', 'Datenbank', []))],
+            $this->cache,
+            new NullLogger(),
+            null,
+            new WriteAccessCheck(
+                [[
+                    'label' => 'Anmeldebegrenzung',
+                    'path' => '/var/www/html/var/rate-limits',
+                    'consequence' => 'Anmeldeversuche werden nicht mehr begrenzt.',
+                ]],
+                static fn (string $path): bool => false
+            )
+        );
+
+        $body = (string) (new StorageController($this->createAppTwig('/storage'), $service))
+            ->index($this->makeRequest('GET', '/storage'), $this->makeResponse())
+            ->getBody();
+
+        $this->assertStringContainsString('Anmeldebegrenzung: kein Schreibzugriff', $body);
+        $this->assertStringContainsString('Anmeldeversuche werden nicht mehr begrenzt.', $body);
+        $this->assertStringContainsString('/var/www/html/var/rate-limits', $body);
+        // Vor den Zahlen, nicht dahinter.
+        $this->assertLessThan(
+            strpos($body, 'storage-summary'),
+            strpos($body, 'kein Schreibzugriff'),
+            'Die Warnung gehört über die Speicherzahlen.'
+        );
+    }
+
+    public function testPageStaysFreeOfWarningsWhileEveryAreaCanBeWritten(): void
+    {
+        $service = new StorageUsageService(
+            [$this->fixed(StorageUsageNode::sum('database', 'Datenbank', []))],
+            $this->cache,
+            new NullLogger(),
+            null,
+            new WriteAccessCheck(
+                [['label' => 'Anmeldebegrenzung', 'path' => sys_get_temp_dir(), 'consequence' => 'egal']],
+                static fn (string $path): bool => true
+            )
+        );
+
+        $body = (string) (new StorageController($this->createAppTwig('/storage'), $service))
+            ->index($this->makeRequest('GET', '/storage'), $this->makeResponse())
+            ->getBody();
+
+        $this->assertStringNotContainsString('kein Schreibzugriff', $body);
+        $this->assertStringNotContainsString('alert-danger', $body);
     }
 
     public function testRouteIsGatedByTheStorageRight(): void

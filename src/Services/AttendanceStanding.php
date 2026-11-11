@@ -27,11 +27,20 @@ final class AttendanceStanding
      * Projektmitglieder offen) namentlich zu bestimmen ist - und zwar auch nach
      * unten, während die Seite Fremdes ausdrücklich nur im Positiven zeigt.
      *
-     * Eine Stimmgruppe mit genau einer gezählten Person ist in einem kleinen
-     * Chor der Regelfall, nicht die Ausnahme: Gezählt wird nur, wer eine Quote
-     * hat, also wen überhaupt ein Pflichttermin betraf.
+     * Zwei Quoten reichen deshalb nicht: Wer selbst in der Gruppe ist, kennt
+     * seine eigene Quote aus dem eigenen Abschnitt derselben Seite und rechnet
+     * die der anderen Person exakt aus - Durchschnitt mal zwei minus eigene.
+     * Für die Gruppe daneben genügt eine einzige bekannte Quote aus ihr. Ab drei
+     * Quoten lässt sich aus dem Durchschnitt und einer bekannten Quote keine
+     * einzelne mehr bestimmen; es bleiben zwei Unbekannte in einer Gleichung.
+     *
+     * Eine Stimmgruppe mit nur einer oder zwei gezählten Personen ist in einem
+     * kleinen Chor der Regelfall, nicht die Ausnahme: Gezählt wird nur, wer eine
+     * Quote hat, also wen überhaupt ein Pflichttermin betraf. Die Mindestzahl
+     * kostet dort also tatsächlich den Vergleich - der Vergleich ist aber
+     * Beiwerk, eine ausgerechnete Fremdquote nicht.
      */
-    public const MIN_RACE_QUOTAS = 2;
+    public const MIN_RACE_QUOTAS = 3;
 
     /**
      * Pflichttermine in Folge dabei, vom jüngsten rückwärts gezählt.

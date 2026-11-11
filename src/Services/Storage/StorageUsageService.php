@@ -20,13 +20,18 @@ final class StorageUsageService
     private const SUMMARY_MAX_AGE_SECONDS = 3600;
 
     /**
+     * Optional und am Ende wie in den übrigen Diensten - bestehende Aufrufer
+     * bauen diesen Dienst mit festen Positionsargumenten. Ohne Prüfung bleibt
+     * die Liste der Schreibprobleme leer.
+     *
      * @param list<StorageUsageProvider> $providers
      */
     public function __construct(
         private readonly array $providers,
         private readonly string $summaryCachePath,
         private readonly LoggerInterface $logger,
-        private readonly ?\Closure $clock = null
+        private readonly ?\Closure $clock = null,
+        private readonly ?WriteAccessCheck $writeAccess = null
     ) {
     }
 
@@ -46,7 +51,21 @@ final class StorageUsageService
             }
         }
 
-        $report = new StorageUsageReport($areas, (new \DateTimeImmutable())->setTimestamp($this->now()));
+        $writeProblems = $this->writeAccess?->problems() ?? [];
+        foreach ($writeProblems as $problem) {
+            // Als Warnung, nicht als Fehler: Die Messung selbst ist gelungen.
+            $this->logger->warning('Storage area is not writable.', [
+                'event' => 'storage.not_writable',
+                'store' => $problem['label'],
+                'path' => $problem['path'],
+            ]);
+        }
+
+        $report = new StorageUsageReport(
+            $areas,
+            (new \DateTimeImmutable())->setTimestamp($this->now()),
+            $writeProblems
+        );
 
         // Eine Messung mit Fehler bleibt aus dem Cache - sonst hielte ein kurzer
         // Aussetzer die Kachel eine Stunde lang auf "nicht ermittelbar".

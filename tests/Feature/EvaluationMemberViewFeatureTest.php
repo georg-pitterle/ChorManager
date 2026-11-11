@@ -243,17 +243,22 @@ final class EvaluationMemberViewFeatureTest extends TestCase
     public function testVoiceGroupRaceRanksMainGroupsWithoutLowCounters(): void
     {
         $self = $this->member('Selbst', $this->soprano);
-        // Zweite Sopranstimme mit derselben Quote: Der Durchschnitt der Gruppe
-        // bleibt 50 %, aber er ruht nicht mehr auf einer einzigen Person.
+        // Weitere Sopranstimmen mit derselben Quote: Der Durchschnitt der Gruppe
+        // bleibt 50 %, ruht aber auf AttendanceStanding::MIN_RACE_QUOTAS Quoten
+        // und lässt sich damit auf keine einzelne zurückrechnen.
         $sopranoB = $this->member('SopranB', $this->soprano);
+        $sopranoC = $this->member('SopranC', $this->soprano);
         $altoA = $this->member('AltA', $this->alto);
         $altoB = $this->member('AltB', $this->alto);
+        $altoC = $this->member('AltC', $this->alto);
         $loose = $this->member('Lose', null);
         $this->events(4, [
             $self->id => ['present', 'present', 'unexcused', 'unexcused'],
             $sopranoB->id => ['present', 'unexcused', 'present', 'unexcused'],
+            $sopranoC->id => ['unexcused', 'present', 'unexcused', 'present'],
             $altoA->id => ['present', 'present', 'present', 'present'],
             $altoB->id => ['present', 'present', 'present', 'unexcused'],
+            $altoC->id => ['present', 'present', 'unexcused', 'unexcused'],
             $loose->id => ['present', 'present', 'present', 'present'],
         ]);
 
@@ -266,7 +271,7 @@ final class EvaluationMemberViewFeatureTest extends TestCase
             'Ohne Stimmgruppe tritt niemand an.'
         );
         $this->assertFalse($race[0]['is_leader']);
-        $this->assertSame(37.5, $race[0]['gap'], '50 % gegen 87,5 %.');
+        $this->assertSame(25.0, $race[0]['gap'], '50 % gegen 75 %.');
         $this->assertTrue($race[0]['is_own']);
         $this->assertTrue($race[1]['is_leader']);
         $this->assertSame(0.0, $race[1]['gap']);
@@ -278,10 +283,12 @@ final class EvaluationMemberViewFeatureTest extends TestCase
     {
         $lead = $this->member('Leitung', $this->soprano);
         $sister = $this->member('Schwester', $this->soprano);
+        $cousin = $this->member('Cousine', $this->soprano);
         $stranger = $this->member('Fremd', $this->alto);
         $this->events(3, [
             $lead->id => ['present', 'present', 'present'],
             $sister->id => ['unexcused', 'present', 'present'],
+            $cousin->id => ['present', 'unexcused', 'present'],
             $stranger->id => ['unexcused', 'unexcused', 'unexcused'],
         ]);
 
@@ -292,11 +299,14 @@ final class EvaluationMemberViewFeatureTest extends TestCase
         ]);
 
         $this->assertTrue($data['can_view_details']);
-        $this->assertEqualsCanonicalizing([(int) $lead->id, (int) $sister->id], $this->userIds($data['stats']));
+        $this->assertEqualsCanonicalizing(
+            [(int) $lead->id, (int) $sister->id, (int) $cousin->id],
+            $this->userIds($data['stats'])
+        );
         $this->assertSame([$this->soprano->name], array_column($data['voice_group_summary'], 'name'));
         // Der Vergleich bleibt chorweit - aber nur mit den Gruppen, deren
-        // Durchschnitt auf mehr als einer Quote ruht. Die fremde Stimmgruppe hat
-        // hier nur eine und tritt deshalb nicht an.
+        // Durchschnitt auf mindestens AttendanceStanding::MIN_RACE_QUOTAS Quoten
+        // ruht. Die fremde Stimmgruppe hat hier nur eine und tritt nicht an.
         $this->assertSame([$this->soprano->name], array_column($data['voice_group_race'], 'name'));
     }
 
@@ -371,10 +381,12 @@ final class EvaluationMemberViewFeatureTest extends TestCase
         $lonely = $this->member('Allein', $this->soprano);
         $altoA = $this->member('AltA', $this->alto);
         $altoB = $this->member('AltB', $this->alto);
+        $altoC = $this->member('AltC', $this->alto);
         $this->events(4, [
             $lonely->id => ['unexcused', 'unexcused', 'unexcused', 'present'],
             $altoA->id => ['present', 'present', 'present', 'present'],
             $altoB->id => ['present', 'present', 'present', 'unexcused'],
+            $altoC->id => ['present', 'present', 'unexcused', 'unexcused'],
         ]);
 
         $race = $this->renderAs(['user_id' => (int) $altoA->id])['voice_group_race'];
@@ -392,10 +404,12 @@ final class EvaluationMemberViewFeatureTest extends TestCase
         $lonely = $this->member('Allein', $this->soprano);
         $altoA = $this->member('AltA', $this->alto);
         $altoB = $this->member('AltB', $this->alto);
+        $altoC = $this->member('AltC', $this->alto);
         $this->events(4, [
             $lonely->id => ['unexcused', 'unexcused', 'unexcused', 'present'],
             $altoA->id => ['present', 'present', 'present', 'present'],
             $altoB->id => ['present', 'present', 'present', 'unexcused'],
+            $altoC->id => ['present', 'present', 'unexcused', 'unexcused'],
         ]);
 
         $_SESSION = ['user_id' => (int) $altoA->id];

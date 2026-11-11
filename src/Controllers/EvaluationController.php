@@ -464,8 +464,8 @@ class EvaluationController
      * `quota_count` neben `member_count`: Nur Erstes sagt, auf wie vielen Quoten
      * der Durchschnitt ruht - `member_count` zählt auch Personen mit, für die
      * kein Termin galt. Der Stimmgruppen-Vergleich braucht genau diese Zahl, um
-     * eine Gruppe auszulassen, deren Durchschnitt die Quote einer einzelnen
-     * Person ist (AttendanceStanding::MIN_RACE_QUOTAS).
+     * eine Gruppe auszulassen, aus deren Durchschnitt sich eine einzelne Quote
+     * zurückrechnen lässt (AttendanceStanding::MIN_RACE_QUOTAS).
      *
      * @param list<array<string, mixed>> $stats
      * @return list<array{name: string, member_count: int, quota_count: int, average: ?float, below_low: int}>

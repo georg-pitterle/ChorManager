@@ -45,7 +45,7 @@ final class AttendanceStandingTest extends TestCase
     {
         $race = AttendanceStanding::voiceGroupRace([
             ['name' => 'Sopran', 'member_count' => 3, 'average' => 70.0, 'quota_count' => 3],
-            ['name' => 'Alt', 'member_count' => 2, 'average' => 82.5, 'quota_count' => 2],
+            ['name' => 'Alt', 'member_count' => 3, 'average' => 82.5, 'quota_count' => 3],
             ['name' => 'Tenor', 'member_count' => 1, 'average' => null, 'quota_count' => 0],
             ['name' => 'Ohne Stimmgruppe', 'member_count' => 4, 'average' => 99.0, 'quota_count' => 4],
         ], 'Sopran', 'Ohne Stimmgruppe');
@@ -60,7 +60,7 @@ final class AttendanceStandingTest extends TestCase
     {
         $race = AttendanceStanding::voiceGroupRace([
             ['name' => 'Sopran', 'member_count' => 3, 'average' => 80.0, 'quota_count' => 3],
-            ['name' => 'Bass', 'member_count' => 2, 'average' => 80.0, 'quota_count' => 2],
+            ['name' => 'Bass', 'member_count' => 3, 'average' => 80.0, 'quota_count' => 3],
         ], null, 'Ohne Stimmgruppe');
 
         $this->assertSame([true, true], array_column($race, 'is_leader'));
@@ -86,13 +86,31 @@ final class AttendanceStandingTest extends TestCase
      * für die Person selbst harmlos wäre, steht bei jeder anderen auf derselben
      * Seite. Der eigene Stand steht ohnehin im eigenen Abschnitt.
      */
-    public function testEvenTheOwnGroupNeedsASecondQuota(): void
+    public function testEvenTheOwnGroupNeedsTheMinimumNumberOfQuotas(): void
     {
         $race = AttendanceStanding::voiceGroupRace([
-            ['name' => 'Bass', 'member_count' => 1, 'average' => 100.0, 'quota_count' => 1],
+            ['name' => 'Bass', 'member_count' => 2, 'average' => 100.0, 'quota_count' => 2],
         ], 'Bass', 'Ohne Stimmgruppe');
 
         $this->assertSame([], $race);
+    }
+
+    /**
+     * Zwei Quoten reichen auch nicht.
+     *
+     * Wer selbst in der Gruppe ist, kennt seine eigene Quote aus dem eigenen
+     * Abschnitt und rechnet die der anderen Person exakt aus: Durchschnitt mal
+     * zwei minus eigene. In einem kleinen Chor ist eine Zweier-Stimmgruppe der
+     * Regelfall, nicht die Ausnahme - die Lücke wäre also die übliche Lage.
+     */
+    public function testGroupCarriedByTwoQuotasDoesNotCompete(): void
+    {
+        $race = AttendanceStanding::voiceGroupRace([
+            ['name' => 'Sopran', 'member_count' => 4, 'average' => 70.0, 'quota_count' => 3],
+            ['name' => 'Alt', 'member_count' => 3, 'average' => 60.0, 'quota_count' => 2],
+        ], 'Alt', 'Ohne Stimmgruppe');
+
+        $this->assertSame(['Sopran'], array_column($race, 'name'));
     }
 
     /** Eine fehlende Angabe zählt als zu wenig - die sichere Richtung. */
@@ -113,8 +131,8 @@ final class AttendanceStandingTest extends TestCase
     {
         $race = AttendanceStanding::voiceGroupRace([
             ['name' => 'Sopran', 'member_count' => 3, 'average' => 60.0, 'quota_count' => 3],
-            ['name' => 'Alt', 'member_count' => 2, 'average' => 70.0, 'quota_count' => 2],
-            ['name' => 'Tenor', 'member_count' => 2, 'average' => 100.0, 'quota_count' => 1],
+            ['name' => 'Alt', 'member_count' => 3, 'average' => 70.0, 'quota_count' => 3],
+            ['name' => 'Tenor', 'member_count' => 2, 'average' => 100.0, 'quota_count' => 2],
         ], null, 'Ohne Stimmgruppe');
 
         $this->assertSame(['Sopran', 'Alt'], array_column($race, 'name'));
