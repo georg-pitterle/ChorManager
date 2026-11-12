@@ -183,7 +183,6 @@ class ForbiddenResponseRendersReasonFeatureTest extends TestCase
             'title' => 'Verbotener Termin ' . bin2hex(random_bytes(4)),
             'starts_at' => Carbon::now()->addDays(3)->format('Y-m-d') . ' 19:00:00',
             'ends_at' => Carbon::now()->addDays(3)->format('Y-m-d') . ' 21:00:00',
-            'type' => 'Probe',
         ], $attributes));
 
         $group = VoiceGroup::create(['name' => 'Fremdgruppe ' . bin2hex(random_bytes(4))]);

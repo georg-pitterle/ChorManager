@@ -430,7 +430,6 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
             'title' => 'Probe',
             'starts_at' => $start,
             'ends_at' => (clone $start)->setTime(21, 0),
-            'type' => 'Probe',
             'series_id' => $seriesId,
             'location' => 'Pfarrsaal',
             'registration_enabled' => false,

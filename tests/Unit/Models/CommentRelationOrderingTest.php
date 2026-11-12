@@ -69,7 +69,6 @@ final class CommentRelationOrderingTest extends TestCase
             'title' => 'Probe für den Reihenfolge-Test',
             'starts_at' => '2026-05-12 19:00:00',
             'ends_at' => '2026-05-12 21:00:00',
-            'type' => 'rehearsal',
         ]);
     }
 

@@ -7,8 +7,12 @@
    Wort anders ("received" / "erhalten").
 
    Parameter:
-     benefits  Liste aus {id, description, may_tick, toggle_url, delivered_display}
+     benefits  Liste aus {id, description, may_tick, toggle_url, delivered_display,
+               ticked_by}
                delivered_display ist null, solange die Leistung offen ist.
+               ticked_by ist die abhakende Person - null bei einem Haken aus der
+               Zeit, bevor die Zeile sie nannte, und auf dem Dashboard, das nur
+               offene Zeilen zeigt.
      field     Name des Formularfelds, Vorgabe "delivered"
      done_word Wort für den Haken, Vorgabe "erbracht" #}
 {% set _field = field|default("delivered") %}
@@ -35,7 +39,10 @@
                 </span>
             {% endif %}
             {% if _done %}
-                <span class="benefit-done-date">{{ _done_word }} am {{ benefit.delivered_display }}</span>
+                {% set _ticked_by = benefit.ticked_by|default(null) %}
+                <span class="benefit-done-date">
+                    {{ _done_word }} am {{ benefit.delivered_display }}{% if _ticked_by %} von {{ _ticked_by|person_name }}{% endif %}
+                </span>
             {% endif %}
         </li>
     {% endfor %}

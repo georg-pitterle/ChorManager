@@ -205,7 +205,6 @@ final class NotificationMarkReadOnOpenFeatureTest extends TestCase
             'title' => $title,
             'starts_at' => $day . ' 19:00:00',
             'ends_at' => $day . ' 21:00:00',
-            'type' => 'Probe',
         ]);
     }
 

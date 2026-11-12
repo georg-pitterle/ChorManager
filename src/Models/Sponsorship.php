@@ -85,16 +85,6 @@ class Sponsorship extends Model
     }
 
     /**
-     * Wer die Vereinbarung erfasst hat. Entscheidet zusammen mit
-     * can_create_own_sponsorships darüber, wer sie ändern darf - "zuständig"
-     * (assignedUser) ist etwas anderes und wird vom Sponsoring-Team vergeben.
-     */
-    public function createdByUser()
-    {
-        return $this->belongsTo(User::class, 'created_by_user_id');
-    }
-
-    /**
      * Die zugesagten Gegenleistungen, in der ausgehandelten Reihenfolge.
      */
     public function benefits()

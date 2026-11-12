@@ -102,7 +102,6 @@ final class EvaluationMemberViewFeatureTest extends TestCase
                 'title' => 'Ansporn-Probe ' . $i,
                 'starts_at' => $startsAt,
                 'ends_at' => (clone $startsAt)->addHours(2),
-                'type' => 'Probe',
                 'registration_enabled' => false,
                 'attendance_required' => true,
             ]);

@@ -40,7 +40,6 @@ class RegistrationReminderServiceFeatureTest extends TestCase
             'title' => 'Probe Erinnerungstest',
             'starts_at' => Carbon::now()->addDays(2)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(2)->setTime(21, 0),
-            'type' => 'Probe',
             'registration_enabled' => true,
         ]);
         $this->openToEveryone($this->event);

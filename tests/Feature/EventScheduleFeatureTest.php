@@ -364,7 +364,6 @@ class EventScheduleFeatureTest extends TestCase
             'starts_at' => $start->format('Y-m-d H:i:s'),
             'ends_at' => $start->copy()->addHours(2)->format('Y-m-d H:i:s'),
             'event_type_id' => $eventTypeId,
-            'type' => 'Probe',
             'location' => 'Pfarrsaal',
         ]);
 

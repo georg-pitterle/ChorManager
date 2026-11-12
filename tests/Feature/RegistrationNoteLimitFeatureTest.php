@@ -45,7 +45,6 @@ class RegistrationNoteLimitFeatureTest extends TestCase
             'title' => 'Probe Notizgrenze',
             'starts_at' => Carbon::now()->addDays(6)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(6)->setTime(21, 0),
-            'type' => 'Probe',
             'registration_enabled' => true,
         ]);
         $this->openToEveryone($this->event);

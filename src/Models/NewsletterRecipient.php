@@ -59,24 +59,8 @@ class NewsletterRecipient extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function isPending(): bool
-    {
-        return $this->status === self::STATUS_PENDING;
-    }
-
-    /** In der Warteschlange, aber noch nicht zugestellt. */
-    public function isQueued(): bool
-    {
-        return $this->status === self::STATUS_QUEUED;
-    }
-
     public function isSent(): bool
     {
         return $this->status === self::STATUS_SENT;
-    }
-
-    public function isFailed(): bool
-    {
-        return $this->status === self::STATUS_FAILED;
     }
 }

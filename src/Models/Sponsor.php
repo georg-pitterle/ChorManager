@@ -102,11 +102,6 @@ class Sponsor extends Model
         return $this->belongsTo(SponsorCategory::class, 'category_id');
     }
 
-    public function createdByUser()
-    {
-        return $this->belongsTo(User::class, 'created_by_user_id');
-    }
-
     public function sponsorships()
     {
         return $this->hasMany(Sponsorship::class, 'sponsor_id');

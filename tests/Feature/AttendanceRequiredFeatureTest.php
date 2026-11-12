@@ -98,7 +98,6 @@ class AttendanceRequiredFeatureTest extends TestCase
             'title' => 'Fest ohne Anwesenheitsliste',
             'starts_at' => Carbon::now()->addDays(3)->setTime(18, 0),
             'ends_at' => Carbon::now()->addDays(3)->setTime(23, 0),
-            'type' => 'Sonstiges',
             'attendance_required' => false,
         ]);
         $this->openToEveryone($event);
@@ -134,7 +133,6 @@ class AttendanceRequiredFeatureTest extends TestCase
             'title' => 'Probe mit Anwesenheitspflicht Task9',
             'starts_at' => Carbon::now()->addDays(2)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(2)->setTime(21, 0),
-            'type' => 'Probe',
             'attendance_required' => true,
         ]);
         $this->openToEveryone($requiredEvent);
@@ -143,7 +141,6 @@ class AttendanceRequiredFeatureTest extends TestCase
             'title' => 'Fest ohne Anwesenheitspflicht Task9',
             'starts_at' => Carbon::now()->addDays(4)->setTime(18, 0),
             'ends_at' => Carbon::now()->addDays(4)->setTime(23, 0),
-            'type' => 'Sonstiges',
             'attendance_required' => false,
         ]);
         $this->openToEveryone($notRequiredEvent);
@@ -209,7 +206,6 @@ class AttendanceRequiredFeatureTest extends TestCase
             'title' => 'Scope-Probe mit Anwesenheitspflicht',
             'starts_at' => Carbon::now()->addDays(2)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(2)->setTime(21, 0),
-            'type' => 'Probe',
             'attendance_required' => true,
         ]);
         $this->giveAudience('event_id', (int) $event->id, ['voice_group' => [(int) $inGroup->id]]);
@@ -339,7 +335,6 @@ class AttendanceRequiredFeatureTest extends TestCase
             'title' => 'Projektprobe mit Anwesenheitspflicht Task9',
             'starts_at' => Carbon::now()->subDays(1)->setTime(19, 0),
             'ends_at' => Carbon::now()->subDays(1)->setTime(21, 0),
-            'type' => 'Probe',
             'attendance_required' => true,
         ]);
         $this->giveAudience('event_id', (int) $requiredEvent->id, ['project' => [(int) $project->id]]);
@@ -348,7 +343,6 @@ class AttendanceRequiredFeatureTest extends TestCase
             'title' => 'Projektfest ohne Anwesenheitspflicht Task9',
             'starts_at' => Carbon::now()->subDays(2)->setTime(18, 0),
             'ends_at' => Carbon::now()->subDays(2)->setTime(23, 0),
-            'type' => 'Sonstiges',
             'attendance_required' => false,
         ]);
         $this->giveAudience('event_id', (int) $notRequiredEvent->id, ['project' => [(int) $project->id]]);

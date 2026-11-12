@@ -134,7 +134,7 @@ class RegistrationController
         return [
             'weekday' => $formatter->weekday($event->starts_at),
             'relative_label' => $formatter->relativeLabel($event->starts_at, $now),
-            'type_name' => $eventType ? (string) $eventType->name : (string) $event->type,
+            'type_name' => $event->typeName(),
             'type_color' => $eventType ? (string) $eventType->color : 'info',
             'is_highlighted' => $eventType !== null && (bool) $eventType->is_highlighted,
             'deadline_weekday' => $formatter->weekday($deadline),

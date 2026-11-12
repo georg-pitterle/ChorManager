@@ -24,11 +24,12 @@ use Twig\TwigFilter;
 use Twig\TwigFunction;
 
 /**
- * Der Name der Terminart steht zweimal: in `event_types.name` und zusätzlich als
- * Zeichenkette in `events.type`. Geschrieben wird die Spalte beim Anlegen und
+ * Der Name der Terminart stand zweimal: in `event_types.name` und zusätzlich als
+ * Zeichenkette in `events.type`. Geschrieben wurde die Spalte beim Anlegen und
  * Bearbeiten eines Termins - beim Umbenennen der Terminart dagegen nicht, und
- * das tut niemand nach. Wer die Spalte liest, zeigt deshalb nach einer
- * Umbenennung den alten Namen weiter an.
+ * das tat niemand nach. Wer die Spalte las, zeigte deshalb nach einer
+ * Umbenennung den alten Namen weiter an. Migration 20261112120000 hat die
+ * Spalte entfernt.
  *
  * Genau so stand es auf der Anwesenheitsseite: Terminauswahl und Kopfzeile
  * lasen `events.type`, während Terminliste und Kalender längst die Beziehung
@@ -107,7 +108,6 @@ class EventTypeNameFollowsRenameFeatureTest extends TestCase
             'starts_at' => Carbon::now()->addDays(2)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(2)->setTime(21, 0),
             'event_type_id' => $type->id,
-            'type' => 'Probe',
             'attendance_required' => true,
         ]);
 
@@ -115,20 +115,43 @@ class EventTypeNameFollowsRenameFeatureTest extends TestCase
     }
 
     /**
-     * Ohne Terminart bleibt die Spalte der Rückfall - sonst stünde in der
-     * Kopfzeile nichts, wo vorher ein Name stand.
+     * Ohne Terminart gibt es keinen Namen mehr - und das ist die Wahrheit.
+     *
+     * Bis Migration 20261112120000 stand hier `events.type`, und die Spalte trug
+     * in diesem Fall das hartverdrahtete "Probe" aus EventController::store():
+     * Die Oberfläche behauptete eine Terminart, die niemand gewählt hatte. Was
+     * an ihrer Stelle steht, entscheidet jetzt die Ansicht.
      */
-    public function testOhneTerminartBleibtDieSpalteDerRueckfall(): void
+    public function testOhneTerminartGibtEsKeinenNamen(): void
     {
         $event = Event::create([
             'title' => 'Termin ohne Terminart',
             'starts_at' => Carbon::now()->addDays(2)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(2)->setTime(21, 0),
-            'type' => 'Sonderprobe',
             'attendance_required' => true,
         ]);
 
-        self::assertSame('Sonderprobe', $event->typeName());
+        self::assertSame('', $event->typeName());
+    }
+
+    /**
+     * Die Anwesenheitsseite setzt dafür einen Gedankenstrich - und nennt in der
+     * Terminauswahl gar keine Klammer, statt einer leeren.
+     */
+    public function testOhneTerminartZeigtDieAnwesenheitsseiteEinenGedankenstrich(): void
+    {
+        $event = Event::create([
+            'title' => 'Termin ohne Terminart',
+            'starts_at' => Carbon::now()->addDays(4)->setTime(19, 0),
+            'ends_at' => Carbon::now()->addDays(4)->setTime(21, 0),
+            'attendance_required' => true,
+        ]);
+        $this->openToEveryone($event);
+
+        $body = $this->renderAttendancePage($event);
+
+        self::assertStringContainsString('Typ: –', $body);
+        self::assertStringNotContainsString('Termin ohne Terminart ()', $body);
     }
 
     /**
@@ -142,12 +165,11 @@ class EventTypeNameFollowsRenameFeatureTest extends TestCase
             'starts_at' => Carbon::now()->addDays(3)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(3)->setTime(21, 0),
             'event_type_id' => $type->id,
-            'type' => 'Probe',
             'attendance_required' => true,
         ]);
         $this->openToEveryone($event);
 
-        // Die Terminart wird umbenannt - `events.type` bleibt dabei stehen.
+        // Die Terminart wird umbenannt.
         $type->update(['name' => 'Gesamtprobe']);
 
         $body = $this->renderAttendancePage($event);

@@ -66,7 +66,6 @@ final class NewsletterEventAudienceRecipientsFeatureTest extends TestCase
             'title' => 'Probe ' . bin2hex(random_bytes(4)),
             'starts_at' => $startsAt,
             'ends_at' => $startsAt->copy()->addHours(2),
-            'type' => 'Probe',
         ]);
 
         $this->giveAudience('event_id', (int) $event->id, ['voice_group' => [(int) $voiceGroup->id]]);

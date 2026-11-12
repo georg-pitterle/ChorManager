@@ -51,7 +51,6 @@ class AudienceFilterServiceFeatureTest extends TestCase
             'title' => 'Besitzer',
             'starts_at' => '2030-01-01 19:00:00',
             'ends_at' => '2030-01-01 21:00:00',
-            'type' => 'Probe',
         ])->id;
     }
 

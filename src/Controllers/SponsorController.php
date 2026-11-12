@@ -277,8 +277,11 @@ class SponsorController
             'sponsorships.assignedUser.roles',
             'sponsorships.attachments' => $metadataOnly,
             'sponsorships.contacts.user',
-            'sponsorships.benefits',
-            'sponsorships.deliverables',
+            // Mit der abhakenden Person: Die Zeile nennt sie neben dem Datum
+            // (benefit_list.twig), und ohne das Vorladen fragte jede Zeile
+            // einzeln nach.
+            'sponsorships.benefits.deliveredBy',
+            'sponsorships.deliverables.receivedBy',
             'attachments' => $metadataOnly,
             'contacts.user',
             'contacts.sponsorship.package',
@@ -376,6 +379,11 @@ class SponsorController
                     'may_tick' => $mayTick,
                     'toggle_url' => '/sponsoring/' . $path . '/' . $line->id . '/toggle',
                     'delivered_display' => $line->{$field . '_at'}?->format('d.m.Y'),
+                    // Wer abgehakt hat. Die Spalte wird seit Beginn
+                    // mitgeschrieben (SponsorshipController::tickLine), stand
+                    // aber in keiner Ansicht. Leer bleibt sie bei Häkchen aus
+                    // der Zeit davor - dann nennt die Zeile nur das Datum.
+                    'ticked_by' => $line->{$field . 'By'},
                 ])
                 ->values()
                 ->all();

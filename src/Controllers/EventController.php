@@ -1123,10 +1123,12 @@ class EventController
             if ($eventTypeId) {
                 $eventType = EventType::find($eventTypeId);
             }
-            $typeName = $eventType ? $eventType->name : 'Probe';
-
+            // Leerer Titel übernimmt den Namen der Terminart; ohne gewählte
+            // Terminart bleibt "Probe" der Vorgabetitel. Als Titel ist das eine
+            // Vorgabe, die jemand ändern kann - in `events.type` war derselbe
+            // Wert eine Behauptung über die Terminart, die niemand gewählt hatte.
             if (empty($title)) {
-                $title = $typeName;
+                $title = $eventType ? $eventType->name : 'Probe';
             }
 
             if (!$repeat) {
@@ -1136,7 +1138,6 @@ class EventController
                     'starts_at' => $startsAt,
                     'ends_at' => $endsAt,
                     'event_type_id' => $eventTypeId,
-                    'type' => $typeName,
                     'location' => trim(InputValidator::asString($data['location'] ?? null)),
                     'registration_enabled' => $registrationEnabled,
                     'registration_deadline' => $registrationDeadline,
@@ -1198,7 +1199,6 @@ class EventController
                         'starts_at' => $occurrenceStart->format('Y-m-d H:i:s'),
                         'ends_at' => $day . ' ' . $endTime . ':00',
                         'event_type_id' => $eventTypeId,
-                        'type' => $typeName,
                         'series_id' => $series->id,
                         'location' => trim(InputValidator::asString($data['location'] ?? null)),
                         'registration_enabled' => $registrationEnabled,
@@ -1395,16 +1395,16 @@ class EventController
             if ($eventTypeId) {
                 $eventType = EventType::find($eventTypeId);
             }
-            $typeName = $eventType ? $eventType->name : $event->type;
-
+            // Leerer Titel übernimmt den Namen der Terminart. Ohne gewählte
+            // Terminart bleibt der bisherige Titel stehen - früher stand hier
+            // `$event->type`, und das war mit `events.type` derselbe Name.
             if (empty($title)) {
-                $title = $typeName;
+                $title = $eventType ? $eventType->name : $event->title;
             }
 
             $updateData = [
                 'title' => $title,
                 'event_type_id' => $eventTypeId,
-                'type' => $typeName,
                 'location' => trim(InputValidator::asString($data['location'] ?? null)),
                 'registration_enabled' => $registrationEnabled,
                 'attendance_required' => $attendanceRequired,
@@ -1459,7 +1459,6 @@ class EventController
                     if (in_array('title', $seriesFields, true)) {
                         $seriesUpdate['title'] = $updateData['title'];
                         $seriesUpdate['event_type_id'] = $updateData['event_type_id'];
-                        $seriesUpdate['type'] = $updateData['type'];
                     }
 
                     if (in_array('location', $seriesFields, true)) {

@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Controllers\RegistrationController;
 use App\Models\Event;
 use App\Models\EventRegistration;
+use App\Models\EventType;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\VoiceGroup;
@@ -356,7 +357,6 @@ class RegistrationViewFeatureTest extends TestCase
             'title' => 'Allgemeiner Anmeldetermin',
             'starts_at' => Carbon::now()->addDays(9),
             'ends_at' => Carbon::now()->addDays(9)->addHours(2),
-            'type' => 'Probe',
             'registration_enabled' => true,
         ]);
         $this->openToEveryone($generalEvent);
@@ -431,11 +431,15 @@ class RegistrationViewFeatureTest extends TestCase
         // simulates a user who registered while still a project member
         // and was later removed from the project.
 
+        // Mit echter Terminart: Das Abzeichen im Terminplan nennt den Namen aus
+        // `event_types`, seit `events.type` gefallen ist (20261112120000).
+        $eventType = EventType::create(['name' => 'Probe', 'color' => 'info', 'is_highlighted' => false]);
+
         $event = Event::create([
             'title' => 'Projektprobe mit Anmeldung',
             'starts_at' => Carbon::now()->addDays(10),
             'ends_at' => Carbon::now()->addDays(10)->addHours(2),
-            'type' => 'Probe',
+            'event_type_id' => $eventType->id,
             'registration_enabled' => true,
         ]);
 

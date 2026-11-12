@@ -87,7 +87,6 @@ class PendingRegistrationSummaryServiceFeatureTest extends TestCase
             'title' => 'Offene Anmeldung ' . uniqid(),
             'starts_at' => Carbon::now()->addDays(10)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(10)->setTime(21, 0),
-            'type' => 'Probe',
             'registration_enabled' => true,
             'registration_deadline' => Carbon::now()->addDays(9),
         ]);
@@ -151,7 +150,6 @@ class PendingRegistrationSummaryServiceFeatureTest extends TestCase
             'title' => 'Ohne Anmeldung',
             'starts_at' => Carbon::now()->addDays(10)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(10)->setTime(21, 0),
-            'type' => 'Probe',
             'registration_enabled' => false,
         ]);
         $this->giveAudience('event_id', (int) $disabled->id, ['voice_group' => [(int) $group->id]]);
@@ -161,7 +159,6 @@ class PendingRegistrationSummaryServiceFeatureTest extends TestCase
             'title' => 'Frist abgelaufen',
             'starts_at' => Carbon::now()->addDays(10)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(10)->setTime(21, 0),
-            'type' => 'Probe',
             'registration_enabled' => true,
             'registration_deadline' => Carbon::now()->subDay(),
         ]);

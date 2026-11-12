@@ -1319,7 +1319,6 @@ class DevSeedService
                         'ends_at' => $cursor->format('Y-m-d') . ' 21:00:00',
                         'event_type_id' => $eventTypes[$seriesDef['type']]->id,
                         'series_id' => $series->id,
-                        'type' => $seriesDef['type'],
                         'location' => $this->pickLocation(),
                     ]);
 
@@ -1345,7 +1344,6 @@ class DevSeedService
                     'ends_at' => $eventDate->format('Y-m-d') . ' 21:00:00',
                     'event_type_id' => $eventTypes[$singleDef['type']]->id,
                     'series_id' => null,
-                    'type' => $singleDef['type'],
                     'location' => $this->pickLocation(),
                 ]);
 
@@ -1367,7 +1365,6 @@ class DevSeedService
                     'ends_at' => $paddingDate->format('Y-m-d') . ' 21:00:00',
                     'event_type_id' => $eventTypes['Probe']->id,
                     'series_id' => null,
-                    'type' => 'Probe',
                     'location' => $this->pickLocation(),
                 ]);
 
@@ -1730,7 +1727,6 @@ class DevSeedService
                 'ends_at' => $eventDate->format('Y-m-d') . ' 21:00:00',
                 'event_type_id' => $eventTypes['Sitzung']->id,
                 'series_id' => null,
-                'type' => 'Sitzung',
                 'location' => $this->pickLocation(),
             ]);
             $this->report['counts']['events']++;

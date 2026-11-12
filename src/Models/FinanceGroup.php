@@ -19,10 +19,4 @@ class FinanceGroup extends Model
     {
         return $this->hasMany(Finance::class, 'finance_group_id', 'id');
     }
-
-    /** @return \Illuminate\Database\Eloquent\Relations\HasMany */
-    public function budgetCategories()
-    {
-        return $this->hasMany(BudgetCategory::class, 'finance_group_id', 'id');
-    }
 }

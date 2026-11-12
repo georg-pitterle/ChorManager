@@ -11,6 +11,7 @@ use AllowNewslettersWithoutProject;
 use CreateFinanceAccounts;
 use CreateFinanceGroupsAndLink;
 use DropEventsProjectId;
+use DropTypeFromEvents;
 use MoveSponsorLogosToOwnAttachments;
 use RequireFileSizeOnAttachments;
 use RequireKnownAttendanceStatus;
@@ -32,6 +33,7 @@ require_once dirname(__DIR__, 2) . '/db/migrations/20261023124000_move_sponsor_l
 require_once dirname(__DIR__, 2) . '/db/migrations/20261022130000_use_english_task_status_values.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20261029120000_require_known_song_resource_type.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20261101120000_require_file_size_on_attachments.php';
+require_once dirname(__DIR__, 2) . '/db/migrations/20261112120000_drop_type_from_events.php';
 
 /**
  * Einige Migrationen führen einen Schritt aus, der Daten unwiederbringlich
@@ -64,6 +66,7 @@ final class DestructiveMigrationGuardTest extends TestCase
     private const ATTENDANCE_TABLE = 'test_guard_attendance';
     private const TASKS_TABLE = 'test_guard_tasks';
     private const SONG_RESOURCES_TABLE = 'test_guard_song_resources';
+    private const TYPE_EVENTS_TABLE = 'test_guard_type_events';
     private const ATTACHMENTS_TABLE = 'test_guard_attachments';
 
     protected function setUp(): void
@@ -215,6 +218,16 @@ final class DestructiveMigrationGuardTest extends TestCase
                 PRIMARY KEY (id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
             self::TASKS_TABLE
+        ));
+
+        Capsule::connection()->statement(sprintf(
+            'CREATE TABLE %s (
+                id int(11) NOT NULL AUTO_INCREMENT,
+                event_type_id int(11) DEFAULT NULL,
+                type varchar(255) NOT NULL,
+                PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
+            self::TYPE_EVENTS_TABLE
         ));
     }
 
@@ -713,6 +726,42 @@ final class DestructiveMigrationGuardTest extends TestCase
         ));
     }
 
+    /**
+     * `events.type` fällt, weil der Name in `event_types.name` steht. Verloren
+     * geht er nur dort, wo keine Terminart hängt - das Nachtragen im up() hat
+     * dann keine gefunden.
+     */
+    public function testTypeTextGuardFindsTheTerminWithoutEventType(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (id, event_type_id, type)
+             VALUES (1, NULL, 'Hausprobe'), (2, 5, 'Probe'), (3, NULL, ''), (4, NULL, '   ')",
+            self::TYPE_EVENTS_TABLE
+        ));
+
+        // Nur Termin 1 verliert etwas: Termin 2 hängt an einer Terminart,
+        // Termin 3 und 4 tragen gar keinen Namen.
+        $this->assertSame(1, $this->countFrom(DropTypeFromEvents::ORPHANED_TYPE_TEXTS, [
+            'events' => self::TYPE_EVENTS_TABLE,
+        ]));
+    }
+
+    public function testTypeTextGuardStaysQuietWhenEveryTerminHasItsEventType(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (id, event_type_id, type)
+             VALUES (1, 5, 'Probe'), (2, 6, 'Veralteter Name'), (3, NULL, '')",
+            self::TYPE_EVENTS_TABLE
+        ));
+
+        // Termin 2 trägt bewusst einen veralteten Text neben einer vorhandenen
+        // Terminart - genau der Fehler, den Lauf 72 behoben hat. Er zählt nicht
+        // als Verlust, der gültige Name steht in `event_types.name`.
+        $this->assertSame(0, $this->countFrom(DropTypeFromEvents::ORPHANED_TYPE_TEXTS, [
+            'events' => self::TYPE_EVENTS_TABLE,
+        ]));
+    }
+
     private function countFrom(string $sql, array $tableMap, string $column = 'orphaned'): int
     {
         $row = Capsule::connection()->selectOne(strtr($sql, $tableMap));
@@ -737,6 +786,7 @@ final class DestructiveMigrationGuardTest extends TestCase
             self::TASKS_TABLE,
             self::SONG_RESOURCES_TABLE,
             self::ATTACHMENTS_TABLE,
+            self::TYPE_EVENTS_TABLE,
         ];
 
         foreach ($tables as $table) {

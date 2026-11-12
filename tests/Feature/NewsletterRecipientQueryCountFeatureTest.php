@@ -127,7 +127,6 @@ final class NewsletterRecipientQueryCountFeatureTest extends TestCase
                 'title' => 'Zählprobe ' . $index,
                 'starts_at' => Carbon::now()->addDays($index + 2)->format('Y-m-d') . ' 19:00:00',
                 'ends_at' => Carbon::now()->addDays($index + 2)->format('Y-m-d') . ' 21:00:00',
-                'type' => 'Probe',
             ]);
             // Dieselbe Zielgruppe für jeden Termin - eine Serie teilt sie sich.
             $this->giveAudience('event_id', (int) $event->id, ['voice_group' => [(int) $this->voiceGroup->id]]);

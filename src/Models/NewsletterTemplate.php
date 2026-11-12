@@ -56,9 +56,4 @@ class NewsletterTemplate extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
-
-    public function isGlobal(): bool
-    {
-        return $this->project_id === null;
-    }
 }

@@ -56,7 +56,6 @@ final class SourceReplacementRefreshesRelationFeatureTest extends TestCase
             'title' => 'Probe mit Zielgruppenwechsel',
             'starts_at' => Carbon::now()->addDays(3)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(3)->setTime(21, 0),
-            'type' => 'Probe',
         ]);
 
         $service = new EventAudienceService();

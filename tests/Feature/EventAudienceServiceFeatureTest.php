@@ -141,7 +141,6 @@ class EventAudienceServiceFeatureTest extends TestCase
             'title' => 'Audience-Test-Termin ' . bin2hex(random_bytes(4)),
             'starts_at' => Carbon::now()->addDays(5)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(5)->setTime(21, 0),
-            'type' => 'Probe',
         ]);
     }
 

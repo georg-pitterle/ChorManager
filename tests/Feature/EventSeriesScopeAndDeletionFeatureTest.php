@@ -74,7 +74,6 @@ final class EventSeriesScopeAndDeletionFeatureTest extends TestCase
                 'title' => 'Wochenprobe',
                 'starts_at' => $start,
                 'ends_at' => (clone $start)->setTime(21, 0),
-                'type' => 'Probe',
                 'series_id' => $this->series->id,
                 'location' => 'Pfarrsaal',
                 'registration_enabled' => true,

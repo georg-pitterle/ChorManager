@@ -119,7 +119,6 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
             'title' => 'Probe ' . $startsAt->format('d.m.Y H:i'),
             'starts_at' => $startsAt,
             'ends_at' => (clone $startsAt)->addHours(2),
-            'type' => 'Probe',
             'registration_enabled' => false,
             'attendance_required' => $attendanceRequired,
         ]);
@@ -241,7 +240,6 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
             'title' => 'Stimmprobe Sopran ' . $suffix,
             'starts_at' => Carbon::now()->subDays(2),
             'ends_at' => Carbon::now()->subDays(2)->addHours(2),
-            'type' => 'Probe',
             'registration_enabled' => false,
             'attendance_required' => true,
         ]);
@@ -345,7 +343,6 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
             'title' => 'Stimmprobe Sopran ' . $suffix,
             'starts_at' => Carbon::now()->subDays(2),
             'ends_at' => Carbon::now()->subDays(2)->addHours(2),
-            'type' => 'Probe',
             'registration_enabled' => false,
             'attendance_required' => true,
         ]);
@@ -425,7 +422,6 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
             'title' => 'Stimmprobe Sopran ' . $suffix,
             'starts_at' => Carbon::now()->subDays(2),
             'ends_at' => Carbon::now()->subDays(2)->addHours(2),
-            'type' => 'Probe',
             'registration_enabled' => false,
             'attendance_required' => true,
         ]);

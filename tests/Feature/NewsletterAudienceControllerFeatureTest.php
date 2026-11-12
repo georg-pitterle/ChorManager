@@ -26,7 +26,7 @@ final class NewsletterAudienceControllerFeatureTest extends TestCase
         $author = $this->createUser('Autor');
         $role = Role::create(['name' => 'Rundbrief-Rolle ' . bin2hex(random_bytes(3)), 'hierarchy_level' => 5]);
         $event = Event::create([
-            'title' => 'Probe', 'starts_at' => '2030-01-01 19:00:00', 'ends_at' => '2030-01-01 21:00:00', 'type' => 'Probe',
+            'title' => 'Probe', 'starts_at' => '2030-01-01 19:00:00', 'ends_at' => '2030-01-01 21:00:00',
         ]);
         $_SESSION = ['user_id' => (int) $author->id, 'can_manage_newsletters' => true];
 

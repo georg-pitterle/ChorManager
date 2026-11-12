@@ -43,7 +43,6 @@ final class ParticipantStateFingerprintTest extends TestCase
             'title' => 'Probe Fingerabdruck',
             'starts_at' => Carbon::now()->addDays(3)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(3)->setTime(21, 0),
-            'type' => 'Probe',
             'attendance_required' => true,
             'registration_enabled' => true,
         ]);

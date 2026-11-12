@@ -119,7 +119,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Kombinierte Probe',
             'starts_at' => Carbon::now()->addDays(2)->format('Y-m-d') . ' 19:00:00',
             'ends_at' => Carbon::now()->addDays(2)->format('Y-m-d') . ' 21:00:00',
-            'type' => 'Probe',
         ]);
         $this->giveAudience('event_id', (int) $event->id, [
             'voice_group' => [(int) $soprano->id],
@@ -222,7 +221,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Old Event',
             'starts_at' => Carbon::now()->subDays(20)->format('Y-m-d') . ' 12:00:00',
             'ends_at' => Carbon::now()->subDays(20)->format('Y-m-d') . ' 14:00:00',
-            'type' => 'Probe',
             'location' => null,
         ]);
         $this->openToEveryone($oldEvent);
@@ -263,7 +261,6 @@ class EventFeatureTest extends TestCase
             'starts_at' => Carbon::now()->subDays(20)->format('Y-m-d') . ' 12:00:00',
             'ends_at' => Carbon::now()->subDays(20)->format('Y-m-d') . ' 14:00:00',
             'event_type_id' => $eventType->id,
-            'type' => 'Probe',
             'location' => null,
         ]);
         $this->giveAudience('event_id', (int) $oldEventInProject->id, ['project' => [(int) $project->id]]);
@@ -273,7 +270,6 @@ class EventFeatureTest extends TestCase
             'starts_at' => Carbon::now()->subDays(20)->format('Y-m-d') . ' 12:00:00',
             'ends_at' => Carbon::now()->subDays(20)->format('Y-m-d') . ' 14:00:00',
             'event_type_id' => $eventType->id,
-            'type' => 'Probe',
             'location' => null,
         ]);
         $this->openToEveryone($oldEventOtherProject);
@@ -466,7 +462,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Old Probe',
             'starts_at' => '2026-05-01 19:00:00',
             'ends_at'   => '2026-05-01 21:00:00',
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event);
 
@@ -497,7 +492,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Original Probe',
             'starts_at' => '2026-06-01 19:00:00',
             'ends_at' => '2026-06-01 21:00:00',
-            'type' => 'Probe',
             'location' => 'Saal',
         ]);
         $this->openToEveryone($event);
@@ -552,7 +546,6 @@ class EventFeatureTest extends TestCase
             'starts_at' => '2026-05-05 19:00:00',
             'ends_at'   => '2026-05-05 21:00:00',
             'series_id' => $series->id,
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event1);
         $event2 = Event::create([
@@ -560,7 +553,6 @@ class EventFeatureTest extends TestCase
             'starts_at' => '2026-05-12 19:00:00',
             'ends_at'   => '2026-05-12 21:00:00',
             'series_id' => $series->id,
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event2);
         $event3 = Event::create([
@@ -568,7 +560,6 @@ class EventFeatureTest extends TestCase
             'starts_at' => '2026-05-19 19:00:00',
             'ends_at'   => '2026-05-19 21:00:00',
             'series_id' => $series->id,
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event3);
 
@@ -610,7 +601,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Timed Event',
             'starts_at' => '2026-05-01 19:00:00',
             'ends_at'   => '2026-05-01 21:00:00',
-            'type' => 'Probe',
         ]);
 
         $body = $this->renderEventsIndex(['show_old_events' => '1']);
@@ -626,7 +616,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Event With Notes',
             'starts_at' => '2026-05-01 19:00:00',
             'ends_at' => '2026-05-01 21:00:00',
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event);
 
@@ -698,7 +687,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Event With Private Note',
             'starts_at' => '2026-05-01 19:00:00',
             'ends_at' => '2026-05-01 21:00:00',
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event);
 
@@ -729,7 +717,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Editable Detail Event',
             'starts_at' => '2026-05-01 19:00:00',
             'ends_at' => '2026-05-01 21:00:00',
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event);
 
@@ -750,7 +737,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Non Editable Detail Event',
             'starts_at' => '2026-05-01 19:00:00',
             'ends_at' => '2026-05-01 21:00:00',
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event);
 
@@ -773,7 +759,6 @@ class EventFeatureTest extends TestCase
             'title' => 'High Level Non Editor Detail Event',
             'starts_at' => '2026-05-01 19:00:00',
             'ends_at' => '2026-05-01 21:00:00',
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event);
 
@@ -843,7 +828,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Abo Detail Event',
             'starts_at' => '2026-05-01 19:00:00',
             'ends_at' => '2026-05-01 21:00:00',
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event);
 
@@ -863,7 +847,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Probe mit Anwesenheitspflicht',
             'starts_at' => Carbon::now()->subDays(1)->setTime(19, 0),
             'ends_at' => Carbon::now()->subDays(1)->setTime(21, 0),
-            'type' => 'Probe',
             'attendance_required' => true,
         ]);
         $this->openToEveryone($event);
@@ -883,7 +866,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Fest ohne Anwesenheitspflicht',
             'starts_at' => Carbon::now()->subDays(1)->setTime(18, 0),
             'ends_at' => Carbon::now()->subDays(1)->setTime(23, 0),
-            'type' => 'Sonstiges',
             'attendance_required' => false,
         ]);
         $this->openToEveryone($event);
@@ -902,7 +884,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Event For New Note',
             'starts_at' => '2026-05-01 19:00:00',
             'ends_at' => '2026-05-01 21:00:00',
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event);
 
@@ -948,7 +929,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Event For Private Note',
             'starts_at' => '2026-05-01 19:00:00',
             'ends_at' => '2026-05-01 21:00:00',
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event);
 
@@ -1003,7 +983,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Protected Private Note Event',
             'starts_at' => '2026-05-01 19:00:00',
             'ends_at' => '2026-05-01 21:00:00',
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event);
 
@@ -1072,7 +1051,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Public Note Event',
             'starts_at' => '2026-05-01 19:00:00',
             'ends_at' => '2026-05-01 21:00:00',
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event);
 
@@ -1128,7 +1106,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Foreign Public Note Event',
             'starts_at' => '2026-05-01 19:00:00',
             'ends_at' => '2026-05-01 21:00:00',
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event);
 
@@ -1189,7 +1166,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Private Note Versus Manager Event',
             'starts_at' => '2026-05-01 19:00:00',
             'ends_at' => '2026-05-01 21:00:00',
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event);
 
@@ -1243,7 +1219,6 @@ class EventFeatureTest extends TestCase
             'title' => 'Editable Public Note Event',
             'starts_at' => '2026-05-01 19:00:00',
             'ends_at' => '2026-05-01 21:00:00',
-            'type' => 'Probe',
         ]);
         $this->openToEveryone($event);
 
@@ -1321,7 +1296,6 @@ class EventFeatureTest extends TestCase
             'title' => $title,
             'starts_at' => $date . ' 12:00:00',
             'ends_at' => $date . ' 14:00:00',
-            'type' => 'Probe',
             'location' => 'Test Location',
         ]);
 

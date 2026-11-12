@@ -28,7 +28,6 @@ class Event extends Model
         'ends_at',
         'event_type_id',
         'series_id',
-        'type',
         'location',
         'registration_enabled',
         'registration_deadline',
@@ -87,24 +86,27 @@ class Event extends Model
     }
 
     /**
-     * Der Name der Terminart, so wie sie heute heißt.
+     * Der Name der Terminart - oder eine leere Zeichenkette, wenn keine
+     * eingetragen ist.
      *
-     * Der Name steht zweimal: in `event_types.name` und zusätzlich als
-     * Zeichenkette in `events.type`. Die Spalte wird beim Anlegen und Bearbeiten
-     * eines Termins mitgeschrieben - beim Umbenennen der Terminart dagegen
-     * nicht, und das trägt niemand nach. Wer sie liest, zeigt deshalb nach
-     * einer Umbenennung den alten Namen.
+     * Der Name stand bis Lauf 72 zweimal: in `event_types.name` und
+     * zusätzlich als Zeichenkette in `events.type`. Die Spalte wurde beim
+     * Anlegen und Bearbeiten eines Termins mitgeschrieben, beim Umbenennen der
+     * Terminart dagegen nicht - die Anwesenheitsseite las sie und zeigte
+     * deshalb den alten Namen weiter an, während Terminliste und Kalender
+     * schon die Beziehung nahmen. Migration 20261112120000 hat die Spalte
+     * entfernt.
      *
-     * Genau so stand es auf der Anwesenheitsseite: Terminauswahl und Kopfzeile
-     * lasen `events.type`, während Terminliste und Kalender die Beziehung
-     * nahmen - dieselbe Probe stand dort als "Gesamtprobe" und hier noch als
-     * "Probe".
+     * Die Regel steht hier und nicht in jeder Ansicht: Sie stand bis dahin nur
+     * im EventController, und die zweite Stelle, die denselben Namen brauchte,
+     * griff zur Spalte - genau der Weg, auf dem die beiden Ansichten
+     * auseinanderliefen.
      *
-     * Die Regel steht hier und nicht in jeder Ansicht: Sie stand bis hierher
-     * nur im EventController, und die zweite Stelle, die denselben Namen
-     * brauchte, nahm die Spalte. Der Rückfall bleibt die Spalte, denn
-     * `event_type_id` darf leer sein, und ohne sie stände in der Kopfzeile
-     * sonst nichts.
+     * Leer statt eines Vorgabenamens: `events.event_type_id` darf leer sein,
+     * und die Spalte log in diesem Fall - sie trug das hartverdrahtete "Probe"
+     * aus `EventController::store()`, obwohl niemand eine Terminart gewählt
+     * hatte. Was dasteht, wenn nichts eingetragen ist, entscheidet jetzt die
+     * Ansicht; beide zeigen einen Gedankenstrich.
      *
      * Die Beziehung sollte vorab geladen sein (`with('eventType')` oder
      * `setRelation()`), sonst holt Eloquent sie je Termin nach. Falsch wird die
@@ -112,7 +114,7 @@ class Event extends Model
      */
     public function typeName(): string
     {
-        return $this->eventType->name ?? (string) $this->type;
+        return (string) ($this->eventType->name ?? '');
     }
 
     public function registrations()

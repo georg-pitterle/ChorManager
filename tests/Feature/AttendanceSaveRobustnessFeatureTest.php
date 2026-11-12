@@ -48,7 +48,6 @@ final class AttendanceSaveRobustnessFeatureTest extends TestCase
             'title' => 'Probe für Speicherverhalten',
             'starts_at' => Carbon::now()->subDay()->setTime(19, 0),
             'ends_at' => Carbon::now()->subDay()->setTime(21, 0),
-            'type' => 'Probe',
             'attendance_required' => true,
         ]);
         $this->openToEveryone($this->event);
@@ -313,7 +312,6 @@ final class AttendanceSaveRobustnessFeatureTest extends TestCase
             'title' => 'Fest ohne Anwesenheitsliste',
             'starts_at' => Carbon::now()->subDays(2)->setTime(18, 0),
             'ends_at' => Carbon::now()->subDays(2)->setTime(22, 0),
-            'type' => 'Sonstiges',
             'attendance_required' => false,
         ]);
         $this->openToEveryone($noListEvent);
@@ -350,7 +348,6 @@ final class AttendanceSaveRobustnessFeatureTest extends TestCase
             'title' => 'Fest ohne Liste für Logging',
             'starts_at' => Carbon::now()->subDays(2)->setTime(18, 0),
             'ends_at' => Carbon::now()->subDays(2)->setTime(22, 0),
-            'type' => 'Sonstiges',
             'attendance_required' => false,
         ]);
         $this->openToEveryone($noListEvent);

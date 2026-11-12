@@ -233,7 +233,6 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'title' => 'Vergangener Anmeldetermin Task11',
             'starts_at' => Carbon::now()->subDays(5),
             'ends_at' => Carbon::now()->subDays(5)->addHours(2),
-            'type' => 'Probe',
             'registration_enabled' => true,
             'attendance_required' => false,
         ]);
@@ -271,7 +270,6 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'title' => 'Vorstandsklausur Task11 ' . $suffix,
             'starts_at' => Carbon::now()->addDays(4),
             'ends_at' => Carbon::now()->addDays(4)->addHours(2),
-            'type' => 'Sonstiges',
             'registration_enabled' => true,
             'attendance_required' => false,
         ]);
@@ -282,7 +280,6 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'title' => 'Offene Probe Task11 ' . $suffix,
             'starts_at' => Carbon::now()->addDays(5),
             'ends_at' => Carbon::now()->addDays(5)->addHours(2),
-            'type' => 'Probe',
             'registration_enabled' => true,
             'attendance_required' => false,
         ]);
@@ -327,7 +324,6 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'title' => 'Alte Vorstandsklausur Task11 ' . $suffix,
             'starts_at' => Carbon::now()->subDays(9),
             'ends_at' => Carbon::now()->subDays(9)->addHours(2),
-            'type' => 'Sonstiges',
             'registration_enabled' => true,
             'attendance_required' => false,
         ]);
@@ -362,7 +358,6 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'title' => 'Vergangene Probe mit Anwesenheitspflicht Task11',
             'starts_at' => Carbon::now()->subDays(3),
             'ends_at' => Carbon::now()->subDays(3)->addHours(2),
-            'type' => 'Probe',
             'registration_enabled' => true,
             'attendance_required' => true,
         ]);
@@ -375,7 +370,6 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'title' => 'Vergangenes Fest ohne Anwesenheitspflicht Task11',
             'starts_at' => Carbon::now()->subDays(4),
             'ends_at' => Carbon::now()->subDays(4)->addHours(2),
-            'type' => 'Sonstiges',
             'registration_enabled' => true,
             'attendance_required' => false,
         ]);
@@ -385,7 +379,6 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'title' => 'Kommende Probe mit Anwesenheitspflicht Task11',
             'starts_at' => Carbon::now()->addDays(6),
             'ends_at' => Carbon::now()->addDays(6)->addHours(2),
-            'type' => 'Probe',
             'registration_enabled' => true,
             'attendance_required' => true,
         ]);
@@ -464,7 +457,6 @@ class RegistrationEvaluationFeatureTest extends TestCase
             'title' => 'Projektprobe Auswertung Task11 ' . $suffix,
             'starts_at' => Carbon::now()->addDays(10),
             'ends_at' => Carbon::now()->addDays(10)->addHours(2),
-            'type' => 'Probe',
             'registration_enabled' => true,
             'attendance_required' => false,
         ]);

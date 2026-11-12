@@ -44,7 +44,6 @@ final class RegistrationProxyConflictFeatureTest extends TestCase
             'title' => 'Probe Vertretungskonflikt',
             'starts_at' => Carbon::now()->addDays(5)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(5)->setTime(21, 0),
-            'type' => 'Probe',
             'registration_enabled' => true,
         ]);
         $this->openToEveryone($this->event);

@@ -63,7 +63,6 @@ class EventRegistrationModelFeatureTest extends TestCase
             'title' => 'Testprobe Anmeldung',
             'starts_at' => Carbon::now()->addDays(7)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(7)->setTime(21, 0),
-            'type' => 'Probe',
             'registration_enabled' => true,
         ]);
 

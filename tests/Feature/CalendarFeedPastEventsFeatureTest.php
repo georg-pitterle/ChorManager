@@ -142,7 +142,6 @@ final class CalendarFeedPastEventsFeatureTest extends TestCase
             'title' => $title,
             'starts_at' => $day->copy()->setTime(19, 0),
             'ends_at' => $day->copy()->setTime(21, 0),
-            'type' => 'Probe',
         ]);
 
         $this->giveAudience('event_id', (int) $event->id, ['user' => [(int) $this->user->id]]);

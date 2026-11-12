@@ -12,10 +12,13 @@ use App\Models\SponsorPackage;
 use App\Models\SponsorPackageBenefit;
 use App\Models\Sponsorship;
 use App\Models\SponsorshipBenefit;
+use App\Models\SponsorshipDeliverable;
 use App\Models\User;
 use App\Policies\SponsoringPolicy;
+use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use App\Util\SponsorshipStatus;
+use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -376,6 +379,121 @@ final class SponsoringBenefitsFeatureTest extends TestCase
         $html = $this->renderSponsorDetail($sponsor);
 
         $this->assertStringContainsString('Bezahlt am 15.09.2026', $html);
+    }
+
+    /**
+     * Wer abgehakt hat, steht an der Zeile.
+     *
+     * Die Spalten `delivered_by_user_id` und `received_by_user_id` werden beim
+     * Abhaken seit Beginn mitgeschrieben, angezeigt wurde die Person nie - die
+     * Beziehungen `SponsorshipBenefit::deliveredBy()` und
+     * `SponsorshipDeliverable::receivedBy()` standen unbenutzt da. Vor dem
+     * Konzert ist genau das die Rückfrage: Wer hat das Logo geliefert, wen kann
+     * ich fragen?
+     */
+    public function testTheTickedBenefitNamesWhoTickedIt(): void
+    {
+        $ticker = $this->createNamedUser('Marlene', 'Abhakerin');
+        $this->loginAsManagerWith($ticker);
+
+        $sponsor = $this->makeSponsor();
+        $sponsorship = $this->makeSponsorship($sponsor, (int) $this->manager->id);
+        $benefit = $sponsorship->benefits()->create(['description' => 'Logo im Programmheft', 'sort_order' => 0]);
+
+        $this->toggle($benefit, '1');
+
+        $html = $this->renderSponsorDetail($sponsor);
+
+        $this->assertStringContainsString(
+            'erbracht am ' . Carbon::today()->format('d.m.Y')
+                . ' von ' . (new NameFormatterService())->formatPerson($ticker),
+            $html
+        );
+    }
+
+    public function testTheTickedDeliverableNamesWhoReceivedIt(): void
+    {
+        $ticker = $this->createNamedUser('Bruno', 'Empfänger');
+        $this->loginAsManagerWith($ticker);
+
+        $sponsor = $this->makeSponsor();
+        $sponsorship = $this->makeSponsorship($sponsor, (int) $this->manager->id);
+        $deliverable = SponsorshipDeliverable::create([
+            'sponsorship_id' => $sponsorship->id,
+            'description' => 'Banner übergeben',
+            'sort_order' => 0,
+        ]);
+
+        $this->sponsorshipController()->toggleDeliverable(
+            $this->makeRequest(
+                'POST',
+                '/sponsoring/sponsorship-deliverables/' . $deliverable->id . '/toggle',
+                ['received' => '1']
+            ),
+            $this->makeResponse(),
+            ['id' => (string) $deliverable->id]
+        );
+
+        $html = $this->renderSponsorDetail($sponsor);
+
+        $this->assertStringContainsString(
+            'erhalten am ' . Carbon::today()->format('d.m.Y')
+                . ' von ' . (new NameFormatterService())->formatPerson($ticker),
+            $html
+        );
+    }
+
+    /**
+     * Eine offene Leistung nennt niemanden - sonst stand dort eine Person, die
+     * nur in der Zeile danebensteht.
+     */
+    public function testAnOpenBenefitNamesNobody(): void
+    {
+        $sponsor = $this->makeSponsor();
+        $sponsorship = $this->makeSponsorship($sponsor, (int) $this->manager->id);
+        $sponsorship->benefits()->create(['description' => 'Logo im Programmheft', 'sort_order' => 0]);
+
+        $html = $this->renderSponsorDetail($sponsor);
+
+        $this->assertStringContainsString('Logo im Programmheft', $html);
+        $this->assertStringNotContainsString('erbracht am', $html);
+    }
+
+    /**
+     * Ein Haken aus der Zeit vor dieser Anzeige trägt kein
+     * `delivered_by_user_id`. Dann steht nur das Datum da, nicht "von".
+     */
+    public function testATickWithoutARecordedPersonShowsOnlyTheDate(): void
+    {
+        $sponsor = $this->makeSponsor();
+        $sponsorship = $this->makeSponsorship($sponsor, (int) $this->manager->id);
+        $benefit = $sponsorship->benefits()->create(['description' => 'Logo im Programmheft', 'sort_order' => 0]);
+        $benefit->update(['delivered_at' => '2026-09-01', 'delivered_by_user_id' => null]);
+
+        $html = $this->renderSponsorDetail($sponsor);
+
+        $this->assertStringContainsString('erbracht am 01.09.2026', $html);
+        $this->assertStringNotContainsString('erbracht am 01.09.2026 von', $html);
+    }
+
+    private function createNamedUser(string $firstName, string $lastName): User
+    {
+        return User::create([
+            'first_name' => $firstName,
+            'last_name' => $lastName . '-' . bin2hex(random_bytes(4)),
+            'email' => 'tick-author-' . bin2hex(random_bytes(6)) . '@example.test',
+            'password' => PasswordHasher::hash('x'),
+            'is_active' => 1,
+        ]);
+    }
+
+    private function loginAsManagerWith(User $user): void
+    {
+        $_SESSION = [
+            'user_id' => (int) $user->id,
+            'can_manage_sponsoring' => true,
+            'can_create_own_sponsorships' => false,
+        ];
     }
 
     private function toggle(SponsorshipBenefit $benefit, string $delivered = '1'): ResponseInterface

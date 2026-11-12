@@ -151,7 +151,7 @@
                                         </td>
                                         <td data-label="Ort">{{ event.location|default("-") }}</td>
                                         <td data-label="Typ">
-                                            <span class="badge text-bg-{{ event.type_color }}">{{ event.type_name }}</span>
+                                            <span class="badge text-bg-{{ event.type_color }}">{{ event.type_name|default("–") }}</span>
                                         </td>
                                         <td data-label="Zielgruppe">{{ event.audience_label|default("Alle") }}</td>
                                         <td data-label="Aktionen" class="text-end">

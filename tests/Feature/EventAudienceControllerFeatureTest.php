@@ -59,7 +59,6 @@ final class EventAudienceControllerFeatureTest extends TestCase
             'title' => 'Zielgruppen-Termin ' . bin2hex(random_bytes(4)),
             'starts_at' => Carbon::now()->addDays(5)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(5)->setTime(21, 0),
-            'type' => 'Probe',
         ]);
 
         $this->giveAudience('event_id', (int) $event->id, ['project' => [(int) $project->id]]);
@@ -75,7 +74,6 @@ final class EventAudienceControllerFeatureTest extends TestCase
             'starts_at' => Carbon::parse($event->starts_at)->format('Y-m-d'),
             'start_time' => Carbon::parse($event->starts_at)->format('H:i'),
             'end_time' => Carbon::parse($event->ends_at)->format('H:i'),
-            'type' => 'Probe',
         ], $overrides);
     }
 

@@ -339,7 +339,6 @@ class DashboardFeatureTest extends TestCase
             'title' => $title,
             'starts_at' => Carbon::now()->addDays($inDays)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays($inDays)->setTime(21, 0),
-            'type' => 'Probe',
             'location' => 'Probenraum Süd',
             'registration_enabled' => $registration,
             'registration_deadline' => $registration ? Carbon::now()->addDays($inDays)->subHours(2) : null,
@@ -460,13 +459,11 @@ class DashboardFeatureTest extends TestCase
             'title' => "Laufende Probe {$tag}",
             'starts_at' => Carbon::now()->startOfDay(),
             'ends_at' => Carbon::now()->addHours(2),
-            'type' => 'Probe',
         ]);
         $finished = Event::create([
             'title' => "Beendete Probe {$tag}",
             'starts_at' => Carbon::now()->subHours(3),
             'ends_at' => Carbon::now()->subHour(),
-            'type' => 'Probe',
         ]);
         $this->giveAudience('event_id', (int) $running->id, ['voice_group' => [(int) $group->id]]);
         $this->giveAudience('event_id', (int) $finished->id, ['voice_group' => [(int) $group->id]]);
@@ -489,7 +486,6 @@ class DashboardFeatureTest extends TestCase
             'title' => 'Heutige Probe ' . bin2hex(random_bytes(3)),
             'starts_at' => Carbon::now()->startOfDay(),
             'ends_at' => Carbon::now()->addHours(2),
-            'type' => 'Probe',
         ]);
         $this->giveAudience('event_id', (int) $today->id, ['voice_group' => [(int) $group->id]]);
 

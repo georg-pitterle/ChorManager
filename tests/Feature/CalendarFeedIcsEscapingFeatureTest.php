@@ -180,7 +180,6 @@ final class CalendarFeedIcsEscapingFeatureTest extends TestCase
             'location' => $location,
             'starts_at' => Carbon::now()->addDays(4)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(4)->setTime(21, 0),
-            'type' => 'Probe',
         ]);
 
         $this->giveAudience('event_id', (int) $event->id, ['user' => [(int) $this->user->id]]);

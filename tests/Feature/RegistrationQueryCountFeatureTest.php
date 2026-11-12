@@ -126,7 +126,6 @@ class RegistrationQueryCountFeatureTest extends TestCase
                 'title' => 'Zaehltermin ' . $i,
                 'starts_at' => Carbon::now()->addDays($i + 2)->format('Y-m-d') . ' 19:00:00',
                 'ends_at' => Carbon::now()->addDays($i + 2)->format('Y-m-d') . ' 21:00:00',
-                'type' => 'Probe',
                 'registration_enabled' => true,
             ]);
 

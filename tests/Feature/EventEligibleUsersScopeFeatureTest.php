@@ -191,7 +191,6 @@ class EventEligibleUsersScopeFeatureTest extends TestCase
             'title' => 'Scope-Termin ' . bin2hex(random_bytes(4)),
             'starts_at' => Carbon::now()->addDays(4)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(4)->setTime(21, 0),
-            'type' => 'Probe',
         ]);
     }
 

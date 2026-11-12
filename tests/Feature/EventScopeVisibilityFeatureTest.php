@@ -46,7 +46,6 @@ class EventScopeVisibilityFeatureTest extends TestCase
             'title' => 'Sichtbarkeits-Termin ' . bin2hex(random_bytes(4)),
             'starts_at' => Carbon::now()->addDays(6)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(6)->setTime(21, 0),
-            'type' => 'Probe',
         ]);
 
         $service = new EventAudienceService();

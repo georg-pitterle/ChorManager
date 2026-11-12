@@ -47,7 +47,6 @@ class RegistrationSaveFeatureTest extends TestCase
             'title' => 'Konzert Anmeldetest',
             'starts_at' => Carbon::now()->addDays(10)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(10)->setTime(22, 0),
-            'type' => 'Konzert',
             'registration_enabled' => true,
         ]);
         $this->openToEveryone($this->event);

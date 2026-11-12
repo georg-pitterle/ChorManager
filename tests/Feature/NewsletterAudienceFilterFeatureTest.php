@@ -44,7 +44,7 @@ class NewsletterAudienceFilterFeatureTest extends TestCase
         $project = $this->createProjectFor($sopranoInProject);
         $altoInProject->projects()->attach($project->id);
         $event = Event::create([
-            'title' => 'Probe', 'starts_at' => '2030-01-01 19:00:00', 'ends_at' => '2030-01-01 21:00:00', 'type' => 'Probe',
+            'title' => 'Probe', 'starts_at' => '2030-01-01 19:00:00', 'ends_at' => '2030-01-01 21:00:00',
         ]);
         $this->giveAudience('event_id', (int) $event->id, ['user' => [(int) $eventGuest->id]]);
 

@@ -67,7 +67,6 @@ final class EventSeriesUpdateFeatureTest extends TestCase
                 'title' => 'Wochenprobe',
                 'starts_at' => $start,
                 'ends_at' => (clone $start)->setTime(21, 0),
-                'type' => 'Probe',
                 'series_id' => $this->series->id,
                 'registration_enabled' => true,
                 'attendance_required' => true,
@@ -190,7 +189,6 @@ final class EventSeriesUpdateFeatureTest extends TestCase
                 'title' => 'Wochenprobe',
                 'starts_at' => $day . ' 19:00:00',
                 'ends_at' => $day . ' 21:00:00',
-                'type' => 'Probe',
                 'series_id' => $series->id,
                 'registration_enabled' => true,
                 'attendance_required' => true,
@@ -235,7 +233,6 @@ final class EventSeriesUpdateFeatureTest extends TestCase
             'title' => 'Einzeltermin',
             'starts_at' => Carbon::now()->addDays(5)->setTime(19, 0),
             'ends_at' => Carbon::now()->addDays(5)->setTime(21, 0),
-            'type' => 'Probe',
             'registration_enabled' => false,
             'attendance_required' => false,
         ]);
