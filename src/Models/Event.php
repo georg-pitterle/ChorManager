@@ -86,6 +86,35 @@ class Event extends Model
         });
     }
 
+    /**
+     * Der Name der Terminart, so wie sie heute heißt.
+     *
+     * Der Name steht zweimal: in `event_types.name` und zusätzlich als
+     * Zeichenkette in `events.type`. Die Spalte wird beim Anlegen und Bearbeiten
+     * eines Termins mitgeschrieben - beim Umbenennen der Terminart dagegen
+     * nicht, und das trägt niemand nach. Wer sie liest, zeigt deshalb nach
+     * einer Umbenennung den alten Namen.
+     *
+     * Genau so stand es auf der Anwesenheitsseite: Terminauswahl und Kopfzeile
+     * lasen `events.type`, während Terminliste und Kalender die Beziehung
+     * nahmen - dieselbe Probe stand dort als "Gesamtprobe" und hier noch als
+     * "Probe".
+     *
+     * Die Regel steht hier und nicht in jeder Ansicht: Sie stand bis hierher
+     * nur im EventController, und die zweite Stelle, die denselben Namen
+     * brauchte, nahm die Spalte. Der Rückfall bleibt die Spalte, denn
+     * `event_type_id` darf leer sein, und ohne sie stände in der Kopfzeile
+     * sonst nichts.
+     *
+     * Die Beziehung sollte vorab geladen sein (`with('eventType')` oder
+     * `setRelation()`), sonst holt Eloquent sie je Termin nach. Falsch wird die
+     * Antwort dadurch nicht, nur teuer.
+     */
+    public function typeName(): string
+    {
+        return $this->eventType->name ?? (string) $this->type;
+    }
+
     public function registrations()
     {
         return $this->hasMany(EventRegistration::class, 'event_id', 'id');

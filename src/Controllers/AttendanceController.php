@@ -68,8 +68,11 @@ class AttendanceController
      */
     private function accessibleEvents(bool $withHistory)
     {
+        // eventType vorladen: Die Terminauswahl nennt die Terminart jeder Zeile
+        // (Event::typeName()), und ohne das Vorladen fragte jeder Termin sie
+        // einzeln nach.
         $query = Event::where('attendance_required', true)
-            ->with('audienceFilters.conditions');
+            ->with(['audienceFilters.conditions', 'eventType']);
 
         if (!$withHistory) {
             $query->where('starts_at', '>=', Carbon::now()->subMonths(self::RECENT_MONTHS));

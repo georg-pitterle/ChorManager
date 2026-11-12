@@ -498,7 +498,7 @@ class EventController
             $event->setRelation('series', $series);
 
             // For template compatibility
-            $event->type_name = $eventType ? $eventType->name : $event->type;
+            $event->type_name = $event->typeName();
             $event->type_color = $eventType ? $eventType->color : 'info';
             $event->is_highlighted = $eventType !== null && (bool) $eventType->is_highlighted;
             $event->audience_label = $audienceDescriber->summarizeSets($event->audienceConditionSets());
