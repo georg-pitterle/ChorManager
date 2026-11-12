@@ -89,6 +89,15 @@ function copyAssets(): void
         throw new RuntimeException("Failed to copy $source to $dest");
     }
 
+    // SortableJS trägt das Ziehen und Ablegen auf der Aufgabentafel.
+    $source = 'node_modules/sortablejs/Sortable.min.js';
+    $dest = 'public/vendor/sortablejs/Sortable.min.js';
+
+    @mkdir(dirname($dest), 0755, true);
+    if (!copy($source, $dest)) {
+        throw new RuntimeException("Failed to copy $source to $dest");
+    }
+
     $source = 'node_modules/tom-select/dist/js/tom-select.complete.min.js';
     $dest = 'public/vendor/tom-select/js/tom-select.complete.min.js';
 

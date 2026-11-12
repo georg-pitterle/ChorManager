@@ -17,6 +17,11 @@ use PHPUnit\Framework\TestCase;
  *
  * Der Test liest den Stand nach dem letzten `composer install` bzw. `copy-assets`;
  * public/vendor/ ist nicht eingecheckt.
+ *
+ * Der zweite Test deckt alle übrigen lokal eingebundenen Skripte und Stylesheets ab.
+ * Anlass: Die Aufgabentafel band /js/vendor/sortable.min.js ein - eine Datei, die
+ * .gitignore (`vendor/`) aus dem Repository hielt und copy-assets nie anlegte. In
+ * Produktion antwortete der Pfad mit 404, Ziehen und Ablegen ging nicht.
  */
 final class VendorAssetReferencesFeatureTest extends TestCase
 {
@@ -50,5 +55,37 @@ final class VendorAssetReferencesFeatureTest extends TestCase
         }
 
         $this->assertSame([], $missing, 'Eingebunden, aber von bin/copy-assets.php nicht bereitgestellt.');
+    }
+
+    public function testEveryLocalScriptAndStylesheetReferencedByATemplateExists(): void
+    {
+        $root = dirname(__DIR__, 2);
+        $references = [];
+
+        $templates = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($root . '/templates', \FilesystemIterator::SKIP_DOTS)
+        );
+        foreach ($templates as $file) {
+            if (!$file instanceof \SplFileInfo || $file->getExtension() !== 'twig') {
+                continue;
+            }
+
+            $template = (string) file_get_contents($file->getPathname());
+            preg_match_all('#(?:src|href)="(/[^/"?\#{][^"?\#{]*\.(?:js|mjs|css))"#', $template, $m);
+            foreach ($m[1] as $path) {
+                $references[$path][] = substr($file->getPathname(), strlen($root) + 1);
+            }
+        }
+
+        $this->assertNotEmpty($references, 'Keine lokale Skript- oder Stylesheet-Einbindung gefunden.');
+
+        $missing = [];
+        foreach ($references as $path => $usedIn) {
+            if (!is_file($root . '/public' . $path)) {
+                $missing[] = $path . ' (in ' . implode(', ', array_unique($usedIn)) . ')';
+            }
+        }
+
+        $this->assertSame([], $missing, 'Eingebunden, aber unter public/ nicht vorhanden.');
     }
 }
