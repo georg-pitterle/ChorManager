@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Controllers\DashboardController;
 use App\Models\User;
+use App\Policies\NewsletterPolicy;
 use App\Policies\TaskPolicy;
 use App\Services\MailQueueAdminService;
 use App\Services\PollAudienceService;
@@ -85,7 +86,13 @@ final class PollDashboardFeatureTest extends TestCase
         $twig->getEnvironment()->addGlobal('settings', $settings);
         $twig->getEnvironment()->addGlobal('csrf_token', 'test-token');
 
-        $controller = new DashboardController($twig, new MailQueueAdminService(), new TaskPolicy($_SESSION), $settings);
+        $controller = new DashboardController(
+            $twig,
+            new MailQueueAdminService(),
+            new TaskPolicy($_SESSION),
+            new NewsletterPolicy($_SESSION),
+            $settings
+        );
 
         return (string) $controller->index($this->makeRequest('GET', '/dashboard'), $this->makeResponse())->getBody();
     }

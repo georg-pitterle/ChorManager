@@ -9,6 +9,7 @@ use App\Models\Newsletter;
 use App\Models\NewsletterArchive;
 use App\Models\Project;
 use App\Models\User;
+use App\Policies\NewsletterPolicy;
 use App\Policies\TaskPolicy;
 use App\Services\EventAudienceService;
 use App\Services\EventScheduleFormatter;
@@ -30,12 +31,14 @@ class DashboardController
     private Twig $view;
     private \App\Services\MailQueueAdminService $mailQueueAdminService;
     private TaskPolicy $taskPolicy;
+    private NewsletterPolicy $newsletterPolicy;
     private array $settings;
 
     public function __construct(
         Twig $view,
         \App\Services\MailQueueAdminService $mailQueueAdminService,
         TaskPolicy $taskPolicy,
+        NewsletterPolicy $newsletterPolicy,
         array $settings = [],
         private readonly ?StorageUsageService $storageUsage = null,
         private readonly LoggerInterface $logger = new NullLogger()
@@ -43,6 +46,7 @@ class DashboardController
         $this->view = $view;
         $this->mailQueueAdminService = $mailQueueAdminService;
         $this->taskPolicy = $taskPolicy;
+        $this->newsletterPolicy = $newsletterPolicy;
         $this->settings = $settings;
     }
 
@@ -55,8 +59,9 @@ class DashboardController
         $canManageTasks = $this->taskPolicy->canManageTasks();
         $tasksModuleEnabled = (bool) ($this->settings['modules']['tasks'] ?? false);
         $newsletterModuleEnabled = (bool) ($this->settings['modules']['newsletter'] ?? false);
+        // Dieselbe Quelle wie beim Aufgaben-Recht eine Zeile darüber: die Policy.
         $canViewNewsletterArea = $newsletterModuleEnabled
-            && (bool) ($_SESSION['can_manage_newsletters'] ?? false);
+            && $this->newsletterPolicy->canManage();
 
         $currentProject = null;
         $upcomingProject = null;

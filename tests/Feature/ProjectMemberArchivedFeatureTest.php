@@ -232,6 +232,73 @@ class ProjectMemberArchivedFeatureTest extends TestCase
     }
 
     /**
+     * Die Reaktivierung über die Besetzung hinterlässt denselben Eintrag im
+     * Protokoll wie die Wiederherstellung über die Mitgliederverwaltung.
+     *
+     * Sie stand zuvor nur in der Erfolgsmeldung an die handelnde Person. Das
+     * Konto ging damit still von archiviert auf aktiv: Wer später nachsah, wann
+     * und durch wen es wieder offen war, fand `user.activated` nur für den Weg
+     * über das Archiv. Dieser Weg kennt die Rollenhierarchie bewusst nicht
+     * (siehe ProjectMemberPolicy) - gerade deshalb muss er nachvollziehbar sein.
+     */
+    public function testAddMemberLogsTheReactivation(): void
+    {
+        [$logger, $handler] = $this->logger();
+
+        $twig = $this->createStub(Twig::class);
+        $projectQuery = $this->createStub(ProjectQuery::class);
+        $projectQuery->method('userExists')->willReturn(true);
+
+        $projectPersistence = $this->createStub(ProjectPersistence::class);
+        $projectPersistence->method('addProjectMember')->willReturn(true);
+
+        $policy = $this->createStub(ProjectMemberPolicy::class);
+        $policy->method('canAddMember')->willReturn(true);
+        $policy->method('canManageMember')->willReturn(true);
+
+        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy, $logger);
+        $controller->addMember(
+            $this->makeRequest('POST', '/projects/10/members', ['user_id' => 2]),
+            $this->makeResponse(),
+            ['id' => '10']
+        );
+
+        $record = $this->recordFor($handler, 'user.activated');
+        $this->assertNotNull($record, 'Die Reaktivierung über die Besetzung muss protokolliert werden.');
+        $this->assertSame(2, $record->context['user_id']);
+        $this->assertSame(10, $record->context['project_id']);
+    }
+
+    /**
+     * Umgekehrt: Ein aktives Mitglied wird nur zugeordnet, nicht aktiviert -
+     * dafür gehört kein Aktivierungseintrag ins Protokoll.
+     */
+    public function testAddMemberLogsNoReactivationForAnActiveMember(): void
+    {
+        [$logger, $handler] = $this->logger();
+
+        $twig = $this->createStub(Twig::class);
+        $projectQuery = $this->createStub(ProjectQuery::class);
+        $projectQuery->method('userExists')->willReturn(true);
+
+        $projectPersistence = $this->createStub(ProjectPersistence::class);
+        $projectPersistence->method('addProjectMember')->willReturn(false);
+
+        $policy = $this->createStub(ProjectMemberPolicy::class);
+        $policy->method('canAddMember')->willReturn(true);
+        $policy->method('canManageMember')->willReturn(true);
+
+        $controller = new ProjectController($twig, $projectQuery, $projectPersistence, $policy, $logger);
+        $controller->addMember(
+            $this->makeRequest('POST', '/projects/10/members', ['user_id' => 2]),
+            $this->makeResponse(),
+            ['id' => '10']
+        );
+
+        $this->assertNull($this->recordFor($handler, 'user.activated'));
+    }
+
+    /**
      * Der Dev-Seed muss den Fall erzeugen, sonst lässt sich die Mitgliederliste
      * in Dev nicht mit einer archivierten Zuordnung ansehen.
      */

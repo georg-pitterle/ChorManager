@@ -402,6 +402,19 @@ class ProjectController
 
         $reactivated = $this->projectPersistence->addProjectMember($projectId, $userId);
 
+        if ($reactivated) {
+            // Dasselbe Ereignis wie bei der Wiederherstellung über das Archiv
+            // (UserController::restore()). Die Zuordnung holt ein archiviertes
+            // Konto zurück, und dieser Weg kennt die Rollenhierarchie bewusst
+            // nicht (siehe ProjectMemberPolicy) - stand die Aktivierung nur in
+            // der Erfolgsmeldung, war sie hinterher nirgends nachvollziehbar.
+            $this->logger->info('User activated.', [
+                'event' => 'user.activated',
+                'user_id' => $userId,
+                'project_id' => $projectId,
+            ]);
+        }
+
         $this->notifyMemberAdded($request, $projectId, $userId);
 
         $_SESSION['success'] = $reactivated

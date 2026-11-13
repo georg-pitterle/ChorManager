@@ -485,6 +485,7 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(Twig::class),
                 $c->get(MailQueueAdminService::class),
                 $c->get(TaskPolicy::class),
+                $c->get(NewsletterPolicy::class),
                 $c->get('settings'),
                 $c->get(StorageUsageService::class),
                 $c->get(LoggerInterface::class)

@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
+use App\Policies\NewsletterPolicy;
 use App\Policies\TaskPolicy;
 use App\Services\MailQueueAdminService;
 use App\Services\Storage\StorageUsageNode;
@@ -136,6 +137,7 @@ class DashboardFeatureTest extends TestCase
             $this->createDashboardTwig($settings),
             new MailQueueAdminService(),
             new TaskPolicy($_SESSION),
+            new NewsletterPolicy($_SESSION),
             $settings
         );
 
@@ -176,6 +178,7 @@ class DashboardFeatureTest extends TestCase
             $this->createDashboardTwig($settings),
             new MailQueueAdminService(),
             new TaskPolicy($_SESSION),
+            new NewsletterPolicy($_SESSION),
             $settings
         );
 
@@ -308,6 +311,7 @@ class DashboardFeatureTest extends TestCase
             $this->createDashboardTwig($settings),
             $mail ?? new MailQueueAdminService(),
             new TaskPolicy($_SESSION),
+            new NewsletterPolicy($_SESSION),
             $settings
         );
 
@@ -709,6 +713,7 @@ class DashboardFeatureTest extends TestCase
             $this->createDashboardTwig($settings),
             new MailQueueAdminService(),
             new TaskPolicy($_SESSION),
+            new NewsletterPolicy($_SESSION),
             $settings,
             $storage
         );

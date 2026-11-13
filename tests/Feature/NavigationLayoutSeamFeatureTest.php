@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use App\Controllers\DashboardController;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
+use App\Policies\NewsletterPolicy;
 use App\Policies\TaskPolicy;
 use App\Services\MailQueueAdminService;
 use PHPUnit\Framework\TestCase;
@@ -54,6 +55,7 @@ class NavigationLayoutSeamFeatureTest extends TestCase
             $this->createTwig($settings),
             new MailQueueAdminService(),
             new TaskPolicy($_SESSION),
+            new NewsletterPolicy($_SESSION),
             $settings
         );
 

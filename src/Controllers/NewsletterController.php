@@ -170,9 +170,14 @@ class NewsletterController
         return $groups;
     }
 
+    /**
+     * Eine Quelle für das Verwaltungsrecht: die Policy. Der Sitzungsschlüssel
+     * wurde hier zuvor ein zweites Mal selbst gelesen, obwohl dieselbe Angabe
+     * schon im Konstruktor der Policy steckte.
+     */
     private function canManageNewsletters(): bool
     {
-        return (bool) ($_SESSION['can_manage_newsletters'] ?? false);
+        return $this->newsletterPolicy->canManage();
     }
 
     /**

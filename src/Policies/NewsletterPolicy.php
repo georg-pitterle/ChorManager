@@ -35,6 +35,21 @@ class NewsletterPolicy
     }
 
     /**
+     * Darf die Person den Newsletter-Bereich verwalten - anlegen, bearbeiten,
+     * versenden, Vorlagen pflegen?
+     *
+     * Öffentlich, weil es die Frage des ganzen Bereichs ist und nicht nur eine
+     * Vorstufe von canView(). Der NewsletterController und die Newsletter-Kachel
+     * des Dashboards lasen dafür zuvor jeder den Sitzungsschlüssel selbst - also
+     * genau die zweite Kopie derselben Zugriffsregel, vor der der
+     * Klassenkommentar oben warnt.
+     */
+    public function canManage(): bool
+    {
+        return $this->canManageNewsletters;
+    }
+
+    /**
      * Geprüft wird immer für die Person aus der Sitzung.
      *
      * Hier stand zuvor ein zweiter Parameter, mit dem sich diese Person
