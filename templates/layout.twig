@@ -77,6 +77,9 @@
             {{ include("partials/navigation/search_modal.twig", [], false) }}
         {% endif %}
         <main id="main-content" class="app-main container-fluid" tabindex="-1">
+            {% if session.user_id %}
+                {{ include("partials/install_banner.twig", [], false) }}
+            {% endif %}
             {% block page_header %}
             {% endblock page_header %}
             <div class="app-content container-xl">
@@ -106,6 +109,7 @@
             <script src="{{ asset_path('/js/navigation.js') }}"></script>
             <script src="{{ asset_path('/js/navigation-search-rank.js') }}"></script>
             <script src="{{ asset_path('/js/navigation-search.js') }}"></script>
+            <script src="{{ asset_path('/js/install-banner.js') }}"></script>
         {% endif %}
         {# TinyMCE (rund 480 KB) lädt nur, wer den Block füllt; sonst holt tinymce-init.js ihn bei Bedarf nach. #}
         {% block editor_scripts %}

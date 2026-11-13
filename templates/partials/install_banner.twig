@@ -1,0 +1,21 @@
+{# Einladung zur Installation als Web-App, über dem Seitenkopf. Bleibt versteckt, bis install-banner.js sie zeigt. #}
+<div class="container-xl install-banner-wrap" data-install-banner hidden>
+    <div class="install-banner">
+        <i class="bi bi-phone install-banner__icon" aria-hidden="true"></i>
+        <div class="install-banner__text">
+            <span>{{ app_settings.app_name|default("Chor-Manager") }} als App auf dem Gerät installieren.</span>
+            <span class="install-banner__hint" data-install-banner-ios-hint hidden>
+                Tippe auf <i class="bi bi-box-arrow-up" aria-hidden="true"></i><span class="visually-hidden">Teilen</span>
+                und dann auf „Zum Home-Bildschirm“.
+            </span>
+        </div>
+        <div class="install-banner__actions">
+            <button type="button" class="btn btn-sm btn-primary" data-install-banner-install hidden>
+                <i class="bi bi-download" aria-hidden="true"></i> Installieren
+            </button>
+            <button type="button" class="btn btn-sm btn-link install-banner__dismiss" data-install-banner-dismiss>
+                Nicht mehr anzeigen
+            </button>
+        </div>
+    </div>
+</div>
