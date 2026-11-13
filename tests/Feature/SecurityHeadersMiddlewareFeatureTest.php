@@ -89,6 +89,56 @@ class SecurityHeadersMiddlewareFeatureTest extends TestCase
         $this->assertStringNotContainsString('frame-src', $this->cspFor(new SecurityHeadersMiddleware(), '/files/12/edit'));
     }
 
+    /**
+     * Die Anmeldung für eine angeschlossene Anwendung endet mit einer Weiterleitung
+     * dorthin. Chrome prüft form-action auch auf die Weiterleitungen nach dem Absenden
+     * des Login-Formulars: Stand dort nur 'self', blieb das Mitglied nach der Anmeldung
+     * auf der Login-Seite stehen, und erst ein zweiter Versuch führte zu Nextcloud.
+     */
+    public function testLoginPageMayHandOverToRegisteredOidcClientsOnly(): void
+    {
+        $middleware = new SecurityHeadersMiddleware('', static fn (): array => ['https://cloud.example.org']);
+
+        $this->assertStringContainsString(
+            "form-action 'self' https://cloud.example.org;",
+            $this->cspFor($middleware, '/login')
+        );
+
+        foreach (['/dashboard', '/login/x', '/files/12/edit', '/profile'] as $path) {
+            $this->assertStringNotContainsString('cloud.example.org', $this->cspFor($middleware, $path), $path);
+        }
+    }
+
+    public function testLoginPageWithoutOidcClientsKeepsSelfOnlyFormAction(): void
+    {
+        $this->assertStringContainsString("form-action 'self';", $this->cspFor(new SecurityHeadersMiddleware(), '/login'));
+        $this->assertStringContainsString(
+            "form-action 'self';",
+            $this->cspFor(new SecurityHeadersMiddleware('', static fn (): array => []), '/login')
+        );
+    }
+
+    /**
+     * Die Ursprünge kommen aus der Datenbank. Gefragt wird nur für die Login-Seite,
+     * nicht bei jeder Anfrage.
+     */
+    public function testOidcOriginsAreOnlyLookedUpForTheLoginPage(): void
+    {
+        $calls = 0;
+        $middleware = new SecurityHeadersMiddleware('', static function () use (&$calls): array {
+            $calls++;
+
+            return ['https://cloud.example.org'];
+        });
+
+        $this->cspFor($middleware, '/dashboard');
+        $this->cspFor($middleware, '/events');
+        $this->assertSame(0, $calls);
+
+        $this->cspFor($middleware, '/login');
+        $this->assertSame(1, $calls);
+    }
+
     public function testAddsSecurityHeadersToResponse(): void
     {
         $middleware = new SecurityHeadersMiddleware();

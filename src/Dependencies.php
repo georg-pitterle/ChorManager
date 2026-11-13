@@ -51,6 +51,7 @@ use App\Services\Oidc\IdTokenSigner;
 use App\Services\Oidc\OidcAdminService;
 use App\Services\Oidc\OidcClaimsBuilder;
 use App\Services\Oidc\OidcClientService;
+use App\Services\Oidc\OidcRedirectOrigins;
 use App\Services\Oidc\OidcSigningKeyService;
 use App\Services\Oidc\OidcSigningReadiness;
 use App\Controllers\Oidc\AuthorizeController;
@@ -827,9 +828,14 @@ return function (ContainerBuilder $containerBuilder) {
             );
         },
         SecurityHeadersMiddleware::class => function (ContainerInterface $c): SecurityHeadersMiddleware {
-            $officeEnabled = (bool) ($c->get('settings')['modules']['office'] ?? false);
+            $modules = $c->get('settings')['modules'] ?? [];
+            $officeEnabled = (bool) ($modules['office'] ?? false);
+            $oidcEnabled = (bool) ($modules['oidc'] ?? false);
 
-            return new SecurityHeadersMiddleware($officeEnabled ? $c->get(OfficeSettings::class)->serverOrigin() : '');
+            return new SecurityHeadersMiddleware(
+                $officeEnabled ? $c->get(OfficeSettings::class)->serverOrigin() : '',
+                $oidcEnabled ? static fn (): array => (new OidcRedirectOrigins())->forLoginForm() : null
+            );
         },
         CreateBackupCommand::class => \DI\autowire(),
         SheetArchiveService::class => function (ContainerInterface $c) {

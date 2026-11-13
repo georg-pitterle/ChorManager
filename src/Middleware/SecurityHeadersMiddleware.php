@@ -13,17 +13,26 @@ use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 
 class SecurityHeadersMiddleware implements MiddlewareInterface
 {
-    public function __construct(private readonly string $officeOrigin = '')
-    {
+    /**
+     * @param (\Closure(): list<string>)|null $loginFormTargets Ursprünge der angeschlossenen
+     *        OIDC-Anwendungen, siehe OidcRedirectOrigins; null bei ausgeschaltetem Modul.
+     */
+    public function __construct(
+        private readonly string $officeOrigin = '',
+        private readonly ?\Closure $loginFormTargets = null
+    ) {
     }
 
     public function process(Request $request, RequestHandler $handler): Response
     {
         $response = $handler->handle($request);
         $allowsSelfFraming = $this->allowsSelfFraming($request);
+        $embedsOffice = $this->embedsOffice($request);
+
+        $formTargets = $embedsOffice ? [$this->officeOrigin] : $this->loginFormTargets($request);
 
         $response = $response
-            ->withHeader('Content-Security-Policy', $this->buildCsp($allowsSelfFraming, $this->embedsOffice($request)))
+            ->withHeader('Content-Security-Policy', $this->buildCsp($allowsSelfFraming, $embedsOffice, $formTargets))
             ->withHeader('X-Content-Type-Options', 'nosniff')
             ->withHeader('X-Frame-Options', $allowsSelfFraming ? 'SAMEORIGIN' : 'DENY')
             ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
@@ -88,14 +97,38 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
             && (bool) preg_match('#^/files/\d+/edit$#', $request->getUri()->getPath());
     }
 
-    private function buildCsp(bool $allowsSelfFraming, bool $embedsOffice): string
+    /**
+     * Die Anmeldung für eine angeschlossene Anwendung endet mit einer Weiterleitung
+     * dorthin: Login-Formular, /oidc/authorize, Rücksprungadresse. Chrome prüft
+     * form-action auch auf diese Weiterleitungen, mit 'self' allein blieb das Mitglied
+     * nach dem Absenden auf der Login-Seite stehen. Nur dort öffnet sich form-action
+     * deshalb für die Ursprünge der eingetragenen Anwendungen.
+     *
+     * Die Ursprünge stehen in der Datenbank und werden nur für diese eine Seite
+     * gelesen, nicht bei jeder Anfrage.
+     *
+     * @return list<string>
+     */
+    private function loginFormTargets(Request $request): array
+    {
+        if ($this->loginFormTargets === null || $request->getUri()->getPath() !== '/login') {
+            return [];
+        }
+
+        return ($this->loginFormTargets)();
+    }
+
+    /**
+     * @param list<string> $formTargets
+     */
+    private function buildCsp(bool $allowsSelfFraming, bool $embedsOffice, array $formTargets): string
     {
         $directives = [
             "default-src 'self'",
             "base-uri 'self'",
             "object-src 'none'",
             $allowsSelfFraming ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
-            $embedsOffice ? "form-action 'self' " . $this->officeOrigin : "form-action 'self'",
+            implode(' ', ["form-action 'self'", ...$formTargets]),
             // 'wasm-unsafe-eval' erlaubt pdf.js das Übersetzen seiner JBIG2-/JPEG2000-Module.
             // Es erlaubt kein eval() für JavaScript, und woher die Bytes stammen dürfen, regeln
             // weiterhin default-src/connect-src 'self' - also nur die eigene Herkunft.
