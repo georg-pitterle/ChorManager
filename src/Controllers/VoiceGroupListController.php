@@ -52,19 +52,34 @@ class VoiceGroupListController
     private VoiceGroupListRows $rows;
     private NameFormatterService $names;
     private LoggerInterface $logger;
+    private ProjectQuery $projectQuery;
 
+    /**
+     * Die Abfrageklasse steht hinten und darf fehlen - wie der Logger; gleiche
+     * Begründung wie in SponsoringDashboardController. Im Betrieb reicht sie
+     * Dependencies.php herein, ohne sie bekommt sie den hier hereingereichten
+     * Namensformatierer.
+     *
+     * Sie ist bewusst ein Konstruktor-Parameter und kein `new ProjectQuery(...)`
+     * im Rumpf von index(): Der Sonderweg baute bei jedem Aufruf eine zweite
+     * Instanz, während der Container dieselbe Klasse längst fertig bereithält -
+     * dieselbe Begründung, mit der EventController::getAccessibleProjects()
+     * ihren eigenen Rumpf-Aufbau abgelegt hat.
+     */
     public function __construct(
         Twig $view,
         VoiceGroupListPolicy $policy,
         VoiceGroupListRows $rows,
         NameFormatterService $names,
-        ?LoggerInterface $logger = null
+        ?LoggerInterface $logger = null,
+        ?ProjectQuery $projectQuery = null
     ) {
         $this->view = $view;
         $this->policy = $policy;
         $this->rows = $rows;
         $this->names = $names;
         $this->logger = $logger ?? new NullLogger();
+        $this->projectQuery = $projectQuery ?? new ProjectQuery($names);
     }
 
     public function index(Request $request, Response $response): Response
@@ -97,7 +112,7 @@ class VoiceGroupListController
         // Vorausgewählt ist das laufende Projekt - dieselbe Regel wie in den
         // Auswertungen (ProjectQuery::findCurrentProjectId).
         $projects = $this->allowedProjects($groupIds);
-        $currentProjectId = (new ProjectQuery($this->names))->findCurrentProjectId(
+        $currentProjectId = $this->projectQuery->findCurrentProjectId(
             $projects->pluck('id')->map(static fn($id): int => (int) $id)->all()
         );
 

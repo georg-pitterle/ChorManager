@@ -73,12 +73,13 @@ class UserQuery
      * Die Spaltenauswahl hält zusätzlich den Passwort-Hash aus einer Abfrage
      * heraus, die auf jedem Seitenaufruf läuft.
      *
-     * Deaktivierte Konten bleiben draußen. Die drei Aufrufstellen prüfen das
-     * bis heute selbst, eine Lücke war es also nie - aber eine vierte könnte
-     * die Prüfung vergessen, und ein archiviertes Konto hätte wieder eine
-     * gültige Sitzung. Am Verhalten ändert der Filter nichts: alle drei
-     * behandeln "nicht gefunden" und "deaktiviert" gleich. Dieselbe Grenze wie
-     * in findByEmail().
+     * Deaktivierte Konten bleiben draußen. Die beiden Aufrufstellen - die
+     * AuthMiddleware und die Remember-Me-Wiederherstellung - prüfen das bis
+     * heute selbst, eine Lücke war es also nie, aber eine dritte könnte die
+     * Prüfung vergessen, und ein archiviertes Konto hätte wieder eine gültige
+     * Sitzung. Am Verhalten ändert der Filter nichts: beide behandeln "nicht
+     * gefunden" und "deaktiviert" gleich. Dieselbe Grenze wie in
+     * findByEmail().
      */
     public function findForSession(int $id): ?User
     {
@@ -178,6 +179,39 @@ class UserQuery
         }
 
         return $this->orderedListQuery(1, $ids);
+    }
+
+    /**
+     * Die Mitglieder zu einer bereits ermittelten Id-Liste, in der konfigurierten
+     * Namensreihenfolge - das Gegenstück zu ProjectQuery::getProjectsByIds().
+     *
+     * Die Empfängervorschau des Newsletters stand bis hierher als private Methode
+     * in ihrem Controller und lud mit `User::query()->whereIn(...)` die ganze
+     * Zeile samt Passwort-Hash in eine Auswahlliste von
+     * `newsletters/edit.twig` - genau der Weg, den UserColumnExposureFeatureTest
+     * für jede Listenabfrage versperrt, und genau daran vorbei. Dieselbe Lücke
+     * wie bei der Personenauswahl des Sponsorings vor Lauf 67; hier greift der
+     * Wächter jetzt von selbst.
+     *
+     * Bewusst nicht orderedListQuery(): Dessen Eager-Loads (Rollen, Stimmgruppen,
+     * Projekte) kosten drei zusätzliche Abfragen, und die Auswahlliste liest
+     * davon nichts - sie zeigt `id` und den formatierten Namen.
+     *
+     * Eine leere Id-Liste heißt "keine Mitglieder" und kommt ohne Abfrage aus.
+     *
+     * @param array<int> $userIds
+     */
+    public function getUsersByIds(array $userIds): Collection
+    {
+        if ($userIds === []) {
+            return new Collection();
+        }
+
+        $query = User::select(User::LIST_COLUMNS)->whereIn('id', $userIds);
+
+        $this->nameFormatter->applyNameOrder($query);
+
+        return $query->get();
     }
 
     /**

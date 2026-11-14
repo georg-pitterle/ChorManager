@@ -22,7 +22,14 @@ final class NameSortOrderFeatureTest extends TestCase
             // Die Personenauswahl der Zielgruppen (Termine, Newsletter, Freigaben)
             // sortiert der gemeinsame Describer.
             ['src/Services/Audience/AudienceDescriber.php'],
-            ['src/Controllers/NewsletterController.php'],
+            // Der NewsletterController stand hier, solange er seine
+            // Empfängervorschau selbst abfragte und sortierte. Die Abfrage
+            // liegt jetzt in UserQuery::getUsersByIds() - dort oben in dieser
+            // Liste -, weil sie als `User::query()` im Controller-Rumpf die
+            // ganze Zeile samt Passwort-Hash in die Vorlage reichte. Der
+            // Controller sortiert damit keine Personen mehr; dass niemand die
+            // Reihenfolge erneut hart verdrahtet, hält
+            // testNoSourceFileInSrcHardcodesNameOrdering() ohne Liste fest.
             ['src/Controllers/RegistrationController.php'],
             ['src/Controllers/TaskController.php'],
             // Die beiden Personenauswahlen der Sponsoring-Vorgänge: der

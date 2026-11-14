@@ -11,7 +11,6 @@ use App\Services\NameFormatterService;
 use App\Util\SubVoiceOrder;
 use App\Util\VoiceGroupOrder;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Collection as SupportCollection;
 
 class ProjectQuery
 {
@@ -297,31 +296,20 @@ class ProjectQuery
             return [];
         }
 
-        return self::toIntList(
-            VoiceGroup::query()
-                ->select('voice_groups.id')
-                ->whereHas('users', function ($relation) use ($userId): void {
-                    $relation->where('users.id', $userId);
-                })
-                ->orderBy('voice_groups.id')
-                ->pluck('voice_groups.id')
-        );
-    }
-
-    /**
-     * Wandelt eine über pluck() geladene Id-Spalte in eine Liste von Integern.
-     *
-     * Nicht `->map('intval')`: Collection::map() reicht den Schlüssel als zweites
-     * Argument weiter, und das ist bei intval() die Zahlenbasis. Aus der zweiten
-     * Id einer Liste würde damit intval($id, 1), aus der dritten intval($id, 2) -
-     * bei String-Werten aus dem Treiber also stillschweigend falsche Ids.
-     *
-     * @param SupportCollection<int, mixed> $ids
-     * @return array<int>
-     */
-    private static function toIntList(SupportCollection $ids): array
-    {
-        return $ids->map(static fn ($id): int => (int) $id)->all();
+        return VoiceGroup::query()
+            ->select('voice_groups.id')
+            ->whereHas('users', function ($relation) use ($userId): void {
+                $relation->where('users.id', $userId);
+            })
+            ->orderBy('voice_groups.id')
+            ->pluck('voice_groups.id')
+            // Nicht `->map('intval')`: Collection::map() reicht den Schlüssel als
+            // zweites Argument weiter, und das ist bei intval() die Zahlenbasis. Aus
+            // der zweiten Id einer Liste würde damit intval($id, 1), aus der dritten
+            // intval($id, 2) - bei String-Werten aus dem Treiber also stillschweigend
+            // falsche Ids.
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
     }
 
     /**

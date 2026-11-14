@@ -21,6 +21,7 @@ use App\Models\Event;
 use App\Models\User;
 use App\Newsletter\ObfuscatedEmail;
 use App\Policies\NewsletterPolicy;
+use App\Queries\UserQuery;
 use App\Services\EntityAttachmentService;
 use App\Services\EntityCleanupService;
 use App\Services\EventScheduleFormatter;
@@ -60,6 +61,7 @@ class NewsletterController
     private EntityAttachmentService $entityAttachments;
     private NewsletterAttachmentService $newsletterAttachments;
     private EntityCleanupService $cleanup;
+    private UserQuery $userQuery;
 
     public function __construct(
         Twig $view,
@@ -75,7 +77,8 @@ class NewsletterController
         NewsletterPolicy $newsletterPolicy,
         EntityAttachmentService $entityAttachments,
         NewsletterAttachmentService $newsletterAttachments,
-        ?EntityCleanupService $cleanup = null
+        ?EntityCleanupService $cleanup = null,
+        ?UserQuery $userQuery = null
     ) {
         $this->view = $view;
         $this->newsletterService = $newsletterService;
@@ -91,6 +94,7 @@ class NewsletterController
         $this->entityAttachments = $entityAttachments;
         $this->newsletterAttachments = $newsletterAttachments;
         $this->cleanup = $cleanup ?? new EntityCleanupService($entityAttachments);
+        $this->userQuery = $userQuery ?? new UserQuery($nameFormatter);
     }
 
     /**
@@ -104,15 +108,14 @@ class NewsletterController
             ->map(static fn ($id): int => (int) $id)
             ->all();
 
-        if ($recipientIds === []) {
-            return new Collection();
-        }
-
-        $query = User::query()->whereIn('id', $recipientIds);
-
-        $this->nameFormatter->applyNameOrder($query);
-
-        return $query->get();
+        // Die Abfrage liegt in UserQuery und nicht mehr hier: Als
+        // `User::query()->whereIn(...)` im Rumpf lud sie die ganze Zeile samt
+        // Passwort-Hash in eine Auswahlliste der Vorlage und fiel dabei durch
+        // den Wächter der Abfrageschicht hindurch
+        // (UserColumnExposureFeatureTest), obwohl dessen Regel für sie genauso
+        // gilt. Gelesen werden in edit.twig ohnehin nur `id` und der
+        // formatierte Name.
+        return $this->userQuery->getUsersByIds($recipientIds);
     }
 
     /**

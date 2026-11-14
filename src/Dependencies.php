@@ -577,7 +577,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(VoiceGroupListPolicy::class),
                 new VoiceGroupListRows(),
                 $c->get(NameFormatterService::class),
-                $c->get(LoggerInterface::class)
+                $c->get(LoggerInterface::class),
+                $c->get(ProjectQuery::class)
             );
         },
         PollController::class => function (ContainerInterface $c): PollController {

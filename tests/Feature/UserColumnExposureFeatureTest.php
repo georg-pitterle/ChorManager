@@ -114,6 +114,16 @@ class UserColumnExposureFeatureTest extends TestCase
         return [
             'UserQuery::getActiveUsers' => $userQuery->getActiveUsers(),
             'UserQuery::getArchivedUsers' => $userQuery->getArchivedUsers(),
+            // Die Mitgliederliste des stimmgruppen-beschränkten Rechts. Sie
+            // kam nach diesem Wächter dazu und stand bis hierher nicht darin -
+            // dieselbe Lücke, durch die vorher die Personenauswahl des
+            // Sponsorings gefallen ist.
+            'UserQuery::getUsersForVoiceGroups' => $userQuery->getUsersForVoiceGroups([$this->sopranId]),
+            // Die Empfängervorschau des Newsletters. Sie stand als private
+            // Methode im NewsletterController und reichte die ganze Zeile an
+            // eine Auswahlliste von newsletters/edit.twig weiter - dieselbe
+            // Lücke wie vorher bei der Personenauswahl des Sponsorings.
+            'UserQuery::getUsersByIds' => $userQuery->getUsersByIds(array_values($this->userIds)),
             'ProjectQuery::getProjectMembers' => $projectQuery->getProjectMembers($this->projectId),
             'ProjectQuery::getUsersNotInProject' => $projectQuery->getUsersNotInProject($this->projectId),
             'ProjectQuery::getUsersNotInProjectForVoiceGroups'
@@ -176,6 +186,47 @@ class UserColumnExposureFeatureTest extends TestCase
         $byId = $userQuery->findIncludingArchived($this->userIds['mitglied']);
         $this->assertNotNull($byId);
         $this->assertArrayHasKey('password', $byId->getAttributes());
+    }
+
+    /**
+     * Die Gegenseite der Spaltenauswahl: Die Detailmasken laden bewusst jede
+     * Spalte (findIncludingArchived(), siehe
+     * testAuthenticationLookupsStillLoadThePasswordHash()). Die Grenze lautet
+     * also "Listen eng, Detailmasken vollständig" - und damit steht der Hash
+     * als Eigenschaft im Modell, das in die Vorlage geht.
+     *
+     * `$hidden` hält ihn nur aus `toArray()`/`toJson()` heraus. Ein `{{
+     * user.password }}` läuft über `__get()` und gibt ihn aus, ohne dass
+     * irgendein Wächter widerspricht. Heute schreibt das keine Vorlage; dieser
+     * Test hält den Zustand fest, statt ihn dem Zufall zu überlassen.
+     */
+    public function testNoTemplateReadsThePasswordAttribute(): void
+    {
+        $forbidden = ['.password', "['password']", '["password"]'];
+        $root = dirname(__DIR__, 2) . '/templates';
+        $offenders = [];
+
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root));
+        foreach ($files as $file) {
+            if (!$file->isFile() || $file->getExtension() !== 'twig') {
+                continue;
+            }
+
+            $source = (string) file_get_contents($file->getPathname());
+            foreach ($forbidden as $needle) {
+                if (!str_contains($source, $needle)) {
+                    continue;
+                }
+                $offenders[] = substr($file->getPathname(), strlen($root) + 1) . ': ' . $needle;
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $offenders,
+            'Der Passwort-Hash steckt in den Modellen der Detailmasken. Keine Vorlage '
+                . 'darf ihn auslesen: ' . implode(', ', $offenders)
+        );
     }
 
     public function testRelationsStillResolveOnTheReducedSelection(): void
