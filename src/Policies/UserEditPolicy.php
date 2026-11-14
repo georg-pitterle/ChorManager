@@ -147,11 +147,17 @@ class UserEditPolicy
 
     /**
      * True when the session may write the member's e-mail address.
+     *
+     * Nur bei niedrigerer Stufe: Die Adresse ist der Schlüssel zum Konto. Wer sie
+     * ändert, setzt danach per "Passwort vergessen" das Passwort und hat das
+     * Konto samt dessen Rechten. Gleichrangige dürfen einander weiter vertreten
+     * (canEditProfile()), die Adresse des anderen ändern sie nicht.
      */
     public function canEditEmail(User $target): bool
     {
         return $this->passesBaseGuards($target)
-            && $this->canEditUsers;
+            && $this->canEditUsers
+            && $this->highestLevelOf($target) < $this->actorLevel;
     }
 
     /**
@@ -280,6 +286,11 @@ class UserEditPolicy
      */
     public function targetOutranksActor(User $target): bool
     {
+        return $this->highestLevelOf($target) > $this->actorLevel;
+    }
+
+    private function highestLevelOf(User $target): int
+    {
         $targetLevel = 0;
 
         foreach ($target->roles as $role) {
@@ -289,6 +300,6 @@ class UserEditPolicy
             }
         }
 
-        return $targetLevel > $this->actorLevel;
+        return $targetLevel;
     }
 }

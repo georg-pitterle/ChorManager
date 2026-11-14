@@ -428,6 +428,14 @@
              tabindex="0">
             <div class="card border-0 shadow-sm">
                 <div class="card-body">
+                    {% set _allowed_domains = mailbox_allowed_domains|default([]) %}
+                    {% set _allowed_hosts = mailbox_allowed_hosts|default([]) %}
+                    {% if _allowed_domains is empty or _allowed_hosts is empty %}
+                        <div class="alert alert-warning" role="alert">
+                            Für diese Installation sind noch keine Postfächer freigegeben.
+                            Bitte wende dich an den Administrator.
+                        </div>
+                    {% endif %}
                     <form action="/profile/mailbox" method="post" id="mailboxForm">
                         <div id="mailboxFormFeedback" class="alert d-none" role="alert"></div>
                         <div class="mb-3">
@@ -439,6 +447,9 @@
                                    value="{{ mail_account.imap_host|default('') }}"
                                    maxlength="255"
                                    required>
+                            {% if _allowed_hosts is not empty %}
+                                <div class="form-text">Freigegebene Server: {{ _allowed_hosts|join(", ") }}</div>
+                            {% endif %}
                         </div>
                         <div class="row">
                             <div class="col-6 mb-3">
@@ -480,6 +491,11 @@
                                    value="{{ mail_account.imap_username|default('') }}"
                                    maxlength="255"
                                    required>
+                            {% if _allowed_domains is not empty %}
+                                <div class="form-text">
+                                    Deine Mailadresse beim Chor (@{{ _allowed_domains|join(", @") }})
+                                </div>
+                            {% endif %}
                         </div>
                         <div class="mb-3">
                             <label for="imap_password" class="form-label">Passwort</label>

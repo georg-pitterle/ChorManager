@@ -189,6 +189,10 @@ return function (App $app) {
         $app->post(OidcEndpoints::TOKEN, [TokenController::class, 'issue']);
         $app->get(OidcEndpoints::USERINFO, [UserinfoController::class, 'claims']);
         $app->get(OidcEndpoints::LOGOUT, [UserinfoController::class, 'logout']);
+        // Das Formular der Rückfrage (siehe UserinfoController::logout()). Anders
+        // als /oidc/token nicht von der CSRF-Prüfung ausgenommen: Es kommt aus dem
+        // Browser des Mitglieds und trägt den Token.
+        $app->post(OidcEndpoints::LOGOUT, [UserinfoController::class, 'logout']);
     }
 
 

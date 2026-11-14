@@ -79,10 +79,22 @@ class MailQueueController
             return $response->withStatus(404);
         }
 
+        // Zurücksetzungs- und Einladungsmails tragen einen lebenden Einmal-Link.
+        // Bis zur Zustellung ist er gültig, und wer die Warteschlange verwalten
+        // darf, hätte ihn hier ablesen können - nachdem er selbst das Zurücksetzen
+        // für ein fremdes Konto angefordert hat. Der Text geht deshalb für diese
+        // Mailarten nie an die Vorlage, gleich in welchem Zustand der Eintrag ist.
+        $bodyIsSecret = $entry->bodyHoldsSecret();
+
         return $this->view->render(
             $response,
             'admin/mail_queue/show.twig',
-            ['entry' => $entry, 'type_labels' => MailQueue::MAIL_TYPE_LABELS]
+            [
+                'entry' => $entry,
+                'type_labels' => MailQueue::MAIL_TYPE_LABELS,
+                'body_html' => $bodyIsSecret ? null : $entry->body_html,
+                'body_is_secret' => $bodyIsSecret,
+            ]
         );
     }
 

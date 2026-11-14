@@ -229,6 +229,67 @@ class FileSharingControllerFeatureTest extends TestCase
         $this->assertSame('Geschützt', $this->body($download));
     }
 
+    /**
+     * Die Passwort-Bremse galt nur je Link und IP. Wer die IP bei jedem Versuch
+     * wechselte, riet unbegrenzt. Jetzt gilt zusätzlich eine Obergrenze je Link
+     * über alle Quellen - danach geht auch das richtige Passwort eine Weile nicht
+     * durch, wie bei jeder Sperre dieser Art.
+     */
+    public function testPasswordAttemptsAreCappedPerLinkAcrossChangingAddresses(): void
+    {
+        [$file, $manager] = $this->managedFile('Geschützt');
+        [, $token] = $this->container->get(FileShareService::class)
+            ->createLink(new FileActor((int) $manager->id, false), $file, null, null, 'Chor2026');
+        $_SESSION = [];
+
+        $storeDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'cm_link_limit_' . bin2hex(random_bytes(6));
+        $controller = new PublicFileLinkController(
+            $this->container->get(\Slim\Views\Twig::class),
+            $this->container->get(FileShareService::class),
+            $this->container->get(\App\Services\Files\FileResponseFactory::class),
+            new \App\Services\RateLimiterService($storeDir),
+            new \Psr\Log\NullLogger()
+        );
+
+        try {
+            for ($i = 0; $i < PublicFileLinkController::MAX_PASSWORD_ATTEMPTS_PER_LINK; $i++) {
+                $controller->unlock(
+                    $this->requestFrom('203.0.113.' . ($i + 1), ['password' => 'falsch-' . $i]),
+                    $this->makeResponse(),
+                    ['token' => $token]
+                );
+            }
+
+            $controller->unlock(
+                $this->requestFrom('198.51.100.200', ['password' => 'Chor2026']),
+                $this->makeResponse(),
+                ['token' => $token]
+            );
+
+            $this->assertSame(
+                'Zu viele Versuche. Bitte in einigen Minuten erneut probieren.',
+                $_SESSION['public_link_error'] ?? null
+            );
+            $blocked = $controller->download($this->makeRequest('GET', '/'), $this->makeResponse(), ['token' => $token]);
+            $this->assertRedirect($blocked, '/s/' . $token);
+        } finally {
+            foreach ((array) glob($storeDir . DIRECTORY_SEPARATOR . '*') as $leftover) {
+                @unlink($leftover);
+            }
+            @rmdir($storeDir);
+        }
+    }
+
+    /**
+     * @param array<string, string> $body
+     */
+    private function requestFrom(string $remoteAddress, array $body): \Psr\Http\Message\ServerRequestInterface
+    {
+        return (new \Slim\Psr7\Factory\ServerRequestFactory())
+            ->createServerRequest('POST', '/', ['REMOTE_ADDR' => $remoteAddress])
+            ->withParsedBody($body);
+    }
+
     public function testPublicRoutesExistOnlyWithModuleAndOutsideTheLoginGroup(): void
     {
         foreach ([true, false] as $enabled) {

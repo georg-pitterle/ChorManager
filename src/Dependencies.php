@@ -367,7 +367,9 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(UserQuery::class),
                 $c->get(SessionAuthService::class),
                 $c->get(RememberLoginService::class),
-                $c->get(LoggerInterface::class)
+                $c->get(LoggerInterface::class),
+                $c->get(IdTokenSigner::class),
+                $c->get(Twig::class)
             );
         },
         RegistrationReminderService::class => \DI\autowire(),

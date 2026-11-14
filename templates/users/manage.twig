@@ -395,8 +395,10 @@
                             {# Die Grundrolle steht offen, alles mit zusätzlichen Rechten hinter #}
                             {# "Weitere Rollen". Vorher stand die mächtigste Rolle als erstes #}
                             {# Kästchen oben links, gleich gewichtet wie die einfache. #}
-                            {% set _basic_roles = roles|filter(r => r.id in default_role_ids|default([])) %}
-                            {% set _further_roles = _basic_roles is empty ? roles : roles|filter(r => r.id not in default_role_ids|default([])) %}
+                            {# Nur Rollen, die create() auch übernimmt - siehe RoleAssignmentPolicy. #}
+                            {% set _create_roles = roles|filter(r => r.id in assignable_role_ids|default([])) %}
+                            {% set _basic_roles = _create_roles|filter(r => r.id in default_role_ids|default([])) %}
+                            {% set _further_roles = _basic_roles is empty ? _create_roles : _create_roles|filter(r => r.id not in default_role_ids|default([])) %}
                             {% set _further_open = _basic_roles is empty or modal_form_create.form.roles|default([])|filter(id => id not in default_role_ids|default([])) is not empty %}
                             {% for role in _basic_roles %}
                                 {{ _self.create_role_choice(role, _create_roles_touched ? role.id in modal_form_create.form.roles : true) }}

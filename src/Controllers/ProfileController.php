@@ -15,7 +15,9 @@ use App\Models\User;
 use App\Models\UserMailAccount;
 use App\Models\VoiceGroup;
 use App\Models\SubVoice;
+use App\Services\AccountLoginRevocationService;
 use App\Services\MailCredentialCryptoService;
+use App\Services\Oidc\AuthorizationCodeService;
 use App\Services\NotificationService;
 use App\Services\PasswordPolicyService;
 use App\Services\RememberLoginService;
@@ -26,6 +28,7 @@ use App\Util\NotificationType;
 use App\Util\OutboundConnectionGuard;
 use App\Util\RequestFormat;
 use App\Util\InputValidator;
+use App\Util\MailboxAllowlist;
 use Psr\Log\LoggerInterface;
 
 class ProfileController
@@ -64,6 +67,12 @@ class ProfileController
      */
     private ?NotificationService $notificationService;
 
+    /**
+     * Welche Postfächer hinterlegt werden dürfen. Ohne Angabe gilt die Liste aus
+     * der .env; Tests reichen ihre eigene herein.
+     */
+    private MailboxAllowlist $mailboxAllowlist;
+
     public function __construct(
         Twig $view,
         UserQuery $userQuery,
@@ -71,7 +80,8 @@ class ProfileController
         LoggerInterface $logger,
         MailCredentialCryptoService $crypto,
         ?RememberLoginService $rememberLoginService = null,
-        ?NotificationService $notificationService = null
+        ?NotificationService $notificationService = null,
+        ?MailboxAllowlist $mailboxAllowlist = null
     ) {
         $this->view = $view;
         $this->userQuery = $userQuery;
@@ -80,6 +90,7 @@ class ProfileController
         $this->crypto = $crypto;
         $this->rememberLoginService = $rememberLoginService ?? new RememberLoginService();
         $this->notificationService = $notificationService;
+        $this->mailboxAllowlist = $mailboxAllowlist ?? MailboxAllowlist::fromEnv();
     }
 
     public function index(Request $request, Response $response): Response
@@ -135,6 +146,8 @@ class ProfileController
             'mail_account' => $formOld !== null ? $this->mailboxViewFromOldInput($formOld) : $mailAccount,
             'has_saved_account' => $mailAccount !== null,
             'webmail_available' => $mailAccount !== null && (bool)$mailAccount->imap_enabled,
+            'mailbox_allowed_domains' => $this->mailboxAllowlist->domains(),
+            'mailbox_allowed_hosts' => $this->mailboxAllowlist->hosts(),
         ]);
     }
 
@@ -376,17 +389,14 @@ class ProfileController
         $user->save();
 
         // Von außen ist nicht erkennbar, ob der Wechsel freiwillig oder ein Ernstfall
-        // ist. Deshalb fliegen alle Angemeldet-bleiben-Token des Kontos hinaus - auch
-        // die der Geräte, deren Cookie hier gerade nicht vorliegt.
-        $revoked = $this->rememberLoginService->invalidateAllForUser($userId);
-        if ($revoked > 0) {
-            $this->logger->info('Remember-me tokens revoked after password change.', [
-                'event' => 'auth.remember_me.revoked',
-                'reason' => 'password_changed',
-                'user_id' => (int) $user->id,
-                'revoked_count' => $revoked,
-            ]);
-        }
+        // ist. Deshalb enden alle anderen Anmeldungen des Kontos: laufende Sitzungen
+        // auf anderen Geräten, Angemeldet-bleiben-Token und die Zugangstoken
+        // angeschlossener Anwendungen. Diese Sitzung bleibt angemeldet.
+        (new AccountLoginRevocationService(
+            $this->rememberLoginService,
+            new AuthorizationCodeService($this->logger),
+            $this->logger
+        ))->revokeAllLogins($user, 'password_changed');
 
         // Die eigene Sitzung bleibt bestehen, bekommt aber eine neue Kennung: Wer sie
         // mitgelesen hat, kommt mit der alten nicht weiter. Der CSRF-Token geht
@@ -439,6 +449,14 @@ class ProfileController
 
         if ($error === null && $externalWebmailUrl !== '') {
             $error = self::validateExternalWebmailUrl($externalWebmailUrl);
+        }
+
+        // Nach den Formprüfungen, damit ein leeres Feld seine eigene Meldung behält.
+        if ($error === null) {
+            $error = $this->rejectUnlistedMailbox(
+                $this->mailboxAllowlist->rejectAccount($imapUsername, $imapHost, $smtpHost),
+                'mailbox.save.not_allowed'
+            );
         }
 
         $existingAccount = UserMailAccount::where('user_id', $userId)->first();
@@ -545,6 +563,14 @@ class ProfileController
         $imapEncryption = trim(InputValidator::asString($data['imap_encryption'] ?? null));
 
         $error = $this->validateMailboxConnectionFields($imapHost, $imapPortRaw, $imapEncryption);
+        // Vor dem Verbindungsaufbau: Zu einem nicht freigegebenen Server geht der
+        // Test gar nicht erst los.
+        if ($error === null) {
+            $error = $this->rejectUnlistedMailbox(
+                $this->mailboxAllowlist->rejectHost($imapHost),
+                'mailbox.test.not_allowed'
+            );
+        }
         if ($error !== null) {
             if ($wantsJson) {
                 return $this->jsonResponse($response, ['success' => false, 'message' => $error], 422);
@@ -621,6 +647,26 @@ class ProfileController
         }
 
         return $response->withHeader('Location', '/profile')->withStatus(302);
+    }
+
+    /**
+     * Übersetzt einen Ablehnungsgrund der Freigabeliste in die Meldung fürs
+     * Formular und hält den Versuch fest - WARNING, weil ein fremder Server zu
+     * einer Chor-Adresse genau der Angriff ist, gegen den die Liste steht.
+     */
+    private function rejectUnlistedMailbox(?string $reason, string $event): ?string
+    {
+        if ($reason === null) {
+            return null;
+        }
+
+        $this->logger->warning('Mailbox rejected by allowlist.', [
+            'event' => $event,
+            'reason' => $reason,
+            'user_id' => (int) ($_SESSION['user_id'] ?? 0),
+        ]);
+
+        return MailboxAllowlist::messageFor($reason);
     }
 
     private function validateMailboxConnectionFields(

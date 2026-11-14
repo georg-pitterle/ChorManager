@@ -68,8 +68,9 @@ RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
 # mysqld seinen Socket trotzdem anlegen.
 RUN mkdir -p /var/run/mysqld && chmod 1777 /var/run/mysqld
 
-# Get latest Composer
-COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
+# Composer 2, auf die Hauptversion festgelegt: `latest` hätte beim nächsten Build
+# ungefragt eine neue Hauptversion gezogen. Kleinere Versionen zieht der Build mit.
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 # (Alpine image) Install additional PHP extensions if needed
 # Note: Alpine uses apk, so apt-get is not available.
@@ -141,9 +142,19 @@ RUN echo "upload_max_filesize = 0" >> /usr/local/etc/php/conf.d/uploads.ini \
 # php-fpm.d/*.conf is read in alphabetical order and the last value wins.
 RUN printf '[www]\naccess.log = /dev/null\n' > /usr/local/etc/php-fpm.d/zz-access-log.conf
 
-# Set permissions
-RUN chown -R www-data:www-data /var/www/html \
-    && chmod -R 755 /var/www/html
+# Der Code gehört root und ist für alle nur lesbar; www-data, unter dem PHP-FPM
+# läuft, besitzt allein var/. Vorher gehörte der ganze Baum www-data - eine
+# Schreiblücke irgendwo in der Anwendung hätte dann src/ oder public/index.php
+# überschreiben können, und die nächste Anfrage hätte den neuen Code ausgeführt.
+#
+# Was zur Laufzeit sonst beschrieben wird, liegt auf den Volumes (Sicherungen,
+# Dateiablage, Sitzungen), die entrypoint.sh selbst www-data übergibt, oder im
+# Temp-Verzeichnis des Systems. bin/copy-assets.php schreibt nach public/, läuft
+# aber im entrypoint als root, bevor PHP-FPM startet.
+RUN mkdir -p /var/www/html/var \
+    && chown -R root:root /var/www/html \
+    && chmod -R u=rwX,go=rX /var/www/html \
+    && chown -R www-data:www-data /var/www/html/var
 
 # Expose port 9000 for PHP-FPM
 EXPOSE 9000

@@ -14,6 +14,7 @@ use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
+use Tests\Support\TestMailboxAllowlist;
 use Tests\Unit\Bootstrap;
 
 final class ProfileExternalWebmailUrlTest extends TestCase
@@ -44,7 +45,10 @@ final class ProfileExternalWebmailUrlTest extends TestCase
             new UserQuery(new \App\Services\NameFormatterService()),
             new PasswordPolicyService(),
             new NullLogger(),
-            new MailCredentialCryptoService()
+            new MailCredentialCryptoService(),
+            null,
+            null,
+            TestMailboxAllowlist::standard()
         );
 
         $this->user = User::create([

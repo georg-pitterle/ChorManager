@@ -218,18 +218,47 @@ final class AuthLoggingTest extends TestCase
 
     /**
      * Ein verteilter Brute-Force-Versuch wechselt die Quell-IP pro Versuch. Das Limit muss
-     * deshalb zusaetzlich pro Zielkonto greifen, sonst bleibt das IP-Limit wirkungslos.
+     * deshalb zusätzlich pro Zielkonto greifen, sonst bleibt das IP-Limit wirkungslos.
+     * Es liegt bewusst weit über dem Limit je IP - siehe den folgenden Test.
      */
     public function testRateLimitAlsoAppliesPerEmailAcrossChangingIpAddresses(): void
     {
         [$logger, $handler] = $this->logger();
 
         $controller = $this->makeAuthController($logger);
-        for ($i = 0; $i < 11; $i++) {
-            $this->submitLogin($controller, 'admin@example.org', 'wrong-password', '203.0.113.' . $i);
+        for ($i = 0; $i <= AuthController::LOGIN_ATTEMPTS_PER_ACCOUNT; $i++) {
+            $this->submitLogin(
+                $controller,
+                'admin@example.org',
+                'wrong-password',
+                '203.0.' . intdiv($i, 250) . '.' . ($i % 250 + 1)
+            );
         }
 
         $this->assertTrue($this->hasEvent($handler, 'auth.login.rate_limited'));
+    }
+
+    /**
+     * Das Limit je Konto lag früher bei zehn Versuchen - so niedrig wie das je IP.
+     * Wer eine Adresse kannte, hielt das Konto damit von einem einzigen Rechner
+     * aus dauerhaft gesperrt: Alle neunzig Sekunden ein falsches Passwort genügte.
+     * Heute sperrt ein Angreifer nur seine eigene IP; das Mitglied meldet sich
+     * von seiner aus weiter an.
+     */
+    public function testFailedAttemptsFromOneAddressDoNotLockTheOwnerOut(): void
+    {
+        [$logger, $handler] = $this->logger();
+
+        $controller = $this->makeAuthController($logger);
+        for ($i = 0; $i < 15; $i++) {
+            $this->submitLogin($controller, 'admin@example.org', 'wrong-password', '203.0.113.66');
+        }
+        $this->assertTrue($this->hasEvent($handler, 'auth.login.rate_limited'), 'Die IP des Angreifers ist gebremst');
+
+        $handler->clear();
+        $this->submitLogin($controller, 'admin@example.org', 'wrong-password', '198.51.100.20');
+
+        $this->assertFalse($this->hasEvent($handler, 'auth.login.rate_limited'));
     }
 
     public function testRateLimitPerEmailDoesNotBlockOtherAccounts(): void

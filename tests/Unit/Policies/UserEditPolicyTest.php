@@ -59,6 +59,29 @@ final class UserEditPolicyTest extends TestCase
         return $user;
     }
 
+    /**
+     * Die Adresse ist der Schlüssel zum Konto: Wer sie ändern kann, setzt danach
+     * per "Passwort vergessen" das Passwort und hat das Konto. Bei Gleichrangigen
+     * hieß das bisher, ein fremdes Konto samt dessen Rechten zu übernehmen. Die
+     * Adresse ändert deshalb nur, wer höher steht - vertreten dürfen
+     * Gleichrangige einander weiterhin.
+     */
+    public function testEmailOfAPeerCannotBeChanged(): void
+    {
+        $session = ['can_edit_users' => true, 'role_level' => 50];
+
+        $this->assertFalse($this->policy($session)->canEditEmail($this->makeUser(7, [], 1, [50])));
+        $this->assertTrue($this->policy($session)->canEditProfile($this->makeUser(7, [], 1, [50])));
+    }
+
+    public function testEmailOfALowerRankedMemberCanBeChanged(): void
+    {
+        $session = ['can_edit_users' => true, 'role_level' => 50];
+
+        $this->assertTrue($this->policy($session)->canEditEmail($this->makeUser(7, [], 1, [49])));
+        $this->assertTrue($this->policy($session)->canEditEmail($this->makeUser(7, [], 1, [])));
+    }
+
     public function testGlobalEditPermissionAllowsEditing(): void
     {
         $session = ['can_edit_users' => true, 'can_manage_users' => true];

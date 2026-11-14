@@ -152,16 +152,17 @@
 
             <div class="surface-card card border-0">
                 <div class="card-body">
-                    {% if entry.body_html %}
-                        <iframe srcdoc="{{ entry.body_html|escape('html_attr') }}"
+                    {% if body_html %}
+                        <iframe srcdoc="{{ body_html|escape('html_attr') }}"
                                 sandbox="allow-popups allow-popups-to-escape-sandbox allow-downloads"
                                 class="mail-queue-preview-frame"></iframe>
-                    {% else %}
+                    {% elseif body_is_secret %}
                         <p class="mb-0 text-muted">
-                            Der Mailtext wurde entfernt. Er enthielt einen Einmal-Link zum Konto,
-                            und der hat hier nichts mehr verloren, sobald die Mail zugestellt ist
-                            oder endgültig liegen bleibt.
+                            Der Mailtext wird hier nicht angezeigt. Er enthält einen Einmal-Link zum Konto
+                            und wird gelöscht, sobald die Mail zugestellt ist oder endgültig liegen bleibt.
                         </p>
+                    {% else %}
+                        <p class="mb-0 text-muted">Für diesen Eintrag ist kein Mailtext gespeichert.</p>
                     {% endif %}
                 </div>
             </div>

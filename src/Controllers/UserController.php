@@ -13,6 +13,7 @@ use App\Queries\UserQuery;
 use App\Logging\ExceptionLogContext;
 use App\Persistence\UserPersistence;
 use App\Persistence\ProjectPersistence;
+use App\Policies\RoleAssignmentPolicy;
 use App\Policies\UserEditPolicy;
 use App\Models\User;
 use App\Models\Role;
@@ -186,6 +187,8 @@ class UserController
             'can_archive_member' => $canArchiveMember,
             'open_edit_user_id' => $openEditUserId,
             'default_role_ids' => $this->defaultRoleIds($roles, $minimalRoleLevel),
+            // Das Anlegen-Formular bietet nur an, was create() auch übernimmt.
+            'assignable_role_ids' => $this->assignableRoleIds($roles),
         ]);
     }
 
@@ -462,6 +465,15 @@ class UserController
         // regardless of whether the actor is a global user manager.
         $roleIds = $this->capRoleIdsToActorLevel($roleIds);
 
+        // Was der Handelnde nicht vergeben darf, darf er auch nicht wegnehmen: Das
+        // Formular bietet solche Rollen nur gesperrt an, ihr Kästchen kommt also
+        // nie mit. Ohne diese Zeile verlöre ein gleichrangiges Mitglied beim
+        // Speichern still seine Rolle mit Rechten, die der Handelnde nicht hat.
+        $roleIds = array_values(array_unique(array_merge(
+            $roleIds,
+            $this->lockedRoleIds($targetUser)
+        )));
+
         // Gleichrangige dürfen einander verwalten - sonst könnten zwei Vorstände
         // einander nie vertreten. Damit lässt sich aber auch dem letzten
         // verbleibenden Mitgliederverwalter sein Recht entziehen, und danach kommt
@@ -636,6 +648,20 @@ class UserController
             $voiceGroups = $voiceGroups->filter(fn($vg) => in_array($vg->id, $myVgs));
         }
 
+        // Angeboten wird, was update() übernimmt. Eine Rolle des Mitglieds, die die
+        // Sitzung nicht vergeben darf, bleibt sichtbar, aber gesperrt - update()
+        // lässt sie ohnehin stehen.
+        $assignableRoleIds = $this->assignableRoleIds($roles);
+        $lockedRoleIds = $this->lockedRoleIds($targetUser);
+        $roles = $roles->filter(
+            static fn($r): bool => in_array((int) $r->id, $assignableRoleIds, true)
+                || in_array((int) $r->id, $lockedRoleIds, true)
+        );
+        $lockedRoleIds = array_values(array_filter(
+            $lockedRoleIds,
+            static fn (int $id): bool => $roles->contains('id', $id)
+        ));
+
         $targetUser->project_ids = $targetUser->projects->pluck('id')->toArray();
         $targetUser->voice_group_ids = $targetUser->voiceGroups->pluck('id')->toArray();
         $pivots = [];
@@ -651,6 +677,7 @@ class UserController
         return $this->view->render($response, 'partials/user_edit_form.twig', [
             'user' => $targetUser,
             'roles' => $roles->values(),
+            'locked_role_ids' => $lockedRoleIds,
             'voice_groups' => $voiceGroups->values(),
             'sub_voices' => $subVoices,
             'projects' => $projects,
@@ -1008,17 +1035,42 @@ class UserController
      */
     private function capRoleIdsToActorLevel(array $roleIds): array
     {
-        $actorLevel = (int) ($_SESSION['role_level'] ?? 0);
-
-        $allowedIds = Role::where('hierarchy_level', '<=', $actorLevel)
-            ->pluck('id')
-            ->map(static fn($id): int => (int) $id)
-            ->all();
+        // Stufe und Rechte zugleich, siehe RoleAssignmentPolicy: Die Stufe allein
+        // ließ eine gleichrangige Rolle mit fremden Rechten durch.
+        $allowedIds = $this->assignableRoleIds(Role::all());
 
         return array_values(array_intersect(
             array_map('intval', $roleIds),
             $allowedIds
         ));
+    }
+
+    /**
+     * @param iterable<Role> $roles
+     * @return list<int>
+     */
+    private function assignableRoleIds(iterable $roles): array
+    {
+        return (new RoleAssignmentPolicy($_SESSION))->assignableIds($roles);
+    }
+
+    /**
+     * Die Rollen des Mitglieds, die die Sitzung nicht vergeben darf - und deshalb
+     * auch nicht wegnehmen.
+     *
+     * @return list<int>
+     */
+    private function lockedRoleIds(User $targetUser): array
+    {
+        $policy = new RoleAssignmentPolicy($_SESSION);
+        $locked = [];
+        foreach ($targetUser->roles as $role) {
+            if (!$policy->canAssign($role)) {
+                $locked[] = (int) $role->id;
+            }
+        }
+
+        return $locked;
     }
 
     /**

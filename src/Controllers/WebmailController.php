@@ -8,6 +8,7 @@ use App\Models\UserMailAccount;
 use App\Services\MailCredentialCryptoService;
 use App\Services\WebmailSsoTokenService;
 use App\Util\AppUrlResolver;
+use App\Util\MailboxAllowlist;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
@@ -19,15 +20,22 @@ class WebmailController
     private LoggerInterface $logger;
     private MailCredentialCryptoService $crypto;
     private WebmailSsoTokenService $ssoTokenService;
+    private MailboxAllowlist $mailboxAllowlist;
 
+    /**
+     * Die Freigabeliste optional und am Ende: Ohne Angabe gilt die aus der .env,
+     * Tests reichen ihre eigene herein.
+     */
     public function __construct(
         LoggerInterface $logger,
         MailCredentialCryptoService $crypto,
-        WebmailSsoTokenService $ssoTokenService
+        WebmailSsoTokenService $ssoTokenService,
+        ?MailboxAllowlist $mailboxAllowlist = null
     ) {
         $this->logger = $logger;
         $this->crypto = $crypto;
         $this->ssoTokenService = $ssoTokenService;
+        $this->mailboxAllowlist = $mailboxAllowlist ?? MailboxAllowlist::fromEnv();
     }
 
     /**
@@ -53,6 +61,26 @@ class WebmailController
         $account = UserMailAccount::where('user_id', $userId)->first();
         if (!$account || !$account->imap_enabled) {
             $_SESSION['error'] = 'Bitte richte zuerst deinen Mailbox-Zugang im Profil ein.';
+            return $response->withHeader('Location', '/profile')->withStatus(302);
+        }
+
+        // Hier und nicht nur beim Speichern: Das Anmeldezeugnis unten trägt Host
+        // und Adresse ins Webmail, und das überschreibt damit seine Konfiguration
+        // für die ganze Domain. Ein Zugang, der vor der Freigabeliste gespeichert
+        // wurde oder nach einer Änderung der .env nicht mehr passt, bekommt
+        // deshalb kein Zeugnis.
+        $rejection = $this->mailboxAllowlist->rejectAccount(
+            (string) $account->imap_username,
+            (string) $account->imap_host,
+            $account->smtp_host
+        );
+        if ($rejection !== null) {
+            $this->logger->warning('Webmail SSO start refused: mailbox is not on the allowlist.', [
+                'event' => 'webmail.start.not_allowed',
+                'reason' => $rejection,
+                'user_id' => $userId,
+            ]);
+            $_SESSION['error'] = MailboxAllowlist::messageFor($rejection);
             return $response->withHeader('Location', '/profile')->withStatus(302);
         }
 

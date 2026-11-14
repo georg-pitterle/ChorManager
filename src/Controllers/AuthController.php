@@ -26,6 +26,21 @@ class AuthController
 {
     private const ATTENDANCE_SELECTED_EVENT_SESSION_KEY = 'attendance_selected_event_id';
 
+    /**
+     * Zwei Stufen. Je Quell-IP gilt eine strenge Grenze: Sie bremst den
+     * gewöhnlichen Rateversuch. Je Zielkonto, gezählt über alle IPs, gilt eine
+     * lockere: Sie fängt den verteilten Versuch, der die IP bei jedem Anlauf
+     * wechselt.
+     *
+     * Die Kontogrenze lag früher bei denselben zehn Versuchen. Dann konnte jeder,
+     * der eine Adresse kannte, das Konto von einem einzigen Rechner aus dauerhaft
+     * aussperren. Bei hundert braucht ein Angreifer dafür viele Adressen - und
+     * zehn Versuche je Adresse sind für das Raten eines Passworts wertlos.
+     */
+    public const LOGIN_ATTEMPTS_PER_IP = 10;
+    public const LOGIN_ATTEMPTS_PER_ACCOUNT = 100;
+    private const LOGIN_WINDOW_SECONDS = 900;
+
     private Twig $view;
     private UserQuery $userQuery;
     private RememberLoginService $rememberLoginService;
@@ -107,10 +122,18 @@ class AuthController
         }
 
         $clientIp = $this->resolveClientIp($request);
-        $ipLimit = $this->rateLimiterService->hit('auth:login:' . $clientIp, 10, 900);
+        $ipLimit = $this->rateLimiterService->hit(
+            'auth:login:' . $clientIp,
+            self::LOGIN_ATTEMPTS_PER_IP,
+            self::LOGIN_WINDOW_SECONDS
+        );
         // Zusätzlich pro Zielkonto begrenzen: ein verteilter Brute-Force-Versuch wechselt die
         // Quell-IP pro Versuch und liefe sonst am reinen IP-Limit vorbei.
-        $emailLimit = $this->rateLimiterService->hit('auth:login:email:' . $email, 10, 900);
+        $emailLimit = $this->rateLimiterService->hit(
+            'auth:login:email:' . $email,
+            self::LOGIN_ATTEMPTS_PER_ACCOUNT,
+            self::LOGIN_WINDOW_SECONDS
+        );
         if (!$ipLimit['allowed'] || !$emailLimit['allowed']) {
             // WARNING statt INFO (Owner-Entscheidung): ein überschrittenes Rate-Limit ist ein
             // Brute-Force-Signal und muss auch dann sichtbar bleiben, wenn der Level auf WARNING

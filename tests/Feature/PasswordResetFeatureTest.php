@@ -186,11 +186,17 @@ class PasswordResetFeatureTest extends TestCase
         $unknownEmail = 'unbekannt_' . bin2hex(random_bytes(6)) . '@example.test';
 
         $twig = $this->createStub(Twig::class);
+        // Zwei Grenzen: je Quell-IP und je Adresse (siehe
+        // PasswordResetRequestRateLimitFeatureTest für die IP-Grenze).
+        $hits = [];
         $rateLimiter = $this->createMock(RateLimiterService::class);
-        $rateLimiter->expects($this->once())
+        $rateLimiter->expects($this->exactly(2))
             ->method('hit')
-            ->with('password_reset:' . $unknownEmail, 3, 900)
-            ->willReturn(['allowed' => true, 'retry_after' => 0, 'remaining' => 2]);
+            ->willReturnCallback(function (string $key, int $max, int $window) use (&$hits): array {
+                $hits[] = [$key, $max, $window];
+
+                return ['allowed' => true, 'retry_after' => 0, 'remaining' => 2];
+            });
 
         $mailQueueService = $this->createMock(MailQueueService::class);
         $mailQueueService->expects($this->never())->method('enqueuePasswordResetMail');
@@ -210,6 +216,7 @@ class PasswordResetFeatureTest extends TestCase
 
         $this->assertRedirect($result, '/forgot-password');
         $this->assertSame('Existiert die E-Mail-Adresse, wurde ein Link zum Zurücksetzen des Passworts gesendet.', $_SESSION['success']);
+        $this->assertContains(['password_reset:' . $unknownEmail, 3, 900], $hits);
     }
 
     public function testProcessResetRejectsWeakPassword(): void

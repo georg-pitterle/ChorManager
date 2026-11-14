@@ -13,6 +13,7 @@ use App\Services\WebmailSsoTokenService;
 use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Tests\Support\TestMailboxAllowlist;
 use Tests\Unit\Bootstrap;
 
 final class WebmailControllerFeatureTest extends TestCase
@@ -67,7 +68,8 @@ final class WebmailControllerFeatureTest extends TestCase
         $this->controller = new WebmailController(
             new NullLogger(),
             $this->crypto,
-            $this->ssoTokenService
+            $this->ssoTokenService,
+            TestMailboxAllowlist::standard()
         );
 
         $this->user = User::create([

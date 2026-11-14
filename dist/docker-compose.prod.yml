@@ -64,6 +64,8 @@ x-app-environment: &app-environment
   # keeps the previous behaviour until a value is configured in Portainer.
   TRUSTED_PROXIES: ${TRUSTED_PROXIES:-}
   MAIL_ALLOW_PRIVATE_HOSTS: ${MAIL_ALLOW_PRIVATE_HOSTS:-0}
+  MAIL_ALLOWED_DOMAINS: ${MAIL_ALLOWED_DOMAINS:-}
+  MAIL_ALLOWED_HOSTS: ${MAIL_ALLOWED_HOSTS:-}
   # Must point into the backup_data volume mounted on the app service. The
   # application default lives inside the container's writable layer, where every
   # recreate would discard all backups.

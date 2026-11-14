@@ -30,6 +30,14 @@ final class PublicFileLinkController
 {
     private const UNLOCK_SESSION_KEY = 'files_public_link_unlocked';
     private const MAX_PASSWORD_ATTEMPTS = 10;
+
+    /**
+     * Obergrenze je Link über alle Quell-IPs. Die Grenze je Link und IP allein
+     * ließ unbegrenztes Raten zu, wenn die IP bei jedem Versuch wechselte.
+     * Fünfzig Versuche in einer Viertelstunde reichen jeder echten Empfängerrunde,
+     * die sich vertippt, und sind für das Raten eines Passworts wertlos.
+     */
+    public const MAX_PASSWORD_ATTEMPTS_PER_LINK = 50;
     private const PASSWORD_WINDOW_SECONDS = 900;
 
     public function __construct(
@@ -72,6 +80,14 @@ final class PublicFileLinkController
 
         $key = 'files:public-link:' . (int) $link->id . ':' . ClientIpResolver::resolve($request);
         $limit = $this->rateLimiter->hit($key, self::MAX_PASSWORD_ATTEMPTS, self::PASSWORD_WINDOW_SECONDS);
+        $linkLimit = $this->rateLimiter->hit(
+            'files:public-link:' . (int) $link->id,
+            self::MAX_PASSWORD_ATTEMPTS_PER_LINK,
+            self::PASSWORD_WINDOW_SECONDS
+        );
+        if (!$linkLimit['allowed']) {
+            $limit = $linkLimit;
+        }
         $body = $request->getParsedBody();
         $password = is_array($body) ? InputValidator::asString($body['password'] ?? null) : '';
 

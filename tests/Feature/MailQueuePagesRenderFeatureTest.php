@@ -80,18 +80,65 @@ final class MailQueuePagesRenderFeatureTest extends TestCase
         $this->assertStringContainsString('/admin/mail-queue/' . $entry->id . '/retry', (string) $response->getBody());
     }
 
+    /**
+     * Eine Zurücksetzungs- oder Einladungsmail trägt einen lebenden Einmal-Link.
+     * Solange sie noch wartet, ist dieser Link gültig - und wer die Warteschlange
+     * verwalten darf, konnte ihn hier ablesen: Zurücksetzen für ein fremdes Konto
+     * anfordern, Eintrag öffnen, Link nehmen. Der Text wird deshalb für diese
+     * Mailarten nie ausgeliefert, gleich in welchem Zustand der Eintrag ist.
+     *
+     * @return iterable<string, array{string, string}>
+     */
+    public static function secretMailsInEveryState(): iterable
+    {
+        foreach (MailQueue::SECRET_BODY_MAIL_TYPES as $type) {
+            foreach ([MailQueue::STATUS_QUEUED, MailQueue::STATUS_SENDING, MailQueue::STATUS_FAILED] as $status) {
+                yield $type . '/' . $status => [$type, $status];
+            }
+        }
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('secretMailsInEveryState')]
+    public function testShowNeverRendersTheBodyOfASecretMail(string $type, string $status): void
+    {
+        $entry = $this->createEntry($status, $type, '<p>https://chor.example/reset-password?token=geheim123</p>');
+        $path = '/admin/mail-queue/' . $entry->id;
+
+        $response = $this->controller($path)
+            ->show($this->makeRequest('GET', $path), $this->makeResponse(), ['id' => (string) $entry->id]);
+
+        $body = (string) $response->getBody();
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertStringNotContainsString('geheim123', $body);
+        $this->assertStringContainsString('Einmal-Link', $body);
+    }
+
+    public function testShowStillRendersTheBodyOfAnOrdinaryMail(): void
+    {
+        $entry = $this->createEntry(MailQueue::STATUS_QUEUED, MailQueue::MAIL_TYPE_NEWSLETTER, '<p>Probenplan</p>');
+        $path = '/admin/mail-queue/' . $entry->id;
+
+        $response = $this->controller($path)
+            ->show($this->makeRequest('GET', $path), $this->makeResponse(), ['id' => (string) $entry->id]);
+
+        $this->assertStringContainsString('Probenplan', (string) $response->getBody());
+    }
+
     private function controller(string $currentPath): MailQueueController
     {
         return new MailQueueController($this->createAppTwig($currentPath), new MailQueueAdminService());
     }
 
-    private function createEntry(string $status): MailQueue
-    {
+    private function createEntry(
+        string $status,
+        string $type = MailQueue::MAIL_TYPE_NEWSLETTER,
+        string $body = '<p>Hallo</p>'
+    ): MailQueue {
         return MailQueue::create([
-            'mail_type' => MailQueue::MAIL_TYPE_NEWSLETTER,
+            'mail_type' => $type,
             'recipient_email' => 'empfaenger@example.test', // naming:ascii
             'subject' => 'Testmail',
-            'body_html' => '<p>Hallo</p>',
+            'body_html' => $body,
             'payload_json' => ['user_id' => 1],
             'status' => $status,
             'attempts' => 1,

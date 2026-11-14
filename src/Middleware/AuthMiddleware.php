@@ -89,6 +89,16 @@ class AuthMiddleware implements MiddlewareInterface
             return LoginRedirect::respond($request);
         }
 
+        // Die Grenze des Kontos: gesetzt, wenn ein Passwortwechsel alle anderen
+        // Anmeldungen beendet hat (AccountLoginRevocationService). Wer davor
+        // angemeldet wurde, muss sich neu anmelden.
+        $accountValidAfter = (int) ($currentUser->sessions_valid_after ?? 0);
+        if ($accountValidAfter > 0 && $authEpoch < $accountValidAfter) {
+            $this->sessionAuthService->clearSession();
+
+            return LoginRedirect::respond($request);
+        }
+
         // Der Rechte-Abzug der Sitzung wird bei jeder geschützten Anfrage neu
         // gesetzt: Eine Rollenänderung wirkt damit beim nächsten Aufruf, nicht
         // erst nach der nächsten Anmeldung.

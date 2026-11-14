@@ -17,6 +17,7 @@ use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
+use Tests\Support\TestMailboxAllowlist;
 use Tests\Unit\Bootstrap;
 
 final class ProfileMailboxFeatureTest extends TestCase
@@ -41,7 +42,10 @@ final class ProfileMailboxFeatureTest extends TestCase
             new UserQuery(new \App\Services\NameFormatterService()),
             new PasswordPolicyService(),
             new NullLogger(),
-            $this->crypto
+            $this->crypto,
+            null,
+            null,
+            TestMailboxAllowlist::standard()
         );
 
         $this->user = User::create([
@@ -496,7 +500,10 @@ final class ProfileMailboxFeatureTest extends TestCase
             new UserQuery(new \App\Services\NameFormatterService()),
             new PasswordPolicyService(),
             $logger,
-            $this->crypto
+            $this->crypto,
+            null,
+            null,
+            TestMailboxAllowlist::standard()
         );
 
         $originalSessionUserId = $_SESSION['user_id'];

@@ -20,6 +20,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use RuntimeException;
 use Slim\Views\Twig;
+use Tests\Support\TestMailboxAllowlist;
 use Tests\Unit\Bootstrap;
 
 /**
@@ -64,7 +65,10 @@ final class ReviewAnswersRun29FeatureTest extends TestCase
             new UserQuery(new NameFormatterService()),
             new PasswordPolicyService(),
             new NullLogger(),
-            new MailCredentialCryptoService()
+            new MailCredentialCryptoService(),
+            null,
+            null,
+            TestMailboxAllowlist::standard()
         );
 
         $_SESSION = [];

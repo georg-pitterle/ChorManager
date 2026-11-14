@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
+use App\Services\Oidc\OidcEndpoints;
 use App\Util\ClientIpResolver;
 use App\Util\EnvHelper;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -111,7 +112,10 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
      */
     private function loginFormTargets(Request $request): array
     {
-        if ($this->loginFormTargets === null || $request->getUri()->getPath() !== '/login') {
+        // Auch die Rückfrage der OIDC-Abmeldung: Ihr Formular endet ebenfalls mit
+        // einer Weiterleitung zur angeschlossenen Anwendung.
+        $path = $request->getUri()->getPath();
+        if ($this->loginFormTargets === null || !in_array($path, ['/login', OidcEndpoints::LOGOUT], true)) {
             return [];
         }
 

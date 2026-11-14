@@ -11,7 +11,9 @@ use Slim\Views\Twig;
 use App\Models\User;
 use App\Models\PasswordReset;
 use App\Models\InvitationToken;
+use App\Services\AccountLoginRevocationService;
 use App\Services\Mailer;
+use App\Services\Oidc\AuthorizationCodeService;
 use App\Services\PasswordPolicyService;
 use App\Services\RateLimiterService;
 use App\Services\RememberLoginService;
@@ -25,6 +27,14 @@ use Psr\Log\NullLogger;
 
 class PasswordResetController
 {
+    /**
+     * Anfragen nach einem Reset-Link je Quell-IP in einer Viertelstunde. Die
+     * Grenze je Adresse (drei) bremst das Zumüllen eines Postfachs; diese hier
+     * den, der von einer Quelle aus Adresse um Adresse durchprobiert.
+     */
+    public const RESET_REQUESTS_PER_IP = 10;
+    private const RESET_REQUEST_WINDOW_SECONDS = 900;
+
     private Twig $view;
     private Mailer $mailer;
     private ?RateLimiterService $rateLimiter;
@@ -55,19 +65,15 @@ class PasswordResetController
      * Nach einem gesetzten Passwort dürfen die Angemeldet-bleiben-Token des Kontos
      * nicht weitergelten - sonst sperrt ein Zurücksetzen niemanden aus.
      */
-    private function revokeRememberTokens(int $userId, string $reason): void
+    private function revokeRememberTokens(User $user, string $reason): void
     {
-        $revoked = $this->rememberLoginService->invalidateAllForUser($userId);
-        if ($revoked === 0) {
-            return;
-        }
-
-        $this->logger->info('Remember-me tokens revoked after password change.', [
-            'event' => 'auth.remember_me.revoked',
-            'reason' => $reason,
-            'user_id' => $userId,
-            'revoked_count' => $revoked,
-        ]);
+        // Nicht nur die Token: Auch eine laufende Sitzung auf einem fremden Gerät
+        // und die Zugangstoken angeschlossener Anwendungen enden hier.
+        (new AccountLoginRevocationService(
+            $this->rememberLoginService,
+            new AuthorizationCodeService($this->logger),
+            $this->logger
+        ))->revokeAllLogins($user, $reason);
     }
 
     /**
@@ -115,6 +121,19 @@ class PasswordResetController
             return $response->withHeader('Location', '/forgot-password')->withStatus(302);
         }
 
+        $ipLimit = $this->rateLimiter?->hit(
+            'password_reset:ip:' . ClientIpResolver::resolve($request),
+            self::RESET_REQUESTS_PER_IP,
+            self::RESET_REQUEST_WINDOW_SECONDS
+        );
+        if ($ipLimit !== null && !$ipLimit['allowed']) {
+            $this->logger->warning('Password reset request blocked by rate limit.', [
+                'event' => 'auth.password_reset.request_rate_limited',
+            ]);
+            $_SESSION['success'] = 'Existiert die E-Mail-Adresse, wurde ein Link zum Zurücksetzen des Passworts gesendet.';
+            return $response->withHeader('Location', '/forgot-password')->withStatus(302);
+        }
+
         $limit = $this->rateLimiter?->hit('password_reset:' . $email, 3, 900);
         if ($limit !== null && !$limit['allowed']) {
             $_SESSION['success'] = 'Existiert die E-Mail-Adresse, wurde ein Link zum Zurücksetzen des Passworts gesendet.';
@@ -126,6 +145,14 @@ class PasswordResetController
             'email' => $email,
         ]);
 
+        // Der Token und sein bcrypt-Hash entstehen vor der Suche nach dem Konto.
+        // Sonst kostete der Weg zu einem bestehenden Konto einen bcrypt-Durchlauf
+        // mehr als der zu einer unbekannten Adresse, und die Antwortdauer verriete,
+        // welche Adressen es gibt - dieselbe Überlegung wie bei der Anmeldung
+        // (PasswordHasher::dummyHash()).
+        $token = bin2hex(random_bytes(32));
+        $tokenHash = PasswordHasher::hash($token);
+
         $user = User::where('email', $email)->first();
 
         if (!$user || !$user->is_active) {
@@ -134,13 +161,11 @@ class PasswordResetController
             return $response->withHeader('Location', '/forgot-password')->withStatus(302);
         }
 
-        $token = bin2hex(random_bytes(32));
-
         PasswordReset::where('email', $email)->delete();
 
         PasswordReset::create([
             'email' => $email,
-            'token_hash' => PasswordHasher::hash($token),
+            'token_hash' => $tokenHash,
             'created_at' => date('Y-m-d H:i:s')
         ]);
 
@@ -320,7 +345,7 @@ class PasswordResetController
                 $user->password = PasswordHasher::hash($password);
                 $user->save();
                 PasswordReset::where('email', $email)->delete();
-                $this->revokeRememberTokens((int) $user->id, 'password_reset');
+                $this->revokeRememberTokens($user, 'password_reset');
 
                 $this->logger->info('Password reset completed.', [
                     'event' => 'auth.password_reset.completed',
@@ -350,7 +375,7 @@ class PasswordResetController
                 $user->password = PasswordHasher::hash($password);
                 $user->save();
                 InvitationToken::where('user_id', $user->id)->delete();
-                $this->revokeRememberTokens((int) $user->id, 'invitation_consumed');
+                $this->revokeRememberTokens($user, 'invitation_consumed');
 
                 $this->logger->info('Invitation consumed.', [
                     'event' => 'invitation.consumed',

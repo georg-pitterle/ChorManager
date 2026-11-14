@@ -65,6 +65,9 @@ class User extends Model
         'external_uid',
         'last_login_at',
         'invitation_sent_at',
+        // Sitzungsgrenze des Kontos (AccountLoginRevocationService). Ein reiner
+        // Zeitstempel ohne Geheimnis; die Detailmasken zeigen ihn nicht an.
+        'sessions_valid_after',
     ];
 
     /**

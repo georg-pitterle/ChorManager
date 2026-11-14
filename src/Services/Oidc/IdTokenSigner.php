@@ -95,6 +95,84 @@ class IdTokenSigner
     /**
      * @param array<string, mixed> $data
      */
+    /**
+     * Die Ansprüche eines hier ausgestellten Zeugnisses - oder null, wenn die
+     * Signatur zu keinem hinterlegten Schlüssel passt.
+     *
+     * Die Laufzeit wird bewusst nicht geprüft: Gebraucht wird das für den
+     * `id_token_hint` der Abmeldung, und dort ist ein abgelaufenes Zeugnis
+     * ausdrücklich zulässig. Ob Aussteller, Person und Anwendung passen,
+     * entscheidet der Aufrufer.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function verifiedClaims(string $jwt): ?array
+    {
+        $parts = explode('.', $jwt);
+        if (count($parts) !== 3) {
+            return null;
+        }
+
+        [$headerSegment, $payloadSegment, $signatureSegment] = $parts;
+        $header = self::decodeSegment($headerSegment);
+        if (($header['alg'] ?? null) !== 'RS256' || !is_string($header['kid'] ?? null)) {
+            return null;
+        }
+
+        $signature = self::base64UrlDecode($signatureSegment);
+        if ($signature === null) {
+            return null;
+        }
+
+        foreach ($this->keyService->allKeys() as $key) {
+            if (!hash_equals((string) $key->kid, $header['kid'])) {
+                continue;
+            }
+
+            $publicKey = openssl_pkey_get_public((string) $key->public_key);
+            if ($publicKey === false) {
+                return null;
+            }
+
+            $valid = openssl_verify(
+                $headerSegment . '.' . $payloadSegment,
+                $signature,
+                $publicKey,
+                OPENSSL_ALGO_SHA256
+            ) === 1;
+
+            return $valid ? self::decodeSegment($payloadSegment) : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private static function decodeSegment(string $segment): ?array
+    {
+        $raw = self::base64UrlDecode($segment);
+        if ($raw === null) {
+            return null;
+        }
+
+        $decoded = json_decode($raw, true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    private static function base64UrlDecode(string $segment): ?string
+    {
+        if ($segment === '' || preg_match('/^[A-Za-z0-9_-]+$/', $segment) !== 1) {
+            return null;
+        }
+
+        $raw = base64_decode(strtr($segment, '-_', '+/'), true);
+
+        return $raw === false ? null : $raw;
+    }
+
     private static function encodeSegment(array $data): string
     {
         return self::base64UrlEncode(

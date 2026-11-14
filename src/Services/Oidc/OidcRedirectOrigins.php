@@ -38,7 +38,9 @@ class OidcRedirectOrigins
             ->get();
 
         foreach ($clients as $client) {
-            foreach ($client->redirectUris() as $uri) {
+            // Die Rücksprünge nach der Abmeldung gehören dazu: Auch das Formular der
+            // Abmelde-Rückfrage endet mit einer Weiterleitung zur Anwendung.
+            foreach ([...$client->redirectUris(), ...$client->postLogoutRedirectUris()] as $uri) {
                 $origin = self::originOf($uri);
                 if ($origin !== null) {
                     $origins[$origin] = true;

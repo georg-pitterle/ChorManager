@@ -79,14 +79,14 @@
                     {% set _further_roles = _basic_roles is empty ? roles : roles|filter(r => r.id not in default_role_ids|default([])) %}
                     {% set _further_open = _basic_roles is empty or _further_roles|filter(r => r.id in _checked_role_ids) is not empty %}
                     {% for role in _basic_roles %}
-                        {{ _self.role_choice(role, user, role.id in _checked_role_ids) }}
+                        {{ _self.role_choice(role, user, role.id in _checked_role_ids, role.id in locked_role_ids|default([])) }}
                     {% endfor %}
                     {% if _further_roles is not empty %}
                         <details class="further-roles"{% if _further_open %} open{% endif %}>
                             <summary>Weitere Rollen</summary>
                             <div class="form-text mt-1 mb-2">Weitere Rollen geben zusätzliche Rechte in der App.</div>
                             {% for role in _further_roles %}
-                                {{ _self.role_choice(role, user, role.id in _checked_role_ids) }}
+                                {{ _self.role_choice(role, user, role.id in _checked_role_ids, role.id in locked_role_ids|default([])) }}
                             {% endfor %}
                         </details>
                     {% endif %}
@@ -207,14 +207,15 @@
     </div>
 {% endmacro %}
 
-{% macro role_choice(role, user, checked) %}
+{% macro role_choice(role, user, checked, locked=false) %}
     <div class="form-check form-check-inline">
         <input class="form-check-input"
                type="checkbox"
                name="roles[]"
                value="{{ role.id }}"
                id="role_{{ user.id }}_{{ role.id }}"
-               {% if checked %}checked{% endif %}>
+               {% if checked %}checked{% endif %}
+               {% if locked %}disabled title="Diese Rolle trägt Rechte, die du selbst nicht hast."{% endif %}>
         <label class="form-check-label" for="role_{{ user.id }}_{{ role.id }}">{{ role.name }}</label>
     </div>
 {% endmacro %}

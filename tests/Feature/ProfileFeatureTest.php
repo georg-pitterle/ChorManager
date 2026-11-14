@@ -18,6 +18,7 @@ use PHPUnit\Framework\TestCase;
 use Slim\Psr7\Factory\ServerRequestFactory;
 use Slim\Psr7\Response as SlimResponse;
 use Slim\Views\Twig;
+use Tests\Support\TestMailboxAllowlist;
 use Tests\Unit\Bootstrap;
 
 class ProfileFeatureTest extends TestCase
@@ -77,7 +78,10 @@ class ProfileFeatureTest extends TestCase
             new UserQuery(new NameFormatterService()),
             new PasswordPolicyService(),
             new Logger('test'),
-            new MailCredentialCryptoService()
+            new MailCredentialCryptoService(),
+            null,
+            null,
+            TestMailboxAllowlist::standard()
         );
 
         $_SESSION = ['user_id' => $user->id];
@@ -120,7 +124,10 @@ class ProfileFeatureTest extends TestCase
             new UserQuery(new NameFormatterService()),
             new PasswordPolicyService(),
             $logger,
-            new MailCredentialCryptoService()
+            new MailCredentialCryptoService(),
+            null,
+            null,
+            TestMailboxAllowlist::standard()
         );
 
         $_SESSION = ['user_id' => $user->id];
@@ -174,7 +181,10 @@ class ProfileFeatureTest extends TestCase
             new UserQuery(new NameFormatterService()),
             new PasswordPolicyService(),
             $logger,
-            new MailCredentialCryptoService()
+            new MailCredentialCryptoService(),
+            null,
+            null,
+            TestMailboxAllowlist::standard()
         );
 
         $_SESSION = ['user_id' => $user->id];
@@ -182,10 +192,10 @@ class ProfileFeatureTest extends TestCase
         $request = (new ServerRequestFactory())
             ->createServerRequest('POST', '/profile/mailbox')
             ->withParsedBody([
-                'imap_host' => 'imap.example.test',
+                'imap_host' => 'imap.example.org',
                 'imap_port' => '993',
                 'imap_encryption' => 'ssl',
-                'imap_username' => 'mailbox-user',
+                'imap_username' => 'mailbox-user@example.org',
                 'imap_password' => 'Super-Secret-Mailbox-1',
             ]);
 
@@ -242,7 +252,10 @@ class ProfileFeatureTest extends TestCase
             new UserQuery(new NameFormatterService()),
             new PasswordPolicyService(),
             $logger,
-            new MailCredentialCryptoService()
+            new MailCredentialCryptoService(),
+            null,
+            null,
+            TestMailboxAllowlist::standard()
         );
 
         $_SESSION = ['user_id' => $user->id];

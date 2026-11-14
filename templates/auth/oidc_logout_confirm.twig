@@ -1,0 +1,32 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    Abmelden - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block content %}
+    <section class="auth-shell">
+        <div class="auth-card surface-card">
+            <div class="auth-brand-panel">
+                <img src="/logo" alt="Logo" class="auth-logo mb-3">
+                <h1 class="h4 mb-2">Abmelden?</h1>
+                <p class="mb-0">Eine angeschlossene Anwendung möchte dich abmelden.</p>
+            </div>
+
+            <div class="auth-form-panel p-4 p-md-5">
+                <p>
+                    Wenn du das nicht selbst ausgelöst hast, bleib einfach angemeldet.
+                    Mit „Abmelden“ endet deine Sitzung hier und in der Anwendung.
+                </p>
+                <form action="/oidc/logout" method="post" class="d-grid gap-3">
+                    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                    <input type="hidden" name="client_id" value="{{ client_id }}">
+                    <input type="hidden" name="post_logout_redirect_uri" value="{{ post_logout_redirect_uri }}">
+                    <input type="hidden" name="state" value="{{ state }}">
+                    <button class="btn btn-primary btn-lg w-100" type="submit">Abmelden</button>
+                    <a href="/dashboard" class="btn btn-outline-secondary w-100">Angemeldet bleiben</a>
+                </form>
+            </div>
+        </div>
+    </section>
+{% endblock content %}

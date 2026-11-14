@@ -83,7 +83,11 @@ class UserQuery
      */
     public function findForSession(int $id): ?User
     {
+        // `sessions_valid_after` zusätzlich zu den Listenspalten: Die AuthMiddleware
+        // prüft daran die Sitzungsgrenze des Kontos. In LIST_COLUMNS gehört sie
+        // nicht - die Listen brauchen sie nicht.
         return User::select(User::LIST_COLUMNS)
+            ->addSelect('sessions_valid_after')
             ->with(self::SESSION_RELATIONS)
             ->where('is_active', 1)
             ->find($id);

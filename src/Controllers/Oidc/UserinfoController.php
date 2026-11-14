@@ -6,15 +6,18 @@ namespace App\Controllers\Oidc;
 
 use App\Queries\UserQuery;
 use App\Services\Oidc\AccessTokenService;
+use App\Services\Oidc\IdTokenSigner;
 use App\Services\Oidc\OidcClaimsBuilder;
 use App\Services\Oidc\OidcClientService;
 use App\Services\RememberLoginService;
 use App\Services\SessionAuthService;
+use App\Util\AppUrlResolver;
 use App\Util\InputValidator;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Slim\Views\Twig;
 
 /**
  * Die Ansprüche zum Zugriffstoken und das Abmelden.
@@ -38,7 +41,9 @@ class UserinfoController
         private readonly UserQuery $userQuery,
         private readonly SessionAuthService $sessionAuthService,
         private readonly RememberLoginService $rememberLoginService,
-        private readonly LoggerInterface $logger = new NullLogger()
+        private readonly LoggerInterface $logger = new NullLogger(),
+        private readonly ?IdTokenSigner $signer = null,
+        private readonly ?Twig $view = null
     ) {
     }
 
@@ -65,10 +70,23 @@ class UserinfoController
 
     public function logout(Request $request, Response $response): Response
     {
-        $params = $request->getQueryParams();
+        // Der bestätigte Weg kommt als POST aus dem Formular der Rückfrage - die
+        // CsrfMiddleware hat ihn da schon geprüft.
+        $isConfirmed = strtoupper($request->getMethod()) === 'POST';
+        $params = $isConfirmed ? (array) ($request->getParsedBody() ?? []) : $request->getQueryParams();
         $clientId = InputValidator::asString($params['client_id'] ?? null);
         $target = InputValidator::asString($params['post_logout_redirect_uri'] ?? null);
         $state = InputValidator::asString($params['state'] ?? null);
+
+        // Ein einfacher Aufruf dieser Adresse meldete früher sofort ab - ein Bild
+        // oder Link auf einer fremden Seite genügte. Ohne Nachweis, dass die
+        // angeschlossene Anwendung fragt, kommt deshalb erst eine Rückfrage. Wer
+        // nicht angemeldet ist, verliert nichts und bekommt sie nicht.
+        $hint = InputValidator::asString($params['id_token_hint'] ?? null);
+        $signedIn = isset($_SESSION['user_id']);
+        if (!$isConfirmed && $signedIn && !$this->isHintForCurrentMember($request, $hint, $clientId)) {
+            return $this->askForConfirmation($response, $clientId, $target, $state);
+        }
 
         // Dasselbe Aufräumen wie in AuthController::logout(). Ohne das Entwerten
         // des Remember-Me-Cookies hätte die nächste Anfrage die Sitzung sofort
@@ -101,6 +119,61 @@ class UserinfoController
         ]);
 
         return $response->withHeader('Location', $location)->withStatus(302);
+    }
+
+    /**
+     * Ist der `id_token_hint` ein hier ausgestelltes Zeugnis der angemeldeten
+     * Person - und, falls die Anwendung sich nennt, für genau diese Anwendung?
+     */
+    private function isHintForCurrentMember(Request $request, string $hint, string $clientId): bool
+    {
+        if ($hint === '' || $this->signer === null) {
+            return false;
+        }
+
+        $claims = $this->signer->verifiedClaims($hint);
+        if ($claims === null) {
+            return false;
+        }
+
+        $user = $this->userQuery->findForOidc((int) ($_SESSION['user_id'] ?? 0));
+        if ($user === null) {
+            return false;
+        }
+
+        $issuer = AppUrlResolver::resolveBaseUrl($request);
+        if (!is_string($claims['iss'] ?? null) || !hash_equals($issuer, $claims['iss'])) {
+            return false;
+        }
+
+        $subject = OidcClaimsBuilder::subjectFor($user);
+        if (!is_string($claims['sub'] ?? null) || !hash_equals($subject, $claims['sub'])) {
+            return false;
+        }
+
+        $audience = $claims['aud'] ?? null;
+        $audiences = is_array($audience) ? $audience : [$audience];
+
+        return $clientId === '' || in_array($clientId, $audiences, true);
+    }
+
+    private function askForConfirmation(Response $response, string $clientId, string $target, string $state): Response
+    {
+        $this->logger->info('OIDC logout needs confirmation.', [
+            'event' => 'oidc.logout.confirmation_requested',
+            'client_id' => $clientId,
+        ]);
+
+        if ($this->view === null) {
+            // Ohne Vorlage (Minimal-Aufbau) bleibt nur, nicht abzumelden.
+            return $response->withHeader('Location', '/dashboard')->withStatus(302);
+        }
+
+        return $this->view->render($response, 'auth/oidc_logout_confirm.twig', [
+            'client_id' => $clientId,
+            'post_logout_redirect_uri' => $target,
+            'state' => $state,
+        ]);
     }
 
     private function readBearerToken(Request $request): string

@@ -10,3 +10,10 @@ node_modules
 composer.lock
 *.log
 .DS_Store
+# Laufzeitdaten der lokalen Entwicklung: Datenbank-Sicherungen, Dateiablage,
+# Rate-Limit-Zähler. In Git ausgeschlossen, im Build-Kontext bisher nicht - ein
+# lokaler `docker build .` nahm sie mit ins Image.
+var
+test-results
+playwright-report
+.worktrees
