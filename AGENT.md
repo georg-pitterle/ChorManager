@@ -28,6 +28,8 @@ You are a professional software engineer.
 - Vor dem Abschluss laufen die betroffenen Tests, und ihr Ergebnis wird berichtet.
 - Welcher Testbefehl wann, gegen welche Datenbank, und was ein paralleler Rotlauf
   bedeutet: `/test-runs`.
+- Welche Tests sich lohnen und welche nicht, welche Ebene passt, was ein Test kosten
+  darf und wie er isoliert wird: `/writing-tests`.
 
 ## Pläne
 - Wird ein Plan aus `docs/superpowers/plans/` umgesetzt, werden nach jedem
@@ -79,6 +81,7 @@ Invoke with `/command-name`:
 
 - `/dev-seed-completeness` — verify seed data coverage for a new persisted feature
 - `/phinx-migration` — create and run a Phinx migration for a schema change
+- `/writing-tests` — which tests are worth writing, at which level, how fast and how isolated
 - `/test-runs` — which test command to use, test database mechanics, parallel runs
 - `/rotating-review` — the scheduled section-by-section review and its counter
 - `/log-analysis` — the scheduled daily analysis of the production logs from Grafana

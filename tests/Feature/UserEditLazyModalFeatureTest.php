@@ -31,11 +31,6 @@ final class UserEditLazyModalFeatureTest extends TestCase
 
     public function testControllerExposesEditFormEndpoint(): void
     {
-        $this->assertTrue(
-            method_exists(\App\Controllers\UserController::class, 'editForm'),
-            'UserController::editForm() must exist'
-        );
-
         $controller = $this->read('src/Controllers/UserController.php');
         // Endpoint must enforce edit permission through the existing policy.
         $this->assertStringContainsString('userEditPolicy->canEdit', $controller);

@@ -7,7 +7,8 @@ paralleler Lauf bedeutet.
 Tests laufen sollen, ein Testlauf rot ist, oder ein Befund nachgestellt wird.
 
 ## Do not use when
-Es geht um das Schreiben neuer Tests — die Pflicht dazu steht in `AGENT.md`.
+Es geht um das Schreiben neuer Tests — die Pflicht dazu steht in `AGENT.md`, das Wie in
+`/writing-tests`.
 
 ## Welcher Befehl wann
 
