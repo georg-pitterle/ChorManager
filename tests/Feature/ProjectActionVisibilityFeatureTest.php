@@ -185,7 +185,6 @@ class ProjectActionVisibilityFeatureTest extends TestCase
         $controller = new EvaluationController(
             $twig,
             $projectQuery,
-            new NameFormatterService(),
             new ProjectMemberPolicy($_SESSION)
         );
 

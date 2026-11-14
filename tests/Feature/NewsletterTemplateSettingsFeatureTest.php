@@ -14,7 +14,6 @@ use App\Models\User;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Persistence\NewsletterTemplatePersistence;
-use App\Queries\NewsletterTemplateQuery;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
 use App\Services\NewsletterRecipientService;
@@ -408,7 +407,6 @@ final class NewsletterTemplateSettingsFeatureTest extends TestCase
         return new NewsletterTemplateController(
             $twig,
             new HtmlSanitizer(),
-            new NewsletterTemplateQuery(),
             new NewsletterTemplatePersistence(),
             new NewsletterRecipientService(),
             new NameFormatterService()

@@ -33,7 +33,24 @@ class EvaluationFeatureTest extends TestCase
             $queryContent
         );
         $this->assertStringContainsString('if (!in_array($projectId, $accessibleProjectIds, true)) {', $controllerContent);
-        $this->assertStringContainsString('->whereHas(\'projects\', function ($projectQuery) use ($projectId) {', $controllerContent);
+
+        // Die Besetzung der Auswertung kommt seit der Antwort auf Lauf 74 ebenfalls
+        // aus ProjectQuery. Vorher stand die Abfrage als `User::where('is_active', 1)`
+        // im Controller und lud die ganze Zeile samt Passwort-Hash; dieser Wächter
+        // hielt genau diese Kopie fest und wandert deshalb mit ihr.
+        $this->assertStringContainsString(
+            '$this->projectQuery->getMembersWithAttendances($projectId, $onlyUserId)',
+            $controllerContent
+        );
+        $this->assertStringContainsString(
+            'public function getMembersWithAttendances(int $projectId, ?int $onlyUserId = null)',
+            $queryContent
+        );
+        $this->assertStringContainsString(
+            'User::select(User::LIST_COLUMNS)',
+            $queryContent,
+            'Die Besetzung der Auswertung darf den Passwort-Hash nicht laden.'
+        );
 
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
         $this->assertIsString($routesContent);

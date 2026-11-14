@@ -8,7 +8,6 @@ use App\Controllers\NewsletterTemplateController;
 use App\Models\Newsletter;
 use App\Models\NewsletterTemplate;
 use App\Persistence\NewsletterTemplatePersistence;
-use App\Queries\NewsletterTemplateQuery;
 use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
 use App\Services\NewsletterRecipientService;
@@ -119,7 +118,6 @@ final class NewsletterObfuscatedEmailFeatureTest extends TestCase
         return new NewsletterTemplateController(
             Twig::create(dirname(__DIR__, 2) . '/templates'),
             new HtmlSanitizer(),
-            new NewsletterTemplateQuery(),
             new NewsletterTemplatePersistence(),
             new NewsletterRecipientService(),
             new NameFormatterService()

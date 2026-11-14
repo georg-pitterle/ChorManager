@@ -19,6 +19,7 @@ use App\Models\EventType;
 use App\Models\Project;
 use App\Models\User;
 use App\Queries\ProjectQuery;
+use App\Queries\UserQuery;
 use App\Services\Audience\AudienceDescriber;
 use App\Services\Audience\AudienceFormInput;
 use App\Services\Audience\InvalidAudienceFilterException;
@@ -92,6 +93,7 @@ class EventController
     private NameFormatterService $nameFormatter;
     private LoggerInterface $logger;
     private ProjectQuery $projectQuery;
+    private UserQuery $userQuery;
 
     private ?NotificationService $notificationService;
     private EntityCleanupService $cleanup;
@@ -110,7 +112,8 @@ class EventController
         LoggerInterface $logger,
         ProjectQuery $projectQuery,
         ?NotificationService $notificationService = null,
-        ?EntityCleanupService $cleanup = null
+        ?EntityCleanupService $cleanup = null,
+        ?UserQuery $userQuery = null
     ) {
         $this->view = $view;
         $this->nameFormatter = $nameFormatter;
@@ -118,6 +121,7 @@ class EventController
         $this->projectQuery = $projectQuery;
         $this->notificationService = $notificationService;
         $this->cleanup = $cleanup ?? new EntityCleanupService();
+        $this->userQuery = $userQuery ?? new UserQuery($nameFormatter);
     }
 
     /**
@@ -221,7 +225,7 @@ class EventController
             return new \Illuminate\Support\Collection();
         }
 
-        return User::whereIn('id', array_keys($userIds))->get();
+        return $this->userQuery->getUsersByIds(array_keys($userIds));
     }
 
     private function actorName(int $actorId): ?string
@@ -330,17 +334,13 @@ class EventController
             return;
         }
 
-        $audienceService = new EventAudienceService();
-        $recipientIds = $audienceService->eligibleUserIdsForEvents($events);
+        // Dieselbe Auflösung wie bei einem gelöschten Termin, deshalb dieselbe
+        // Methode: Das Einsammeln der Kennungen und die Abfrage dahinter standen
+        // hier wortgleich ein zweites Mal, und eine Änderung an einer der beiden
+        // Stellen hätte die andere unbemerkt zurückgelassen.
+        $recipients = $this->audienceUsersFor($events);
 
-        $userIds = [];
-        foreach ($recipientIds as $ids) {
-            foreach ($ids as $id) {
-                $userIds[(int) $id] = true;
-            }
-        }
-
-        if ($userIds === []) {
+        if ($recipients->isEmpty()) {
             return;
         }
 
@@ -349,7 +349,7 @@ class EventController
 
         $this->notificationService->notify(
             $type,
-            User::whereIn('id', array_keys($userIds))->get(),
+            $recipients,
             $subject,
             $template,
             new InAppMessage(

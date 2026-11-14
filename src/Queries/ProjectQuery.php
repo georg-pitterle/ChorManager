@@ -10,6 +10,7 @@ use App\Models\VoiceGroup;
 use App\Services\NameFormatterService;
 use App\Util\SubVoiceOrder;
 use App\Util\VoiceGroupOrder;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 
 class ProjectQuery
@@ -200,6 +201,55 @@ class ProjectQuery
             ]);
 
         return $this->nameFormatter->applyNameOrder($query);
+    }
+
+    /**
+     * Die aktiven Projektmitglieder samt ihren Anwesenheiten zu den
+     * stattgefundenen Pflichtterminen des Projekts - die Grundlage der
+     * Auswertungstabelle.
+     *
+     * Stand bis zur Antwort auf Lauf 74 als `User::where('is_active', 1)` mitten
+     * in EvaluationController::collectStats() und lud damit die ganze Zeile samt
+     * Passwort-Hash. In eine Vorlage ging sie nie - der Controller verrechnet die
+     * Modelle zu einem flachen Array -, aber sie stand außerhalb jeder Prüfung
+     * der Abfrageschicht, und eine Zeile mehr in der Vorlagen-Übergabe hätte
+     * daraus dasselbe gemacht wie bei der Empfängervorschau des Newsletters.
+     *
+     * Gelesen werden nur `id`, Vor- und Nachname, die Stimmgruppen und die
+     * Anwesenheiten; die Listenspalten decken das ab.
+     *
+     * Die Anwesenheiten kommen eingegrenzt mit, nicht vollständig: Gezählt wird
+     * allein über die Pflichttermine dieses Projekts, die schon stattgefunden
+     * haben. Ohne die Eingrenzung zöge jede Person ihre gesamte
+     * Anwesenheitsgeschichte mit, und die Filterung liefe danach in PHP.
+     *
+     * `$onlyUserId` schränkt auf eine Person ein - die Einzelauswertung stellt
+     * dieselbe Frage für sich allein.
+     *
+     * @return Collection<int, User>
+     */
+    public function getMembersWithAttendances(int $projectId, ?int $onlyUserId = null): Collection
+    {
+        $query = User::select(User::LIST_COLUMNS)
+            ->where('is_active', 1)
+            ->whereHas('projects', function ($relation) use ($projectId): void {
+                $relation->where('projects.id', $projectId);
+            })
+            ->with(['voiceGroups', 'attendances' => function ($relation) use ($projectId): void {
+                $relation->whereHas('event', function ($eventQuery) use ($projectId): void {
+                    $eventQuery->where('attendance_required', true)
+                        ->where('starts_at', '<=', Carbon::now())
+                        ->forProject($projectId);
+                });
+            }]);
+
+        if ($onlyUserId !== null) {
+            $query->where('users.id', $onlyUserId);
+        }
+
+        $this->nameFormatter->applyNameOrder($query);
+
+        return $query->get();
     }
 
     /**

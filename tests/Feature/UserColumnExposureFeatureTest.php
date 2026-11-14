@@ -126,6 +126,11 @@ class UserColumnExposureFeatureTest extends TestCase
             'UserQuery::getUsersByIds' => $userQuery->getUsersByIds(array_values($this->userIds)),
             'ProjectQuery::getProjectMembers' => $projectQuery->getProjectMembers($this->projectId),
             'ProjectQuery::getUsersNotInProject' => $projectQuery->getUsersNotInProject($this->projectId),
+            // Die Besetzung der Auswertungstabelle. Sie stand als
+            // `User::where('is_active', 1)` im EvaluationController und erreichte
+            // keine Vorlage - aber auch keinen Wächter.
+            'ProjectQuery::getMembersWithAttendances'
+                => $projectQuery->getMembersWithAttendances($this->projectId),
             'ProjectQuery::getUsersNotInProjectForVoiceGroups'
                 => $projectQuery->getUsersNotInProjectForVoiceGroups($this->projectId, [$this->sopranId]),
             // Die Personenauswahl des Sponsorings. Sie stand als private Methode
@@ -171,7 +176,10 @@ class UserColumnExposureFeatureTest extends TestCase
         $this->assertContains('id', User::LIST_COLUMNS, 'Ohne id lassen sich keine Relationen zuordnen.');
     }
 
-    public function testAuthenticationLookupsStillLoadThePasswordHash(): void
+    /**
+     * Genau ein Lookup darf den Hash laden, und das ist der Login.
+     */
+    public function testOnlyTheLoginLookupStillLoadsThePasswordHash(): void
     {
         $userQuery = new UserQuery(new NameFormatterService());
 
@@ -182,10 +190,68 @@ class UserColumnExposureFeatureTest extends TestCase
             $byEmail->getAttributes(),
             'findByEmail() ist der Login-Pfad und braucht den Hash weiterhin.'
         );
+    }
 
-        $byId = $userQuery->findIncludingArchived($this->userIds['mitglied']);
-        $this->assertNotNull($byId);
-        $this->assertArrayHasKey('password', $byId->getAttributes());
+    /**
+     * Die Detailmasken laden seit der Antwort auf Lauf 74 jede Spalte außer dem
+     * Hash. Der Test hielt vorher das Gegenteil fest - "Listen eng, Detailmasken
+     * vollständig" war die bewusste Grenze, bis die Entscheidung fiel, sie eine
+     * Spalte weiter zu ziehen.
+     */
+    public function testTheDetailLookupLoadsEveryColumnButThePasswordHash(): void
+    {
+        $userQuery = new UserQuery(new NameFormatterService());
+
+        $user = $userQuery->findIncludingArchived($this->userIds['mitglied']);
+        $this->assertNotNull($user);
+
+        $attributes = $user->getAttributes();
+
+        $this->assertArrayNotHasKey(
+            'password',
+            $attributes,
+            'Die Detailmasken brauchen den Hash nicht - der Passwortwechsel holt '
+                . 'sich seine Zeile selbst (ProfileController::updatePassword()).'
+        );
+
+        foreach (User::DETAIL_COLUMNS as $column) {
+            $this->assertArrayHasKey(
+                $column,
+                $attributes,
+                'Die Detailmasken zeigen und bearbeiten ' . $column . '.'
+            );
+        }
+    }
+
+    /**
+     * Der Wächter über die Aufzählung selbst: DETAIL_COLUMNS plus `password`
+     * müssen die Tabelle `users` genau abdecken.
+     *
+     * Ohne ihn wäre die Aufzählung eine Momentaufnahme. Eine Migration, die eine
+     * Spalte ergänzt, läuft hier auf und verlangt eine Entscheidung - gehört die
+     * neue Spalte in die Detailmasken oder nicht? - statt sie lautlos aus ihnen
+     * herauszuhalten oder lautlos in sie hineinzutragen.
+     */
+    public function testDetailColumnsCoverTheWholeTable(): void
+    {
+        $rows = Capsule::connection()->select(
+            'SELECT COLUMN_NAME FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?',
+            ['users']
+        );
+
+        $inTable = array_map(static fn ($row): string => (string) $row->COLUMN_NAME, $rows);
+        sort($inTable);
+
+        $classified = [...User::DETAIL_COLUMNS, 'password'];
+        sort($classified);
+
+        $this->assertSame(
+            $inTable,
+            $classified,
+            'users hat eine Spalte, die weder in User::DETAIL_COLUMNS steht noch '
+                . 'der Passwort-Hash ist. Jede Spalte braucht eine Entscheidung.'
+        );
     }
 
     /**

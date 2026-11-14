@@ -11,7 +11,6 @@ use App\Models\NewsletterTemplate;
 use App\Models\Project;
 use App\Newsletter\ObfuscatedEmail;
 use App\Persistence\NewsletterTemplatePersistence;
-use App\Queries\NewsletterTemplateQuery;
 use App\Services\Audience\AudienceDescriber;
 use App\Services\Audience\InvalidAudienceFilterException;
 use App\Services\HtmlSanitizer;
@@ -36,7 +35,6 @@ class NewsletterTemplateController
 
     private Twig $view;
     private HtmlSanitizer $htmlSanitizer;
-    private NewsletterTemplateQuery $templateQuery;
     private NewsletterTemplatePersistence $templatePersistence;
     private NewsletterRecipientService $recipientService;
     private NameFormatterService $nameFormatter;
@@ -44,14 +42,12 @@ class NewsletterTemplateController
     public function __construct(
         Twig $view,
         HtmlSanitizer $htmlSanitizer,
-        NewsletterTemplateQuery $templateQuery,
         NewsletterTemplatePersistence $templatePersistence,
         NewsletterRecipientService $recipientService,
         NameFormatterService $nameFormatter
     ) {
         $this->view = $view;
         $this->htmlSanitizer = $htmlSanitizer;
-        $this->templateQuery = $templateQuery;
         $this->templatePersistence = $templatePersistence;
         $this->recipientService = $recipientService;
         $this->nameFormatter = $nameFormatter;
@@ -244,7 +240,7 @@ class NewsletterTemplateController
     public function edit(Request $request, Response $response): Response
     {
         $id = (int) $request->getAttribute('id');
-        $template = $this->templateQuery->findById($id);
+        $template = NewsletterTemplate::find($id);
 
         if (!$template) {
             return $response->withStatus(404);
@@ -263,7 +259,7 @@ class NewsletterTemplateController
     public function update(Request $request, Response $response): Response
     {
         $id = (int) $request->getAttribute('id');
-        $template = $this->templateQuery->findById($id);
+        $template = NewsletterTemplate::find($id);
 
         if (!$template) {
             return $response->withStatus(404);
@@ -331,7 +327,7 @@ class NewsletterTemplateController
     public function clone(Request $request, Response $response): Response
     {
         $id = (int) $request->getAttribute('id');
-        $template = $this->templateQuery->findById($id);
+        $template = NewsletterTemplate::find($id);
 
         if (!$template) {
             return $response->withStatus(404);
@@ -361,7 +357,7 @@ class NewsletterTemplateController
     public function show(Request $request, Response $response): Response
     {
         $id = (int) $request->getAttribute('id');
-        $template = $this->templateQuery->findById($id);
+        $template = NewsletterTemplate::find($id);
 
         if (!$template) {
             return $response->withStatus(404);

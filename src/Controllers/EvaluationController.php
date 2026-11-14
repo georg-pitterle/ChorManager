@@ -18,7 +18,6 @@ use App\Queries\ProjectQuery;
 use App\Services\AttendanceScopeService;
 use App\Services\AttendanceStanding;
 use App\Services\EventAudienceService;
-use App\Services\NameFormatterService;
 use App\Util\InputValidator;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -29,20 +28,24 @@ class EvaluationController
 {
     private Twig $view;
     private ProjectQuery $projectQuery;
-    private NameFormatterService $nameFormatter;
     private ProjectMemberPolicy $memberPolicy;
     private LoggerInterface $logger;
 
+    /**
+     * Ohne NameFormatterService: Der Controller hatte ihn allein für die
+     * Besetzungs-Abfrage, die seit der Antwort auf Lauf 74 in ProjectQuery liegt
+     * und ihre Reihenfolge dort selbst holt. Die Namen der Auswertungstabelle
+     * formatiert der Twig-Filter `person_name`. Ein Parameter, der nur noch
+     * zugewiesen wird, täuscht eine Abhängigkeit vor, die es nicht gibt.
+     */
     public function __construct(
         Twig $view,
         ProjectQuery $projectQuery,
-        NameFormatterService $nameFormatter,
         ?ProjectMemberPolicy $memberPolicy = null,
         ?LoggerInterface $logger = null
     ) {
         $this->view = $view;
         $this->projectQuery = $projectQuery;
-        $this->nameFormatter = $nameFormatter;
         $this->memberPolicy = $memberPolicy ?? new ProjectMemberPolicy($_SESSION);
         $this->logger = $logger ?? new NullLogger();
     }
@@ -241,26 +244,12 @@ class EvaluationController
             }
         }
 
-        // Get all active users, eager load their attendances for this specific project's events
-        $userQuery = User::where('is_active', 1)
-            ->whereHas('projects', function ($projectQuery) use ($projectId) {
-                $projectQuery->where('projects.id', $projectId);
-            })
-            ->with(['voiceGroups', 'attendances' => function ($q) use ($projectId) {
-                $q->whereHas('event', function ($sq) use ($projectId) {
-                    $sq->where('attendance_required', true)
-                        ->where('starts_at', '<=', Carbon::now())
-                        ->forProject((int) $projectId);
-                });
-            }]);
-        if ($onlyUserId !== null) {
-            $userQuery->where('users.id', $onlyUserId);
-        }
-
-        $this->nameFormatter->applyNameOrder($userQuery);
+        // Die Abfrage liegt in ProjectQuery: Hier lud sie die ganze Zeile samt
+        // Passwort-Hash und stand außerhalb jeder Prüfung der Abfrageschicht.
+        $members = $this->projectQuery->getMembersWithAttendances($projectId, $onlyUserId);
 
         $stats = [];
-        foreach ($userQuery->get() as $user) {
+        foreach ($members as $user) {
             $vgName = $user->voiceGroups->pluck('name')->implode(', ');
             // Die Relation sortiert nach voice_groups.id, und das ist die
             // Chor-Reihenfolge (Sopran, Alt, Tenor, Bass). Die erste Gruppe

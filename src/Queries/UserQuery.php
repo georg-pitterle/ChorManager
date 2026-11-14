@@ -130,10 +130,19 @@ class UserQuery
      * ProfileController::index(); die sechs Aufrufstellen in UserController
      * bezahlten die Abfrage umsonst. Die Profilmaske lädt die Relation jetzt
      * dort, wo sie sie auch anzeigt.
+     *
+     * "Vollständig" heißt seit der Antwort auf Lauf 74 nicht mehr "jede Spalte":
+     * Der Passwort-Hash bleibt auch hier in der Datenbank (User::DETAIL_COLUMNS).
+     * Er war nie nötig - die acht Aufrufstellen zeigen und bearbeiten das Konto,
+     * und der Passwortwechsel holt sich seine Zeile selbst
+     * (ProfileController::updatePassword()). Jede andere Spalte bleibt drin, denn
+     * die Masken lesen sie: Kalender-Anschluss, externe Kennung, Einladung,
+     * letzte Anmeldung, letztes Projekt.
      */
     public function findIncludingArchived(int $id): ?User
     {
-        return User::with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup'])
+        return User::select(User::DETAIL_COLUMNS)
+            ->with(['roles', 'voiceGroups.subVoices', 'subVoices.voiceGroup'])
             ->find($id);
     }
 

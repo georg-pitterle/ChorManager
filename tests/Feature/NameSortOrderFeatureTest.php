@@ -18,7 +18,12 @@ final class NameSortOrderFeatureTest extends TestCase
             ['src/Queries/UserQuery.php'],
             ['src/Queries/ProjectQuery.php'],
             ['src/Controllers/AttendanceController.php'],
-            ['src/Controllers/EvaluationController.php'],
+            // Der EvaluationController stand hier, solange er die Besetzung der
+            // Auswertung selbst abfragte und sortierte. Die Abfrage liegt seit der
+            // Antwort auf Lauf 74 in ProjectQuery::getMembersWithAttendances() -
+            // dort oben in dieser Liste -, weil sie im Controller die ganze Zeile
+            // samt Passwort-Hash lud. Er braucht den Namensformatierer damit gar
+            // nicht mehr; die Namen der Tabelle setzt der Filter `person_name`.
             // Die Personenauswahl der Zielgruppen (Termine, Newsletter, Freigaben)
             // sortiert der gemeinsame Describer.
             ['src/Services/Audience/AudienceDescriber.php'],

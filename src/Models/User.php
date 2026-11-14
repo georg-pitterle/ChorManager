@@ -30,6 +30,44 @@ class User extends Model
     ];
 
     /**
+     * Spalten, die die Detailmasken laden dürfen: alles außer dem Passwort-Hash.
+     *
+     * Der Unterschied zu LIST_COLUMNS ist der Zweck, nicht die Vorsicht. Eine
+     * Liste zeigt je Zeile Name, Adresse und Zustand. Eine Detailmaske zeigt und
+     * bearbeitet das ganze Konto und braucht deshalb auch den Kalender-Anschluss,
+     * die Kennung in der angeschlossenen Anwendung, die Einladung und die letzte
+     * Anmeldung.
+     *
+     * Was sie nicht braucht, ist der Hash. Bis Lauf 74 lud
+     * UserQuery::findIncludingArchived() ihn mit, weil die Grenze "Listen eng,
+     * Detailmasken vollständig" lautete - und `$hidden` hält ihn nur aus
+     * `toArray()` und `toJson()` heraus, nicht aus einem `{{ user.password }}`.
+     * Der Passwortwechsel ist davon unberührt: ProfileController::updatePassword()
+     * holt sich das Konto für `password_verify()` selbst.
+     *
+     * Die Spalten stehen aufgezählt da, statt aus dem Schema abgezogen zu werden:
+     * Eine neue Spalte soll eine Entscheidung verlangen und nicht lautlos in die
+     * Vorlagen wandern. Dass die Aufzählung samt `password` die Tabelle genau
+     * abdeckt, hält
+     * UserColumnExposureFeatureTest::testDetailColumnsCoverTheWholeTable() fest.
+     *
+     * @var list<string>
+     */
+    public const DETAIL_COLUMNS = [
+        'id',
+        'email',
+        'first_name',
+        'last_name',
+        'is_active',
+        'last_project_id',
+        'calendar_task_feed',
+        'calendar_task_format',
+        'external_uid',
+        'last_login_at',
+        'invitation_sent_at',
+    ];
+
+    /**
      * Ob und wie die eigenen Aufgaben im abonnierten Kalender ankommen. Die
      * Werte spiegeln das ENUM aus Migration 20260830130000.
      */

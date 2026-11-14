@@ -57,9 +57,7 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
         $nameFormatter = new NameFormatterService();
         $this->controller = new EvaluationController(
             $twig,
-            new ProjectQuery($nameFormatter),
-            $nameFormatter
-        );
+            new ProjectQuery($nameFormatter));
 
         // Volle Sicht auf alle Projekte: hier geht es um die Quotenberechnung,
         // nicht um die Projektsichtbarkeit.
@@ -410,9 +408,7 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
         $nameFormatter = new NameFormatterService();
         $controller = new EvaluationController(
             $this->createAppTwig('/evaluations'),
-            new ProjectQuery($nameFormatter),
-            $nameFormatter
-        );
+            new ProjectQuery($nameFormatter));
 
         $suffix = uniqid();
         ['project' => $project, 'member' => $alto] = $this->projectWithOneMember($suffix);

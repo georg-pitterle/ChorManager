@@ -24,7 +24,6 @@ use App\Controllers\HelpController;
 use App\Queries\ProjectQuery;
 use App\Services\HtmlSanitizer;
 use App\Queries\UserQuery;
-use App\Queries\NewsletterTemplateQuery;
 use App\Queries\SponsoringQuery;
 use App\Persistence\UserPersistence;
 use App\Persistence\ProjectPersistence;
@@ -246,7 +245,6 @@ return function (ContainerBuilder $containerBuilder) {
         UserPersistence::class => \DI\autowire(),
         ProjectQuery::class => \DI\autowire(),
         ProjectPersistence::class => \DI\autowire(),
-        NewsletterTemplateQuery::class => \DI\autowire(),
         SponsoringQuery::class => \DI\autowire(),
         NewsletterTemplatePersistence::class => \DI\autowire(),
         // Derselbe Fall wie bei SongLibraryController/PasswordResetController: der optionale
@@ -420,7 +418,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(LoggerInterface::class),
                 $c->get(ProjectQuery::class),
                 $c->get(NotificationService::class),
-                $c->get(EntityCleanupService::class)
+                $c->get(EntityCleanupService::class),
+                $c->get(UserQuery::class)
             );
         },
         ProjectController::class => function (ContainerInterface $c): ProjectController {
@@ -616,7 +615,6 @@ return function (ContainerBuilder $containerBuilder) {
             return new EvaluationController(
                 $c->get(Twig::class),
                 $c->get(ProjectQuery::class),
-                $c->get(NameFormatterService::class),
                 null,
                 $c->get(LoggerInterface::class)
             );

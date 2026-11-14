@@ -366,7 +366,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         // Anwesenheitsverwaltung; hier geht es um die Zählung, nicht um die Sicht.
         $_SESSION['can_manage_attendance_all'] = true;
 
-        $controller = new EvaluationController($this->createTwig(), new ProjectQuery(new \App\Services\NameFormatterService()), new \App\Services\NameFormatterService());
+        $controller = new EvaluationController($this->createTwig(), new ProjectQuery(new \App\Services\NameFormatterService()));
 
         $request = $this->makeRequest('GET', '/evaluations', [], ['project_id' => (string) $project->id]);
         $response = $controller->index($request, $this->makeResponse());

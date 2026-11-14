@@ -142,9 +142,7 @@ class ForbiddenResponseRendersReasonFeatureTest extends TestCase
     {
         $controller = new EvaluationController(
             $this->createAppTwig('/evaluations'),
-            new ProjectQuery(new NameFormatterService()),
-            new NameFormatterService()
-        );
+            new ProjectQuery(new NameFormatterService()));
 
         $response = $controller->index(
             $this->makeRequest('GET', '/evaluations', [], ['project_id' => (string) $this->project->id]),

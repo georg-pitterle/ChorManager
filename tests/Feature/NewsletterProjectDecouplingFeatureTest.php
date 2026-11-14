@@ -30,7 +30,6 @@ use App\Services\NewsletterPlaceholderService;
 use App\Services\NewsletterRecipientService;
 use App\Services\NewsletterService;
 use App\Persistence\NewsletterTemplatePersistence;
-use App\Queries\NewsletterTemplateQuery;
 use App\Util\PasswordHasher;
 use DOMDocument;
 use DOMXPath;
@@ -208,7 +207,6 @@ final class NewsletterProjectDecouplingFeatureTest extends TestCase
         return new NewsletterTemplateController(
             $twig,
             new HtmlSanitizer(),
-            new NewsletterTemplateQuery(),
             new NewsletterTemplatePersistence(),
             new NewsletterRecipientService(),
             new NameFormatterService()

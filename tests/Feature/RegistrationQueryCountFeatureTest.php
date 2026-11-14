@@ -163,9 +163,7 @@ class RegistrationQueryCountFeatureTest extends TestCase
     {
         $controller = new EvaluationController(
             $this->createAppTwig('/evaluations'),
-            new ProjectQuery(new NameFormatterService()),
-            new NameFormatterService()
-        );
+            new ProjectQuery(new NameFormatterService()));
 
         $controller->registrations(
             $this->makeRequest('GET', '/evaluations/registrations'),

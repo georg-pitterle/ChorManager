@@ -130,7 +130,7 @@ final class EvaluationMemberViewFeatureTest extends TestCase
 
         $nameFormatter = new NameFormatterService();
 
-        return new EvaluationController($twig, new ProjectQuery($nameFormatter), $nameFormatter);
+        return new EvaluationController($twig, new ProjectQuery($nameFormatter));
     }
 
     /** @return array<string, mixed> */
