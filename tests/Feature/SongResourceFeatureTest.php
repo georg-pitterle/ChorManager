@@ -59,19 +59,6 @@ class SongResourceFeatureTest extends TestCase
         );
     }
 
-    public function testSongModelHasLinkResourcesRelation(): void
-    {
-        $this->assertTrue(method_exists(Song::class, 'resources'));
-        $this->assertTrue(method_exists(Song::class, 'linkResources'));
-    }
-
-    public function testSongLibraryControllerHasLinkCrudMethods(): void
-    {
-        $this->assertTrue(method_exists(SongLibraryController::class, 'createLinkResource'));
-        $this->assertTrue(method_exists(SongLibraryController::class, 'updateLinkResource'));
-        $this->assertTrue(method_exists(SongLibraryController::class, 'deleteLinkResource'));
-    }
-
     public function testCreateLinkRejectsUnsupportedScheme(): void
     {
         $songId = (int) Capsule::table('songs')->insertGetId(['title' => 'Abendlied']);

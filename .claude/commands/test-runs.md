@@ -14,8 +14,8 @@ Es geht um das Schreiben neuer Tests — die Pflicht dazu steht in `AGENT.md`.
 | Lage | Befehl | Dauer |
 |---|---|---|
 | an einer Stelle arbeiten | `ddev php vendor/bin/phpunit --filter "<Muster>"` | Sekundenbruchteile |
-| **volle Suite, Regelfall** | **`ddev composer test:parallel`** | rund 7 s |
-| volle Suite, sequenziell | `ddev composer test` | rund 13 s |
+| **volle Suite, Regelfall** | **`ddev composer test:parallel`** | rund 15 s |
+| volle Suite, sequenziell | `ddev composer test` | rund 40 s |
 
 **Die volle Suite läuft parallel**, auch vor einem Commit. Das ist nicht nur schneller,
 es ist auch strenger: der parallele Lauf deckt Tests auf, die sich auf etwas verlassen,

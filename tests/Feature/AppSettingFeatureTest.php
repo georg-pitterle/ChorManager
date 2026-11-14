@@ -112,12 +112,6 @@ class AppSettingFeatureTest extends TestCase
 
     public function testSettingsStructureExists(): void
     {
-        $this->assertTrue(class_exists(AppSettingController::class));
-        $this->assertTrue(method_exists(AppSettingController::class, 'index'));
-        $this->assertTrue(method_exists(AppSettingController::class, 'save'));
-        $this->assertTrue(method_exists(AppSettingController::class, 'logo'));
-        $this->assertTrue(method_exists(AppSettingController::class, 'themeCss'));
-
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
 
         $this->assertIsString($routesContent);

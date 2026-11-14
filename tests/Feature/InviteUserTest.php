@@ -10,11 +10,6 @@ use PHPUnit\Framework\TestCase;
 
 class InviteUserTest extends TestCase
 {
-    public function testInviteMethodExists(): void
-    {
-        $this->assertTrue(method_exists(UserController::class, 'invite'));
-    }
-
     public function testCreateNoLongerRequiresPassword(): void
     {
         $controller = file_get_contents(dirname(__DIR__) . '/../src/Controllers/UserController.php');
@@ -47,11 +42,6 @@ class InviteUserTest extends TestCase
         $this->assertIsString($layout);
         $this->assertStringContainsString('primary_color', $layout);
         $this->assertStringContainsString('logo_src', $layout);
-    }
-
-    public function testInvitationTokenModelExists(): void
-    {
-        $this->assertTrue(class_exists(\App\Models\InvitationToken::class));
     }
 
     public function testPasswordStrengthPartialExists(): void

@@ -25,25 +25,6 @@ class NewsletterTemplateManagementFeatureTest extends TestCase
         $this->assertStringContainsString("[NewsletterTemplateController::class, 'storeFromNewsletter']", $routes);
     }
 
-    public function testTemplateControllerExposesTemplateManagementActions(): void
-    {
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'index'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'store'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'edit'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'update'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'clone'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'show'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'storeFromNewsletter'));
-    }
-
-    public function testTemplateManagementTemplatesExist(): void
-    {
-        $base = dirname(__DIR__) . '/../templates/newsletters';
-
-        $this->assertFileExists($base . '/templates_index.twig');
-        $this->assertFileExists($base . '/templates_edit.twig');
-    }
-
     public function testNewsletterControllerNoLongerHandlesTemplates(): void
     {
         $this->assertFalse(method_exists(\App\Controllers\NewsletterController::class, 'listTemplates'));

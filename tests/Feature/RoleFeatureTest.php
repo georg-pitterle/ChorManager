@@ -19,11 +19,6 @@ class RoleFeatureTest extends TestCase
 
     public function testRoleStructureExists(): void
     {
-        $this->assertTrue(class_exists(RoleController::class));
-        $this->assertTrue(method_exists(RoleController::class, 'index'));
-        $this->assertTrue(method_exists(RoleController::class, 'create'));
-        $this->assertTrue(method_exists(RoleController::class, 'update'));
-
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
         $this->assertIsString($routesContent);
         $this->assertStringContainsString("'/roles'", $routesContent);

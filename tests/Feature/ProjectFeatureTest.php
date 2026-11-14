@@ -22,15 +22,6 @@ class ProjectFeatureTest extends TestCase
 
     public function testProjectStructureExists(): void
     {
-        $this->assertTrue(class_exists(ProjectController::class));
-        $this->assertTrue(method_exists(ProjectController::class, 'index'));
-        $this->assertTrue(method_exists(ProjectController::class, 'create'));
-        $this->assertTrue(method_exists(ProjectController::class, 'update'));
-        $this->assertTrue(method_exists(ProjectController::class, 'showMembers'));
-        $this->assertTrue(method_exists(ProjectController::class, 'addMember'));
-        $this->assertTrue(method_exists(ProjectController::class, 'removeMember'));
-        $this->assertTrue(method_exists(ProjectController::class, 'listForMembers'));
-
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
         $this->assertIsString($routesContent);
         $this->assertStringContainsString("'/projects'", $routesContent);

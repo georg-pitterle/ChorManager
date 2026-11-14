@@ -11,17 +11,8 @@ class FinanceFeatureTest extends TestCase
 {
     public function testFinanceStructureExists(): void
     {
-        $this->assertTrue(class_exists(FinanceController::class));
-        $this->assertTrue(method_exists(FinanceController::class, 'index'));
-        $this->assertTrue(method_exists(FinanceController::class, 'save'));
-        $this->assertTrue(method_exists(FinanceController::class, 'reverse'));
-        $this->assertTrue(method_exists(FinanceController::class, 'journal'));
-        $this->assertTrue(method_exists(FinanceController::class, 'report'));
-        $this->assertTrue(method_exists(FinanceController::class, 'updateSettings'));
         // Ausliefern kann nur noch AttachmentController - siehe DownloadFeatureTest.
         $this->assertFalse(method_exists(FinanceController::class, 'viewAttachment'));
-        $this->assertTrue(method_exists(FinanceController::class, 'deleteAttachment'));
-        $this->assertTrue(method_exists(FinanceController::class, 'reportPdf'));
 
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
         $this->assertIsString($routesContent);

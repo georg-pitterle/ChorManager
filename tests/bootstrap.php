@@ -69,6 +69,19 @@ if (file_exists($dotenvPath . '/.env')) {
         }
     }
 }
+
+// Die Office-Anbindung der Entwicklungsumgebung bleibt im Testlauf aus.
+//
+// Steht in der .env `FEATURE_OFFICE=true`, fragte jeder Test, der eine Ordnerseite über
+// den echten Container rendert, die Discovery des laufenden Collabora-Servers ab - über
+// das Netz, mit drei Sekunden Timeout, und schrieb das Ergebnis in den Cache der
+// Entwicklung (var/cache/office-discovery.json). Sichtbar war das als ein Test, der
+// einmal je Stunde vier Sekunden brauchte und sonst vierzig Millisekunden; bei
+// abgeschaltetem Collabora wäre es der Timeout gewesen, einmal je Minute.
+//
+// Tests, die Office prüfen, schalten es selbst ein und bringen ihre eigene Discovery mit.
+putenv('FEATURE_OFFICE=false');
+$_ENV['FEATURE_OFFICE'] = $_SERVER['FEATURE_OFFICE'] = 'false';
 date_default_timezone_set(App\Util\Timezone::resolveAppTimezone());
 
 // Die Datenbank des Laufs kommt nicht aus der .env, sondern wird aus ihr abgeleitet:

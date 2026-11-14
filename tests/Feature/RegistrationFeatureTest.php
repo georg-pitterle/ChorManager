@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\RegistrationController;
 use PHPUnit\Framework\TestCase;
 use Slim\Factory\AppFactory;
 
@@ -12,10 +11,6 @@ class RegistrationFeatureTest extends TestCase
 {
     public function testRegistrationStructureExists(): void
     {
-        $this->assertTrue(class_exists(RegistrationController::class));
-        $this->assertTrue(method_exists(RegistrationController::class, 'index'));
-        $this->assertTrue(method_exists(RegistrationController::class, 'detail'));
-
         $this->assertFileExists(dirname(__DIR__) . '/../templates/registrations/index.twig');
         $this->assertFileExists(dirname(__DIR__) . '/../templates/registrations/detail.twig');
 

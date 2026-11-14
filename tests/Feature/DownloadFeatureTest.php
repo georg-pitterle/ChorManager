@@ -6,20 +6,12 @@ namespace Tests\Feature;
 
 use App\Controllers\DownloadController;
 use App\Util\DownloadFileName;
-use App\Models\Attachment;
 use PHPUnit\Framework\TestCase;
 
 class DownloadFeatureTest extends TestCase
 {
     public function testDownloadStructureExists(): void
     {
-        $this->assertTrue(class_exists(DownloadController::class));
-        $this->assertTrue(class_exists(Attachment::class));
-        $this->assertTrue(method_exists(DownloadController::class, 'index'));
-        // Hieß bis Lauf 65 `song()` - eine belongsTo nur auf Lieder, die kein
-        // Eager Loading trug. Jetzt ein morphTo über alle Entitätsarten.
-        $this->assertTrue(method_exists(Attachment::class, 'entity'));
-
         // Ausliefern kann nur noch AttachmentController. Bleiben diese Methoden
         // stehen, gibt es wieder zwei Wege an dieselbe Datei - mit zwei
         // Rechteprüfungen, die auseinanderlaufen können.

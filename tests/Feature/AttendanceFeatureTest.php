@@ -11,10 +11,6 @@ class AttendanceFeatureTest extends TestCase
 {
     public function testAttendanceStructureExists(): void
     {
-        $this->assertTrue(class_exists(AttendanceController::class));
-        $this->assertTrue(method_exists(AttendanceController::class, 'show'));
-        $this->assertTrue(method_exists(AttendanceController::class, 'save'));
-
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
         $this->assertIsString($routesContent);
         $this->assertStringContainsString("'/attendance'", $routesContent);

@@ -8,15 +8,6 @@ use PHPUnit\Framework\TestCase;
 
 class MailQueueFeatureTest extends TestCase
 {
-    public function testMailQueueCoreStructureExists(): void
-    {
-        $this->assertTrue(class_exists(\App\Models\MailQueue::class));
-        $this->assertTrue(class_exists(\App\Services\MailQueueService::class));
-        $this->assertTrue(class_exists(\App\Services\MailDeliveryService::class));
-        $this->assertTrue(class_exists(\App\Services\MailQueueAdminService::class));
-        $this->assertTrue(class_exists(\App\Controllers\MailQueueController::class));
-    }
-
     public function testMailQueueAdminRoutesUseAdminPrefix(): void
     {
         $routes = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');

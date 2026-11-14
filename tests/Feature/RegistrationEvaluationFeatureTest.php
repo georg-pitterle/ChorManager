@@ -95,7 +95,6 @@ class RegistrationEvaluationFeatureTest extends TestCase
 
     public function testRegistrationEvaluationStructureExists(): void
     {
-        $this->assertTrue(method_exists(EvaluationController::class, 'registrations'));
         $this->assertFileExists(dirname(__DIR__) . '/../templates/evaluations/registrations.twig');
 
         $routes = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');

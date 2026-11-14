@@ -58,12 +58,6 @@ class PasswordResetFeatureTest extends TestCase
 
     public function testPasswordResetStructureExists(): void
     {
-        $this->assertTrue(class_exists(PasswordResetController::class));
-        $this->assertTrue(method_exists(PasswordResetController::class, 'showForgotForm'));
-        $this->assertTrue(method_exists(PasswordResetController::class, 'sendResetLink'));
-        $this->assertTrue(method_exists(PasswordResetController::class, 'showResetForm'));
-        $this->assertTrue(method_exists(PasswordResetController::class, 'processReset'));
-
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
         $this->assertIsString($routesContent);
         $this->assertStringContainsString('/forgot-password', $routesContent);

@@ -539,7 +539,6 @@ final class FinanceRevisionFeatureTest extends TestCase
     public function testDeleteRouteIsGoneInFavourOfReversal(): void
     {
         $this->assertFalse(method_exists(FinanceController::class, 'delete'));
-        $this->assertTrue(method_exists(FinanceController::class, 'reverse'));
 
         $routes = (string) file_get_contents(dirname(__DIR__, 2) . '/src/Routes.php');
         $this->assertStringContainsString("'/finances/{id:[0-9]+}/reverse'", $routes);

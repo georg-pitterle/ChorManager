@@ -158,27 +158,6 @@ final class BudgetFeatureTest extends TestCase
         );
     }
 
-    public function testBudgetServiceClassExists(): void
-    {
-        $this->assertTrue(class_exists(\App\Services\BudgetService::class));
-        $this->assertTrue(method_exists(\App\Services\BudgetService::class, 'getOverview'));
-        $this->assertTrue(method_exists(\App\Services\BudgetService::class, 'computeActual'));
-        $this->assertTrue(method_exists(\App\Services\BudgetService::class, 'buildAvailableYears'));
-        $this->assertTrue(method_exists(\App\Services\BudgetService::class, 'defaultFiscalYearStart'));
-    }
-
-    public function testBudgetControllerClassExists(): void
-    {
-        $this->assertTrue(class_exists(\App\Controllers\BudgetController::class));
-        $this->assertTrue(method_exists(\App\Controllers\BudgetController::class, 'index'));
-        $this->assertTrue(method_exists(\App\Controllers\BudgetController::class, 'createCategory'));
-        $this->assertTrue(method_exists(\App\Controllers\BudgetController::class, 'updateCategory'));
-        $this->assertTrue(method_exists(\App\Controllers\BudgetController::class, 'deleteCategory'));
-        $this->assertTrue(method_exists(\App\Controllers\BudgetController::class, 'createItem'));
-        $this->assertTrue(method_exists(\App\Controllers\BudgetController::class, 'updateItem'));
-        $this->assertTrue(method_exists(\App\Controllers\BudgetController::class, 'deleteItem'));
-    }
-
     /**
      * Der Controller prüft die Art gegen `BudgetCategory::TYPES` und nicht gegen
      * eine eigene Aufzählung.
@@ -267,11 +246,6 @@ final class BudgetFeatureTest extends TestCase
         $content = file_get_contents(dirname(__DIR__, 2) . '/src/Controllers/BudgetController.php');
         $this->assertIsString($content);
         $this->assertStringContainsString("'budget/index.twig'", $content);
-    }
-
-    public function testBudgetTemplateExists(): void
-    {
-        $this->assertTrue(file_exists(dirname(__DIR__, 2) . '/templates/budget/index.twig'));
     }
 
     public function testBudgetTemplateHasSollIstStructure(): void

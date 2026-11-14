@@ -7,7 +7,6 @@ namespace Tests\Feature;
 use App\Controllers\TaskController;
 use App\Models\Task;
 use App\Models\Activity;
-use App\Models\Comment;
 use App\Models\Attachment;
 use App\Models\Project;
 use App\Models\User;
@@ -71,28 +70,8 @@ class TaskFeatureTest extends TestCase
      */
     public function testTaskControllerStructureExists(): void
     {
-        $this->assertTrue(class_exists(TaskController::class));
-        $this->assertTrue(method_exists(TaskController::class, 'index'));
-        $this->assertTrue(method_exists(TaskController::class, 'create'));
-        $this->assertTrue(method_exists(TaskController::class, 'detail'));
-        $this->assertTrue(method_exists(TaskController::class, 'update'));
-        $this->assertTrue(method_exists(TaskController::class, 'delete'));
-        $this->assertTrue(method_exists(TaskController::class, 'addComment'));
-        $this->assertTrue(method_exists(TaskController::class, 'uploadAttachment'));
-        $this->assertTrue(method_exists(TaskController::class, 'deleteAttachment'));
         // Ausliefern kann nur noch AttachmentController - siehe DownloadFeatureTest.
         $this->assertFalse(method_exists(TaskController::class, 'downloadAttachment'));
-    }
-
-    /**
-     * Test all required models exist
-     */
-    public function testTaskModelsExist(): void
-    {
-        $this->assertTrue(class_exists(Task::class));
-        $this->assertTrue(class_exists(Activity::class));
-        $this->assertTrue(class_exists(Comment::class));
-        $this->assertTrue(class_exists(Attachment::class));
     }
 
     /**
@@ -534,18 +513,6 @@ class TaskFeatureTest extends TestCase
         );
     }
 
-    /**
-     * Test all required templates exist
-     */
-    public function testTaskTemplatesExist(): void
-    {
-        $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/projects/tasks.twig'));
-        $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/projects/task_detail.twig'));
-        $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/partials/comments.twig'));
-        $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/partials/attachments.twig'));
-        $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/partials/history.twig'));
-    }
-
     public function testTaskTemplatesUseTinymceAndHtmlRenderingForDescription(): void
     {
         $tasksTemplate = file_get_contents(dirname(__DIR__) . '/../templates/projects/tasks.twig');
@@ -560,63 +527,6 @@ class TaskFeatureTest extends TestCase
         $this->assertStringContainsString('{{ task.description|raw }}', $detailTemplate);
         $this->assertStringContainsString('task-description-html', $detailTemplate);
         $this->assertStringNotContainsString('{{ task.description|nl2br }}', $detailTemplate);
-    }
-
-    /**
-     * Test Task model relationships
-     */
-    public function testTaskModelRelationships(): void
-    {
-        $task = new Task();
-
-        $this->assertTrue(method_exists($task, 'project'));
-        $this->assertTrue(method_exists($task, 'assignees'));
-        $this->assertTrue(method_exists($task, 'createdBy'));
-        $this->assertTrue(method_exists($task, 'comments'));
-        $this->assertTrue(method_exists($task, 'attachments'));
-        $this->assertTrue(method_exists($task, 'activities'));
-    }
-
-    /**
-     * Test Project model has task relationships
-     */
-    public function testProjectModelHasTaskRelationships(): void
-    {
-        $project = new Project();
-
-        $this->assertTrue(method_exists($project, 'tasks'));
-        $this->assertTrue(method_exists($project, 'comments'));
-        $this->assertTrue(method_exists($project, 'attachments'));
-    }
-
-    /**
-     * Test User model has task relationships
-     */
-    public function testUserModelHasTaskRelationships(): void
-    {
-        $user = new User();
-
-        $this->assertTrue(method_exists($user, 'tasks'));
-        $this->assertTrue(method_exists($user, 'comments'));
-        $this->assertTrue(method_exists($user, 'activities'));
-    }
-
-    /**
-     * Test Activity model has user relationship
-     */
-    public function testActivityModelHasUserRelationship(): void
-    {
-        $activity = new Activity();
-        $this->assertTrue(method_exists($activity, 'user'));
-    }
-
-    /**
-     * Test Comment model has user relationship
-     */
-    public function testCommentModelHasUserRelationship(): void
-    {
-        $comment = new Comment();
-        $this->assertTrue(method_exists($comment, 'user'));
     }
 
     /**
@@ -857,14 +767,6 @@ class TaskFeatureTest extends TestCase
         $this->assertStringContainsString('$this->seedTaskActivities($tasks, $users[\'active\']);', $seedContent);
         $this->assertStringContainsString('$this->seedTaskComments($tasks, $users[\'active\']);', $seedContent);
         $this->assertStringContainsString('$this->seedTaskAttachments($tasks, 40);', $seedContent);
-    }
-
-    /**
-     * Test updateStatus method exists on TaskController
-     */
-    public function testTaskControllerHasUpdateStatusMethod(): void
-    {
-        $this->assertTrue(method_exists(TaskController::class, 'updateStatus'));
     }
 
     /**

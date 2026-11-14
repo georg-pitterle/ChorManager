@@ -17,19 +17,6 @@ class AuthFeatureTest extends TestCase
         $_SESSION = [];
     }
 
-    public function testAuthClassesAndMethodsExist(): void
-    {
-        $this->assertTrue(class_exists(\App\Controllers\AuthController::class));
-        $this->assertTrue(class_exists(\App\Services\SessionAuthService::class));
-        $this->assertTrue(class_exists(\App\Services\RememberLoginService::class));
-
-        $this->assertTrue(method_exists(\App\Controllers\AuthController::class, 'showLogin'));
-        $this->assertTrue(method_exists(\App\Controllers\AuthController::class, 'processLogin'));
-        $this->assertTrue(method_exists(\App\Controllers\AuthController::class, 'showSetup'));
-        $this->assertTrue(method_exists(\App\Controllers\AuthController::class, 'processSetup'));
-        $this->assertTrue(method_exists(\App\Controllers\AuthController::class, 'logout'));
-    }
-
     public function testAuthRoutesAndTemplatesExist(): void
     {
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');

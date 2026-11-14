@@ -57,30 +57,25 @@ final class RotatingReviewStateFeatureTest extends TestCase
     }
 
     /**
-     * Sieben Abschnitte, sieben Läufe - danach beginnt die Reihe von vorn, ohne
+     * Drei Abschnitte, drei Läufe - danach beginnt die Reihe von vorn, ohne
      * dass irgendwo ein Sonderfall stünde.
+     *
+     * Bewusst eine kurze Liste: Jeder Aufruf startet einen PHP-Prozess, und der
+     * Umbruch hängt nicht an der Länge der Liste.
      */
     public function testTheRotationWrapsAroundWithoutSkippingASection(): void
     {
-        $sections = [
-            'src/Controllers',
-            'src/Services',
-            'src/Models',
-            'src/Policies',
-            'src/Queries',
-            'src/Middleware',
-            'db/migrations',
-        ];
+        $sections = ['src/Controllers', 'src/Services', 'src/Models'];
         $this->writeState(0, $sections);
 
         $seen = [];
-        for ($run = 0; $run < 9; $run++) {
+        for ($run = 0; $run < 5; $run++) {
             $seen[] = trim($this->invoke('section'));
             $this->invoke('advance');
         }
 
-        $this->assertSame($sections, array_slice($seen, 0, 7));
-        $this->assertSame(['src/Controllers', 'src/Services'], array_slice($seen, 7));
+        $this->assertSame($sections, array_slice($seen, 0, 3));
+        $this->assertSame(['src/Controllers', 'src/Services'], array_slice($seen, 3));
     }
 
     /**

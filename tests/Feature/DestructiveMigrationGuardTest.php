@@ -69,10 +69,34 @@ final class DestructiveMigrationGuardTest extends TestCase
     private const TYPE_EVENTS_TABLE = 'test_guard_type_events';
     private const ATTACHMENTS_TABLE = 'test_guard_attachments';
 
-    protected function setUp(): void
+    private const SCRATCH_TABLES = [
+        self::AUDIENCE_TABLE,
+        self::EVENTS_TABLE,
+        self::BUDGET_TABLE,
+        self::NEWSLETTERS_TABLE,
+        self::REVISIONS_TABLE,
+        self::SETTINGS_TABLE,
+        self::ASSIGNEES_TABLE,
+        self::GROUPS_TABLE,
+        self::FINANCES_TABLE,
+        self::ACCOUNTS_TABLE,
+        self::ATTENDANCE_TABLE,
+        self::TASKS_TABLE,
+        self::SONG_RESOURCES_TABLE,
+        self::ATTACHMENTS_TABLE,
+        self::TYPE_EVENTS_TABLE,
+    ];
+
+    /**
+     * Die Wegwerf-Tabellen entstehen einmal je Klasse, nicht je Test: fünfzehn
+     * CREATE und dreißig DROP vor jedem der Tests kosteten zusammen rund eine
+     * Viertelsekunde - für Tests, die jeweils nur ein oder zwei der Tabellen
+     * anfassen. Zwischen den Tests leert tearDown() nur, was belegt wurde.
+     */
+    public static function setUpBeforeClass(): void
     {
         Bootstrap::setupTestDatabase();
-        $this->dropScratchTables();
+        self::dropScratchTables();
 
         Capsule::connection()->statement(sprintf(
             'CREATE TABLE %s (
@@ -231,9 +255,29 @@ final class DestructiveMigrationGuardTest extends TestCase
         ));
     }
 
+    public static function tearDownAfterClass(): void
+    {
+        self::dropScratchTables();
+    }
+
+    protected function setUp(): void
+    {
+        Bootstrap::setupTestDatabase();
+    }
+
+    /**
+     * TRUNCATE statt DELETE, damit auch der Zähler für AUTO_INCREMENT wieder bei 1
+     * beginnt - mehrere Tests verlassen sich auf die vergebenen Schlüssel.
+     */
     protected function tearDown(): void
     {
-        $this->dropScratchTables();
+        foreach (self::SCRATCH_TABLES as $table) {
+            $used = Capsule::connection()->selectOne(sprintf('SELECT EXISTS (SELECT 1 FROM %s) AS used', $table));
+            if ((int) $used->used === 1) {
+                Capsule::connection()->statement('TRUNCATE TABLE ' . $table);
+            }
+        }
+
         parent::tearDown();
     }
 
@@ -525,11 +569,6 @@ final class DestructiveMigrationGuardTest extends TestCase
     }
 
     /**
-     * Dieselbe Anweisung wie in der Migration, nur auf den Wegwerf-Tabellen.
-     *
-     * @param array<string, string> $tableMap
-     */
-    /**
      * 20261022120000 verengt `attendance.status` von varchar auf ein ENUM. Ein
      * Wert, den das ENUM nicht kennt, wird vom ALTER zur leeren Zeichenkette -
      * die Erfassung wäre dann still weg.
@@ -762,6 +801,11 @@ final class DestructiveMigrationGuardTest extends TestCase
         ]));
     }
 
+    /**
+     * Dieselbe Anweisung wie in der Migration, nur auf den Wegwerf-Tabellen.
+     *
+     * @param array<string, string> $tableMap
+     */
     private function countFrom(string $sql, array $tableMap, string $column = 'orphaned'): int
     {
         $row = Capsule::connection()->selectOne(strtr($sql, $tableMap));
@@ -769,27 +813,9 @@ final class DestructiveMigrationGuardTest extends TestCase
         return (int) $row->{$column};
     }
 
-    private function dropScratchTables(): void
+    private static function dropScratchTables(): void
     {
-        $tables = [
-            self::AUDIENCE_TABLE,
-            self::EVENTS_TABLE,
-            self::BUDGET_TABLE,
-            self::NEWSLETTERS_TABLE,
-            self::REVISIONS_TABLE,
-            self::SETTINGS_TABLE,
-            self::ASSIGNEES_TABLE,
-            self::GROUPS_TABLE,
-            self::FINANCES_TABLE,
-            self::ACCOUNTS_TABLE,
-            self::ATTENDANCE_TABLE,
-            self::TASKS_TABLE,
-            self::SONG_RESOURCES_TABLE,
-            self::ATTACHMENTS_TABLE,
-            self::TYPE_EVENTS_TABLE,
-        ];
-
-        foreach ($tables as $table) {
+        foreach (self::SCRATCH_TABLES as $table) {
             Capsule::connection()->statement('DROP TABLE IF EXISTS ' . $table);
         }
     }

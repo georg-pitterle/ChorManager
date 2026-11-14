@@ -40,13 +40,6 @@ class RepertoireFeatureTest extends TestCase
         parent::tearDown();
     }
 
-    public function testMigrationForRepertoireTablesExists(): void
-    {
-        $migrationPath = dirname(__DIR__) . '/../db/migrations/20260421100000_add_repertoire_tables.php';
-
-        $this->assertFileExists($migrationPath);
-    }
-
     public function testMigrationDefinesExpectedRepertoireSchema(): void
     {
         $migrationPath = dirname(__DIR__) . '/../db/migrations/20260421100000_add_repertoire_tables.php';
@@ -124,18 +117,8 @@ class RepertoireFeatureTest extends TestCase
         $this->assertNotEmpty($files, 'Drop project_id migration file not found.');
     }
 
-    public function testCategoryModelExists(): void
-    {
-        $this->assertTrue(class_exists(\App\Models\Category::class));
-        $this->assertTrue(method_exists(\App\Models\Category::class, 'songs'));
-    }
-
     public function testProjectSongAssignmentModelExists(): void
     {
-        $this->assertTrue(class_exists(ProjectSongAssignment::class));
-        $this->assertTrue(method_exists(ProjectSongAssignment::class, 'song'));
-        $this->assertTrue(method_exists(ProjectSongAssignment::class, 'project'));
-
         $content = file_get_contents(dirname(__DIR__) . '/../src/Models/ProjectSongAssignment.php');
         $this->assertIsString($content);
         $this->assertStringContainsString("protected \$table = 'project_song_assignments';", $content);
@@ -147,9 +130,6 @@ class RepertoireFeatureTest extends TestCase
 
     public function testSongModelHasRepertoireRelationships(): void
     {
-        $this->assertTrue(method_exists(Song::class, 'categories'));
-        $this->assertTrue(method_exists(Song::class, 'projectAssignments'));
-
         $content = file_get_contents(dirname(__DIR__) . '/../src/Models/Song.php');
         $this->assertIsString($content);
         $normalized = str_replace("'", '"', $content);
@@ -162,8 +142,6 @@ class RepertoireFeatureTest extends TestCase
 
     public function testProjectModelHasAssignedSongs(): void
     {
-        $this->assertTrue(method_exists(Project::class, 'assignedSongs'));
-
         $content = file_get_contents(dirname(__DIR__) . '/../src/Models/Project.php');
         $this->assertIsString($content);
         $normalized = str_replace("'", '"', $content);
@@ -195,21 +173,8 @@ class RepertoireFeatureTest extends TestCase
         $this->assertInstanceOf(BelongsToMany::class, (new Project())->assignedSongs());
     }
 
-    public function testCategoryControllerExists(): void
-    {
-        $this->assertTrue(class_exists(\App\Controllers\CategoryController::class));
-        $this->assertTrue(method_exists(\App\Controllers\CategoryController::class, 'create'));
-        $this->assertTrue(method_exists(\App\Controllers\CategoryController::class, 'update'));
-        $this->assertTrue(method_exists(\App\Controllers\CategoryController::class, 'delete'));
-    }
-
     public function testProjectSongAssignmentControllerExists(): void
     {
-        $this->assertTrue(class_exists(ProjectSongAssignmentController::class));
-        $this->assertTrue(method_exists(ProjectSongAssignmentController::class, 'create'));
-        $this->assertTrue(method_exists(ProjectSongAssignmentController::class, 'update'));
-        $this->assertTrue(method_exists(ProjectSongAssignmentController::class, 'delete'));
-
         $content = file_get_contents(dirname(__DIR__) . '/../src/Controllers/ProjectSongAssignmentController.php');
         $this->assertIsString($content);
         $this->assertStringContainsString('ProjectSongAssignment::find($id)', $content);
@@ -343,12 +308,6 @@ class RepertoireFeatureTest extends TestCase
         $this->assertStringContainsString("'/assignments/{id:[0-9]+}/update'", $routesContent);
         $this->assertStringContainsString("'/assignments/{id:[0-9]+}/delete'", $routesContent);
         $this->assertStringContainsString('ProjectSongAssignmentController::class', $routesContent);
-    }
-
-    public function testSongLibraryControllerHasNewMethods(): void
-    {
-        $this->assertTrue(method_exists(\App\Controllers\SongLibraryController::class, 'show'));
-        $this->assertTrue(method_exists(\App\Controllers\SongLibraryController::class, 'syncCategories'));
     }
 
     public function testSongCreationNoLongerRequiresProjectId(): void

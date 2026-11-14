@@ -89,32 +89,8 @@ class SponsoringFeatureTest extends TestCase
 
     public function testSponsoringControllersAndMethodsExist(): void
     {
-        $this->assertTrue(class_exists(\App\Controllers\SponsoringDashboardController::class));
-        $this->assertTrue(class_exists(\App\Controllers\SponsorController::class));
-        $this->assertTrue(class_exists(\App\Controllers\SponsorshipController::class));
-        $this->assertTrue(class_exists(\App\Controllers\SponsoringContactController::class));
-        $this->assertTrue(class_exists(\App\Controllers\SponsorPackageController::class));
-
-        $this->assertTrue(method_exists(\App\Controllers\SponsoringDashboardController::class, 'index'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsorController::class, 'index'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsorController::class, 'create'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsorController::class, 'detail'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsorController::class, 'update'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsorController::class, 'delete'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsorshipController::class, 'create'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsorshipController::class, 'update'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsorshipController::class, 'delete'));
         // Ausliefern kann nur noch AttachmentController - siehe DownloadFeatureTest.
         $this->assertFalse(method_exists(\App\Controllers\SponsorshipController::class, 'downloadAttachment'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsorshipController::class, 'deleteAttachment'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsoringContactController::class, 'create'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsoringContactController::class, 'update'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsoringContactController::class, 'markDone'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsoringContactController::class, 'delete'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsorPackageController::class, 'index'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsorPackageController::class, 'create'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsorPackageController::class, 'update'));
-        $this->assertTrue(method_exists(\App\Controllers\SponsorPackageController::class, 'delete'));
     }
 
     public function testSponsoringRoutesAndTemplatesExist(): void

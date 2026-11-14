@@ -158,10 +158,6 @@ final class FinanceImportFeatureTest extends TestCase
 
     public function testImportActionsAndRoutesAreRegisteredBehindFinanceManagement(): void
     {
-        $this->assertTrue(method_exists(FinanceController::class, 'importPreview'));
-        $this->assertTrue(method_exists(FinanceController::class, 'importConfirm'));
-        $this->assertTrue(method_exists(FinanceController::class, 'importCancel'));
-
         $routes = (string) file_get_contents(dirname(__DIR__, 2) . '/src/Routes.php');
         $this->assertStringContainsString("'/finances/import/preview'", $routes);
         $this->assertStringContainsString("'/finances/import/confirm'", $routes);

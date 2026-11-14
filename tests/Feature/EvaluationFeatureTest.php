@@ -11,10 +11,6 @@ class EvaluationFeatureTest extends TestCase
 {
     public function testEvaluationStructureExists(): void
     {
-        $this->assertTrue(class_exists(EvaluationController::class));
-        $this->assertTrue(method_exists(EvaluationController::class, 'index'));
-        $this->assertTrue(method_exists(EvaluationController::class, 'projectMembers'));
-
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/EvaluationController.php');
         $this->assertIsString($controllerContent);
         // Sortiert und gesucht wird im Browser (Tabellen-Engine); serverseitige

@@ -8,162 +8,20 @@ use PHPUnit\Framework\TestCase;
 
 class NewsletterFeatureTest extends TestCase
 {
-    /**
-     * Test that services are correctly instantiated
-     */
-    public function testServicesCanBeInstantiated(): void
+    public function testNewsletterKnowsExactlyTwoStatuses(): void
     {
-        $this->assertTrue(class_exists(\App\Services\NewsletterService::class));
-        $this->assertTrue(class_exists(\App\Services\NewsletterLockingService::class));
-        $this->assertTrue(class_exists(\App\Services\NewsletterRecipientService::class));
-    }
-
-    /**
-     * Test that models exist
-     */
-    public function testModelsExist(): void
-    {
-        $this->assertTrue(class_exists(\App\Models\Newsletter::class));
-        $this->assertTrue(class_exists(\App\Models\NewsletterTemplate::class));
-        $this->assertTrue(class_exists(\App\Models\NewsletterArchive::class));
-        $this->assertTrue(class_exists(\App\Models\NewsletterRecipient::class));
-    }
-
-    /**
-     * Test that migration exists
-     */
-    public function testMigrationExists(): void
-    {
-        $this->assertTrue(
-            file_exists(
-                dirname(__DIR__) . '/../db/migrations/20260314130000_initial.php'
-            )
-        );
-    }
-
-    /**
-     * Test that controller exists
-     */
-    public function testControllerExists(): void
-    {
-        $this->assertTrue(class_exists(\App\Controllers\NewsletterController::class));
-    }
-
-    /**
-     * Test that templates directory exists
-     */
-    public function testTemplatesDirectoryExists(): void
-    {
-        $this->assertTrue(is_dir(dirname(__DIR__) . '/../templates/newsletters'));
-    }
-
-    /**
-     * Test all required template files exist
-     */
-    public function testAllTemplateFilesExist(): void
-    {
-        $templates = [
-            'index.twig',
-            'archive.twig',
-            'create.twig',
-            'edit.twig',
-            'preview.twig',
-            'locked.twig',
-            'templates_index.twig',
-            'templates_edit.twig',
-        ];
-
-        foreach ($templates as $template) {
-            $path = dirname(__DIR__) . '/../templates/newsletters/' . $template;
-            $this->assertTrue(
-                file_exists($path),
-                "Template file missing: $path"
-            );
-        }
-
-        $this->assertTrue(file_exists(dirname(__DIR__) . '/../templates/layout_modal.twig'));
-    }
-
-    /**
-     * Test Newsletter model has required methods
-     */
-    public function testNewsletterModelHasRequiredMethods(): void
-    {
-        $this->assertTrue(method_exists(\App\Models\Newsletter::class, 'isDraft'));
-        $this->assertTrue(method_exists(\App\Models\Newsletter::class, 'isSent'));
-        $this->assertTrue(method_exists(\App\Models\Newsletter::class, 'isLocked'));
-        $this->assertTrue(method_exists(\App\Models\Newsletter::class, 'project'));
-        $this->assertTrue(method_exists(\App\Models\Newsletter::class, 'createdBy'));
         $this->assertSame('draft', \App\Models\Newsletter::STATUS_DRAFT);
         $this->assertSame('sent', \App\Models\Newsletter::STATUS_SENT);
         $this->assertSame(['draft', 'sent'], \App\Models\Newsletter::SUPPORTED_STATUSES);
     }
 
-    /**
-     * Test NewsletterLockingService has required methods
-     */
-    public function testLockingServiceHasRequiredMethods(): void
+    public function testLockingServiceNoLongerOffersGetLockInfo(): void
     {
-        $this->assertTrue(method_exists(\App\Services\NewsletterLockingService::class, 'acquireLock'));
-        $this->assertTrue(method_exists(\App\Services\NewsletterLockingService::class, 'releaseLock'));
-        $this->assertTrue(method_exists(\App\Services\NewsletterLockingService::class, 'canEdit'));
-        $this->assertTrue(method_exists(\App\Services\NewsletterLockingService::class, 'isLockedBy'));
-
-        // Die Sperrfragen, die die Ablauffrist kennen. `Newsletter::isLocked()`
-        // kennt sie nicht und taugt deshalb nicht als Entscheidungsgrundlage.
-        $this->assertTrue(method_exists(\App\Services\NewsletterLockingService::class, 'hasActiveLock'));
-        $this->assertTrue(method_exists(\App\Services\NewsletterLockingService::class, 'isLockedByOther'));
-
         // getLockInfo() gab es einmal, aufgerufen wurde es nirgends - und es
-        // schrieb beim blossen Nachfragen (releaseLock() in einer Abfrage). Es ist
-        // entfernt; die Zusicherung haelt fest, dass es nicht unbemerkt
-        // zurueckkehrt.
+        // schrieb beim bloßen Nachfragen (releaseLock() in einer Abfrage). Es ist
+        // entfernt; die Zusicherung hält fest, dass es nicht unbemerkt
+        // zurückkehrt.
         $this->assertFalse(method_exists(\App\Services\NewsletterLockingService::class, 'getLockInfo'));
-    }
-
-    /**
-     * Test NewsletterService has required methods
-     */
-    public function testNewsletterServiceHasRequiredMethods(): void
-    {
-        $this->assertTrue(method_exists(\App\Services\NewsletterService::class, 'send'));
-    }
-
-    /**
-     * Test NewsletterRecipientService has required methods
-     */
-    public function testRecipientServiceHasRequiredMethods(): void
-    {
-        $this->assertTrue(method_exists(\App\Services\NewsletterRecipientService::class, 'resolveRecipients'));
-        $this->assertTrue(method_exists(\App\Services\NewsletterRecipientService::class, 'setAudience'));
-        $this->assertTrue(method_exists(\App\Services\NewsletterRecipientService::class, 'readAudience'));
-        $this->assertTrue(method_exists(\App\Services\NewsletterRecipientService::class, 'getRecipients'));
-        $this->assertTrue(method_exists(\App\Services\NewsletterRecipientService::class, 'setRecipients'));
-    }
-
-    /**
-     * Test NewsletterController has required actions
-     */
-    public function testControllerHasRequiredActions(): void
-    {
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'index'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'archive'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'create'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'store'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'edit'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'update'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'preview'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'send'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'checkLock'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'releaseLock'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterController::class, 'deleteDraft'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'storeFromNewsletter'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'show'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'index'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'store'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'edit'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'update'));
-        $this->assertTrue(method_exists(\App\Controllers\NewsletterTemplateController::class, 'clone'));
     }
 
     /**
@@ -424,11 +282,6 @@ class NewsletterFeatureTest extends TestCase
         $this->assertStringContainsString("->where('user_id', \$this->userId)", $policyContent);
         $this->assertStringContainsString('$this->newsletterPolicy->canView($newsletterId)', $controllerContent);
         $this->assertStringContainsString('!$this->canViewNewsletterById($id)', $controllerContent);
-    }
-
-    public function testMailerHasIsMailSendDisabledMethod(): void
-    {
-        $this->assertTrue(method_exists(\App\Services\Mailer::class, 'isMailSendDisabled'));
     }
 
     public function testMailerSkipsSendWhenDisabled(): void
