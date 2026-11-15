@@ -57,6 +57,51 @@ class SecurityHeadersMiddlewareFeatureTest extends TestCase
         parent::tearDown();
     }
 
+    /**
+     * Eine Kopfzeile der Antwort zu einem Pfad.
+     */
+    private function headerFor(SecurityHeadersMiddleware $middleware, string $path, string $header): string
+    {
+        $request = (new ServerRequestFactory())->createServerRequest('GET', 'http://localhost' . $path);
+        $response = $middleware->process($request, new class () implements RequestHandlerInterface {
+            public function handle(Request $request): ResponseInterface
+            {
+                return new Response();
+            }
+        });
+
+        return $response->getHeaderLine($header);
+    }
+
+    /**
+     * Die strenge Fassung der Cross-Origin-Opener-Policy, auf jeder Seite.
+     *
+     * Sie trennt die Verbindung zwischen einem Fenster und dem, das es geöffnet
+     * hat, sobald beide nicht denselben Ursprung haben. Damit kann ein fremdes
+     * Fenster weder auf unsere Seite zugreifen noch sie über `window.opener`
+     * umlenken, und unsere Seite reicht umgekehrt keinen Zugriff nach draußen.
+     *
+     * Dass sie überall gelten darf, hängt an einer Bedingung: Keine
+     * angeschlossene Anwendung darf die Anmeldung in einem Pop-up öffnen - dort
+     * wäre die Verbindung zum Öffner nötig. Das hat der Entwickler für diese
+     * Installation entschieden. Im ChorManager selbst hängt nichts daran: Das
+     * einzige Fenster, das überhaupt geöffnet wird, ist das Postfach per
+     * `target="_blank"`, und das liest seinen Öffner nie. Collabora bleibt
+     * unberührt, es hängt in einem iframe, und darauf wirkt diese Kopfzeile nicht.
+     */
+    public function testEveryPageSeversTheConnectionToAnOpeningWindow(): void
+    {
+        $middleware = new SecurityHeadersMiddleware();
+
+        foreach (['/login', '/dashboard', '/profile', '/files/12/edit', '/newsletters/7/preview-frame'] as $path) {
+            $this->assertSame(
+                'same-origin',
+                $this->headerFor($middleware, $path, 'Cross-Origin-Opener-Policy'),
+                $path
+            );
+        }
+    }
+
     private function cspFor(SecurityHeadersMiddleware $middleware, string $path): string
     {
         $request = (new ServerRequestFactory())->createServerRequest('GET', 'http://localhost' . $path);

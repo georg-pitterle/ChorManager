@@ -567,6 +567,209 @@ final class MailBadgeRefreshMiddlewareTest extends TestCase
         $this->assertSame([], $logHandler->getRecords(), 'Kein stiller Fehlschlag.');
     }
 
+    /**
+     * Ein Postfach, dessen Abgleich schon zweimal nacheinander nichts geliefert
+     * hat, wird nicht weiter alle fünf Minuten angefasst.
+     *
+     * Der Anlass: Bei falschem Passwort oder totem Server lieferte der Abgleich
+     * dauerhaft nichts, und `mail_last_checked_at` wurde trotzdem gesetzt - der
+     * nächste Versuch kam deshalb verlässlich in fünf Minuten, für immer. Jeder
+     * davon belegt bis zur Verbindungszeitüberschreitung einen der fünf
+     * PHP-FPM-Prozesse, und zwar genau dann, wenn das Mitglied in der Anwendung
+     * unterwegs ist.
+     */
+    public function testTheWaitingPeriodGrowsAfterRepeatedFailures(): void
+    {
+        $user = $this->createUser();
+        $_SESSION['user_id'] = $user->id;
+
+        $this->createAccount($user, Carbon::now()->subMinutes(10), 2);
+
+        $calls = new \ArrayObject();
+        $middleware = new MailBadgeRefreshMiddleware(
+            fn (): MailBadgeService => $this->makeRecordingBadgeService($calls),
+            new NullLogger(),
+            $this->afterResponse
+        );
+        $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
+
+        $this->assertSame([], $calls->getArrayCopy(), 'Nach zwei Fehlschlägen gilt eine halbe Stunde.');
+    }
+
+    /**
+     * Dieselbe Lage, nur ohne Fehlschläge: Dann bleibt es bei den fünf Minuten.
+     * Ohne diesen Gegenprobe-Test wäre oben auch ein Abgleich grün, der gar nicht
+     * mehr stattfindet.
+     */
+    public function testWithoutFailuresTheFiveMinuteWindowIsUnchanged(): void
+    {
+        $user = $this->createUser();
+        $_SESSION['user_id'] = $user->id;
+
+        $this->createAccount($user, Carbon::now()->subMinutes(10), 0);
+
+        $calls = new \ArrayObject();
+        $middleware = new MailBadgeRefreshMiddleware(
+            fn (): MailBadgeService => $this->makeRecordingBadgeService($calls),
+            new NullLogger(),
+            $this->afterResponse
+        );
+        $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
+
+        $this->assertSame(['refresh'], $calls->getArrayCopy());
+    }
+
+    /**
+     * Die letzte Stufe: ab fünf Fehlschlägen zwei Stunden. Geprüft werden beide
+     * Seiten der Grenze, sonst belegt der Test nur, dass irgendwie gewartet wird.
+     */
+    public function testAfterFiveFailuresTheWaitingPeriodIsTwoHours(): void
+    {
+        $user = $this->createUser();
+        $_SESSION['user_id'] = $user->id;
+
+        $account = $this->createAccount($user, Carbon::now()->subMinutes(40), 5);
+
+        $calls = new \ArrayObject();
+        $middleware = new MailBadgeRefreshMiddleware(
+            fn (): MailBadgeService => $this->makeRecordingBadgeService($calls),
+            new NullLogger(),
+            $this->afterResponse
+        );
+        $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
+        $this->assertSame([], $calls->getArrayCopy(), '40 Minuten reichen auf der letzten Stufe nicht.');
+
+        $account->mail_last_checked_at = Carbon::now()->subHours(3);
+        $account->save();
+
+        $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
+        $this->assertSame(['refresh'], $calls->getArrayCopy(), 'Nach drei Stunden wird es wieder versucht.');
+    }
+
+    /**
+     * Ein geglückter Abgleich setzt den Zähler zurück. Sonst blieb ein Postfach
+     * nach einer einmaligen Störung beim Anbieter dauerhaft auf der langen
+     * Wartezeit stehen.
+     */
+    public function testASuccessfulRefreshClearsTheFailureCounter(): void
+    {
+        $user = $this->createUser();
+        $_SESSION['user_id'] = $user->id;
+
+        $this->createAccount($user, Carbon::now()->subHours(3), 5);
+
+        $calls = new \ArrayObject();
+        $middleware = new MailBadgeRefreshMiddleware(
+            fn (): MailBadgeService => $this->makeRecordingBadgeService($calls),
+            new NullLogger(),
+            $this->afterResponse
+        );
+        $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
+
+        $this->assertSame(['refresh'], $calls->getArrayCopy());
+        $this->assertSame(
+            0,
+            (int) UserMailAccount::where('user_id', $user->id)->first()->mail_consecutive_failures
+        );
+    }
+
+    /**
+     * Ein Fehlschlag zählt hoch, und der Zähler bleibt auf der letzten Stufe
+     * stehen. Weiterzuzählen brächte nichts - jenseits der letzten Stufe ändert
+     * der Wert die Wartezeit nicht mehr -, und die Spalte liefe über.
+     */
+    public function testAFailedRefreshCountsUpAndStopsAtTheLastStep(): void
+    {
+        $user = $this->createUser();
+        $_SESSION['user_id'] = $user->id;
+
+        $this->createAccount($user, Carbon::now()->subMinutes(10), 0);
+
+        $middleware = new MailBadgeRefreshMiddleware(
+            fn () => $this->makeBadgeService(),
+            new NullLogger(),
+            $this->afterResponse
+        );
+
+        foreach ([1, 2, 3, 4, 5, 5, 5] as $round => $expected) {
+            // Je Runde neu geladen und mit einem eigenen Zeitstempel: Ein hier
+            // festgehaltenes Modell wäre nach der ersten Runde veraltet, und
+            // `Carbon::now()->subDay()` liefert in derselben Sekunde zweimal
+            // denselben Wert - Eloquent hielte die Spalte dann für unverändert und
+            // schriebe gar nichts. Die Wartezeit lief damit nie wieder ab, und der
+            // Zähler blieb bei eins stehen.
+            $account = UserMailAccount::where('user_id', $user->id)->first();
+            $account->mail_last_checked_at = Carbon::now()->subDays($round + 1);
+            $account->save();
+
+            $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+            $this->afterResponse->runPending();
+
+            $this->assertSame(
+                $expected,
+                (int) UserMailAccount::where('user_id', $user->id)->first()->mail_consecutive_failures,
+                'Runde ' . ($round + 1)
+            );
+        }
+    }
+
+    /**
+     * Auch der erzwungene Abgleich wartet die gewachsene Zeit ab.
+     *
+     * Die Fokus-Abfrage der Oberfläche feuert bei jedem Wechsel zurück in den Tab,
+     * und der Start des Webmails setzt einen eigenen Vermerk. Beide umgehen die
+     * reguläre Wartezeit und kennen nur eine Untergrenze von 15 Sekunden - genau
+     * das Mitglied mit dem kaputten Postfach ist aber dasjenige, das sein Postfach
+     * ansieht. Ohne diese Regel hätte die gewachsene Wartezeit dort nie gegriffen.
+     */
+    public function testTheForcedRefreshAlsoRespectsTheGrownWaitingPeriod(): void
+    {
+        $user = $this->createUser();
+        $_SESSION['user_id'] = $user->id;
+        $_SESSION[MailBadgeController::FORCE_SESSION_KEY] = true;
+
+        $this->createAccount($user, Carbon::now()->subMinutes(1), 5);
+
+        $calls = new \ArrayObject();
+        $middleware = new MailBadgeRefreshMiddleware(
+            fn (): MailBadgeService => $this->makeRecordingBadgeService($calls),
+            new NullLogger(),
+            $this->afterResponse
+        );
+        $middleware->process($this->makeRequest('GET', '/dashboard'), $this->makeHandler());
+        $this->afterResponse->runPending();
+
+        $this->assertSame([], $calls->getArrayCopy());
+        $this->assertArrayHasKey(
+            MailBadgeController::FORCE_SESSION_KEY,
+            $_SESSION,
+            'Gebremst hat nur die Wartezeit - der Vermerk bleibt stehen.'
+        );
+    }
+
+    private function createAccount(User $user, Carbon $lastCheckedAt, int $failures): UserMailAccount
+    {
+        return UserMailAccount::create([
+            'user_id' => $user->id,
+            'imap_host' => '127.0.0.1',
+            'imap_port' => 1,
+            'imap_encryption' => 'none',
+            'imap_username' => 'someone@example.test',
+            'imap_password_enc' => (new MailCredentialCryptoService())->encrypt('irrelevant'),
+            'imap_enabled' => true,
+            'mail_badge_enabled' => true,
+            'mail_last_unseen_count' => 9,
+            'mail_last_uid_seen' => '77',
+            'mail_last_checked_at' => $lastCheckedAt,
+            'mail_consecutive_failures' => $failures,
+        ]);
+    }
+
     private function createDueAccount(User $user): UserMailAccount
     {
         return UserMailAccount::create([

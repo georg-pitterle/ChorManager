@@ -35,6 +35,29 @@ class MailBadgeRefreshMiddleware implements MiddlewareInterface
     private const FORCED_STALENESS_SECONDS = 15;
 
     /**
+     * Die gewachsene Wartezeit nach aufeinanderfolgenden erfolglosen Abgleichen.
+     *
+     * Der Anlass: Ein Postfach mit falschem Passwort oder totem Server lieferte
+     * dauerhaft nichts, und weil `refreshWithBackOff()` den Zeitstempel trotzdem
+     * setzt, kam der nächste Versuch verlässlich in fünf Minuten - für immer.
+     * Jeder davon belegt bis zur Verbindungszeitüberschreitung einen der fünf
+     * PHP-FPM-Prozesse, und zwar solange das Mitglied in der Anwendung unterwegs
+     * ist.
+     *
+     * Die Stufen sind so gewählt, dass eine einzelne Störung beim Anbieter
+     * unsichtbar bleibt: Ein erster Fehlschlag ändert nichts, erst der zweite
+     * zieht auf eine halbe Stunde, der fünfte auf zwei Stunden. Ein kaputtes
+     * Postfach ist damit nach gut einer Stunde auf der langen Wartezeit, ein
+     * kurzer Ausfall kostet höchstens einen übersprungenen Abgleich.
+     *
+     * So entschieden in der Nacharbeit zu Review-Lauf 75.
+     */
+    private const LONG_BACK_OFF_AFTER_FAILURES = 5;
+    private const LONG_BACK_OFF_SECONDS = 2 * 3600;
+    private const SHORT_BACK_OFF_AFTER_FAILURES = 2;
+    private const SHORT_BACK_OFF_SECONDS = 30 * 60;
+
+    /**
      * Name und Ereignis-Stamm der nebenbei erledigten Arbeit (OpportunisticWork).
      * Der `event`-Schlüssel ist laut instructions/logging.md der stabile
      * Bezeichner einer Logzeile und bleibt deshalb der, der hier immer stand.
@@ -177,11 +200,41 @@ class MailBadgeRefreshMiddleware implements MiddlewareInterface
 
         $lastChecked = Carbon::parse($account->mail_last_checked_at);
 
-        $nextDueAt = $forced
-            ? $lastChecked->copy()->addSeconds(self::FORCED_STALENESS_SECONDS)
-            : $lastChecked->copy()->addMinutes(self::STALENESS_MINUTES);
+        $waitSeconds = $forced
+            ? self::FORCED_STALENESS_SECONDS
+            : self::STALENESS_MINUTES * 60;
 
-        return !$nextDueAt->isFuture();
+        // Die gewachsene Wartezeit wirkt als Untergrenze, nicht als Ersatz. Zwei
+        // Dinge folgen daraus, und beide sind Absicht:
+        //
+        // - Solange nichts fehlschlägt, bleibt alles wie bisher - die Untergrenze
+        //   ist dann null.
+        // - Sie gilt auch für den erzwungenen Abgleich. Dessen eigene Untergrenze
+        //   von 15 Sekunden ist für den Regelfall gedacht, aber genau das Mitglied
+        //   mit dem kaputten Postfach ist dasjenige, das sein Postfach ansieht;
+        //   ohne diese Zeile hätte die Bremse dort nie gegriffen. Wer die Angaben
+        //   korrigiert, wartet nicht: Das Speichern der Mailbox-Einstellungen
+        //   setzt den Zähler zurück (ProfileController).
+        $waitSeconds = max($waitSeconds, self::backOffFloorSeconds((int) $account->mail_consecutive_failures));
+
+        return !$lastChecked->copy()->addSeconds($waitSeconds)->isFuture();
+    }
+
+    /**
+     * Die Untergrenze der Wartezeit bei dieser Zahl aufeinanderfolgender
+     * erfolgloser Abgleiche - null, solange keine Stufe erreicht ist.
+     */
+    private static function backOffFloorSeconds(int $failures): int
+    {
+        if ($failures >= self::LONG_BACK_OFF_AFTER_FAILURES) {
+            return self::LONG_BACK_OFF_SECONDS;
+        }
+
+        if ($failures >= self::SHORT_BACK_OFF_AFTER_FAILURES) {
+            return self::SHORT_BACK_OFF_SECONDS;
+        }
+
+        return 0;
     }
 
     /**
@@ -232,7 +285,25 @@ class MailBadgeRefreshMiddleware implements MiddlewareInterface
         try {
             $refreshed = ($this->badgeServiceFactory)()->refresh($account);
         } finally {
-            if (!$refreshed) {
+            $failures = (int) $account->mail_consecutive_failures;
+
+            if ($refreshed) {
+                // Ein geglückter Abgleich räumt den Zählerstand ab, sonst blieb ein
+                // Postfach nach einer einmaligen Störung beim Anbieter dauerhaft auf
+                // der langen Wartezeit stehen. Gespeichert wird nur, wenn es etwas
+                // abzuräumen gibt - der Regelfall ist ein Zähler, der schon auf null
+                // steht, und für den soll keine zweite Anweisung an die Datenbank
+                // gehen.
+                if ($failures !== 0) {
+                    $account->mail_consecutive_failures = 0;
+                    $account->save();
+                }
+            } else {
+                // Gezählt wird nur bis zur letzten Stufe. Darüber hinaus ändert der
+                // Wert die Wartezeit nicht mehr, und die Spalte liefe irgendwann
+                // über - ein Postfach, das es seit Monaten nicht mehr gibt, zählt
+                // sonst endlos weiter.
+                $account->mail_consecutive_failures = min($failures + 1, self::LONG_BACK_OFF_AFTER_FAILURES);
                 $account->mail_last_checked_at = Carbon::now();
                 $account->save();
             }

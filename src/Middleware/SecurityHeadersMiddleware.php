@@ -37,6 +37,23 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
             ->withHeader('X-Content-Type-Options', 'nosniff')
             ->withHeader('X-Frame-Options', $allowsSelfFraming ? 'SAMEORIGIN' : 'DENY')
             ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
+            // Trennt die Verbindung zwischen diesem Fenster und dem, das es
+            // geöffnet hat, sobald die beiden nicht denselben Ursprung haben. Ein
+            // fremdes Fenster kann unsere Seite damit weder auslesen noch über
+            // `window.opener` umlenken, und unsere Seite reicht umgekehrt keinen
+            // Zugriff nach draußen.
+            //
+            // Die strenge Fassung gilt überall, und das hängt an einer Bedingung:
+            // Keine angeschlossene Anwendung öffnet die Anmeldung in einem Pop-up -
+            // dort wäre die Verbindung zum Öffner nötig. So entschieden in der
+            // Nacharbeit zu Review-Lauf 75.
+            //
+            // Im ChorManager selbst hängt nichts daran. Das einzige Fenster, das
+            // überhaupt geöffnet wird, ist das Postfach per `target="_blank"`, und
+            // es liest seinen Öffner nie. Collabora bleibt unberührt: Es hängt in
+            // einem iframe, und auf iframes wirkt diese Kopfzeile nicht - das täte
+            // Cross-Origin-Embedder-Policy, und die steht hier bewusst nicht.
+            ->withHeader('Cross-Origin-Opener-Policy', 'same-origin')
             ->withHeader(
                 'Permissions-Policy',
                 'camera=(), microphone=(), geolocation=(), accelerometer=(), gyroscope=(), magnetometer=()'

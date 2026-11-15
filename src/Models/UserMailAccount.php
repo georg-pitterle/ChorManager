@@ -50,6 +50,7 @@ class UserMailAccount extends Model
         'mail_last_unseen_count',
         'mail_last_uid_seen',
         'mail_last_checked_at',
+        'mail_consecutive_failures',
     ];
 
     /**
@@ -73,6 +74,7 @@ class UserMailAccount extends Model
         'mail_badge_enabled' => 'boolean',
         'mail_last_unseen_count' => 'integer',
         'mail_last_checked_at' => 'datetime',
+        'mail_consecutive_failures' => 'integer',
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
     ];

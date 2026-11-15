@@ -271,6 +271,45 @@ final class ProfileMailboxFeatureTest extends TestCase
         $this->assertSame($originalEncrypted, $updated->imap_password_enc);
     }
 
+    /**
+     * Neue Angaben, neuer Anlauf: Das Speichern setzt den Fehlschlag-Zähler des
+     * Badge-Abgleichs zurück.
+     *
+     * Ohne das Zurücksetzen blieb ein Postfach, dessen Passwort gerade korrigiert
+     * wurde, noch bis zu zwei Stunden auf der gewachsenen Wartezeit der
+     * MailBadgeRefreshMiddleware stehen - und genau wer korrigiert, wartet auf
+     * den Zähler in der Leiste.
+     */
+    public function testSavingTheMailboxClearsTheBadgeFailureCounter(): void
+    {
+        $request = $this->makeRequest('POST', '/profile/mailbox', [
+            'imap_host' => 'imap.example.org',
+            'imap_port' => '993',
+            'imap_encryption' => 'ssl',
+            'imap_username' => 'mailbox.tester@example.org',
+            'imap_password' => 'initial-password',
+        ]);
+        $this->controller->updateMailbox($request, $this->makeResponse());
+
+        $account = UserMailAccount::where('user_id', $this->user->id)->first();
+        $account->mail_consecutive_failures = 5;
+        $account->save();
+
+        $secondRequest = $this->makeRequest('POST', '/profile/mailbox', [
+            'imap_host' => 'imap.example.org',
+            'imap_port' => '993',
+            'imap_encryption' => 'ssl',
+            'imap_username' => 'mailbox.tester@example.org',
+            'imap_password' => 'corrected-password',
+        ]);
+        $this->controller->updateMailbox($secondRequest, $this->makeResponse());
+
+        $this->assertSame(
+            0,
+            (int) UserMailAccount::where('user_id', $this->user->id)->first()->mail_consecutive_failures
+        );
+    }
+
     public function testPortOutOfRangeIsRejectedWithCleanErrorRedirect(): void
     {
         $request = $this->makeRequest('POST', '/profile/mailbox', [

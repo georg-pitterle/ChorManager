@@ -495,6 +495,13 @@ class ProfileController
             'imap_username' => $imapUsername,
             'imap_enabled' => $imapEnabled,
             'mail_badge_enabled' => $mailBadgeEnabled,
+            // Neue Angaben, neuer Anlauf: Die gewachsene Wartezeit des
+            // Badge-Abgleichs (MailBadgeRefreshMiddleware) beginnt wieder bei
+            // fünf Minuten. Ohne das Zurücksetzen blieb ein Postfach, dessen
+            // Passwort gerade korrigiert wurde, noch bis zu zwei Stunden auf dem
+            // alten Zählerstand stehen - und genau wer es korrigiert, wartet auf
+            // den Zähler in der Leiste.
+            'mail_consecutive_failures' => 0,
         ];
 
         if ($hasExternalWebmailUrl) {
