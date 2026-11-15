@@ -46,9 +46,22 @@ final class AfterResponse
                 if (session_status() === PHP_SESSION_ACTIVE) {
                     session_write_close();
                 }
+
+                // Der Vermerk gehört an das Schließen der Sitzung, nicht an das
+                // Schließen der Verbindung. Er stand neben
+                // `fastcgi_finish_request()`, und die Funktion gibt es nur unter
+                // FastCGI: Unter jeder anderen Betriebsart - eingebauter
+                // Entwicklungsserver, mod_php - war die Sitzung danach zu, ohne
+                // dass es jemand vermerkte. Ein `ensureStarted()` aus einer
+                // nachgelagerten Aufgabe hätte sie dann wieder geöffnet und dabei
+                // die Sitzungssperre erneut genommen - genau die Sperre, um die
+                // herum diese Klasse gebaut ist. Heute startet keine dieser
+                // Aufgaben eine Sitzung; der Vermerk nimmt der nächsten die Falle
+                // weg.
+                SessionConfig::markReleased();
+
                 if (function_exists('fastcgi_finish_request')) {
                     fastcgi_finish_request();
-                    SessionConfig::markReleased();
                 }
             },
             !in_array(PHP_SAPI, ['cli', 'phpdbg'], true)

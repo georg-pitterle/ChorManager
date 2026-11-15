@@ -48,4 +48,31 @@ final class SessionConfigReleasedTest extends TestCase
 
         $this->assertFalse(SessionConfig::ensureStarted());
     }
+
+    /**
+     * Derselbe Nachweis, aber mit der echten Freigabe aus
+     * `AfterResponse::forCurrentRequest()` statt einer eigenen Abschrift im Test.
+     *
+     * Der Test oben setzt den Vermerk in seiner eigenen Freigabe-Funktion und
+     * belegt damit nur, dass `runPending()` sie aufruft. Die echte Funktion setzte
+     * ihn ausschließlich neben `fastcgi_finish_request()` - unter einer
+     * Betriebsart ohne diese Funktion (eingebauter Entwicklungsserver, mod_php)
+     * wurde die Sitzung also geschlossen, ohne dass es jemand vermerkte, und ein
+     * spätes `ensureStarted()` hätte sie samt Sperre wieder geöffnet. Genau das
+     * hält dieser Test fest: Die Freigabe gilt in jeder Betriebsart.
+     */
+    public function testRealReleaseMarksTheSessionAsReleasedWithoutFastcgi(): void
+    {
+        if (function_exists('fastcgi_finish_request')) {
+            self::markTestSkipped('Nur ohne fastcgi_finish_request nachweisbar.');
+        }
+
+        $afterResponse = AfterResponse::forCurrentRequest();
+        $afterResponse->defer(static function (): void {
+        });
+        $afterResponse->runPending();
+
+        $this->assertFalse(SessionConfig::ensureStarted());
+        $this->assertSame(PHP_SESSION_NONE, session_status());
+    }
 }
