@@ -89,8 +89,10 @@ class SponsorPackageController
                     'description' => trim(InputValidator::asString($data['description'] ?? null)) ?: null,
                     'min_amount'  => $minAmount,
                     'color'       => SponsorPackageColor::normalize($data['color'] ?? null),
-                    'needs_logo_print' => !empty($data['needs_logo_print']),
-                    'needs_logo_online' => !empty($data['needs_logo_online']),
+                    // Ein Häkchen im Formular setzt beide Spalten, siehe
+                    // SponsorshipController::logoNeeds().
+                    'needs_logo_print' => !empty($data['needs_logo']) || !empty($data['needs_logo_print']),
+                    'needs_logo_online' => !empty($data['needs_logo']) || !empty($data['needs_logo_online']),
                 ]);
                 $this->replaceLines($package->benefits(), $benefits['items'] ?? []);
                 $this->replaceLines($package->deliverables(), $deliverables['items'] ?? []);
@@ -155,8 +157,10 @@ class SponsorPackageController
                     'description' => trim(InputValidator::asString($data['description'] ?? null)) ?: null,
                     'min_amount'  => $minAmount,
                     'color'       => SponsorPackageColor::normalize($data['color'] ?? null),
-                    'needs_logo_print' => !empty($data['needs_logo_print']),
-                    'needs_logo_online' => !empty($data['needs_logo_online']),
+                    // Ein Häkchen im Formular setzt beide Spalten, siehe
+                    // SponsorshipController::logoNeeds().
+                    'needs_logo_print' => !empty($data['needs_logo']) || !empty($data['needs_logo_print']),
+                    'needs_logo_online' => !empty($data['needs_logo']) || !empty($data['needs_logo_online']),
                 ]);
                 // Fehlt das Feld ganz, bleibt die Liste, wie sie ist.
                 if ($benefits['items'] !== null) {
@@ -208,7 +212,7 @@ class SponsorPackageController
         try {
             $package = SponsorPackage::findOrFail($id);
             if ($package->sponsorships()->count() > 0) {
-                $_SESSION['error'] = 'Das Paket kann nicht gelöscht werden, da noch Vorgänge damit verknüpft sind.';
+                $_SESSION['error'] = 'Das Paket kann nicht gelöscht werden, da noch Anfragen damit verknüpft sind.';
                 return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
             }
             $package->delete();

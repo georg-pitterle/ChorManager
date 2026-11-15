@@ -118,7 +118,7 @@ class SponsoringAttachmentController
         $package = $sponsorship->package ? (string) $sponsorship->package->name : 'Ohne Paket';
 
         return $this->baseRow($attachment) + [
-            'context_label' => 'Vorgang',
+            'context_label' => 'Anfrage',
             'sponsor_name'  => (string) $sponsorship->sponsor->name,
             'sponsor_url'   => '/sponsoring/sponsors/' . $sponsorship->sponsor->id,
             'reference'     => $package,

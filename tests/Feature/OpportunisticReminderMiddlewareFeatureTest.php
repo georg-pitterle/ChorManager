@@ -248,7 +248,7 @@ final class OpportunisticReminderMiddlewareFeatureTest extends TestCase
      *
      * Vorher lag die Arbeit im Anfrageweg: Einmal pro Stunde wartete genau die
      * Person, deren Aufruf den Lauf auslöste, zusätzlich auf Datenbankabfragen
-     * über Aufgaben, Wiedervorlagen und Terminanmeldungen und auf das Aufräumen
+     * über Aufgaben, Erinnerungen und Terminanmeldungen und auf das Aufräumen
      * von Versandprotokoll und Glocken-Einträgen. Die Mailwarteschlange hatte
      * denselben Weg aus demselben Grund schon verlassen; hier fehlte er noch.
      *

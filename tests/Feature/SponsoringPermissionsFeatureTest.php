@@ -708,7 +708,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
     }
 
     /**
-     * Die Wiedervorlagen-Liste der Übersicht zeigt genau das, was diese Person
+     * Die Erinnerungen-Liste der Übersicht zeigt genau das, was diese Person
      * abhaken darf - also auch die Einträge fremder Urheber auf einer
      * Vereinbarung, für die sie zuständig ist.
      *
@@ -771,8 +771,8 @@ class SponsoringPermissionsFeatureTest extends TestCase
         $sponsor = $this->makeSponsor();
         $sponsorship = $this->makeSponsorship($sponsor, (int) $this->contributor->id);
 
-        $mine = $this->makeContact($sponsor, $sponsorship, (int) $this->contributor->id, 'Eigene Wiedervorlage');
-        $theirs = $this->makeContact($sponsor, $sponsorship, (int) $this->otherUser->id, 'Fremde Wiedervorlage');
+        $mine = $this->makeContact($sponsor, $sponsorship, (int) $this->contributor->id, 'Eigene Erinnerung');
+        $theirs = $this->makeContact($sponsor, $sponsorship, (int) $this->otherUser->id, 'Fremde Erinnerung');
 
         $controller = new SponsoringContactController($this->createStub(Twig::class), new SponsoringPolicy($_SESSION));
 
@@ -800,7 +800,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
 
     /**
      * Wer bei der Vereinbarung als zuständig eingetragen ist, hakt deren
-     * Wiedervorlagen ebenfalls ab - auch die, die jemand anderer protokolliert
+     * Erinnerungen ebenfalls ab - auch die, die jemand anderer protokolliert
      * hat. Sonst bleibt der Eintrag stehen, sobald die protokollierende Person
      * im Urlaub oder ausgetreten ist, und nur das Sponsoring-Team käme noch
      * heran. Das Ändern des Kontakts bleibt davon unberührt: die
@@ -815,7 +815,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
         $sponsorship->assigned_user_id = $this->contributor->id;
         $sponsorship->save();
 
-        $theirs = $this->makeContact($sponsor, $sponsorship, (int) $this->otherUser->id, 'Fremde Wiedervorlage');
+        $theirs = $this->makeContact($sponsor, $sponsorship, (int) $this->otherUser->id, 'Fremde Erinnerung');
 
         $controller = new SponsoringContactController($this->createStub(Twig::class), new SponsoringPolicy($_SESSION));
 
@@ -874,7 +874,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
         $foreignFile = $this->makeAttachment('sponsorship', (int) $foreign->id);
 
         // Ein fremd protokollierter Kontakt auf der eigenen Vereinbarung: Er
-        // steht in der Wiedervorlagen-Liste der Übersicht, und dort gehört
+        // steht in der Erinnerungen-Liste der Übersicht, und dort gehört
         // jetzt auch der Betrag hin.
         $contact = $this->makeContact($sponsor, $assignedToMe, (int) $this->otherUser->id, 'Fremd auf meiner');
 

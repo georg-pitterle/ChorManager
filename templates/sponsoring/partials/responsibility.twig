@@ -1,16 +1,22 @@
 {# Wer sich um einen Sponsor kümmert, aus SponsorResponsibility: die Personen der
-   laufenden Vorgänge, dahinter die Lücke. Neben einer Person sagt die Lücke, wie
+   laufenden Anfragen, dahinter die Lücke. Neben einer Person sagt die Lücke, wie
    viel fehlt - ein bloßes "niemand" stünde dort im Widerspruch zum Namen.
 
    Parameter:
-     responsibility  {assignees: list<User>, unassigned: int} #}
+     responsibility  {assignees: list<User>, unassigned: int}
+     show_email      Namen als mailto-Link (nur mit "Sponsoring verwalten")
+     mail_subject    Betreff dieser Mails #}
+{% import "sponsoring/partials/person.twig" as people %}
 {% set _unassigned = responsibility.unassigned %}
 {% set _has_people = responsibility.assignees|length > 0 %}
 {% if _has_people %}
-    {{ responsibility.assignees|map(person => person|person_name)|join(", ") }}
+    {% for assignee in responsibility.assignees -%}
+        {{ people.mail(assignee|person_name, show_email|default(false) ? assignee.email : null, mail_subject|default("Sponsoring")) }}
+        {%- if not loop.last %}, {% endif %}
+    {%- endfor %}
 {% endif %}
 {% if _unassigned > 0 and _has_people %}
-    <span class="badge text-bg-warning">{{ _unassigned }} {{ _unassigned == 1 ? "Vorgang" : "Vorgänge" }} ohne</span>
+    <span class="badge text-bg-warning">{{ _unassigned }} {{ _unassigned == 1 ? "Anfrage" : "Anfragen" }} ohne</span>
 {% elseif _unassigned > 0 %}
     <span class="badge text-bg-warning">niemand</span>
 {% elseif not _has_people %}

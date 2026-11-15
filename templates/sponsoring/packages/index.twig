@@ -11,7 +11,7 @@
         <div>
             <h1 class="h2 mb-1">Sponsoring-Pakete</h1>
             <p class="text-muted mb-0">
-                Was ein Sponsor ab welchem Betrag bekommt. Neue Vorgänge übernehmen die Gegenleistungen ihres Pakets.
+                Was ein Sponsor ab welchem Betrag bekommt. Mit der Zusage übernimmt eine Anfrage die Gegenleistungen ihres Pakets.
             </p>
         </div>
         <div class="page-actions">
@@ -70,7 +70,7 @@
                       rows="5"
                       id="{{ prefix }}-benefits">{{ (pkg.benefits ?? [])|map(b => b.description)|join("\n") }}</textarea>
             <div class="form-text">
-                Eine pro Zeile, z. B. „Logo im Programmheft“ oder „2 Freikarten“. Bestehende Vorgänge behalten ihre eigene Liste.
+                Eine pro Zeile, z. B. „Logo im Programmheft“ oder „2 Freikarten“. Bestehende Anfragen behalten ihre eigene Liste.
             </div>
         </div>
         <div class="col-12">
@@ -84,26 +84,17 @@
             </div>
         </div>
         <div class="col-12">
-            <span class="form-label d-block">Logo gebraucht für</span>
-            <div class="form-check form-check-inline">
+            {% set _needs_logo = pkg.needs_logo_print|default(false) or pkg.needs_logo_online|default(false) %}
+            <div class="form-check">
                 <input class="form-check-input"
                        type="checkbox"
-                       name="needs_logo_print"
+                       name="needs_logo"
                        value="1"
-                       {{ pkg.needs_logo_print|default(false) ? "checked" : "" }}
-                       id="{{ prefix }}-logo-print">
-                <label class="form-check-label" for="{{ prefix }}-logo-print">Druck (Plakat, Flyer, Programmheft)</label>
+                       {{ _needs_logo ? "checked" : "" }}
+                       id="{{ prefix }}-logo">
+                <label class="form-check-label" for="{{ prefix }}-logo">Logo gebraucht (Druck und online)</label>
             </div>
-            <div class="form-check form-check-inline">
-                <input class="form-check-input"
-                       type="checkbox"
-                       name="needs_logo_online"
-                       value="1"
-                       {{ pkg.needs_logo_online|default(false) ? "checked" : "" }}
-                       id="{{ prefix }}-logo-online">
-                <label class="form-check-label" for="{{ prefix }}-logo-online">online (Homepage, Social Media)</label>
-            </div>
-            <div class="form-text">Neue Vorgänge mit diesem Paket übernehmen die Auswahl; die Fristen stehen am Projekt.</div>
+            <div class="form-text">Zusagen mit diesem Paket übernehmen die Auswahl; die Fristen stehen am Projekt.</div>
         </div>
     </div>
 {% endmacro %}

@@ -11,7 +11,10 @@ use App\Models\Sponsor;
 use App\Models\SponsoringContact;
 use App\Models\Sponsorship;
 use App\Policies\SponsoringPolicy;
+use App\Services\NameFormatterService;
 use App\Util\InputValidator;
+use App\Util\SponsorshipStatus;
+use Illuminate\Database\Capsule\Manager as Capsule;
 
 class SponsoringContactController
 {
@@ -20,14 +23,91 @@ class SponsoringContactController
     private const MAX_SUMMARY_LENGTH = 2000;
 
     public const BLOCKED_ERROR = 'Dieser Sponsor hat sich weitere Anfragen verbeten.';
+    public const STATUS_ERROR = 'Ungültiger Status für die Anfrage.';
+
+    /**
+     * Erfolgsmeldung für einen Kontakt ohne Anfrage. Kein Fehler - ein
+     * Dankschreiben nach der Saison gehört zu keiner Anfrage -, aber im ersten
+     * Praxistest blieb der Sponsor so auf "Keine Anfrage", obwohl längst
+     * angefragt war.
+     */
+    public const NO_REQUEST_NOTICE = 'Kontakt protokolliert - er gehört zu keiner Anfrage. '
+        . 'Hast du den Sponsor angefragt, lege über "Neue Anfrage" eine an und ordne den Kontakt ihr zu.';
 
     private Twig $view;
     private SponsoringPolicy $policy;
 
-    public function __construct(Twig $view, SponsoringPolicy $policy)
+    private NameFormatterService $nameFormatter;
+
+    public function __construct(Twig $view, SponsoringPolicy $policy, ?NameFormatterService $nameFormatter = null)
     {
         $this->view = $view;
         $this->policy = $policy;
+        $this->nameFormatter = $nameFormatter ?? new NameFormatterService();
+    }
+
+    /**
+     * Alle protokollierten Kontakte. Die Übersicht zeigt nur die letzten fünf;
+     * wer nachsehen will, was im Frühjahr besprochen wurde, fand es bisher nur
+     * Sponsor für Sponsor.
+     *
+     * Dieselbe Sichtbarkeit wie "Letzte Kontakte" auf der Übersicht: mit dem
+     * Vollrecht alle, sonst die eigenen (SponsoringPolicy::ownContactUserIdFilter()).
+     * Die Zusammenfassung geht zusätzlich je Zeile durch canSeeContactDetails().
+     */
+    public function index(Request $request, Response $response): Response
+    {
+        if (!$this->policy->canContribute()) {
+            return $this->deny($response);
+        }
+
+        $ownUserId = $this->policy->ownContactUserIdFilter();
+        $statusLabels = SponsorshipStatus::labels();
+        $today = date('Y-m-d');
+
+        $contacts = SponsoringContact::with(['sponsor', 'user', 'sponsorship.project'])
+            ->when($ownUserId !== null, static fn ($query) => $query->where('user_id', $ownUserId))
+            ->orderBy('contact_date', 'desc')
+            ->orderBy('id', 'desc')
+            ->get()
+            ->map(function (SponsoringContact $contact) use ($statusLabels, $today): array {
+                $sponsorship = $contact->sponsorship;
+                $type = (string) ($contact->type ?? SponsoringContact::TYPE_OTHER);
+                $followUp = $contact->follow_up_date?->format('Y-m-d');
+
+                return [
+                    'id' => (int) $contact->id,
+                    'contact_date_display' => $contact->contact_date?->format('d.m.Y') ?? '–',
+                    'contact_date_sort' => $contact->contact_date?->format('Y-m-d') ?? '',
+                    'sponsor_name' => (string) ($contact->sponsor->name ?? '–'),
+                    'sponsor_url' => '/sponsoring/sponsors/' . $contact->sponsor_id,
+                    'has_request' => $sponsorship !== null,
+                    'request_label' => $sponsorship === null
+                        ? ''
+                        : ($sponsorship->project ? (string) $sponsorship->project->name : 'Ohne Projekt'),
+                    'request_status' => $sponsorship === null ? '' : ($statusLabels[$sponsorship->status] ?? ''),
+                    'type_label' => SponsoringContact::TYPE_LABELS[$type]
+                        ?? SponsoringContact::TYPE_LABELS[SponsoringContact::TYPE_OTHER],
+                    'summary' => $this->policy->canSeeContactDetails($contact) ? (string) $contact->summary : null,
+                    'owner_name' => $contact->user !== null ? $this->nameFormatter->formatPerson($contact->user) : '–',
+                    // Die Adresse nur für das Sponsoring-Team, das nicht jedes
+                    // Mitglied kennt (dieselbe Regel wie auf der Übersicht).
+                    'owner_email' => $contact->user !== null && $this->policy->canManageAll()
+                        ? (string) $contact->user->email
+                        : null,
+                    'follow_up_display' => $contact->follow_up_date?->format('d.m.Y'),
+                    'follow_up_sort' => $followUp ?? '',
+                    'follow_up_done' => (bool) $contact->follow_up_done,
+                    'follow_up_overdue' => $followUp !== null && !$contact->follow_up_done && $followUp < $today,
+                ];
+            })
+            ->all();
+
+        return $this->view->render($response, 'sponsoring/contacts/index.twig', [
+            'contacts' => $contacts,
+            'shows_own_only' => $ownUserId !== null,
+            'active_nav' => 'sponsoring',
+        ]);
     }
 
     public function create(Request $request, Response $response): Response
@@ -52,13 +132,32 @@ class SponsoringContactController
             return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
         }
 
+        // Der Kontakt darf den Status seiner Anfrage gleich mit ändern: Eine
+        // Absage am Telefon ist ein Kontakt UND ein neuer Status, und als zwei
+        // getrennte Schritte blieb der zweite liegen.
+        $newStatus = trim(InputValidator::asString($data['sponsorship_status'] ?? null));
+        if ($newStatus !== '' && !SponsorshipStatus::isValid($newStatus)) {
+            $_SESSION['error'] = self::STATUS_ERROR;
+            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+        }
+
+        $sponsorshipId = $validation['values']['sponsorship_id'];
+
         try {
-            SponsoringContact::create($validation['values'] + [
-                'sponsor_id'     => $sponsorId,
-                'user_id'        => $this->policy->currentUserId(),
-                'follow_up_done' => 0,
-            ]);
-            $_SESSION['success'] = 'Kontakt erfolgreich protokolliert.';
+            Capsule::connection()->transaction(function () use ($validation, $sponsorId, $sponsorshipId, $newStatus): void {
+                SponsoringContact::create($validation['values'] + [
+                    'sponsor_id'     => $sponsorId,
+                    'user_id'        => $this->policy->currentUserId(),
+                    'follow_up_done' => 0,
+                ]);
+
+                if ($newStatus !== '' && $sponsorshipId !== null) {
+                    $this->applyStatus((int) $sponsorshipId, $newStatus);
+                }
+            });
+            $_SESSION['success'] = $sponsorshipId === null
+                ? self::NO_REQUEST_NOTICE
+                : 'Kontakt erfolgreich protokolliert.';
         } catch (\Throwable $e) {
             $_SESSION['error'] = 'Fehler beim Speichern des Kontakts.';
         }
@@ -88,9 +187,9 @@ class SponsoringContactController
 
             $contact->update(['follow_up_done' => 1]);
             $sponsorId = (int) $contact->sponsor_id;
-            $_SESSION['success'] = 'Wiedervorlage als erledigt markiert.';
+            $_SESSION['success'] = 'Erinnerung als erledigt markiert.';
         } catch (\Throwable $e) {
-            $_SESSION['error'] = 'Fehler beim Aktualisieren der Wiedervorlage.';
+            $_SESSION['error'] = 'Fehler beim Aktualisieren der Erinnerung.';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 
@@ -172,6 +271,30 @@ class SponsoringContactController
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
     }
 
+    /**
+     * Setzt den Status der Anfrage, sofern die Person sie ändern darf. Fehlt das
+     * Recht, bleibt der Status stehen und der Kontakt wird trotzdem gespeichert:
+     * Protokollieren darf jedes beitragende Mitglied, das Formular bietet den
+     * Status bei fremden Anfragen gar nicht erst an.
+     *
+     * Ein Paket bleibt nur an einem Status, der eines trägt - dieselbe Regel
+     * wie in SponsorshipController.
+     */
+    private function applyStatus(int $sponsorshipId, string $status): void
+    {
+        $sponsorship = Sponsorship::find($sponsorshipId);
+        if ($sponsorship === null || !$this->policy->canEditSponsorship($sponsorship)) {
+            return;
+        }
+
+        $changes = ['status' => $status];
+        if (!SponsorshipStatus::allowsPackage($status)) {
+            $changes['package_id'] = null;
+        }
+
+        $sponsorship->update($changes);
+    }
+
     private function deny(Response $response): Response
     {
         $response->getBody()->write('Zugriff verweigert.');
@@ -216,7 +339,7 @@ class SponsoringContactController
         }
 
         if ($followUpDate !== '' && !$this->isValidDate($followUpDate)) {
-            return $fail('Ungültiges Wiedervorlage-Datum.');
+            return $fail('Ungültiges Erinnerungsdatum.');
         }
 
         if (mb_strlen($summary) > self::MAX_SUMMARY_LENGTH) {
@@ -224,7 +347,7 @@ class SponsoringContactController
         }
 
         if ($sponsorshipId !== null && !$this->isSponsorshipLinkedToSponsor($sponsorshipId, $sponsorId)) {
-            return $fail('Ungültiger Vorgang für diesen Sponsor.');
+            return $fail('Ungültige Anfrage für diesen Sponsor.');
         }
 
         return [

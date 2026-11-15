@@ -1,5 +1,7 @@
-(function (document) {
+(function (root) {
     "use strict";
+
+    const document = root.document;
 
     // Ausgehandelt wird je Projekt, deshalb deckt sich der Zeitraum einer
     // Vereinbarung fast immer mit dem des Projekts. Das Formular schlägt ihn
@@ -11,15 +13,25 @@
         return field.dataset.suggestedValue || "";
     }
 
+    // Unberührt ist ein leeres Feld oder eines mit dem letzten Vorschlag. Beim
+    // Betrag zählt auch 0 als leer: Eine gespeicherte Anfrage steht im
+    // Bearbeiten-Dialog mit "0.00" da, und seit das Paket erst bei der Zusage
+    // wählbar ist, ist das der Regelfall - der Mindestbetrag kam sonst nie an.
+    function isUntouched(current, suggested, isAmount) {
+        if (current === "" || current === suggested) {
+            return true;
+        }
+
+        return isAmount && Number.parseFloat(current) === 0;
+    }
+
     function applySuggestion(field, value) {
         if (!field) {
             return;
         }
 
-        const current = field.value;
-        const isUntouched = current === "" || current === suggestedValue(field);
-
-        if (!isUntouched) {
+        const isAmount = field.matches("[data-sponsorship-amount]");
+        if (!isUntouched(field.value, suggestedValue(field), isAmount)) {
             return;
         }
 
@@ -60,11 +72,34 @@
             return;
         }
 
+        // Ohne Anfrage warnt der Dialog; mit einer Anfrage, die man ändern
+        // darf, bietet er deren Status gleich mit an.
+        const hint = modal.querySelector("[data-contact-no-request-hint]");
+        const statusField = modal.querySelector("[data-contact-status-field]");
+        const sync = function () {
+            const option = select.options[select.selectedIndex];
+            const hasRequest = select.value !== "";
+            const maySetStatus = hasRequest && option && option.dataset.maySetStatus === "1";
+
+            if (hint) {
+                hint.classList.toggle("d-none", hasRequest);
+            }
+            if (statusField) {
+                statusField.classList.toggle("d-none", !maySetStatus);
+                if (!maySetStatus) {
+                    statusField.querySelector("select").value = "";
+                }
+            }
+        };
+
+        select.addEventListener("change", sync);
         document.querySelectorAll("[data-contact-sponsorship]").forEach(function (trigger) {
             trigger.addEventListener("click", function () {
                 select.value = trigger.dataset.contactSponsorship || "";
+                sync();
             });
         });
+        sync();
     }
 
     const euro = new Intl.NumberFormat("de-AT", { style: "currency", currency: "EUR" });
@@ -81,8 +116,7 @@
 
         const benefits = form.querySelector("[data-sponsorship-benefits]");
         const deliverables = form.querySelector("[data-sponsorship-deliverables]");
-        const logoPrint = form.querySelector("[data-sponsorship-logo-print]");
-        const logoOnline = form.querySelector("[data-sponsorship-logo-online]");
+        const logo = form.querySelector("[data-sponsorship-logo]");
         const amount = form.querySelector("[data-sponsorship-amount]");
         const hint = form.querySelector("[data-sponsorship-min-hint]");
 
@@ -114,11 +148,8 @@
             }
             // Wofür das Logo gebraucht wird, gibt das Paket vor - wie bei den
             // Leistungen ein Vorschlag, den man danach ändern kann.
-            if (option && logoPrint && option.dataset.needsLogoPrint !== undefined) {
-                logoPrint.checked = option.dataset.needsLogoPrint === "1";
-            }
-            if (option && logoOnline && option.dataset.needsLogoOnline !== undefined) {
-                logoOnline.checked = option.dataset.needsLogoOnline === "1";
+            if (option && logo && option.dataset.needsLogo !== undefined) {
+                logo.checked = option.dataset.needsLogo === "1";
             }
             if (option && amount && option.dataset.minAmount) {
                 applySuggestion(amount, Number.parseFloat(option.dataset.minAmount).toFixed(2));
@@ -130,6 +161,30 @@
             amount.addEventListener("input", updateMinHint);
         }
         updateMinHint();
+    }
+
+    // Ein Paket steht erst mit der Zusage fest. Bis dahin ist die Auswahl
+    // gesperrt; ein gesperrtes Feld schickt der Browser nicht mit, und der
+    // SponsorshipController verwirft ein Paket zu einem anderen Status ohnehin.
+    function bindStatusSelect(select) {
+        const form = select.closest("form");
+        const packageSelect = form ? form.querySelector("[data-sponsorship-package]") : null;
+        if (!packageSelect) {
+            return;
+        }
+
+        const hint = form.querySelector("[data-sponsorship-package-hint]");
+        const allowed = (select.dataset.packageStatuses || "").split(",");
+        const sync = function () {
+            const open = allowed.indexOf(select.value) !== -1;
+            packageSelect.disabled = !open;
+            if (hint) {
+                hint.classList.toggle("d-none", open);
+            }
+        };
+
+        select.addEventListener("change", sync);
+        sync();
     }
 
     // Ein Schalter blendet das Feld ein, das nur mit ihm Sinn ergibt - etwa die
@@ -148,10 +203,19 @@
         sync();
     }
 
+    if (typeof module !== "undefined" && module.exports) {
+        module.exports = { isUntouched: isUntouched };
+    }
+
+    if (!document) {
+        return;
+    }
+
     document.addEventListener("DOMContentLoaded", function () {
         document.querySelectorAll("[data-sponsorship-project]").forEach(bindProjectSelect);
         document.querySelectorAll("[data-sponsorship-package]").forEach(bindPackageSelect);
+        document.querySelectorAll("[data-sponsorship-status]").forEach(bindStatusSelect);
         document.querySelectorAll("[data-reveals]").forEach(bindReveal);
         bindContactShortcuts();
     });
-})(document);
+})(typeof window !== "undefined" ? window : globalThis);

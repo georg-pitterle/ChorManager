@@ -137,7 +137,7 @@ final class NotificationReminderFeatureTest extends TestCase
         $this->service()->processDue(self::BASE_URL);
 
         $entry = UserNotification::where('user_id', $this->bernd->id)->firstOrFail();
-        $this->assertSame('Wiedervorlage: Musikhaus Klang', $entry->title);
+        $this->assertSame('Sponsoring-Erinnerung: Musikhaus Klang', $entry->title);
         $this->assertSame('/sponsoring/sponsors/' . $sponsor->id, $entry->link);
         $this->assertSame('sponsor', $entry->entity_type);
         $this->assertSame((int) $sponsor->id, $entry->entity_id);

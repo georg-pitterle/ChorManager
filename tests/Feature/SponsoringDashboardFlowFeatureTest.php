@@ -71,7 +71,7 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
         $this->assertStringContainsString('contact.agreement_amount_display', $templateContent);
         $this->assertStringContainsString('contact.agreement_status_label', $templateContent);
         $this->assertStringContainsString('contact.mark_done_url', $templateContent);
-        $this->assertStringContainsString('Keine Wiedervorlagen in den nächsten 7 Tagen vorhanden.', $templateContent);
+        $this->assertStringContainsString('Keine Erinnerungen in den nächsten 7 Tagen.', $templateContent);
     }
 
     public function testMarkDoneRedirectsToDashboardWhenDashboardOriginIsProvided(): void

@@ -1,6 +1,7 @@
 {% extends "layout.twig" %}
 
 {% import "macros/help.twig" as help %}
+{% import "sponsoring/partials/person.twig" as people %}
 
 {% block title %}
     Sponsoring - {{ app_settings.app_name|default("Chor-Manager") }}
@@ -33,6 +34,8 @@
 {% block content %}
     {{ include("sponsoring/partials/subnav.twig", {subnav_active: "overview"}) }}
 
+    {{ include("sponsoring/partials/guide.twig") }}
+
     <div class="sponsoring-board">
         {% if can_manage_all %}
             {# Die Personen stehen in jeder Zeile: einmal bauen statt je Zeile neu. #}
@@ -48,7 +51,7 @@
                     <span class="sponsoring-panel-count">{{ unassigned|length }}</span>
                 </header>
                 <p class="sponsoring-panel-lead">
-                    Laufende Vorgänge, um die sich niemand kümmert - Zusagen zuerst.
+                    Offene Anfragen und Zusagen, um die sich niemand kümmert - Zusagen zuerst.
                 </p>
                 {% if unassigned|length > 0 %}
                     <ul class="work-list">
@@ -80,7 +83,7 @@
                         {% endfor %}
                     </ul>
                 {% else %}
-                    <p class="sponsoring-panel-empty">Jeder laufende Vorgang hat eine zuständige Person.</p>
+                    <p class="sponsoring-panel-empty">Jede offene Anfrage und jede Zusage hat eine zuständige Person.</p>
                 {% endif %}
             </section>
         {% endif %}
@@ -110,7 +113,13 @@
                                     ohne Frist
                                 {% endif %}
                                 · {{ row.project_name|default("Ohne Projekt") }}
-                                · Zuständig: {{ row.assignees ? row.assignees|join(", ") : "niemand" }}
+                                · Zuständig:
+                                {% for contact_person in row.assignee_contacts -%}
+                                    {{ people.mail(contact_person.name, contact_person.email, "Sponsoring: " ~ row.sponsor_name ~ " – Logo") }}
+                                    {%- if not loop.last %}, {% endif %}
+                                {%- else -%}
+                                    niemand
+                                {%- endfor %}
                             </p>
                         </li>
                     {% endfor %}
@@ -154,12 +163,12 @@
 
         <section class="sponsoring-panel" aria-labelledby="sponsoring-followups-title">
             <header class="sponsoring-panel-head">
-                <h2 class="sponsoring-panel-title" id="sponsoring-followups-title">Wiedervorlagen</h2>
+                <h2 class="sponsoring-panel-title" id="sponsoring-followups-title">Erinnerungen</h2>
                 <span class="sponsoring-panel-count">{{ upcoming_follow_ups|length }}</span>
             </header>
             <p class="sponsoring-panel-lead">
                 {% if shows_own_only %}
-                    Deine Wiedervorlagen und die deiner Vorgänge, fällig in den nächsten 7 Tagen.
+                    Deine Erinnerungen und die deiner Anfragen, fällig in den nächsten 7 Tagen.
                 {% else %}
                     Alles, was in den nächsten 7 Tagen fällig ist - Überfälliges zuerst.
                 {% endif %}
@@ -188,9 +197,14 @@
                                         {% if contact.agreement_amount_display != "-" %}
                                             · {{ contact.agreement_amount_display }}
                                         {% endif %}
-                                        · Zuständig: {{ contact.assignee_name ?? "niemand" }}
+                                        · Zuständig:
+                                        {% if contact.assignee_name %}
+                                            {{ people.mail(contact.assignee_name, contact.assignee_email, "Sponsoring: " ~ contact.sponsor_name) }}
+                                        {% else %}
+                                            niemand
+                                        {% endif %}
                                     {% endif %}
-                                    · von {{ contact.owner_name }}
+                                    · von {{ people.mail(contact.owner_name, contact.owner_email, "Sponsoring: " ~ contact.sponsor_name) }}
                                 </p>
                             </div>
                             <form method="post" action="{{ contact.mark_done_url }}" class="work-item-action">
@@ -200,7 +214,7 @@
                     {% endfor %}
                 </ul>
             {% else %}
-                <p class="sponsoring-panel-empty">Keine Wiedervorlagen in den nächsten 7 Tagen vorhanden.</p>
+                <p class="sponsoring-panel-empty">Keine Erinnerungen in den nächsten 7 Tagen.</p>
             {% endif %}
         </section>
 
@@ -224,7 +238,12 @@
                             </div>
                             <p class="work-item-meta">
                                 {{ row.project_name }}{% if row.end_date_display %} · bis {{ row.end_date_display }}{% endif %}
-                                · Zuständig: {{ row.assignee_name ?? "niemand" }}
+                                · Zuständig:
+                                {% if row.assignee_name %}
+                                    {{ people.mail(row.assignee_name, row.assignee_email, "Sponsoring: " ~ row.sponsor_name) }}
+                                {% else %}
+                                    niemand
+                                {% endif %}
                             </p>
                             {{ include("sponsoring/partials/benefit_list.twig", {benefits: row.benefits}) }}
                         </li>
@@ -255,7 +274,12 @@
                             </div>
                             <p class="work-item-meta">
                                 {{ row.project_name }}{% if row.end_date_display %} · bis {{ row.end_date_display }}{% endif %}
-                                · Zuständig: {{ row.assignee_name ?? "niemand" }}
+                                · Zuständig:
+                                {% if row.assignee_name %}
+                                    {{ people.mail(row.assignee_name, row.assignee_email, "Sponsoring: " ~ row.sponsor_name) }}
+                                {% else %}
+                                    niemand
+                                {% endif %}
                             </p>
                             {{ include("sponsoring/partials/benefit_list.twig", {benefits: row.benefits, field: "received", done_word: "erhalten"}) }}
                         </li>
@@ -273,31 +297,14 @@
                     <span class="sponsoring-panel-count">{{ unpaid|length }}</span>
                 </header>
                 <p class="sponsoring-panel-lead">Zusagen, bei denen das Geld noch nicht eingegangen ist.</p>
-                {% if unpaid|length > 0 %}
-                    <ul class="work-list">
-                        {% for row in unpaid %}
-                            <li class="work-item">
-                                <div class="work-item-main">
-                                    <div class="work-item-title">
-                                        <a href="{{ row.sponsor_url }}">{{ row.sponsor_name }}</a>
-                                    </div>
-                                    <p class="work-item-meta">
-                                        {{ row.project_name }} · Zuständig: {{ row.assignee_name ?? "niemand" }}
-                                    </p>
-                                </div>
-                                <span class="work-item-amount">{{ row.amount|number_format(2, ",", ".") }} €</span>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    <p class="sponsoring-panel-empty">Alle Zusagen sind bezahlt.</p>
-                {% endif %}
+                {{ include("sponsoring/partials/unpaid_list.twig") }}
             </section>
         {% endif %}
 
         <section class="sponsoring-panel" aria-labelledby="sponsoring-contacts-title">
             <header class="sponsoring-panel-head">
                 <h2 class="sponsoring-panel-title" id="sponsoring-contacts-title">Letzte Kontakte</h2>
+                <a href="/sponsoring/contacts" class="small">Alle Kontakte</a>
             </header>
             <p class="sponsoring-panel-lead">
                 {% if shows_own_only %}
@@ -321,7 +328,8 @@
                                 <p class="work-item-text">{{ contact.summary }}</p>
                             {% endif %}
                             <p class="work-item-meta">
-                                {{ contact.contact_date_display }} · {{ contact.contact_type_label }} · {{ contact.owner_name }}
+                                {{ contact.contact_date_display }} · {{ contact.contact_type_label }} ·
+                                {{ people.mail(contact.owner_name, contact.owner_email, "Sponsoring: " ~ contact.sponsor_name) }}
                             </p>
                         </li>
                     {% endfor %}
@@ -332,3 +340,8 @@
         </section>
     </div>
 {% endblock content %}
+
+{% block scripts %}
+    {{ parent() }}
+    <script src="/js/video-embed.js"></script>
+{% endblock scripts %}

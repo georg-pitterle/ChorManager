@@ -81,6 +81,9 @@ class EntityAttachmentService
      *        Eigene Regel für Typ und Größe statt UploadValidator::validateFileSize() - die
      *        Logo-Dateien eines Sponsors erlauben Vektor- und Archivformate bis 50 MB
      *        (App\Util\SponsorLogoUpload). Alles Übrige am Ablauf bleibt gleich.
+     * @param callable(string): string|null $rename Macht aus dem Namen des Hochladenden den
+     *        Namen, unter dem die Datei geführt wird - Verträge an einer Sponsoring-Anfrage
+     *        heißen nach Firma, Projekt und Paket (App\Util\SponsorshipFileName).
      * @return array{stored: int, error: ?string, ids: list<int>}
      */
     public function storeUploads(
@@ -88,7 +91,8 @@ class EntityAttachmentService
         string $entityType,
         int $entityId,
         ?callable $extraColumns = null,
-        ?callable $validate = null
+        ?callable $validate = null,
+        ?callable $rename = null
     ): array {
         if ($files === null) {
             return ['stored' => 0, 'error' => null, 'ids' => []];
@@ -144,6 +148,10 @@ class EntityAttachmentService
             if ($clientFilename === '') {
                 $error ??= 'Dateiname fehlt.';
                 continue;
+            }
+
+            if ($rename !== null) {
+                $clientFilename = $rename($clientFilename);
             }
 
             $columns = [

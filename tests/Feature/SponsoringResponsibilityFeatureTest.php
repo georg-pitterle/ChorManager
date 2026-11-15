@@ -28,7 +28,7 @@ use Tests\Unit\Bootstrap;
 /**
  * Wer kümmert sich um welchen Sponsor?
  *
- * Die Zuständigkeit steht am einzelnen Vorgang, weil Rechte daran hängen. Die
+ * Die Zuständigkeit steht an der einzelnen Anfrage, weil Rechte daran hängen. Die
  * Organisation fragt aber nach dem Sponsor - und bekam die Antwort bisher nur,
  * indem sie jeden Sponsor einzeln öffnete. Die Sponsorenliste fasst die
  * Zuständigen deshalb zusammen, das Dashboard nennt die Lücken, und das
@@ -132,7 +132,7 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
     {
         // Dieselbe Überlegung wie beim archivierten Konto: Eingetragen bleiben
         // darf sie, kümmern kann sie sich nicht. Ohne eines der beiden
-        // Sponsoring-Rechte bekäme sie auf /sponsoring eine 403 - der Vorgang
+        // Sponsoring-Rechte bekäme sie auf /sponsoring eine 403 - die Anfrage
         // sähe versorgt aus, und niemand würde ihn vermissen.
         $sponsor = Sponsor::create(['name' => 'Rechtlos GmbH']);
         $this->case($sponsor, SponsorshipStatus::ACCEPTED, $this->person('Ohne', 'Recht'));
@@ -159,7 +159,7 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
      *
      * assign() lässt nur eine echte Lücke zuweisen, damit die Einsicht in Betrag
      * und Belege nicht aus einem veralteten Tab heraus still wandert. Solange
-     * allein `is_active` zählte, galt ein Vorgang mit rechtloser Person als
+     * allein `is_active` zählte, galt eine Anfrage mit rechtloser Person als
      * versorgt: Er stand nirgends als Lücke, und zuweisen ließ er sich auch
      * nicht mehr - eine Zeile, die niemand mehr aufräumen konnte.
      */
@@ -214,14 +214,14 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
     public function testTheDashboardListsOngoingCasesWithoutAPersonAcceptedFirst(): void
     {
         $this->case(Sponsor::create(['name' => 'A Anfrage']), SponsorshipStatus::REQUESTED, null);
-        $this->case(Sponsor::create(['name' => 'B Erinnert']), SponsorshipStatus::REMINDED, null);
+        $this->case(Sponsor::create(['name' => 'B Nachgefragt']), SponsorshipStatus::REMINDED, null);
         $this->case(Sponsor::create(['name' => 'Z Zusage']), SponsorshipStatus::ACCEPTED, null);
         $this->case(Sponsor::create(['name' => 'Versorgt']), SponsorshipStatus::ACCEPTED, $this->anna);
         $this->case(Sponsor::create(['name' => 'Fertig']), SponsorshipStatus::CLOSED, null);
         $this->case(Sponsor::create(['name' => 'Abgesagt']), SponsorshipStatus::DECLINED, null);
 
         $this->assertSame(
-            ['Z Zusage', 'A Anfrage', 'B Erinnert'],
+            ['Z Zusage', 'A Anfrage', 'B Nachgefragt'],
             array_column($this->unassigned(), 'sponsor_name')
         );
     }
@@ -269,7 +269,7 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
         $html = $this->renderDashboard();
 
         // Offene Gegenleistungen, offene Leistungen des Sponsors, Zahlung offen.
-        $this->assertSame(3, substr_count($html, 'Zuständig: Bernd Berger'));
+        $this->assertSame(3, substr_count($this->visibleText($html), 'Zuständig: Bernd Berger'));
     }
 
     public function testTheDashboardOffersTheAssignedPersonOnlyDeliverablesToTick(): void
@@ -314,7 +314,7 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
     public function testAContributorMayNotAssignEvenOnTheirOwnCase(): void
     {
         $this->loginAs(false);
-        $case = $this->case(Sponsor::create(['name' => 'Eigener Vorgang']), SponsorshipStatus::REQUESTED, null);
+        $case = $this->case(Sponsor::create(['name' => 'Eigene Anfrage']), SponsorshipStatus::REQUESTED, null);
         $case->update(['created_by_user_id' => $this->manager->id]);
 
         $response = $this->assign($case, (string) $this->anna->id);
@@ -348,7 +348,7 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
 
     public function testAPersonWithoutSponsoringRightIsNeitherOfferedNorAccepted(): void
     {
-        // Sie sähe den Vorgang nie: /sponsoring antwortet ihr mit 403. Die Lücke
+        // Sie sähe die Anfrage nie: /sponsoring antwortet ihr mit 403. Die Lücke
         // verschwände aus der Liste, ohne dass sich jemand kümmert.
         $outsider = $this->person('Olga', 'Ohnerecht');
         $case = $this->case(Sponsor::create(['name' => 'Ohne Recht']), SponsorshipStatus::ACCEPTED, null);
@@ -386,7 +386,7 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
     public function testTheWorkListsTreatAnArchivedPersonAsNobody(): void
     {
         // Beitragende sehen "Ohne Zuständigkeit" nicht. Stünde hier der Name,
-        // hielten sie den Vorgang für versorgt.
+        // hielten sie die Anfrage für versorgt.
         $sponsor = Sponsor::create(['name' => 'Verwaiste Liste']);
         $case = $this->case($sponsor, SponsorshipStatus::ACCEPTED, $this->archivedPerson());
         $case->update(['amount' => '500.00', 'needs_logo_print' => true]);
@@ -396,7 +396,7 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
         $html = $this->renderDashboard();
 
         $this->assertStringNotContainsString('Ehemals Dabei', $html);
-        $this->assertStringContainsString('Zuständig: niemand', $html);
+        $this->assertStringContainsString('Zuständig: niemand', $this->visibleText($html));
     }
 
     public function testTheEditDialogKeepsAnArchivedPerson(): void
@@ -418,7 +418,7 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
     public function testTheEditDialogOffersOnlyPeopleWithSponsoringRight(): void
     {
         // Gleiche Strenge wie beim Zuweisen aus "Ohne Zuständigkeit": Wer kein
-        // Sponsoring-Recht hält, bekäme auf /sponsoring eine 403 - der Vorgang
+        // Sponsoring-Recht hält, bekäme auf /sponsoring eine 403 - die Anfrage
         // sähe versorgt aus, ohne dass sich jemand kümmern kann.
         $outsider = $this->person('Ohne', 'Recht');
         $sponsor = Sponsor::create(['name' => 'Auswahlfirma']);
@@ -487,7 +487,7 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
         );
 
         $this->assertSame('/sponsoring', $response->getHeaderLine('Location'));
-        $this->assertSame('Vorgang nicht gefunden.', $_SESSION['error']);
+        $this->assertSame('Anfrage nicht gefunden.', $_SESSION['error']);
     }
 
     public function testTheSponsorListShowsWhoIsResponsibleAndOffersTheFilter(): void
@@ -501,7 +501,7 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
 
         $this->assertStringContainsString('data-label="Zuständig"', $html);
         $this->assertStringContainsString('Anna Aigner', $html);
-        $this->assertStringContainsString('1 Vorgang ohne', $html);
+        $this->assertStringContainsString('1 Anfrage ohne', $html);
         $this->assertStringContainsString('data-assignees="' . $this->anna->id . ' none"', $html);
         $this->assertStringContainsString('data-assignees="none"', $html);
         $this->assertStringContainsString('data-table-plugins="sponsorState,sponsorCategory,sponsorAssignee"', $html);
@@ -529,7 +529,7 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
 
         $html = $this->renderSponsorPage($sponsor);
 
-        $this->assertMatchesRegularExpression('~<dt>Zuständig</dt>\s*<dd>\s*Bernd Berger~u', $html);
+        $this->assertStringContainsString('Zuständig Bernd Berger', $this->visibleText($html));
     }
 
     /**
@@ -606,6 +606,16 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
             new NameFormatterService(),
             new SponsoringPolicy($_SESSION)
         ));
+    }
+
+    /**
+     * Der Text, wie ihn jemand liest: ohne Markup, Leerraum zusammengefasst.
+     * Namen sind für das Sponsoring-Team mailto-Links und stehen dafür auf
+     * eigenen Zeilen im Markup.
+     */
+    private function visibleText(string $html): string
+    {
+        return trim((string) preg_replace('/\s+/u', ' ', html_entity_decode(strip_tags($html))));
     }
 
     private function renderDashboard(): string

@@ -1,0 +1,50 @@
+{# Zusagen, bei denen das Geld noch aussteht, je Zeile mit "Zahlung bestätigen".
+   Steht auf der Sponsoring-Übersicht und, für den Kassier ohne Sponsoring-Recht,
+   allein auf /sponsoring/payments.
+
+   Parameter:
+     unpaid         Zeilen aus SponsoringDashboardController::unpaidCommitments()
+     today_iso      Vorgabe für das Datumsfeld
+     link_sponsors  ob der Sponsorname zur Sponsorseite führt (Vorgabe: ja) #}
+{% import "sponsoring/partials/person.twig" as people %}
+{% if unpaid|length > 0 %}
+    <ul class="work-list">
+        {% for row in unpaid %}
+            <li class="work-item work-item--payment">
+                <div class="work-item-main">
+                    <div class="work-item-title">
+                        {% if link_sponsors ?? true %}
+                            <a href="{{ row.sponsor_url }}">{{ row.sponsor_name }}</a>
+                        {% else %}
+                            {{ row.sponsor_name }}
+                        {% endif %}
+                        <span class="work-item-amount">{{ row.amount|number_format(2, ",", ".") }} €</span>
+                    </div>
+                    <p class="work-item-meta">
+                        {{ row.project_name }} · Zuständig:
+                        {% if row.assignee_name %}
+                            {{ people.mail(row.assignee_name, row.assignee_email, "Sponsoring: " ~ row.sponsor_name ~ " – Zahlung") }}
+                        {% else %}
+                            niemand
+                        {% endif %}
+                    </p>
+                </div>
+                <form method="post" action="{{ row.confirm_url }}" class="work-item-payment">
+                    <label class="visually-hidden" for="paid-at-{{ row.id }}">
+                        Zahlung von {{ row.sponsor_name }} eingegangen am
+                    </label>
+                    <input type="date"
+                           name="paid_at"
+                           class="form-control form-control-sm"
+                           value="{{ today_iso }}"
+                           max="{{ today_iso }}"
+                           required
+                           id="paid-at-{{ row.id }}">
+                    <button type="submit" class="btn btn-sm btn-outline-success">Zahlung bestätigen</button>
+                </form>
+            </li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p class="sponsoring-panel-empty">Alle Zusagen sind bezahlt.</p>
+{% endif %}

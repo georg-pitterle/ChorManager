@@ -4711,6 +4711,103 @@ a:hover {
    wegen der man sie öffnet.
    ===================================================================== */
 
+/* Kurzanleitung auf der Sponsoring-Übersicht: aufklappbar, beim ersten Besuch offen. */
+.sponsoring-guide {
+    margin: 0 0 1.25rem;
+    padding: 0.75rem 1rem;
+    background: var(--surface-fill);
+    border: 1px solid var(--surface-border);
+    border-top: var(--surface-accent);
+    border-radius: var(--app-radius);
+}
+
+.sponsoring-guide-summary {
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.sponsoring-guide-body {
+    padding-top: 0.75rem;
+}
+
+.sponsoring-guide-steps {
+    display: grid;
+    gap: 0.4rem;
+    max-width: 70ch;
+    margin: 0 0 0.75rem;
+    padding-left: 1.25rem;
+}
+
+.sponsoring-guide-note {
+    margin: 0 0 0.75rem;
+    color: var(--bs-secondary-color);
+    font-size: var(--font-size-small);
+}
+
+.sponsoring-guide-videos {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
+    gap: 1rem;
+}
+
+/* Erklärvideo: lokales Vorschaubild, der YouTube-Rahmen erst nach dem Klick. */
+.video-embed {
+    margin: 0;
+}
+
+.video-embed-frame {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    border-radius: var(--app-radius);
+    background: #111;
+}
+
+.video-embed-poster,
+.video-embed-player {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    object-fit: cover;
+}
+
+/* Unten rechts: In der Mitte verdeckte der Knopf den Titel im Vorschaubild. */
+.video-embed-load {
+    position: absolute;
+    right: 0.75rem;
+    bottom: 0.75rem;
+    white-space: nowrap;
+}
+
+@media (max-width: 575.98px) {
+    .video-embed-load {
+        right: 0.5rem;
+        bottom: 0.5rem;
+        padding: 0.25rem 0.6rem;
+        font-size: var(--font-size-small);
+    }
+}
+
+.video-embed-caption {
+    margin-top: 0.4rem;
+}
+
+/* Hochformat-Fassung fürs Handy: Der Rahmen steht 9:16 und höchstens so hoch,
+   dass Knopf und Bildunterschrift noch auf den Bildschirm passen. Ohne eigenes
+   Hochformat-Bild steht das Querformat-Bild zentriert darin. */
+@media (max-width: 575.98px) {
+    .video-embed--has-portrait:not(.video-embed--landscape-loaded) .video-embed-frame {
+        aspect-ratio: 9 / 16;
+        width: min(100%, calc(75svh * 9 / 16));
+        margin-inline: auto;
+    }
+
+    .video-embed-poster--letterbox {
+        object-fit: contain;
+    }
+}
+
 /* Unternavigation: Unterstrich statt gefüllter Pille - eine gefüllte Pille in
    heller Vereinsfarbe hätte weiße Schrift auf Gelb gezeigt. Am Telefon wischbar. */
 .sponsoring-subnav {
@@ -4885,6 +4982,33 @@ a:hover {
 }
 
 .work-item-assign .btn {
+    flex: none;
+}
+
+/* Zahlung bestätigen: Datum und Knopf neben der Zeile, auf dem Handy darunter. */
+.work-item--payment {
+    flex-wrap: wrap;
+}
+
+.work-item--payment .work-item-main {
+    flex: 1 1 12rem;
+}
+
+.work-item-payment {
+    display: flex;
+    flex: 0 1 auto;
+    gap: 0.5rem;
+    max-width: 100%;
+    margin: 0;
+}
+
+.work-item-payment .form-control {
+    flex: 1 1 9.5rem;
+    width: auto;
+    min-width: 0;
+}
+
+.work-item-payment .btn {
     flex: none;
 }
 
@@ -5107,6 +5231,11 @@ a:hover {
 .agreement-files,
 .agreement-contacts {
     margin: 0;
+}
+
+/* Das Umbenennen-Feld klappt unter der Dateizeile auf, nicht daneben. */
+.agreement-file-rename {
+    flex-basis: 100%;
 }
 
 .agreement-files li,

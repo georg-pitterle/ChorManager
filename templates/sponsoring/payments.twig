@@ -1,0 +1,37 @@
+{% extends "layout.twig" %}
+
+{% block title %}
+    Sponsoring-Zahlungen - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <h1 class="h2 mb-1">Sponsoring-Zahlungen</h1>
+            <p class="text-muted mb-0">Zusagen von Sponsoren, bei denen das Geld noch nicht eingegangen ist.</p>
+        </div>
+        <div class="page-actions">
+            {% if has_sponsoring_access %}
+                <a href="/sponsoring" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-1" aria-hidden="true"></i>
+                    Zur Übersicht
+                </a>
+            {% endif %}
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    <div class="sponsoring-board">
+        <section class="sponsoring-panel" aria-labelledby="sponsoring-payments-title">
+            <header class="sponsoring-panel-head">
+                <h2 class="sponsoring-panel-title" id="sponsoring-payments-title">Zahlung offen</h2>
+                <span class="sponsoring-panel-count">{{ unpaid|length }}</span>
+            </header>
+            <p class="sponsoring-panel-lead">
+                Ist das Geld auf dem Konto, trag das Datum des Eingangs ein und bestätige die Zahlung.
+            </p>
+            {{ include("sponsoring/partials/unpaid_list.twig", {link_sponsors: has_sponsoring_access}) }}
+        </section>
+    </div>
+{% endblock content %}

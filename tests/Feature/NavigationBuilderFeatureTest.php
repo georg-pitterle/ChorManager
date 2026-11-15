@@ -216,6 +216,28 @@ class NavigationBuilderFeatureTest extends TestCase
         $this->assertContains('/projects', $masterData);
     }
 
+    /**
+     * Der Kassier ohne Sponsoring-Recht bekommt nur die offenen Zahlungen; wer
+     * den Sponsoring-Bereich hat, findet sie auf dessen Übersicht.
+     */
+    public function testSponsoringPaymentsAreForTheTreasurerWithoutSponsoringAccess(): void
+    {
+        $urls = static fn (array $entries): array => array_column($entries, 'url');
+
+        $treasurer = $urls($this->entries($this->build(['can_manage_finances' => true], self::ALL_MODULES)));
+        $this->assertContains('/sponsoring/payments', $treasurer);
+        $this->assertNotContains('/sponsoring', $treasurer);
+
+        $both = $urls($this->entries($this->build(
+            ['can_manage_finances' => true, 'can_manage_sponsoring' => true],
+            self::ALL_MODULES
+        )));
+        $this->assertNotContains('/sponsoring/payments', $both);
+
+        $withoutModule = $urls($this->entries($this->build(['can_manage_finances' => true], ['finance' => true])));
+        $this->assertNotContains('/sponsoring/payments', $withoutModule);
+    }
+
     public function testPlainMemberSeesOnlyPublicSections(): void
     {
         $tree = $this->build([], ['registration' => false]);

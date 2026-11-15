@@ -342,6 +342,8 @@ class SponsorController
             'retained_projects' => $this->policy->retainedProjects($sponsor->sponsorships, $projects),
             'packages'       => $packages,
             'status_options' => SponsorshipStatus::options(),
+            // Bei welchen Status das Formular die Paketauswahl freigibt.
+            'package_statuses' => SponsorshipStatus::WITH_PACKAGE,
             'status_labels'  => SponsorshipStatus::labels(),
             'status_badges'  => SponsorshipStatus::badgeClasses(),
             'benefit_rows'   => $this->buildLineRows($sponsor, 'benefits', 'delivered', 'sponsorship-benefits'),

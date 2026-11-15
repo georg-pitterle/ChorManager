@@ -2655,7 +2655,7 @@ class DevSeedService
                 'Läuft bis ' . $poll->closes_at?->format('d.m.'), '/polls/' . $poll->id, 'poll', $poll->id];
         }
         if ($sponsor !== null) {
-            $entries[] = [NotificationType::SPONSORING_FOLLOW_UP_DUE, 'Wiedervorlage: ' . $sponsor->name,
+            $entries[] = [NotificationType::SPONSORING_FOLLOW_UP_DUE, 'Sponsoring-Erinnerung: ' . $sponsor->name,
                 'Fällig am ' . Carbon::tomorrow()->format('d.m.Y'), '/sponsoring/sponsors/' . $sponsor->id,
                 'sponsor', $sponsor->id];
         }
@@ -2703,6 +2703,12 @@ class DevSeedService
             'log_db_writes' => '0',
             'notification_task_due_days_before' => '3',
             'notification_sponsoring_follow_up_days_before' => '1',
+            // Platzhalter-Kennungen der Erklärvideos: Die Kurzanleitung auf der
+            // Sponsoring-Übersicht zeigt damit beide Vorschaubilder. Geladen wird
+            // erst nach einem Klick; die echten Kennungen trägt die Installation ein.
+            'sponsoring_video_member' => 'aaaaaaaaaaa',
+            'sponsoring_video_member_portrait' => 'ccccccccccc',
+            'sponsoring_video_admin' => 'bbbbbbbbbbb',
         ];
 
         // Alle Anlässe ausdrücklich eingeschaltet: Im Dev soll sichtbar sein,
@@ -3713,7 +3719,7 @@ class DevSeedService
                     'status' => 'requested',
                     'start_date' => '+1 month',
                     'end_date' => '+12 months',
-                    'notes' => 'Nachfassgespräch nach persönlicher Zusage offen.',
+                    'notes' => 'Nachfragen nach persönlicher Zusage offen.',
                 ],
             ],
             'Bäckerei Morgenstern' => [
@@ -4044,7 +4050,7 @@ class DevSeedService
                 'user_offset' => 4,
                 'contact_date' => '-35 days',
                 'type' => 'meeting',
-                'summary' => 'Budgetgespräch mit Hinweis auf spätere Wiedervorlage.',
+                'summary' => 'Budgetgespräch mit Hinweis auf spätere Erinnerung.',
                 'follow_up_date' => '-7 days',
                 'follow_up_done' => 0,
             ],

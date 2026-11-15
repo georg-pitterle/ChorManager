@@ -79,6 +79,61 @@ class SponsorshipStatusFeatureTest extends TestCase
         }
     }
 
+    /**
+     * Ein Paket gehört erst zu einer Zusage: Vorher steht nicht fest, welches
+     * der Sponsor wählt, und ein Paket an einer offenen Anfrage las sich wie
+     * eine Zusage, deren Status niemand umgestellt hat.
+     *
+     * @return array<string, array{string, bool}>
+     */
+    public static function packageByStatus(): array
+    {
+        return [
+            'angefragt' => [SponsorshipStatus::REQUESTED, false],
+            'nachgefragt' => [SponsorshipStatus::REMINDED, false],
+            'Absage' => [SponsorshipStatus::DECLINED, false],
+            'Zusage' => [SponsorshipStatus::ACCEPTED, true],
+            'abgeschlossen' => [SponsorshipStatus::CLOSED, true],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('packageByStatus')]
+    public function testAPackageIsOnlyStoredOnceTheSponsorHasAccepted(string $status, bool $kept): void
+    {
+        $sponsor = $this->makeSponsor();
+        $package = \App\Models\SponsorPackage::create([
+            'name' => 'Statuspaket ' . bin2hex(random_bytes(4)),
+            'min_amount' => '100.00',
+            'color' => 'info',
+        ]);
+        $controller = new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
+
+        try {
+            $controller->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
+                'sponsor_id' => (string) $sponsor->id,
+                'package_id' => (string) $package->id,
+                'status' => $status,
+            ]), $this->makeResponse());
+
+            $sponsorship = Sponsorship::where('sponsor_id', $sponsor->id)->firstOrFail();
+            $this->assertSame($kept ? (int) $package->id : null, $sponsorship->package_id);
+
+            // Derselbe Weg beim Ändern: Altbestand mit Paket verliert es beim
+            // nächsten Speichern, solange keine Zusage vorliegt.
+            $sponsorship->update(['package_id' => $package->id]);
+            $controller->update($this->makeRequest('POST', '/sponsoring/sponsorships/' . $sponsorship->id, [
+                'sponsor_id' => (string) $sponsor->id,
+                'package_id' => (string) $package->id,
+                'status' => $status,
+            ]), $this->makeResponse(), ['id' => (string) $sponsorship->id]);
+
+            $this->assertSame($kept ? (int) $package->id : null, $sponsorship->fresh()->package_id);
+        } finally {
+            $this->cleanUp($sponsor);
+            $package->delete();
+        }
+    }
+
     public function testSponsorStateIsDerivedFromItsAgreements(): void
     {
         $sponsor = $this->makeSponsor();

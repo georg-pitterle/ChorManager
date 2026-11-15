@@ -1,0 +1,61 @@
+{# Kurzanleitung auf der Sponsoring-Übersicht. Die ausführliche Hilfe liest nicht
+   jeder, und das Video sieht sich nicht jeder an - im ersten Praxistest wurden
+   deshalb Kontakt und Anfrage verwechselt. Die Schritte folgen dem
+   Mitglieder-Video. Beim ersten Besuch offen; zugeklappt merkt es sich der
+   Browser (public/js/video-embed.js).
+
+   Parameter:
+     guide_videos  Erklärvideos aus SponsoringDashboardController::guideVideos() #}
+{% import "macros/video.twig" as video %}
+<details class="sponsoring-guide" data-sponsoring-guide data-remember-open="sponsoring-guide" open>
+    <summary class="sponsoring-guide-summary">
+        <i class="bi bi-signpost-2 me-1" aria-hidden="true"></i>So geht's: von der Anfrage bis zum Vertrag
+    </summary>
+    <div class="sponsoring-guide-body">
+        <ol class="sponsoring-guide-steps">
+            <li>
+                <strong>Erst nachsehen.</strong>
+                Such die Firma in der <a href="/sponsoring/sponsors">Sponsorenliste</a>. „Anfrage läuft“ heißt: Da ist
+                schon jemand dran. „Keine Anfragen erwünscht“ heißt: bitte nicht ansprechen.
+            </li>
+            <li>
+                <strong>Sponsor anlegen,</strong>
+                falls es ihn noch nicht gibt. Pflicht ist nur der Name.
+            </li>
+            <li>
+                <strong>Neue Anfrage,</strong>
+                sobald du die Firma ansprichst – dann sehen alle, dass du dran bist. Wähle das Projekt und trag dich
+                als zuständig ein. Das Paket wählst du erst, wenn die Firma zusagt.
+            </li>
+            <li>
+                <strong>Jeden Kontakt protokollieren</strong>
+                und dabei die Anfrage auswählen. Trag als Erinnerung ein, wann du nachfragen willst.
+            </li>
+            <li>
+                <strong>Antwort da? Status ändern</strong>
+                – an der Anfrage oder gleich beim Protokollieren des Kontakts: „Nachgefragt“, wenn du beim Sponsor
+                nachgefragt hast, sonst „Zusage“ oder „Absage“. Bei einer Zusage wählst du das Paket.
+            </li>
+            <li>
+                <strong>Material einholen:</strong>
+                Logo, unterschriebener Vertrag und was sonst unter „Leistungen des Sponsors“ steht. Die App schreibt
+                dem Sponsor nichts – das machst du.
+            </li>
+            <li>
+                <strong>Ablegen und abhaken:</strong>
+                das Logo beim Sponsor unter „Logos“, den Vertrag in der Karte der Anfrage unter „Vertrag und
+                Belege“. Was da ist, hakst du unter „Leistungen des Sponsors“ ab.
+            </li>
+        </ol>
+        <p class="sponsoring-guide-note">
+            Gegenleistungen, Zahlungseingang und Abschluss übernimmt die Sponsoring-Verwaltung.
+        </p>
+        {% if guide_videos|default([])|length > 0 %}
+            <div class="sponsoring-guide-videos">
+                {% for item in guide_videos %}
+                    {{ video.embed(item.id, item.title, item.poster, item.portrait_id, item.portrait_poster) }}
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</details>

@@ -58,6 +58,17 @@ class AppSettingController
         'notification_sponsoring_follow_up_days_before' => 1,
     ];
 
+    /**
+     * Kennungen der Erklärvideos (nicht gelistet auf YouTube), die die
+     * Sponsoring-Übersicht in ihrer Kurzanleitung anbietet.
+     */
+    public const VIDEO_SETTINGS = [
+        'sponsoring_video_member',
+        // Dasselbe Video im Hochformat fürs Handy; leer heißt: dort das normale.
+        'sponsoring_video_member_portrait',
+        'sponsoring_video_admin',
+    ];
+
     private LoggerInterface $logger;
 
     /**
@@ -236,6 +247,25 @@ class AppSettingController
                         ]
                     );
                 }
+            }
+
+            // Nur, wenn das Feld mitkam: Die Karte steht nur bei aktivem
+            // Sponsoring-Modul im Formular, und ein Speichern ohne sie soll die
+            // Kennung nicht löschen. Ein eingefügter Link wird zur Kennung, alles
+            // Unbrauchbare zu "kein Video".
+            foreach (self::VIDEO_SETTINGS as $key) {
+                if (!array_key_exists($key, $data)) {
+                    continue;
+                }
+
+                AppSetting::updateOrCreate(
+                    ['setting_key' => $key],
+                    [
+                        'setting_value' => \App\Util\YoutubeVideoId::normalize($data[$key]),
+                        'binary_content' => '',
+                        'mime_type' => 'text/plain',
+                    ]
+                );
             }
 
             AppSetting::updateOrCreate(

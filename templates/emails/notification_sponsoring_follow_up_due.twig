@@ -1,17 +1,17 @@
 {% extends "emails/_notification_layout.twig" %}
 {% import "emails/_components.twig" as ui %}
 
-{% block mail_title %}Wiedervorlage: {{ contact.sponsor.name }}{% endblock %}
+{% block mail_title %}Sponsoring-Erinnerung: {{ contact.sponsor.name }}{% endblock %}
 
-{% block preheader %}{{ contact.sponsor.name }} steht zur Wiedervorlage an.{% endblock %}
+{% block preheader %}Deine Erinnerung zu {{ contact.sponsor.name }} wird fällig.{% endblock %}
 
-{% block eyebrow %}Wiedervorlage{% endblock %}
+{% block eyebrow %}Sponsoring-Erinnerung{% endblock %}
 
-{% block heading %}Eine Wiedervorlage wird fällig{% endblock %}
+{% block heading %}Eine Erinnerung wird fällig{% endblock %}
 
 {% block content %}
     <p class="cm-text" style="margin:0 0 24px 0; color:#1f2937">
-        du hast dir diesen Kontakt zur Wiedervorlage gelegt:
+        du hast dir zu diesem Kontakt eine Erinnerung gesetzt:
     </p>
 
     <table role="presentation"
@@ -52,7 +52,7 @@
                                  style="font-family:{{ font_stack }};
                                         font-size:13px;
                                         line-height:1.5;
-                                        color:#667085">Wiedervorlage am</div>
+                                        color:#667085">Erinnerung am</div>
                             <div class="cm-row-value"
                                  style="font-family:{{ font_stack }};
                                         font-size:18px;

@@ -31,7 +31,7 @@ final class SponsorEngagementState
         self::OPEN     => 'Anfrage läuft',
         self::DECLINED => 'Absage',
         self::CLOSED   => 'Abgeschlossen',
-        self::NONE     => 'Kein Vorgang',
+        self::NONE     => 'Keine Anfrage',
     ];
 
     /** @var array<string, string> */

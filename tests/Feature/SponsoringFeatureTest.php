@@ -137,7 +137,7 @@ class SponsoringFeatureTest extends TestCase
         $this->assertStringNotContainsString('data-table-engine', $templateContent);
         $this->assertStringNotContainsString('partials/table_toolbar.twig', $templateContent);
         $this->assertStringContainsString('class="work-list"', $templateContent);
-        $this->assertStringContainsString('Keine Wiedervorlagen in den nächsten 7 Tagen vorhanden.', $templateContent);
+        $this->assertStringContainsString('Keine Erinnerungen in den nächsten 7 Tagen.', $templateContent);
         $this->assertStringContainsString('sponsoring/partials/benefit_list.twig', $templateContent);
     }
 

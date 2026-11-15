@@ -114,7 +114,7 @@
                                         <span class="badge {{ state_badges[sponsor_state] }}">{{ state_labels[sponsor_state] }}</span>
                                     </td>
                                     <td data-label="Zuständig">
-                                        {{ include("sponsoring/partials/responsibility.twig", {responsibility: row.responsibility}) }}
+                                        {{ include("sponsoring/partials/responsibility.twig", {responsibility: row.responsibility, show_email: can_manage_all, mail_subject: "Sponsoring: " ~ sponsor.name}) }}
                                     </td>
                                     <td data-label="Paket">
                                         {% if row.package_name %}

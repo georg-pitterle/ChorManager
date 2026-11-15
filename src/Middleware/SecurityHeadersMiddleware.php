@@ -14,6 +14,9 @@ use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
 
 class SecurityHeadersMiddleware implements MiddlewareInterface
 {
+    /** Die cookielose Einbettungsadresse von YouTube, siehe embedsVideo(). */
+    public const VIDEO_ORIGIN = 'https://www.youtube-nocookie.com';
+
     /**
      * @param (\Closure(): list<string>)|null $loginFormTargets Ursprünge der angeschlossenen
      *        OIDC-Anwendungen, siehe OidcRedirectOrigins; null bei ausgeschaltetem Modul.
@@ -29,11 +32,15 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
         $response = $handler->handle($request);
         $allowsSelfFraming = $this->allowsSelfFraming($request);
         $embedsOffice = $this->embedsOffice($request);
+        $embedsVideo = $this->embedsVideo($request);
 
         $formTargets = $embedsOffice ? [$this->officeOrigin] : $this->loginFormTargets($request);
 
         $response = $response
-            ->withHeader('Content-Security-Policy', $this->buildCsp($allowsSelfFraming, $embedsOffice, $formTargets))
+            ->withHeader(
+                'Content-Security-Policy',
+                $this->buildCsp($allowsSelfFraming, $embedsOffice, $formTargets, $embedsVideo)
+            )
             ->withHeader('X-Content-Type-Options', 'nosniff')
             ->withHeader('X-Frame-Options', $allowsSelfFraming ? 'SAMEORIGIN' : 'DENY')
             ->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin')
@@ -116,6 +123,21 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
     }
 
     /**
+     * Die Sponsoring-Übersicht bettet in ihrer Kurzanleitung die Erklärvideos ein,
+     * die nicht gelistet auf YouTube liegen. Nur dort öffnet sich frame-src, und nur
+     * für die cookielose Adresse.
+     *
+     * Das ist die eine Ausnahme von "nichts von fremden Servern" (security-baseline.md),
+     * und sie ist eng gehalten: Die Seite selbst lädt nichts von dort - der Rahmen
+     * entsteht erst, wenn jemand auf "Video laden" klickt (public/js/video-embed.js).
+     * Skripte, Bilder und Verbindungen bleiben bei 'self'.
+     */
+    private function embedsVideo(Request $request): bool
+    {
+        return rtrim($request->getUri()->getPath(), '/') === '/sponsoring';
+    }
+
+    /**
      * Die Anmeldung für eine angeschlossene Anwendung endet mit einer Weiterleitung
      * dorthin: Login-Formular, /oidc/authorize, Rücksprungadresse. Chrome prüft
      * form-action auch auf diese Weiterleitungen, mit 'self' allein blieb das Mitglied
@@ -142,8 +164,12 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
     /**
      * @param list<string> $formTargets
      */
-    private function buildCsp(bool $allowsSelfFraming, bool $embedsOffice, array $formTargets): string
-    {
+    private function buildCsp(
+        bool $allowsSelfFraming,
+        bool $embedsOffice,
+        array $formTargets,
+        bool $embedsVideo = false
+    ): string {
         $directives = [
             "default-src 'self'",
             "base-uri 'self'",
@@ -191,6 +217,8 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
         ];
         if ($embedsOffice) {
             $directives[] = 'frame-src ' . $this->officeOrigin;
+        } elseif ($embedsVideo) {
+            $directives[] = 'frame-src ' . self::VIDEO_ORIGIN;
         }
 
         return implode('; ', $directives);

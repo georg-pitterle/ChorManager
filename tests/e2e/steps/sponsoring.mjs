@@ -8,7 +8,7 @@
 //      Dublettenhinweis .sponsor-duplicate-warning mit button[name="confirm_duplicate"]
 //      Liste #sponsorsTable, Name-Links in td[data-label="Name"] a
 //  - templates/sponsoring/sponsors/detail.twig
-//      Vorgang #newSponsorshipModal: package_id [data-sponsorship-package], status,
+//      Anfrage #newSponsorshipModal: package_id [data-sponsorship-package], status,
 //      amount, project_id, assigned_user_id, benefits [data-sponsorship-benefits],
 //      deliverables [data-sponsorship-deliverables], [data-sponsorship-logo-print|online],
 //      Absenden button[type="submit"] "Anlegen"
@@ -95,7 +95,7 @@ export async function openSponsor(page, name) {
 }
 
 /**
- * Legt auf der geöffneten Sponsorseite einen Vorgang an. Gibt zurück, was der
+ * Legt auf der geöffneten Sponsorseite eine Anfrage an. Gibt zurück, was der
  * Dialog nach der Paketwahl vorgeschlagen hatte, damit der Test es prüfen kann.
  */
 export async function createSponsorship(page, { packageName = '', status = 'accepted', projectName = '', amount, assigneeLastName = '' }) {

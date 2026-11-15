@@ -27,18 +27,27 @@ use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use App\Util\SponsorshipStatus;
 use App\Util\InputValidator;
+use App\Util\RequestFormat;
+use App\Util\SponsorshipFileName;
+use App\Controllers\Concerns\AttachmentUploadJson;
+use App\Models\Attachment;
 
 class SponsorshipController
 {
+    use AttachmentUploadJson;
+
+    public const RENAME_ERROR = 'Bitte einen Dateinamen eingeben.';
+
     public const AMOUNT_ERROR = 'Ungültiger Betrag. Bitte eine Zahl ab 0 eingeben.';
-    public const STATUS_ERROR = 'Ungültiger Status für den Vorgang.';
-    public const PROJECT_ERROR = 'Vorgänge lassen sich nur zu einem laufenden Projekt erfassen.';
+    public const STATUS_ERROR = 'Ungültiger Status für die Anfrage.';
+    public const PROJECT_ERROR = 'Anfragen lassen sich nur zu einem laufenden Projekt erfassen.';
     public const ASSIGNEE_ERROR = 'Die zuständige Person muss ein aktives Mitglied sein.';
     public const ASSIGNEE_MISSING_ERROR = 'Bitte eine Person auswählen.';
-    public const ASSIGNEE_NO_ACCESS_ERROR = 'Diese Person hat kein Sponsoring-Recht und sähe den Vorgang gar nicht.';
-    public const ASSIGNEE_NOT_OPEN_ERROR = 'Dieser Vorgang ist bereits zugewiesen oder läuft nicht mehr.';
+    public const ASSIGNEE_NO_ACCESS_ERROR = 'Diese Person hat kein Sponsoring-Recht und sähe die Anfrage gar nicht.';
+    public const ASSIGNEE_NOT_OPEN_ERROR = 'Diese Anfrage ist bereits zugewiesen oder läuft nicht mehr.';
     public const BLOCKED_ERROR = 'Dieser Sponsor hat sich weitere Anfragen verbeten.';
     public const PAID_AT_ERROR = 'Bitte ein gültiges Datum für "Bezahlt am" angeben.';
+    public const NOT_ACCEPTED_ERROR = 'Eine Zahlung lässt sich nur zu einer Zusage bestätigen.';
 
     /** Anhänge, die an einer Vereinbarung hängen: Verträge, Angebote. */
     /** Derselbe Wert wie am Modell - festgelegt wird er nur dort. */
@@ -153,7 +162,7 @@ class SponsorshipController
             return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
         }
 
-        $packageId = !empty($data['package_id']) ? (int) $data['package_id'] : null;
+        $packageId = self::packageIdFor($data, $status);
 
         try {
             $sponsorship = Capsule::connection()->transaction(function () use (
@@ -204,7 +213,7 @@ class SponsorshipController
 
             $this->handleAttachments($request, $sponsorship->id);
 
-            $_SESSION['success'] = 'Vorgang angelegt.';
+            $_SESSION['success'] = 'Anfrage angelegt.';
         } catch (\Exception $e) {
             // Der Grund gehört ins Protokoll, nicht vor die Augen des
             // Sponsoring-Teams: Hier stand früher der rohe SQLSTATE-Text des
@@ -214,7 +223,7 @@ class SponsorshipController
                 'sponsor_id' => $sponsorId,
                 'exception' => $e,
             ]);
-            $_SESSION['error'] = 'Der Vorgang konnte nicht angelegt werden.';
+            $_SESSION['error'] = 'Die Anfrage konnte nicht angelegt werden.';
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
@@ -304,7 +313,7 @@ class SponsorshipController
             ): void {
                 $sponsorship->update($this->logoNeeds($data, null, $sponsorship) + [
                 'project_id'       => $projectId,
-                'package_id'       => !empty($data['package_id']) ? (int) $data['package_id'] : null,
+                'package_id'       => self::packageIdFor($data, $status),
                 'assigned_user_id' => $assignee['value'],
                 'amount'           => $normalizedAmount,
                 'paid_at'          => $paidAt,
@@ -324,11 +333,11 @@ class SponsorshipController
 
             $this->handleAttachments($request, $sponsorship->id);
 
-            $_SESSION['success'] = 'Vorgang gespeichert.';
+            $_SESSION['success'] = 'Anfrage gespeichert.';
         } catch (ModelNotFoundException $e) {
             // Der häufigste Weg hierher: Die Seite lag offen, während jemand
             // anderes dieselbe Vereinbarung entfernt hat. Kein Betriebsfehler.
-            $_SESSION['error'] = 'Der Vorgang wurde nicht gefunden. '
+            $_SESSION['error'] = 'Die Anfrage wurde nicht gefunden. '
                 . 'Möglicherweise wurde er bereits gelöscht.';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         } catch (\Exception $e) {
@@ -337,7 +346,7 @@ class SponsorshipController
                 'sponsorship_id' => $id,
                 'exception' => $e,
             ]);
-            $_SESSION['error'] = 'Der Vorgang konnte nicht aktualisiert werden.';
+            $_SESSION['error'] = 'Die Anfrage konnte nicht aktualisiert werden.';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 
@@ -438,7 +447,7 @@ class SponsorshipController
 
         $sponsorship = Sponsorship::with('sponsor')->find((int) $args['id']);
         if ($sponsorship === null) {
-            $_SESSION['error'] = 'Vorgang nicht gefunden.';
+            $_SESSION['error'] = 'Anfrage nicht gefunden.';
             return $back;
         }
 
@@ -477,6 +486,56 @@ class SponsorshipController
         return $back;
     }
 
+    /**
+     * Bestätigt den Zahlungseingang direkt aus der Liste "Zahlung offen".
+     *
+     * Bisher ging das nur über den Dialog der Anfrage am Sponsor - für den
+     * Kassier, der zehn Eingänge abhaken will, zehn Sponsoren. Ohne Datum gilt
+     * heute. Zurück geht es dorthin, wo die Liste für diese Person steht.
+     */
+    public function confirmPayment(Request $request, Response $response, array $args): Response
+    {
+        $sponsorship = Sponsorship::with('sponsor')->find((int) $args['id']);
+        if ($sponsorship !== null && !$this->policy->canConfirmPayment($sponsorship)) {
+            return $this->deny($response);
+        }
+        if ($sponsorship === null && !$this->policy->canSeeOpenPayments() && !$this->policy->canContribute()) {
+            return $this->deny($response);
+        }
+
+        $back = $response
+            ->withHeader('Location', $this->policy->canContribute() ? '/sponsoring' : '/sponsoring/payments')
+            ->withStatus(302);
+
+        if ($sponsorship === null) {
+            $_SESSION['error'] = 'Anfrage nicht gefunden.';
+            return $back;
+        }
+
+        if ($sponsorship->status !== SponsorshipStatus::ACCEPTED) {
+            $_SESSION['error'] = self::NOT_ACCEPTED_ERROR;
+            return $back;
+        }
+
+        $data = (array) $request->getParsedBody();
+        $paidAt = self::validatePaidAt($data['paid_at'] ?? null) ?? Carbon::today()->format('Y-m-d');
+        if ($paidAt === false) {
+            $_SESSION['error'] = self::PAID_AT_ERROR;
+            return $back;
+        }
+
+        $sponsorship->update(['paid_at' => $paidAt]);
+        $this->logger->info('Sponsorship payment confirmed.', [
+            'event' => 'sponsorship.payment.confirmed',
+            'sponsorship_id' => (int) $sponsorship->id,
+            'paid_at' => $paidAt,
+            'user_id' => $this->policy->currentUserId(),
+        ]);
+        $_SESSION['success'] = 'Zahlung von ' . ($sponsorship->sponsor->name ?? 'diesem Sponsor') . ' bestätigt.';
+
+        return $back;
+    }
+
     public function delete(Request $request, Response $response, array $args): Response
     {
         $id   = (int) $args['id'];
@@ -497,9 +556,9 @@ class SponsorshipController
 
             $this->attachments->deleteAllForEntities(self::ENTITY_TYPE, [$id]);
             $sponsorship->delete();
-            $_SESSION['success'] = 'Vorgang erfolgreich gelöscht.';
+            $_SESSION['success'] = 'Anfrage erfolgreich gelöscht.';
         } catch (ModelNotFoundException $e) {
-            $_SESSION['error'] = 'Der Vorgang wurde nicht gefunden. '
+            $_SESSION['error'] = 'Die Anfrage wurde nicht gefunden. '
                 . 'Möglicherweise wurde er bereits gelöscht.';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         } catch (\Exception $e) {
@@ -508,11 +567,123 @@ class SponsorshipController
                 'sponsorship_id' => $id,
                 'exception' => $e,
             ]);
-            $_SESSION['error'] = 'Der Vorgang konnte nicht gelöscht werden.';
+            $_SESSION['error'] = 'Die Anfrage konnte nicht gelöscht werden.';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 
         return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+    }
+
+    /**
+     * Verträge und Belege aus dem Ablagefeld in der Karte der Anfrage.
+     *
+     * Bis November 2026 gab es dafür nur das Dateifeld im Bearbeiten-Dialog;
+     * im ersten Praxistest fand niemand heraus, wohin der Vertrag gehört. Die
+     * Datei bekommt hier ihren sprechenden Namen (SponsorshipFileName).
+     */
+    public function uploadAttachment(Request $request, Response $response, array $args): Response
+    {
+        $expectsJson = RequestFormat::expectsJson($request);
+        $sponsorship = Sponsorship::with(['sponsor', 'project', 'package'])->find((int) $args['id']);
+
+        if ($sponsorship === null) {
+            if ($expectsJson) {
+                return $this->attachmentUploadJsonError($response, 'Anfrage nicht gefunden.', 404);
+            }
+            $_SESSION['error'] = 'Anfrage nicht gefunden.';
+            return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
+        }
+
+        if (!$this->policy->canEditSponsorship($sponsorship)) {
+            return $expectsJson
+                ? $this->attachmentUploadJsonError($response, 'Zugriff verweigert.', 403)
+                : $this->deny($response);
+        }
+
+        $taken = Attachment::where('entity_type', self::ENTITY_TYPE)
+            ->where('entity_id', $sponsorship->id)
+            ->pluck('original_name')
+            ->all();
+
+        $result = $this->attachments->storeUploads(
+            $request->getUploadedFiles()['attachments'] ?? null,
+            self::ENTITY_TYPE,
+            (int) $sponsorship->id,
+            null,
+            null,
+            static function (string $uploadedName) use ($sponsorship, &$taken): string {
+                $name = SponsorshipFileName::build(
+                    (string) ($sponsorship->sponsor->name ?? ''),
+                    $sponsorship->project?->name,
+                    $sponsorship->package?->name,
+                    $uploadedName,
+                    $taken
+                );
+                // Mehrere Dateien in einem Zug zählen untereinander weiter.
+                $taken[] = $name;
+
+                return $name;
+            }
+        );
+
+        if ($expectsJson) {
+            return $this->attachmentUploadJson($response, $result);
+        }
+
+        if ($result['error'] !== null) {
+            $_SESSION['error'] = $result['error'];
+        } elseif ($result['stored'] > 0) {
+            $_SESSION['success'] = $result['stored'] === 1 ? 'Datei abgelegt.' : 'Dateien abgelegt.';
+        }
+
+        return $response
+            ->withHeader('Location', '/sponsoring/sponsors/' . $sponsorship->sponsor_id)
+            ->withStatus(302);
+    }
+
+    /**
+     * Benennt einen Vertrag oder Beleg um. Die Endung bleibt, und der Anhang
+     * muss an genau dieser Anfrage hängen - die Kennung kommt aus dem Formular.
+     */
+    public function renameAttachment(Request $request, Response $response, array $args): Response
+    {
+        $sponsorship = Sponsorship::find((int) $args['id']);
+        if ($sponsorship === null) {
+            $_SESSION['error'] = 'Anfrage nicht gefunden.';
+            return $response->withHeader('Location', '/sponsoring/sponsors')->withStatus(302);
+        }
+
+        if (!$this->policy->canEditSponsorship($sponsorship)) {
+            return $this->deny($response);
+        }
+
+        $back = $response
+            ->withHeader('Location', '/sponsoring/sponsors/' . $sponsorship->sponsor_id)
+            ->withStatus(302);
+
+        $attachment = Attachment::where('entity_type', self::ENTITY_TYPE)
+            ->where('entity_id', $sponsorship->id)
+            ->whereKey((int) $args['attachment_id'])
+            ->first(['id', 'original_name']);
+        if ($attachment === null) {
+            $_SESSION['error'] = 'Anhang nicht gefunden.';
+            return $back;
+        }
+
+        $data = (array) $request->getParsedBody();
+        $name = SponsorshipFileName::rename(
+            InputValidator::asString($data['name'] ?? null),
+            (string) $attachment->original_name
+        );
+        if ($name === null) {
+            $_SESSION['error'] = self::RENAME_ERROR;
+            return $back;
+        }
+
+        $attachment->update(['original_name' => $name]);
+        $_SESSION['success'] = 'Datei umbenannt.';
+
+        return $back;
     }
 
     public function deleteAttachment(Request $request, Response $response, array $args): Response
@@ -523,7 +694,7 @@ class SponsorshipController
 
         $sponsorship = Sponsorship::find($sponsorshipId);
         if ($sponsorship === null) {
-            $_SESSION['error'] = 'Vorgang nicht gefunden.';
+            $_SESSION['error'] = 'Anfrage nicht gefunden.';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
             return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
         }
@@ -656,6 +827,24 @@ class SponsorshipController
     }
 
     /**
+     * Das Paket aus dem Formular - aber nur zu einem Status, in dem es
+     * feststeht (SponsorshipStatus::WITH_PACKAGE). Sonst wird es verworfen
+     * statt beanstandet: Das Formular sperrt die Auswahl ohnehin, und ein
+     * Altbestand mit Paket an einer offenen Anfrage räumt sich so beim
+     * nächsten Speichern von selbst auf.
+     *
+     * @param array<string, mixed> $data
+     */
+    private static function packageIdFor(array $data, string $status): ?int
+    {
+        if (empty($data['package_id']) || !SponsorshipStatus::allowsPackage($status)) {
+            return null;
+        }
+
+        return (int) $data['package_id'];
+    }
+
+    /**
      * Wofür die Vereinbarung das Logo braucht.
      *
      * Die Formulare senden logo_needs=1 mit, sobald sie die beiden Häkchen
@@ -663,15 +852,22 @@ class SponsorshipController
      * Feld unterscheiden. Fehlt der Marker, gilt beim Anlegen die Vorgabe des
      * Pakets, beim Ändern bleibt der bisherige Stand.
      *
+     * Das Formular zeigt seit November 2026 ein einziges Häkchen
+     * (`needs_logo`), weil das Logo derzeit immer für beides gebraucht wird; es
+     * setzt beide Spalten. Die Einzelfelder werden weiter angenommen, damit
+     * sich Druck und online wieder trennen lassen, ohne diese Stelle anzufassen.
+     *
      * @param array<string, mixed> $data
      * @return array{needs_logo_print: bool, needs_logo_online: bool}
      */
     private function logoNeeds(array $data, ?SponsorPackage $package, ?Sponsorship $current = null): array
     {
         if (!empty($data['logo_needs'])) {
+            $both = !empty($data['needs_logo']);
+
             return [
-                'needs_logo_print' => !empty($data['needs_logo_print']),
-                'needs_logo_online' => !empty($data['needs_logo_online']),
+                'needs_logo_print' => $both || !empty($data['needs_logo_print']),
+                'needs_logo_online' => $both || !empty($data['needs_logo_online']),
             ];
         }
 

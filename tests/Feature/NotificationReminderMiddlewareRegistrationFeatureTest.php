@@ -12,10 +12,10 @@ use Slim\App;
 use Slim\Psr7\Factory\ResponseFactory;
 
 /**
- * Die Benachrichtigungs-Erinnerungen hängen an Aufgaben und Sponsoring-Wiedervorlagen,
+ * Die Benachrichtigungs-Erinnerungen hängen an Aufgaben und Sponsoring-Erinnerungen,
  * nicht an der Anmeldung zu Terminen. Sie dürfen deshalb nicht am Modul "registration"
  * hängen: Dieses Modul ist standardmäßig aus, und die Middleware wurde damit in der
- * Voreinstellung gar nicht registriert - fällige Aufgaben- und Wiedervorlage-Mails
+ * Voreinstellung gar nicht registriert - fällige Aufgaben- und Erinnerungs-Mails
  * blieben ohne eigenen Cron-Lauf lautlos liegen.
  *
  * Welche Anlässe tatsächlich versendet werden, entscheidet weiterhin

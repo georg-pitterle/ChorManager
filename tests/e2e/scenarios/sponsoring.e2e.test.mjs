@@ -226,7 +226,7 @@ test('Ohne Zuständigkeit: Lücke finden, direkt zuweisen, in der Liste wiederfi
     await expect(listRow).toBeVisible();
     await expect(listRow.locator('td[data-label="Zuständig"]')).toContainText('niemand');
 
-    // Auf der Übersicht stehen nur Personen zur Wahl, die den Vorgang auch sähen.
+    // Auf der Übersicht stehen nur Personen zur Wahl, die die Anfrage auch sähen.
     await page.goto('/sponsoring');
     const options = unassignedRow(page, sponsor.name).locator('select[name="assigned_user_id"] option');
     await expect(options.filter({ hasText: member.lastName })).toHaveCount(1);

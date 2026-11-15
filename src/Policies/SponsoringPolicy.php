@@ -38,6 +38,7 @@ class SponsoringPolicy
     private int $userId;
     private bool $canManageSponsoring;
     private bool $canCreateOwnSponsorships;
+    private bool $canManageFinances;
 
     /**
      * Die Sitzung kommt von außen - siehe
@@ -52,6 +53,7 @@ class SponsoringPolicy
         $this->userId = (int) ($session['user_id'] ?? 0);
         $this->canManageSponsoring = (bool) ($session['can_manage_sponsoring'] ?? false);
         $this->canCreateOwnSponsorships = (bool) ($session['can_create_own_sponsorships'] ?? false);
+        $this->canManageFinances = (bool) ($session['can_manage_finances'] ?? false);
     }
 
     /**
@@ -136,6 +138,29 @@ class SponsoringPolicy
         }
 
         return $this->isAssignee($contact->sponsorship?->assigned_user_id);
+    }
+
+    /**
+     * Darf die Liste "Zahlung offen" über alle Zusagen gesehen werden?
+     *
+     * Das Vollrecht ohnehin. Dazu, wer die Finanzen führt: Der Kassier sieht den
+     * Eingang auf dem Konto und soll ihn selbst eintragen, statt ihn dem
+     * Sponsoring-Team zu melden. Er bekommt damit genau diese Liste - Firma,
+     * Projekt, Betrag -, nicht den übrigen Sponsoring-Bereich.
+     */
+    public function canSeeOpenPayments(): bool
+    {
+        return $this->canManageSponsoring || $this->canManageFinances;
+    }
+
+    /**
+     * Darf der Zahlungseingang dieser Zusage bestätigt werden? Wer die Liste
+     * sieht, und wer die Anfrage ändern darf - der konnte "Bezahlt am" schon
+     * bisher im Dialog setzen.
+     */
+    public function canConfirmPayment(Sponsorship $sponsorship): bool
+    {
+        return $this->canSeeOpenPayments() || $this->canEditSponsorship($sponsorship);
     }
 
     /**

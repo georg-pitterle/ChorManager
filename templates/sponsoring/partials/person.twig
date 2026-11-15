@@ -1,0 +1,17 @@
+{# Ein Chormitglied im Sponsoring: mit Adresse als mailto-Link mit vorbelegtem
+   Betreff, sonst nur der Name. Die Adresse geben die Controller und Vorlagen nur
+   mit dem Recht "Sponsoring verwalten" heraus - das Team kennt nicht jedes
+   Mitglied persönlich und braucht einen Weg, nachzufragen.
+
+   name     angezeigter Name
+   email    Adresse oder null
+   subject  Betreff der Mail #}
+{% macro mail(name, email, subject) -%}
+    {%- if email -%}
+        <a href="mailto:{{ email }}?subject={{ subject|url_encode }}"
+           class="person-mail"
+           title="E-Mail an {{ name }}">{{ name }}<i class="bi bi-envelope ms-1" aria-hidden="true"></i></a>
+    {%- else -%}
+        {{ name }}
+    {%- endif -%}
+{%- endmacro %}

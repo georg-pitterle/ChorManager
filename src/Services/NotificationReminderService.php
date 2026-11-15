@@ -229,10 +229,10 @@ class NotificationReminderService
             $enqueued += $this->notificationService->notify(
                 NotificationType::SPONSORING_FOLLOW_UP_DUE,
                 [$owner],
-                'Wiedervorlage: ' . ($contact->sponsor->name ?? 'Sponsor'),
+                'Sponsoring-Erinnerung: ' . ($contact->sponsor->name ?? 'Sponsor'),
                 'emails/notification_sponsoring_follow_up_due.twig',
                 new InAppMessage(
-                    'Wiedervorlage: ' . ($contact->sponsor->name ?? 'Sponsor'),
+                    'Sponsoring-Erinnerung: ' . ($contact->sponsor->name ?? 'Sponsor'),
                     'Fällig am ' . Carbon::parse($followUpDate)->format('d.m.Y'),
                     '/sponsoring/sponsors/' . $contact->sponsor_id,
                     'sponsor',

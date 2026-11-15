@@ -9,7 +9,8 @@ use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 
 /**
- * In der Oberfläche heißt der Sponsoring-Fall "Vorgang", nicht "Vereinbarung".
+ * In der Oberfläche heißt der Sponsoring-Fall "Anfrage" - nicht "Vereinbarung"
+ * und nicht mehr "Vorgang".
  *
  * "Vereinbarung" klang nach dem unterschriebenen Vertrag, gemeint ist aber der
  * ganze Weg von der ersten Anfrage bis zum Abschluss - auch einer, der mit einer
@@ -49,6 +50,64 @@ final class SponsoringVocabularyTest extends TestCase
         foreach ($this->files('help', 'md') as $path) {
             $this->assertStringNotContainsString(self::OLD_TERM, (string) file_get_contents($path), $path);
         }
+    }
+
+    /**
+     * Seit der Rückmeldung aus dem ersten Praxistest (November 2026) heißt der
+     * Sponsoring-Fall "Anfrage", die "Wiedervorlage" heißt "Erinnerung", der
+     * Status "Erinnert" heißt "Nachgefragt", und es wird "nachgefragt" statt
+     * "nachgefasst". "Vorgang" war nicht selbsterklärend, und "Erinnert" stand
+     * neben der neuen "Erinnerung" für etwas anderes.
+     *
+     * "Wiedervorlage" gab es nur im Sponsoring und ist deshalb überall
+     * gesperrt. "Vorgang" ist ein gewöhnliches Wort (Backup, Löschhinweise) und
+     * nur dort gesperrt, wo es den Sponsoring-Fall meinte.
+     */
+    private const RETIRED_EVERYWHERE = '/Wiedervorlage/u';
+    private const RETIRED_IN_SPONSORING = '/Vorg(ang|äng)|Wiedervorlage|Erinnert|achfass|nachgefasst/u';
+
+    public function testNoTemplateShowsARetiredTerm(): void
+    {
+        foreach ($this->files('templates', 'twig') as $path) {
+            $text = (string) preg_replace('/\{#.*?#\}/su', '', (string) file_get_contents($path));
+            $pattern = $this->isSponsoringFile($path) ? self::RETIRED_IN_SPONSORING : self::RETIRED_EVERYWHERE;
+
+            $this->assertSame(0, preg_match($pattern, $text), $path);
+        }
+    }
+
+    public function testNoStringInTheApplicationCodeShowsARetiredTerm(): void
+    {
+        foreach ($this->files('src', 'php') as $path) {
+            $pattern = $this->isSponsoringFile($path) ? self::RETIRED_IN_SPONSORING : self::RETIRED_EVERYWHERE;
+
+            foreach (file($path) ?: [] as $number => $line) {
+                $code = ltrim($line);
+                if (str_starts_with($code, '*') || str_starts_with($code, '/*') || str_starts_with($code, '//')) {
+                    continue;
+                }
+
+                $this->assertSame(0, preg_match($pattern, $line), $path . ':' . ($number + 1));
+            }
+        }
+    }
+
+    public function testTheHelpDoesNotUseARetiredTerm(): void
+    {
+        foreach ($this->files('help', 'md') as $path) {
+            $pattern = $this->isSponsoringFile($path) ? self::RETIRED_IN_SPONSORING : self::RETIRED_EVERYWHERE;
+
+            $this->assertSame(0, preg_match($pattern, (string) file_get_contents($path)), $path);
+        }
+    }
+
+    /**
+     * Dateien, in denen "Vorgang" nur den Sponsoring-Fall meinen kann: der
+     * Ordner oder der Dateiname trägt "sponsor".
+     */
+    private function isSponsoringFile(string $path): bool
+    {
+        return stripos(str_replace('\\', '/', $path), 'sponsor') !== false;
     }
 
     /**

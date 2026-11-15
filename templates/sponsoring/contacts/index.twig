@@ -1,0 +1,118 @@
+{% extends "layout.twig" %}
+
+{% import "macros/help.twig" as help %}
+{% import "sponsoring/partials/person.twig" as people %}
+
+{% block title %}
+    Kontakte - Sponsoring - {{ app_settings.app_name|default("Chor-Manager") }}
+{% endblock title %}
+
+{% block page_header %}
+    <section class="page-header">
+        <div>
+            <h1 class="h2 mb-1">Kontakte</h1>
+            <p class="text-muted mb-0">
+                {% if shows_own_only %}
+                    Alle Gespräche, die du protokolliert hast.
+                {% else %}
+                    Alle protokollierten Gespräche mit Sponsoren.
+                {% endif %}
+            </p>
+        </div>
+        <div class="page-actions">
+            {{ help.button("sponsoring", "Sponsoring") }}
+        </div>
+    </section>
+{% endblock page_header %}
+
+{% block content %}
+    {{ include("sponsoring/partials/subnav.twig", {subnav_active: "contacts"}) }}
+
+    <div class="dashboard-shell">
+        <section class="dashboard-section dashboard-section--context" aria-labelledby="sponsoring-all-contacts-title">
+            <div class="dashboard-section-head">
+                <h2 class="dashboard-section-title" id="sponsoring-all-contacts-title">Alle Kontakte</h2>
+                <p class="dashboard-section-lead mb-0">
+                    {{ contacts|length }} {{ contacts|length == 1 ? "Kontakt" : "Kontakte" }}, die neuesten zuerst.
+                    Protokolliert und geändert wird beim jeweiligen Sponsor.
+                </p>
+            </div>
+
+            <div class="surface-card table-shell"
+                 data-table-engine="true"
+                 data-table-id="sponsoring.contacts.index"
+                 data-default-view="auto"
+                 data-default-page-size="50"
+                 data-page-size-options="25,50,100,200"
+                 data-default-sort-key="contact_date"
+                 data-default-sort-dir="desc">
+                {{ include("partials/table_toolbar.twig") }}
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0 table-responsive-cards" id="sponsoringContactsTable">
+                        <thead class="table-light">
+                            <tr>
+                                <th data-sort-key="contact_date" data-sort-type="text">Datum</th>
+                                <th data-sort-key="sponsor_name" data-sort-type="text">Sponsor</th>
+                                <th data-sort-key="request" data-sort-type="text">Anfrage</th>
+                                <th data-sort-key="type" data-sort-type="text">Art</th>
+                                <th>Zusammenfassung</th>
+                                <th data-sort-key="owner" data-sort-type="text">Von</th>
+                                <th data-sort-key="follow_up" data-sort-type="text">Erinnerung</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for contact in contacts %}
+                                <tr data-sort-contact_date="{{ contact.contact_date_sort }}"
+                                    data-sort-sponsor_name="{{ contact.sponsor_name|lower }}"
+                                    data-sort-request="{{ contact.request_label|lower }}"
+                                    data-sort-type="{{ contact.type_label|lower }}"
+                                    data-sort-owner="{{ contact.owner_name|lower }}"
+                                    data-sort-follow_up="{{ contact.follow_up_sort }}">
+                                    <td data-label="Datum" class="text-nowrap">{{ contact.contact_date_display }}</td>
+                                    <td data-label="Sponsor">
+                                        <a href="{{ contact.sponsor_url }}" class="text-decoration-none">{{ contact.sponsor_name }}</a>
+                                    </td>
+                                    <td data-label="Anfrage">
+                                        {% if contact.has_request %}
+                                            {{ contact.request_label }}
+                                            <div class="text-muted small">{{ contact.request_status }}</div>
+                                        {% else %}
+                                            <span class="badge text-bg-warning">ohne Anfrage</span>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Art" class="small">{{ contact.type_label }}</td>
+                                    <td data-label="Zusammenfassung">
+                                        {% if contact.summary is not null %}
+                                            {{ contact.summary }}
+                                        {% else %}
+                                            <span class="fst-italic text-muted">nicht sichtbar</span>
+                                        {% endif %}
+                                    </td>
+                                    <td data-label="Von" class="small">
+                                        {{ people.mail(contact.owner_name, contact.owner_email, "Sponsoring: " ~ contact.sponsor_name) }}
+                                    </td>
+                                    <td data-label="Erinnerung" class="text-nowrap small">
+                                        {% if contact.follow_up_display %}
+                                            {{ contact.follow_up_display }}
+                                            {% if contact.follow_up_done %}
+                                                <span class="text-success">erledigt</span>
+                                            {% elseif contact.follow_up_overdue %}
+                                                <span class="due-chip due-chip--overdue">überfällig</span>
+                                            {% endif %}
+                                        {% else %}
+                                            –
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-4">Noch keine Kontakte protokolliert.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
+{% endblock content %}

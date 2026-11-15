@@ -116,8 +116,8 @@ final class NotificationType
         ],
         self::SPONSORING_FOLLOW_UP_DUE => [
             'group' => 'sponsoring',
-            'label' => 'Wiedervorlage wird fällig',
-            'description' => 'Kurz vor dem Wiedervorlage-Datum eines Kontakts, den du protokolliert hast.',
+            'label' => 'Sponsoring-Erinnerung wird fällig',
+            'description' => 'Kurz vor dem Erinnerungsdatum eines Kontakts, den du protokolliert hast.',
             'module' => 'sponsoring',
             'default' => true,
         ],

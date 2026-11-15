@@ -132,6 +132,14 @@ class RoleMiddleware implements MiddlewareInterface
             'logged_permission' => 'can_create_own_sponsorships',
             'message' => 'Zugriff verweigert: Sie haben keine Berechtigung für den Sponsoring-Bereich.',
         ],
+        // Zahlungseingänge von Sponsoren: das Sponsoring-Team, wer die Finanzen
+        // führt, und - für die eigene Zusage - beitragende Mitglieder. Wer genau
+        // was darf, entscheidet SponsoringPolicy::canConfirmPayment().
+        'requiresSponsoringPayments' => [
+            'permissions' => ['can_manage_sponsoring', 'can_manage_finances', 'can_create_own_sponsorships'],
+            'logged_permission' => 'can_manage_finances',
+            'message' => 'Zugriff verweigert: Sie haben keine Berechtigung für Sponsoring-Zahlungen.',
+        ],
         'requiresSponsoringManagement' => [
             'permissions' => ['can_manage_sponsoring'],
             'logged_permission' => 'can_manage_sponsoring',

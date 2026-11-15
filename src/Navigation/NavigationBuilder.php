@@ -352,6 +352,22 @@ final class NavigationBuilder
                                 $c->module('sponsoring')
                                 && ($c->can('can_manage_sponsoring') || $c->can('can_create_own_sponsorships')),
                         ],
+                        // Für den Kassier ohne Sponsoring-Recht: nur die Liste der
+                        // offenen Zahlungen. Wer den Bereich ohnehin hat, findet
+                        // sie auf dessen Übersicht.
+                        [
+                            'label' => 'Sponsoring-Zahlungen',
+                            'url' => '/sponsoring/payments',
+                            'icon' => 'bi-cash-coin',
+                            'keywords' => ['sponsoren', 'zahlung bestätigen', 'zahlungseingang'],
+                            'prefixes' => ['/sponsoring/payments'],
+                            'navKeys' => ['sponsoring_payments'],
+                            'visible' => static fn(NavigationContext $c): bool =>
+                                $c->module('sponsoring')
+                                && $c->can('can_manage_finances')
+                                && !$c->can('can_manage_sponsoring')
+                                && !$c->can('can_create_own_sponsorships'),
+                        ],
                     ],
                 ],
                 [

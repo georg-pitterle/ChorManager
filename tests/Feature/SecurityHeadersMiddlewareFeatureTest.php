@@ -116,6 +116,26 @@ class SecurityHeadersMiddlewareFeatureTest extends TestCase
     }
 
     /**
+     * Die Erklärvideos zum Sponsoring liegen nicht gelistet auf YouTube und werden auf
+     * der Sponsoring-Übersicht eingebettet - erst nach einem Klick, und nur von der
+     * cookielosen Adresse. Nur diese eine Seite darf den Rahmen laden.
+     */
+    public function testOnlyTheSponsoringOverviewMayFrameTheVideoHost(): void
+    {
+        $middleware = new SecurityHeadersMiddleware();
+
+        $this->assertStringContainsString(
+            'frame-src https://www.youtube-nocookie.com',
+            $this->cspFor($middleware, '/sponsoring')
+        );
+        foreach (['/sponsoring/sponsors', '/sponsoring/sponsors/3', '/dashboard', '/help/sponsoring'] as $path) {
+            $this->assertStringNotContainsString('frame-src', $this->cspFor($middleware, $path), $path);
+        }
+        // Skripte kommen weiterhin nur von der eigenen Herkunft.
+        $this->assertStringContainsString("script-src 'self' 'wasm-unsafe-eval'", $this->cspFor($middleware, '/sponsoring'));
+    }
+
+    /**
      * Die Editor-Seite der Dateiablage schickt das Zugangstoken per Formular in einen
      * Collabora-Rahmen. Nur dort und nur für genau diesen Ursprung öffnet sich die CSP.
      */

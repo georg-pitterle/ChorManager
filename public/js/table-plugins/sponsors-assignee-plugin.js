@@ -71,7 +71,7 @@
                 control.select.value = state.sponsorAssignee;
 
                 // Die Auswahl hängt vom Datenstand ab: Hat die gemerkte Person
-                // keinen laufenden Vorgang mehr, gibt es ihre Option nicht, und
+                // keine laufende Anfrage mehr, gibt es ihre Option nicht, und
                 // die Liste bliebe mit leerer Auswahl ohne Treffer.
                 if (control.select.value !== state.sponsorAssignee) {
                     state.sponsorAssignee = "";

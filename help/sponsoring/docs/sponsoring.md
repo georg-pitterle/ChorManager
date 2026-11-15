@@ -1,18 +1,18 @@
 # Sponsoring
 
-Das Sponsoring-Modul hilft dir, den Überblick über Sponsoren, Sponsoring-Pakete und Vorgänge zu behalten. Statt Excel-Listen und E-Mail-Verlauf findest du hier an einem Ort:
+Das Sponsoring-Modul hilft dir, den Überblick über Sponsoren, Sponsoring-Pakete und Anfragen zu behalten. Statt Excel-Listen und E-Mail-Verlauf findest du hier an einem Ort:
 
 - welche Sponsoren es gibt, nach **Kategorie** geordnet, und wo bereits angefragt wurde
-- welche Vorgänge (Beträge, Zeiträume, Pakete) mit wem bestehen und in welchem Status sie sind
+- welche Anfragen (Beträge, Zeiträume, Pakete) mit wem bestehen und in welchem Status sie sind
 - welche **Gegenleistungen** der Verein zugesagt hat – Logo im Programmheft, Freikarten, Nennung bei der Ansage – und welche davon schon erbracht sind
 - welche **Leistungen des Sponsors** noch ausstehen – Banner, unterschriebener Vertrag, Sachleistung
 - die **Logos** jedes Sponsors in allen Formaten, und von wem das Logo bis wann noch fehlt
 - ob das zugesagte Geld schon **bezahlt** ist
-- den Kontaktverlauf (Anrufe, E-Mails, Treffen, Briefe) je Vorgang
-- fällige Wiedervorlagen, damit kein Sponsor "vergessen" wird
+- den Kontaktverlauf (Anrufe, E-Mails, Treffen, Briefe) je Anfrage
+- fällige Erinnerungen, damit kein Sponsor "vergessen" wird
 - alle Verträge und Unterlagen an einem Ort
 
-> **Berechtigung:** Siehst du den Menüpunkt **Sponsoring** nicht, frag den Administrator, ob das Recht **"Eigene Sponsoring-Vorgänge erfassen"** oder **"Sponsoring verwalten"** bei deiner Rolle unter **Administration → Rollen & Rechte** aktiviert ist.
+> **Berechtigung:** Siehst du den Menüpunkt **Sponsoring** nicht, frag den Administrator, ob das Recht **"Eigene Sponsoring-Anfragen erfassen"** oder **"Sponsoring verwalten"** bei deiner Rolle unter **Administration → Rollen & Rechte** aktiviert ist.
 
 ## Wer darf was
 
@@ -20,19 +20,19 @@ Es gibt zwei Rechte:
 
 | Recht | Was damit möglich ist |
 | --- | --- |
-| **Eigene Sponsoring-Vorgänge erfassen** | Sehen, welche Firmen angefragt sind und wie es dort steht; neue Sponsoren und Vorgänge anlegen, die selbst angelegten weiter bearbeiten und deren Leistungen des Sponsors abhaken. Vorgänge lassen sich nur einem laufenden Projekt zuordnen (oder gar keinem). |
-| **Sponsoring verwalten** | Zusätzlich alle fremden Einträge sehen, bearbeiten und löschen, Sponsoren löschen, Pakete pflegen, Vorgänge jedem Projekt zuordnen und Gegenleistungen abhaken. |
+| **Eigene Sponsoring-Anfragen erfassen** | Sehen, welche Firmen angefragt sind und wie es dort steht; neue Sponsoren und Anfragen anlegen, die selbst angelegten weiter bearbeiten und deren Leistungen des Sponsors abhaken. Anfragen lassen sich nur einem laufenden Projekt zuordnen (oder gar keinem). |
+| **Sponsoring verwalten** | Zusätzlich alle fremden Einträge sehen, bearbeiten und löschen, Sponsoren löschen, Pakete pflegen, Anfragen jedem Projekt zuordnen und Gegenleistungen abhaken. |
 
-### Was bei fremden Vorgängen verborgen bleibt
+### Was bei fremden Anfragen verborgen bleibt
 
 Der Überblick ist Absicht: Du sollst vor einer Anfrage sehen, ob schon jemand an
-dieser Firma dran ist. Die Einzelheiten fremder Vorgänge gehören aber den
-Beteiligten. Ohne das Recht "Sponsoring verwalten" bleiben bei Vorgängen,
+dieser Firma dran ist. Die Einzelheiten fremder Anfragen gehören aber den
+Beteiligten. Ohne das Recht "Sponsoring verwalten" bleiben bei Anfragen,
 die du weder selbst angelegt hast noch für die du als **zuständig** eingetragen
 bist, verborgen:
 
 - der **Betrag** und das Datum **"Bezahlt am"**
-- die **Notizen** des Vorgangs
+- die **Notizen** der Anfrage
 - die **Belege** – weder Dateiname noch Download, auch nicht über die Seite "Anhänge"
 - die **Zusammenfassung** der Gesprächsnotizen; dass ein Kontakt stattfand und wann, bleibt sichtbar
 
@@ -41,43 +41,43 @@ Sichtbar bleiben Firma, Projekt, Paket, Status, Zuständige, Zeitraum und die
 "was müssen wir für diesen Sponsor noch tun" beantwortet.
 
 Die Summe **"Zugesagt insgesamt"** bleibt in jedem Fall dem Recht "Sponsoring
-verwalten" vorbehalten: Sie fasst alle Vorgänge zusammen und lässt sich
+verwalten" vorbehalten: Sie fasst alle Anfragen zusammen und lässt sich
 daher keinem einzelnen zuordnen.
 
-### Wenn du für einen fremden Vorgang zuständig bist
+### Wenn du für eine fremde Anfrage zuständig bist
 
-Bist du bei einem Vorgang als **zuständig** eingetragen, siehst du dessen
+Bist du bei einer Anfrage als **zuständig** eingetragen, siehst du deren
 Betrag, Notizen und Belege – auch wenn ihn jemand anderer angelegt hat. Du
 erfüllst die Zusage und musst dafür wissen, was vereinbart wurde.
 
-**Bearbeiten** darfst du ihn deshalb nicht: Den Betrag ändern bleibt bei der Person,
-die den Vorgang geführt hat. **Abhaken** darfst du die Leistungen des Sponsors:
+**Bearbeiten** darfst du sie deshalb nicht: Den Betrag ändern bleibt bei der Person,
+die die Anfrage geführt hat. **Abhaken** darfst du die Leistungen des Sponsors:
 Du sorgst dafür, dass er sein Material bringt. Die Gegenleistungen erbringt das
 Team, sie hakt nur ab, wer das Recht "Sponsoring verwalten" hat. Und die
 **Zusammenfassung**
 eines fremden Gesprächs bleibt auch dann verborgen: Die gehört dem, der sie
 geschrieben hat.
 
-Ist der Vorgang eine **Zusage**, darfst du außerdem die **Logos** dieses
+Ist die Anfrage eine **Zusage**, darfst du außerdem die **Logos** dieses
 Sponsors hochladen, ansehen und löschen – du besorgst sie ja. Das gilt nur für die
 Logos, nicht für die übrigen Anhänge des Sponsors, und es endet, sobald der
-Vorgang abgesagt oder abgeschlossen ist.
+Anfrage abgesagt oder abgeschlossen ist.
 
 Damit kann jedes Mitglied selbst eine Firma anfragen und das dokumentieren, während das Sponsoring-Team koordiniert und prüft. Vor jeder Anfrage lohnt ein Blick in die Sponsorenliste: dort steht, wo schon jemand angefragt hat.
 
-## Status eines Vorgangs
+## Status einer Anfrage
 
 | Status | Bedeutung |
 | --- | --- |
 | **Angefragt** | Die Anfrage ist raus, eine Antwort steht aus. |
-| **Erinnert** | Es wurde nachgefasst oder verhandelt. |
-| **Zusage** | Die Unterstützung ist zugesagt. Diese Vorgänge zählen auf der Übersicht als Zusagen – auch dann noch, wenn der Sponsor später keine weiteren Anfragen mehr wünscht. |
+| **Nachgefragt** | Beim Sponsor wurde nachgefragt oder verhandelt. |
+| **Zusage** | Die Unterstützung ist zugesagt. Diese Anfragen zählen auf der Übersicht als Zusagen – auch dann noch, wenn der Sponsor später keine weiteren Anfragen mehr wünscht. |
 | **Absage** | Der Sponsor hat für dieses Vorhaben abgesagt. |
-| **Abgeschlossen** | Der Vorgang ist erfüllt und abgehakt. |
+| **Abgeschlossen** | Die Anfrage ist erfüllt und abgehakt. |
 
-Der Sponsor selbst hat keinen eigenen Status: sein Zustand ergibt sich aus seinen Vorgängen. Eine **laufende Anfrage** hat dabei Vorrang vor einer früheren Zusage – so siehst du vor der eigenen Anfrage, ob schon jemand an dieser Firma dran ist.
+Der Sponsor selbst hat keinen eigenen Status: sein Zustand ergibt sich aus seinen Anfragen. Eine **laufende Anfrage** hat dabei Vorrang vor einer früheren Zusage – so siehst du vor der eigenen Anfrage, ob schon jemand an dieser Firma dran ist.
 
-Nur wenn jemand grundsätzlich nicht mehr angefragt werden möchte, wird beim Sponsor **"Keine Anfragen erwünscht"** gesetzt. Dann sperrt der Chor-Manager neue Vorgänge und Kontakte zu diesem Sponsor; bestehende Zusagen bleiben davon unberührt.
+Nur wenn jemand grundsätzlich nicht mehr angefragt werden möchte, wird beim Sponsor **"Keine Anfragen erwünscht"** gesetzt. Dann sperrt der Chor-Manager neue Anfragen und Kontakte zu diesem Sponsor; bestehende Zusagen bleiben davon unberührt.
 
 ## Einstieg: die Übersicht
 
@@ -89,10 +89,10 @@ Darunter führt eine Leiste durch das ganze Modul: **Übersicht · Sponsoren · 
 
 Die Übersicht ist eine Arbeitsliste in sieben Teilen:
 
-- **Ohne Zuständigkeit** (nur mit "Sponsoring verwalten"): laufende Vorgänge ohne aktive Person, Zusagen zuerst. Dort wählst du in der Zeile direkt eine Person und klickst **Zuweisen**; der Bearbeiten-Dialog ist dafür nicht nötig. Zur Auswahl stehen nur Personen mit einem Sponsoring-Recht. Ist die bisherige Person nicht mehr aktiv, steht das in der Zeile.
+- **Ohne Zuständigkeit** (nur mit "Sponsoring verwalten"): offene Anfragen und Zusagen ohne aktive Person, Zusagen zuerst. Dort wählst du in der Zeile direkt eine Person und klickst **Zuweisen**; der Bearbeiten-Dialog ist dafür nicht nötig. Zur Auswahl stehen nur Personen mit einem Sponsoring-Recht. Ist die bisherige Person nicht mehr aktiv, steht das in der Zeile.
 - **Logo fehlt**: zugesagte Sponsoren, deren Logo für den Druck oder für online gebraucht wird und für die noch keine Logo-Datei vorliegt – mehr dazu unten unter „Logos und Fristen“.
-- **Wiedervorlagen**: Kontakte mit einem Erinnerungstermin in den nächsten 7 Tagen. Wie dringend, steht in Worten daneben – "seit 2 Tagen überfällig", "heute fällig", "in 3 Tagen"; Überfälliges kommt zuerst. Mit **Erledigt** hakst du eine Wiedervorlage ab. Ohne das Recht "Sponsoring verwalten" siehst du hier deine eigenen Wiedervorlagen und die der Vorgänge, für die du zuständig bist – die darfst du auch abhaken, selbst wenn sie jemand anderer protokolliert hat. Die Zusammenfassung eines fremden Kontakts bleibt dabei verborgen. Daneben steht die zuständige Person.
-- **Offene Gegenleistungen**: Was der Verein zugesagten Sponsoren noch schuldet, je Vorgang – zuerst, was bald endet. Daneben steht die zuständige Person. Mit dem Recht "Sponsoring verwalten" hakt ein Klick eine Leistung als erbracht ab. Das ist die Liste für die Tage vor dem Konzert: welche Logos ins Programmheft gehören, wer Freikarten bekommt.
+- **Erinnerungen**: Kontakte mit einem Erinnerungstermin in den nächsten 7 Tagen. Wie dringend, steht in Worten daneben – "seit 2 Tagen überfällig", "heute fällig", "in 3 Tagen"; Überfälliges kommt zuerst. Mit **Erledigt** hakst du eine Erinnerung ab. Ohne das Recht "Sponsoring verwalten" siehst du hier deine eigenen Erinnerungen und die der Anfragen, für die du zuständig bist – die darfst du auch abhaken, selbst wenn sie jemand anderer protokolliert hat. Die Zusammenfassung eines fremden Kontakts bleibt dabei verborgen. Daneben steht die zuständige Person.
+- **Offene Gegenleistungen**: Was der Verein zugesagten Sponsoren noch schuldet, je Anfrage – zuerst, was bald endet. Daneben steht die zuständige Person. Mit dem Recht "Sponsoring verwalten" hakt ein Klick eine Leistung als erbracht ab. Das ist die Liste für die Tage vor dem Konzert: welche Logos ins Programmheft gehören, wer Freikarten bekommt.
 - **Offene Leistungen des Sponsors**: was zugesagte Sponsoren noch liefern – Banner, Vertrag, Sachleistung. Ein Klick hakt eine Leistung als erhalten ab, sofern du das darfst. Auch hier steht die zuständige Person daneben.
 - **Zahlung offen** (nur mit "Sponsoring verwalten"): Zusagen, bei denen das Geld noch nicht eingegangen ist. Zusagen über 0 € – reine Sachleistungen – stehen hier nicht. Auch hier steht die zuständige Person daneben.
 - **Letzte Kontakte**: die fünf zuletzt protokollierten Gespräche. Ohne "Sponsoring verwalten" nur deine eigenen.
@@ -103,17 +103,17 @@ Die Übersicht ist eine Arbeitsliste in sieben Teilen:
 
 Fürs Plakat muss ein Sponsorenlogo viel früher da sein als für Homepage und Social
 Media. Deshalb hat jedes Projekt zwei Logo-Fristen: **Druck** und **online**. Bei
-jedem Vorgang ist angekreuzt, wofür das Logo gebraucht wird; das Paket gibt es
+jeder Anfrage ist angekreuzt, wofür das Logo gebraucht wird; das Paket gibt es
 beim Anlegen vor.
 
 Daraus entsteht auf der Übersicht die Liste **Logo fehlt**:
 
-- Sie zeigt zugesagte Vorgänge, die ein Logo brauchen, deren Sponsor aber noch
-  keine Logo-Datei hat. Angefragte, abgesagte und abgeschlossene Vorgänge
+- Sie zeigt zugesagte Anfragen, die ein Logo brauchen, deren Sponsor aber noch
+  keine Logo-Datei hat. Angefragte, abgesagte und abgeschlossene Anfragen
   stehen hier nicht.
-- Jeder Sponsor erscheint einmal, mit der **frühesten Frist** seiner Vorgänge
+- Jeder Sponsor erscheint einmal, mit der **frühesten Frist** seiner Anfragen
   und allen **Zuständigen**.
-- Braucht ein Vorgang das Logo für den Druck, gilt die Druck-Frist des
+- Braucht eine Anfrage das Logo für den Druck, gilt die Druck-Frist des
   Projekts; ist keine eingetragen, die Online-Frist. Ohne Projekt oder ohne Datum
   steht der Sponsor unter **ohne Frist** am Ende.
 - **überfällig** heißt: Die Frist ist vorbei. **bald** heißt: Sie endet in den
@@ -132,11 +132,11 @@ unter **Mitglieder & Projekte → Projekte** – dort für jedes Projekt.
 
 ## Anleitungen
 
-- [Sponsoren verwalten](sponsoring-sponsors) – Sponsoren anlegen, Kategorien und Logos pflegen, Vorgänge mit Gegenleistungen und Leistungen des Sponsors erfassen, abhaken, Zahlung vermerken, Kontakte protokollieren
+- [Sponsoren verwalten](sponsoring-sponsors) – Sponsoren anlegen, Kategorien und Logos pflegen, Anfragen mit Gegenleistungen und Leistungen des Sponsors erfassen, abhaken, Zahlung vermerken, Kontakte protokollieren
 - [Sponsoring-Pakete verwalten](sponsoring-packages) – Pakete wie Bronze, Silber, Gold oder Hauptsponsor mit ihren Gegenleistungen, den Leistungen des Sponsors und dem Logo-Bedarf anlegen und pflegen
 
 ## Anhänge an einem Ort
 
-Über **Anhänge** in der Leiste erreichst du eine Liste aller Dateien: Verträge und Angebote, die an einem Vorgang hängen, sowie Mediadaten und Unterlagen, die beim Sponsor selbst liegen. Von dort siehst du jede Datei in der Vorschau an oder lädst sie herunter. Hochgeladen wird weiterhin dort, wo die Datei hingehört – beim Vorgang oder beim Sponsor.
+Über **Anhänge** in der Leiste erreichst du eine Liste aller Dateien: Verträge und Angebote, die an einer Anfrage hängen, sowie Mediadaten und Unterlagen, die beim Sponsor selbst liegen. Von dort siehst du jede Datei in der Vorschau an oder lädst sie herunter. Hochgeladen wird weiterhin dort, wo die Datei hingehört – bei der Anfrage oder beim Sponsor.
 
 Die **Logos** stehen nicht in dieser Liste, sondern auf der Seite des jeweiligen Sponsors im Abschnitt **Logos**.

@@ -64,6 +64,7 @@ class HelpButtonFeatureTest extends TestCase
         'songs/downloads'               => 'repertoire-downloads',
         'sponsoring/dashboard'          => 'sponsoring',
         'sponsoring/attachments/index'  => 'sponsoring',
+        'sponsoring/contacts/index'     => 'sponsoring',
         'sponsoring/packages/index'     => 'sponsoring-packages',
         'sponsoring/sponsors/index'     => 'sponsoring-sponsors',
         'sponsoring/sponsors/detail'    => 'sponsoring-sponsors',

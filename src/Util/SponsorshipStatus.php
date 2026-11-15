@@ -38,10 +38,19 @@ final class SponsorshipStatus
      */
     public const ONGOING = [self::REQUESTED, self::REMINDED, self::ACCEPTED];
 
+    /**
+     * Status, in denen ein Paket feststeht. Vorher ist offen, welches der
+     * Sponsor wählt - ein Paket an einer offenen Anfrage las sich im ersten
+     * Praxistest wie eine Zusage, deren Status niemand umgestellt hat.
+     *
+     * @var list<string>
+     */
+    public const WITH_PACKAGE = [self::ACCEPTED, self::CLOSED];
+
     /** @var array<string, string> */
     private const LABELS = [
         self::REQUESTED => 'Angefragt',
-        self::REMINDED  => 'Erinnert',
+        self::REMINDED  => 'Nachgefragt',
         self::ACCEPTED  => 'Zusage',
         self::DECLINED  => 'Absage',
         self::CLOSED    => 'Abgeschlossen',
@@ -119,6 +128,11 @@ final class SponsorshipStatus
     public static function isValid(string $status): bool
     {
         return isset(self::LABELS[$status]);
+    }
+
+    public static function allowsPackage(string $status): bool
+    {
+        return in_array($status, self::WITH_PACKAGE, true);
     }
 
     public static function label(?string $status): string

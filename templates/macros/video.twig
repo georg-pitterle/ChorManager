@@ -1,0 +1,45 @@
+{# Erklärvideo, das nicht gelistet auf YouTube liegt. Gezeigt wird ein lokales
+   Vorschaubild mit Knopf; erst der Klick setzt den Rahmen der cookielosen
+   YouTube-Adresse ein (public/js/video-embed.js). Bis dahin geht nichts an
+   fremde Server. Die Seite braucht dafür die CSP-Ausnahme aus
+   SecurityHeadersMiddleware::embedsVideo().
+
+   Gibt es eine Hochformat-Fassung, steht der Rahmen auf schmalen Bildschirmen
+   im Format 9:16, und der Klick lädt dort diese Fassung.
+
+   video_id         YouTube-Kennung (bereits geprüft, App\Util\YoutubeVideoId)
+   title            Titel des Videos, auch Titel des Rahmens
+   poster           Pfad des lokalen Vorschaubilds (16:9)
+   portrait_id      Kennung der Hochformat-Fassung oder null
+   portrait_poster  Vorschaubild im Hochformat oder null #}
+{% macro embed(video_id, title, poster, portrait_id=null, portrait_poster=null) %}
+    <figure class="video-embed{{ portrait_id ? " video-embed--has-portrait" : "" }}"
+            data-video-embed
+            data-video-id="{{ video_id }}"
+            {% if portrait_id %}data-video-portrait-id="{{ portrait_id }}"{% endif %}
+            data-video-title="{{ title }}">
+        <div class="video-embed-frame">
+            <picture>
+                {% if portrait_poster %}
+                    <source media="(max-width: 575.98px)" srcset="{{ portrait_poster }}" width="1080" height="1920">
+                {% endif %}
+                <img src="{{ poster }}"
+                     alt=""
+                     width="1920"
+                     height="1080"
+                     loading="lazy"
+                     class="video-embed-poster{{ portrait_id and not portrait_poster ? " video-embed-poster--letterbox" : "" }}">
+            </picture>
+            <button type="button" class="btn btn-primary video-embed-load" data-video-load>
+                Video laden (YouTube)
+            </button>
+        </div>
+        <figcaption class="video-embed-caption">
+            <span class="fw-semibold">{{ title }}</span>
+            <span class="text-muted small d-block">
+                Das Video liegt bei YouTube. Erst mit dem Klick wird es von dort geladen; dabei erfährt
+                YouTube deine IP-Adresse.
+            </span>
+        </figcaption>
+    </figure>
+{% endmacro %}

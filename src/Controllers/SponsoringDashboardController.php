@@ -8,6 +8,7 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
 use App\Controllers\ProjectController;
+use App\Models\AppSetting;
 use App\Models\Project;
 use App\Models\Sponsorship;
 use App\Models\SponsoringContact;
@@ -17,6 +18,7 @@ use App\Queries\SponsoringQuery;
 use App\Services\NameFormatterService;
 use App\Util\LogoDeadline;
 use App\Util\SponsorshipStatus;
+use App\Util\YoutubeVideoId;
 use Carbon\Carbon;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -148,11 +150,88 @@ class SponsoringDashboardController
             'open_benefits'     => $this->openBenefits(),
             'open_deliverables' => $this->openDeliverables(),
             'unpaid'            => $seesTotals ? $this->unpaidCommitments() : [],
+            'today_iso'         => $todayIso,
+            'guide_videos'      => $this->guideVideos($canManageAll),
             'shows_own_only'    => $ownUserId !== null,
             'open_follow_ups'   => $openFollowUps,
             'upcoming_follow_ups' => $upcomingFollowUps,
             'recent_contacts'   => $recentContacts,
             'active_nav'        => 'sponsoring',
+        ]);
+    }
+
+    /**
+     * Die Erklärvideos der Kurzanleitung: das Mitglieder-Video für alle, das
+     * der Verwaltung nur mit dem Vollrecht. Die Kennung wird hier noch einmal
+     * geprüft, auch wenn die Einstellungen sie schon geprüft speichern - sie
+     * wird Teil der Adresse eines Rahmens.
+     *
+     * Das Mitglieder-Video kann eine Hochformat-Fassung fürs Handy mitbringen
+     * (`portrait_id`). Welche geladen wird, entscheidet der Browser nach der
+     * Bildschirmbreite; ohne Querformat-Fassung wird sie nicht angeboten.
+     *
+     * @return list<array{id: string, title: string, poster: string, portrait_id: ?string, portrait_poster: ?string}>
+     */
+    private function guideVideos(bool $canManageAll): array
+    {
+        $offered = [
+            'sponsoring_video_member' => ['Sponsoring für Mitglieder', '/img/sponsoring/video-member.png'],
+        ];
+        if ($canManageAll) {
+            $offered['sponsoring_video_admin'] = ['Sponsoring verwalten', '/img/sponsoring/video-admin.png'];
+        }
+
+        $stored = AppSetting::whereIn('setting_key', [...array_keys($offered), self::PORTRAIT_SETTING])
+            ->pluck('setting_value', 'setting_key');
+
+        $videos = [];
+        foreach ($offered as $key => [$title, $poster]) {
+            $id = YoutubeVideoId::normalize($stored[$key] ?? '');
+            if ($id === '') {
+                continue;
+            }
+
+            $portraitId = $key === 'sponsoring_video_member'
+                ? YoutubeVideoId::normalize($stored[self::PORTRAIT_SETTING] ?? '')
+                : '';
+
+            $videos[] = [
+                'id' => $id,
+                'title' => $title,
+                'poster' => $poster,
+                'portrait_id' => $portraitId !== '' ? $portraitId : null,
+                // Solange es kein eigenes Hochformat-Bild gibt, steht das
+                // Querformat-Bild zentriert im hohen Rahmen.
+                'portrait_poster' => $portraitId !== '' && is_file(self::PUBLIC_DIR . self::PORTRAIT_POSTER)
+                    ? self::PORTRAIT_POSTER
+                    : null,
+            ];
+        }
+
+        return $videos;
+    }
+
+    private const PORTRAIT_SETTING = 'sponsoring_video_member_portrait';
+    private const PORTRAIT_POSTER = '/img/sponsoring/video-member-portrait.png';
+    private const PUBLIC_DIR = __DIR__ . '/../../public';
+
+    /**
+     * "Zahlung offen" als eigene Seite - für den Kassier, der die Finanzen
+     * führt, aber kein Sponsoring-Recht hat. Dieselbe Liste wie auf der
+     * Übersicht, und nur sie.
+     */
+    public function payments(Request $request, Response $response): Response
+    {
+        if (!$this->policy->canSeeOpenPayments()) {
+            $response->getBody()->write('Zugriff verweigert.');
+            return $response->withStatus(403);
+        }
+
+        return $this->view->render($response, 'sponsoring/payments.twig', [
+            'unpaid' => $this->unpaidCommitments(),
+            'has_sponsoring_access' => $this->policy->canContribute(),
+            'today_iso' => Carbon::today()->format('Y-m-d'),
+            'active_nav' => $this->policy->canContribute() ? 'sponsoring' : 'sponsoring_payments',
         ]);
     }
 
@@ -207,6 +286,29 @@ class SponsoringDashboardController
         }
 
         return $this->nameFormatter->formatPerson($sponsorship->assignedUser);
+    }
+
+    /**
+     * Die Adresse der zuständigen Person, oder null. Nur mit dem Vollrecht:
+     * Das Sponsoring-Team kennt nicht jedes Mitglied persönlich und erreicht es
+     * so per Mail; Beitragende bekommen fremde Adressen nicht zu sehen.
+     */
+    private function assigneeEmail(?Sponsorship $sponsorship): ?string
+    {
+        if ($sponsorship === null || !$sponsorship->hasCapableAssignee()) {
+            return null;
+        }
+
+        return $this->emailFor($sponsorship->assignedUser);
+    }
+
+    private function emailFor(?User $person): ?string
+    {
+        if ($person === null || !$this->policy->canManageAll()) {
+            return null;
+        }
+
+        return (string) $person->email !== '' ? (string) $person->email : null;
     }
 
     /** Ab wie vielen Tagen vor der Frist eine Zeile als "bald" gilt. */
@@ -267,7 +369,10 @@ class SponsoringDashboardController
 
             $assigneeName = $this->assigneeName($sponsorship);
             if ($assigneeName !== null) {
-                $assignees[$row['sponsor_id']][(int) $sponsorship->assigned_user_id] = $assigneeName;
+                $assignees[$row['sponsor_id']][(int) $sponsorship->assigned_user_id] = [
+                    'name' => $assigneeName,
+                    'email' => $this->assigneeEmail($sponsorship),
+                ];
             }
 
             $current = $bySponsor[$row['sponsor_id']] ?? null;
@@ -278,9 +383,12 @@ class SponsoringDashboardController
 
         $rows = [];
         foreach ($bySponsor as $sponsorId => $row) {
-            $names = array_values($assignees[$sponsorId] ?? []);
-            sort($names);
-            $rows[] = $row + ['assignees' => $names];
+            $people = array_values($assignees[$sponsorId] ?? []);
+            usort($people, static fn (array $a, array $b): int => $a['name'] <=> $b['name']);
+            $rows[] = $row + [
+                'assignees' => array_column($people, 'name'),
+                'assignee_contacts' => $people,
+            ];
         }
         usort($rows, static fn (array $a, array $b): int => [$a['deadline_sort'], $a['sponsor_name']]
             <=> [$b['deadline_sort'], $b['sponsor_name']]);
@@ -409,6 +517,7 @@ class SponsoringDashboardController
                 'package_badge' => $sponsorship->package?->badge_class,
                 'end_date_display' => $sponsorship->end_date?->format('d.m.Y'),
                 'assignee_name' => $this->assigneeName($sponsorship),
+                'assignee_email' => $this->assigneeEmail($sponsorship),
                 'benefits' => $sponsorship->{$relation}
                     ->map(static fn ($line): array => [
                         'id' => (int) $line->id,
@@ -442,11 +551,14 @@ class SponsoringDashboardController
             ->orderByRaw('start_date IS NULL, start_date')
             ->get()
             ->map(fn (Sponsorship $sponsorship): array => [
+                'id' => (int) $sponsorship->id,
                 'sponsor_name' => $sponsorship->sponsor ? (string) $sponsorship->sponsor->name : '-',
                 'sponsor_url' => '/sponsoring/sponsors/' . $sponsorship->sponsor_id,
                 'project_name' => $sponsorship->project ? (string) $sponsorship->project->name : 'Ohne Projekt',
                 'assignee_name' => $this->assigneeName($sponsorship),
+                'assignee_email' => $this->assigneeEmail($sponsorship),
                 'amount' => (float) $sponsorship->amount,
+                'confirm_url' => '/sponsoring/sponsorships/' . $sponsorship->id . '/paid',
             ])
             ->values()
             ->all();
@@ -520,7 +632,9 @@ class SponsoringDashboardController
             'agreement_amount_sort' => $amount,
             'agreement_status_label' => $statusLabel,
             'assignee_name' => $this->assigneeName($sponsorship),
+            'assignee_email' => $this->assigneeEmail($sponsorship),
             'owner_name' => $ownerName,
+            'owner_email' => $this->emailFor($contact->user),
             'owner_name_sort' => mb_strtolower($ownerName),
             'is_overdue' => $followUpDateSort !== '' && $followUpDateSort <= $todayIso,
             'mark_done_url' => '/sponsoring/contacts/' . $contact->id . '/done?redirect_to=dashboard',
@@ -544,6 +658,7 @@ class SponsoringDashboardController
             'contact_type_sort' => $contactType,
             'summary' => (string) ($contact->summary ?? ''),
             'owner_name' => $ownerName,
+            'owner_email' => $this->emailFor($contact->user),
             'owner_name_sort' => mb_strtolower($ownerName),
         ];
     }

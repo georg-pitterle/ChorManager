@@ -636,6 +636,14 @@ return function (App $app) {
                             [SponsorshipController::class, 'delete']
                         );
                         $sponsoringGroup->post(
+                            '/sponsorships/{id:[0-9]+}/attachments',
+                            [SponsorshipController::class, 'uploadAttachment']
+                        );
+                        $sponsoringGroup->post(
+                            '/sponsorships/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/rename',
+                            [SponsorshipController::class, 'renameAttachment']
+                        );
+                        $sponsoringGroup->post(
                             '/sponsorships/{id:[0-9]+}/attachments/{attachment_id:[0-9]+}/delete',
                             [SponsorshipController::class, 'deleteAttachment']
                         );
@@ -647,6 +655,7 @@ return function (App $app) {
                         );
 
                         // Kontakthistorie
+                        $sponsoringGroup->get('/contacts', [SponsoringContactController::class, 'index']);
                         $sponsoringGroup->post('/contacts', [SponsoringContactController::class, 'create']);
                         $sponsoringGroup->post(
                             '/contacts/{id:[0-9]+}',
@@ -671,6 +680,18 @@ return function (App $app) {
                         $sponsoringGroup->get('/packages', [SponsorPackageController::class, 'index']);
                     }
                 )->add(new RoleMiddleware(gates: ['requiresSponsoringAccess']));
+
+                // Zahlungseingänge: auch für den Kassier ohne Sponsoring-Recht.
+                $group->group(
+                    '/sponsoring',
+                    function (RouteCollectorProxy $sponsoringPaymentGroup) {
+                        $sponsoringPaymentGroup->get('/payments', [SponsoringDashboardController::class, 'payments']);
+                        $sponsoringPaymentGroup->post(
+                            '/sponsorships/{id:[0-9]+}/paid',
+                            [SponsorshipController::class, 'confirmPayment']
+                        );
+                    }
+                )->add(new RoleMiddleware(gates: ['requiresSponsoringPayments']));
 
                 $group->group(
                     '/sponsoring',
