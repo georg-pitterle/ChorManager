@@ -9,7 +9,6 @@ use App\Controllers\Concerns\AttachmentUploadJson;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\Activity;
-use App\Models\Comment;
 use App\Models\Attachment;
 use App\Models\User;
 use App\Services\CalendarFeedService;
@@ -18,6 +17,7 @@ use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
 use App\Services\EntityAttachmentService;
 use App\Services\EntityCleanupService;
+use App\Services\TaskWriteService;
 use App\Services\NotificationService;
 use App\Services\Notifications\InAppMessage;
 use App\Services\Notifications\InAppNotificationStore;
@@ -31,7 +31,6 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
 use Slim\Views\Twig;
 use Carbon\Carbon;
-use Illuminate\Database\Capsule\Manager as Capsule;
 
 class TaskController
 {
@@ -48,14 +47,16 @@ class TaskController
     private TaskPolicy $policy;
     private NameFormatterService $nameFormatter;
     private LoggerInterface $logger;
+    private TaskWriteService $taskWriter;
+    private CalendarSubscriptionService $subscriptions;
+    private CalendarFeedService $calendarFeed;
     private ?NotificationService $notificationService;
     private EntityAttachmentService $attachments;
     private EntityCleanupService $cleanup;
 
     /**
-     * `$notificationService` steht am Ende und ist optional, weil zahlreiche
-     * Tests diesen Controller mit festen Positionsargumenten bauen - ein
-     * Parameter in der Mitte hätte sie stumm auf die falschen Werte gesetzt.
+     * `$notificationService` ist optional, weil viele Tests den Controller ohne
+     * Benachrichtigung bauen.
      *
      * Optional heißt hier aber nicht "darf fehlen": PHP-DI füllt optionale
      * Parameter nicht aus dem Container, deshalb reicht ihn die ausdrückliche
@@ -63,11 +64,14 @@ class TaskController
      * Betrieb still keine Benachrichtigungen - dagegen steht
      * `NotificationWiringFeatureTest`.
      *
-     * `$attachments` steht aus demselben Grund dahinter. Es fällt hier aber
+     * `$attachments` ist aus demselben Grund optional. Es fällt hier aber
      * wirklich nicht aus, wenn es fehlt: Der Anhang-Dienst braucht nur einen
      * Logger, und den hat der Konstruktor schon. Die Vorgabe baut ihn damit,
      * statt dem Betrieb ein `null` zu überlassen, das erst beim Hochladen
      * auffiele.
+     *
+     * Die Tests bauen den Controller über `Tests\Feature\BuildsControllers`,
+     * nicht mit Positionsargumenten.
      */
     public function __construct(
         Twig $view,
@@ -75,6 +79,9 @@ class TaskController
         TaskPolicy $policy,
         NameFormatterService $nameFormatter,
         LoggerInterface $logger,
+        TaskWriteService $taskWriter,
+        CalendarSubscriptionService $subscriptions,
+        CalendarFeedService $calendarFeed,
         ?NotificationService $notificationService = null,
         ?EntityAttachmentService $attachments = null,
         ?EntityCleanupService $cleanup = null
@@ -84,6 +91,9 @@ class TaskController
         $this->policy = $policy;
         $this->nameFormatter = $nameFormatter;
         $this->logger = $logger;
+        $this->taskWriter = $taskWriter;
+        $this->subscriptions = $subscriptions;
+        $this->calendarFeed = $calendarFeed;
         $this->notificationService = $notificationService;
         $this->attachments = $attachments ?? new EntityAttachmentService($logger);
         $this->cleanup = $cleanup ?? new EntityCleanupService($this->attachments);
@@ -97,7 +107,7 @@ class TaskController
      */
     public function exportCalendar(Request $request, Response $response, array $args): Response
     {
-        $subscription = (new CalendarSubscriptionService())->findByToken((string) $args['token']);
+        $subscription = $this->subscriptions->findByToken((string) $args['token']);
         if (!$subscription) {
             return $response->withStatus(404);
         }
@@ -109,7 +119,7 @@ class TaskController
             return $response->withStatus(404);
         }
 
-        return (new CalendarFeedService($this->nameFormatter))
+        return $this->calendarFeed
             ->taskCalendarResponse($response, $user, AppUrlResolver::resolveBaseUrl($request));
     }
 
@@ -515,38 +525,19 @@ class TaskController
         // Die Benachrichtigung geht erst nach dem Festschreiben raus: Innerhalb
         // der Transaktion stünde die Mail schon in der Warteschlange, während
         // die Aufgabe bei einem Rücksetzer nie entsteht.
-        $task = Capsule::connection()->transaction(function () use (
-            $project,
-            $data,
-            $title,
-            $description,
-            $startDate,
-            $endDate,
-            $assignedUserIds
-        ) {
-            $task = Task::create([
-                'project_id'       => $project->id,
-                'name'             => $title,
-                'description'      => $description,
-                'created_by'       => $_SESSION['user_id'],
-                'start_date'       => $startDate,
-                'end_date'         => $endDate,
-                'status'           => $this->validateStatus($data['status'] ?? Task::STATUS_OPEN),
-                'priority'         => $this->validatePriority($data['priority'] ?? Task::PRIORITY_MEDIUM),
-            ]);
-
-            $task->assignees()->sync($assignedUserIds);
-
-            Activity::create([
-                'entity_type' => 'task',
-                'entity_id'   => $task->id,
-                'user_id'     => $_SESSION['user_id'],
-                'action'      => 'created',
-                'description' => 'Aufgabe erstellt.',
-            ]);
-
-            return $task;
-        });
+        $task = $this->taskWriter->create(
+            (int) $project->id,
+            [
+                'name'        => $title,
+                'description' => $description,
+                'start_date'  => $startDate,
+                'end_date'    => $endDate,
+                'status'      => $this->validateStatus($data['status'] ?? Task::STATUS_OPEN),
+                'priority'    => $this->validatePriority($data['priority'] ?? Task::PRIORITY_MEDIUM),
+            ],
+            $assignedUserIds,
+            (int) $_SESSION['user_id']
+        );
 
         $this->notifyAssigned($request, $task, $assignedUserIds);
 
@@ -602,70 +593,58 @@ class TaskController
             return $response->withHeader('Location', "/tasks/{$task->id}")->withStatus(302);
         }
 
-        $addedAssignedIds = Capsule::connection()->transaction(function () use (
+        $addedAssignedIds = [];
+        $this->taskWriter->update(
             $task,
-            $data,
-            $title,
-            $description,
-            $startDate,
-            $endDate,
-            $oldStatus,
-            $oldPriority,
-            $oldAssignedIds,
-            $oldDescription,
-            $assignedUserIds
-        ) {
-            $task->update([
-                'name'             => $title,
-                'description'      => $description,
-                'start_date'       => $startDate,
-                'end_date'         => $endDate,
-                'status'           => $this->validateStatus($data['status'] ?? $task->status),
-                'priority'         => $this->validatePriority($data['priority'] ?? $task->priority),
-            ]);
+            [
+                'name'        => $title,
+                'description' => $description,
+                'start_date'  => $startDate,
+                'end_date'    => $endDate,
+                'status'      => $this->validateStatus($data['status'] ?? $task->status),
+                'priority'    => $this->validatePriority($data['priority'] ?? $task->priority),
+            ],
+            $assignedUserIds,
+            (int) $_SESSION['user_id'],
+            function (Task $task) use (
+                $oldStatus,
+                $oldPriority,
+                $oldAssignedIds,
+                $oldDescription,
+                $description,
+                &$addedAssignedIds
+            ): ?string {
+                // Changes logging
+                $changes = [];
+                // Der Verlauf ist deutscher Text und nennt deshalb die Labels, nicht
+                // die Spaltenwerte: Seit die Spalten englische Bezeichner tragen,
+                // hätte hier "Status von 'open' auf 'done' geändert" gestanden.
+                if ($oldStatus !== $task->status) {
+                    $changes[] = sprintf(
+                        "Status von '%s' auf '%s' geändert",
+                        Task::STATUS_LABELS[$oldStatus] ?? $oldStatus,
+                        Task::STATUS_LABELS[$task->status] ?? $task->status
+                    );
+                }
+                if ($oldPriority !== $task->priority) {
+                    $changes[] = sprintf(
+                        "Priorität von '%s' auf '%s' geändert",
+                        Task::PRIORITY_LABELS[$oldPriority] ?? $oldPriority,
+                        Task::PRIORITY_LABELS[$task->priority] ?? $task->priority
+                    );
+                }
+                $newAssignedIds = $this->assigneeIds($task->fresh());
+                if ($oldAssignedIds !== $newAssignedIds) {
+                    $changes[] = $this->describeAssigneeChange($oldAssignedIds, $newAssignedIds);
+                }
+                $addedAssignedIds = $this->assigneeDiff($oldAssignedIds, $newAssignedIds)['added'];
+                if ($oldDescription !== $description) {
+                    $changes[] = 'Beschreibung aktualisiert';
+                }
 
-            $task->assignees()->sync($assignedUserIds);
-
-            // Changes logging
-            $changes = [];
-            // Der Verlauf ist deutscher Text und nennt deshalb die Labels, nicht
-            // die Spaltenwerte: Seit die Spalten englische Bezeichner tragen,
-            // hätte hier "Status von 'open' auf 'done' geändert" gestanden.
-            if ($oldStatus !== $task->status) {
-                $changes[] = sprintf(
-                    "Status von '%s' auf '%s' geändert",
-                    Task::STATUS_LABELS[$oldStatus] ?? $oldStatus,
-                    Task::STATUS_LABELS[$task->status] ?? $task->status
-                );
+                return $changes === [] ? null : implode(', ', $changes);
             }
-            if ($oldPriority !== $task->priority) {
-                $changes[] = sprintf(
-                    "Priorität von '%s' auf '%s' geändert",
-                    Task::PRIORITY_LABELS[$oldPriority] ?? $oldPriority,
-                    Task::PRIORITY_LABELS[$task->priority] ?? $task->priority
-                );
-            }
-            $newAssignedIds = $this->assigneeIds($task->fresh());
-            if ($oldAssignedIds !== $newAssignedIds) {
-                $changes[] = $this->describeAssigneeChange($oldAssignedIds, $newAssignedIds);
-            }
-            $addedAssignedIds = $this->assigneeDiff($oldAssignedIds, $newAssignedIds)['added'];
-            if ($oldDescription !== $description) {
-                $changes[] = 'Beschreibung aktualisiert';
-            }
-
-            if (count($changes) > 0) {
-                Activity::create([
-                    'entity_type' => 'task',
-                    'entity_id'   => $task->id,
-                    'user_id'     => $_SESSION['user_id'],
-                    'action'      => 'updated',
-                    'description' => implode(', ', $changes),
-                ]);
-            }
-
-            return $addedAssignedIds;
-        });
+        );
 
         $this->notifyAssigned($request, $task->fresh(), $addedAssignedIds);
 
@@ -709,22 +688,7 @@ class TaskController
         $content = trim(InputValidator::asString($data['content'] ?? null));
 
         if ($content !== '') {
-            Capsule::connection()->transaction(function () use ($task, $content) {
-                Comment::create([
-                    'entity_type' => 'task',
-                    'entity_id'   => $task->id,
-                    'user_id'     => $_SESSION['user_id'],
-                    'comment'     => $content,
-                ]);
-
-                Activity::create([
-                    'entity_type' => 'task',
-                    'entity_id'   => $task->id,
-                    'user_id'     => $_SESSION['user_id'],
-                    'action'      => 'commented',
-                    'description' => 'Neuer Kommentar hinzugefügt.',
-                ]);
-            });
+            $this->taskWriter->addComment($task, $content, (int) $_SESSION['user_id']);
 
             $this->notifyComment($request, $task, $content);
 
@@ -875,24 +839,17 @@ class TaskController
         $source = $fromTaskPage ? 'die Aufgabenseite' : 'das Kanban-Board';
 
         if ($oldStatus !== $newStatus) {
-            Capsule::connection()->transaction(function () use ($task, $newStatus, $oldStatus, $source) {
-                $task->update([
-                    'status' => $newStatus,
-                ]);
-
-                Activity::create([
-                    'entity_type' => 'task',
-                    'entity_id'   => $task->id,
-                    'user_id'     => $_SESSION['user_id'],
-                    'action'      => 'updated',
-                    'description' => sprintf(
-                        "Status von '%s' auf '%s' geändert via %s",
-                        Task::STATUS_LABELS[$oldStatus] ?? $oldStatus,
-                        Task::STATUS_LABELS[$newStatus] ?? $newStatus,
-                        $source
-                    ),
-                ]);
-            });
+            $this->taskWriter->changeStatus(
+                $task,
+                $newStatus,
+                sprintf(
+                    "Status von '%s' auf '%s' geändert via %s",
+                    Task::STATUS_LABELS[$oldStatus] ?? $oldStatus,
+                    Task::STATUS_LABELS[$newStatus] ?? $newStatus,
+                    $source
+                ),
+                (int) $_SESSION['user_id']
+            );
         }
 
         if ($fromTaskPage) {

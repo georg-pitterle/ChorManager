@@ -16,16 +16,13 @@ use App\Models\UserMailAccount;
 use App\Models\VoiceGroup;
 use App\Models\SubVoice;
 use App\Services\AccountLoginRevocationService;
+use App\Services\ImapConnectionProbe;
 use App\Services\MailCredentialCryptoService;
-use App\Services\Oidc\AuthorizationCodeService;
 use App\Services\NotificationService;
 use App\Services\PasswordPolicyService;
-use App\Services\RememberLoginService;
-use App\Util\BlockedHostException;
 use App\Util\Csrf;
 use App\Util\NotificationChannel;
 use App\Util\NotificationType;
-use App\Util\OutboundConnectionGuard;
 use App\Util\RequestFormat;
 use App\Util\InputValidator;
 use App\Util\MailboxAllowlist;
@@ -58,7 +55,8 @@ class ProfileController
     private PasswordPolicyService $passwordPolicyService;
     private LoggerInterface $logger;
     private MailCredentialCryptoService $crypto;
-    private RememberLoginService $rememberLoginService;
+    private AccountLoginRevocationService $loginRevocation;
+    private ImapConnectionProbe $imapProbe;
 
     /**
      * Optional und am Ende, wie in den übrigen Controllern: Bestehende Tests
@@ -79,7 +77,8 @@ class ProfileController
         PasswordPolicyService $passwordPolicyService,
         LoggerInterface $logger,
         MailCredentialCryptoService $crypto,
-        ?RememberLoginService $rememberLoginService = null,
+        AccountLoginRevocationService $loginRevocation,
+        ImapConnectionProbe $imapProbe,
         ?NotificationService $notificationService = null,
         ?MailboxAllowlist $mailboxAllowlist = null
     ) {
@@ -88,7 +87,8 @@ class ProfileController
         $this->passwordPolicyService = $passwordPolicyService;
         $this->logger = $logger;
         $this->crypto = $crypto;
-        $this->rememberLoginService = $rememberLoginService ?? new RememberLoginService();
+        $this->loginRevocation = $loginRevocation;
+        $this->imapProbe = $imapProbe;
         $this->notificationService = $notificationService;
         $this->mailboxAllowlist = $mailboxAllowlist ?? MailboxAllowlist::fromEnv();
     }
@@ -392,11 +392,7 @@ class ProfileController
         // ist. Deshalb enden alle anderen Anmeldungen des Kontos: laufende Sitzungen
         // auf anderen Geräten, Angemeldet-bleiben-Token und die Zugangstoken
         // angeschlossener Anwendungen. Diese Sitzung bleibt angemeldet.
-        (new AccountLoginRevocationService(
-            $this->rememberLoginService,
-            new AuthorizationCodeService($this->logger),
-            $this->logger
-        ))->revokeAllLogins($user, 'password_changed');
+        $this->loginRevocation->revokeAllLogins($user, 'password_changed');
 
         // Die eigene Sitzung bleibt bestehen, bekommt aber eine neue Kennung: Wer sie
         // mitgelesen hat, kommt mit der alten nicht weiter. Der CSRF-Token geht
@@ -586,9 +582,9 @@ class ProfileController
             return $response->withHeader('Location', '/profile')->withStatus(302);
         }
 
-        try {
-            $validatedIp = OutboundConnectionGuard::resolvePublicIp($imapHost);
-        } catch (BlockedHostException $e) {
+        $result = $this->imapProbe->probe($imapHost, (int) $imapPortRaw, $imapEncryption);
+
+        if ($result === ImapConnectionProbe::BLOCKED) {
             $this->logger->warning(
                 'Mailbox connection test blocked: host did not resolve to a public address.',
                 [
@@ -596,6 +592,12 @@ class ProfileController
                     'user_id' => (int)($_SESSION['user_id'] ?? 0),
                 ]
             );
+        }
+
+        if ($result === ImapConnectionProbe::BLOCKED || $result === ImapConnectionProbe::UNREACHABLE) {
+            // Deliberately generic: Der Fehlertext der Verbindung wird nicht genannt, und ein
+            // gesperrter Host klingt wie ein unerreichbarer - sonst entstünde ein Orakel für
+            // offen/geschlossen/gefiltert beim angefragten host:port.
             $message = 'Verbindung fehlgeschlagen: Host ist nicht erreichbar.';
             if ($wantsJson) {
                 return $this->jsonResponse($response, ['success' => false, 'message' => $message], 200);
@@ -604,42 +606,7 @@ class ProfileController
             return $response->withHeader('Location', '/profile')->withStatus(302);
         }
 
-        $imapPort = (int)$imapPortRaw;
-        $scheme = $imapEncryption === 'ssl' ? 'ssl' : 'tcp';
-        // Connect to the validated IP (pinned), but keep TLS peer verification
-        // bound to the original hostname so a rebind cannot redirect us.
-        $ipForUrl = str_contains($validatedIp, ':') ? '[' . $validatedIp . ']' : $validatedIp;
-        $remote = $scheme . '://' . $ipForUrl . ':' . $imapPort;
-
-        $context = stream_context_create([
-            'ssl' => [
-                'peer_name' => $imapHost,
-                'verify_peer' => true,
-                'verify_peer_name' => true,
-                'SNI_enabled' => true,
-            ],
-        ]);
-
-        $errno = 0;
-        $errstr = '';
-        $socket = @stream_socket_client($remote, $errno, $errstr, 5.0, STREAM_CLIENT_CONNECT, $context);
-
-        if ($socket === false) {
-            // Deliberately generic: do not echo $errstr, which would leak an
-            // open/closed/filtered oracle for the targeted host:port.
-            $message = 'Verbindung fehlgeschlagen: Host ist nicht erreichbar.';
-            if ($wantsJson) {
-                return $this->jsonResponse($response, ['success' => false, 'message' => $message], 200);
-            }
-            $_SESSION['error'] = $message;
-            return $response->withHeader('Location', '/profile')->withStatus(302);
-        }
-
-        stream_set_timeout($socket, 5);
-        $greeting = fgets($socket, 512);
-        fclose($socket);
-
-        if ($greeting !== false && str_starts_with($greeting, '* ')) {
+        if ($result === ImapConnectionProbe::OK) {
             $message = 'Verbindung erfolgreich.';
             if ($wantsJson) {
                 return $this->jsonResponse($response, ['success' => true, 'message' => $message], 200);

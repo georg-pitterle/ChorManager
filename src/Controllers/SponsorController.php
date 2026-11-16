@@ -57,6 +57,7 @@ class SponsorController
     private Twig $view;
     private SponsoringPolicy $policy;
     private EntityAttachmentService $attachments;
+    private EntityCleanupService $cleanup;
 
     private LoggerInterface $logger;
     private SponsoringQuery $sponsoringQuery;
@@ -74,12 +75,14 @@ class SponsorController
         Twig $view,
         SponsoringPolicy $policy,
         EntityAttachmentService $attachments,
+        EntityCleanupService $cleanup,
         ?LoggerInterface $logger = null,
         ?SponsoringQuery $sponsoringQuery = null
     ) {
         $this->view = $view;
         $this->policy = $policy;
         $this->attachments = $attachments;
+        $this->cleanup = $cleanup;
         $this->logger = $logger ?? new NullLogger();
         $this->sponsoringQuery = $sponsoringQuery ?? new SponsoringQuery(new NameFormatterService());
     }
@@ -471,10 +474,10 @@ class SponsorController
             // Über den gemeinsamen Dienst und nicht über eigene Abfragen: Welche
             // Tabellen so auf ihr Objekt zeigen, gehört an eine Stelle, sonst
             // laufen die Kopien wieder auseinander.
-            $cleanup = new EntityCleanupService($this->attachments);
+            $cleanup = $this->cleanup;
             $sponsorshipIds = Sponsorship::where('sponsor_id', $id)->pluck('id')->all();
             $cleanup->purgeForEntities(
-                SponsorshipController::ENTITY_TYPE,
+                Sponsorship::ENTITY_TYPE,
                 array_map('intval', $sponsorshipIds)
             );
             $cleanup->purgeForEntity(self::ENTITY_TYPE, $id);

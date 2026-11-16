@@ -54,10 +54,14 @@ class FinanceFeatureTest extends TestCase
     public function testFinanceCorrectionsRunThroughAReversalInsteadOfADelete(): void
     {
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/FinanceController.php');
+        $serviceContent = file_get_contents(dirname(__DIR__) . '/../src/Services/FinanceBookingService.php');
 
         $this->assertIsString($controllerContent);
-        $this->assertStringContainsString("'reversal_of_id' => " . '$' . "original->id,", $controllerContent);
+        $this->assertIsString($serviceContent);
+        // Die Gegenbuchung entsteht im FinanceBookingService, nicht mehr im Controller.
+        $this->assertStringContainsString("'reversal_of_id' => " . '$' . "original->id,", $serviceContent);
         $this->assertStringNotContainsString('public function delete(', $controllerContent);
+        $this->assertStringNotContainsString('public function delete(', $serviceContent);
     }
 
     /**

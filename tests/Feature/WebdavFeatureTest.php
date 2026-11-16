@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\WebdavController;
+use App\Util\WebdavUrl;
 use App\Models\Attachment;
 use App\Models\Project;
 use App\Models\Song;
@@ -199,7 +200,7 @@ final class WebdavFeatureTest extends TestCase
             $request = $this->makeRequest('GET', 'http://internal.local:8080/downloads')
                 ->withHeader('Host', 'angreifer.example.net');
 
-            $this->assertSame('https://chor.example.org/webdav/', WebdavController::baseUrl($request));
+            $this->assertSame('https://chor.example.org/webdav/', WebdavUrl::base($request));
         } finally {
             if ($previous === null) {
                 unset($_ENV['APP_URL']);

@@ -311,7 +311,6 @@ final class MailboxAllowlistFeatureTest extends TestCase
         return $this->profileController([
             'view' => $twig ?? $this->createStub(Twig::class),
             'crypto' => $this->crypto,
-            'rememberLoginService' => null,
             'notificationService' => null,
             'mailboxAllowlist' => $allowlist,
         ]);

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Util;
 
-use App\Controllers\AppSettingController;
 use App\Models\AppSetting;
 
 /**
@@ -50,7 +49,7 @@ final class MailBranding
     public static function resolve(): array
     {
         $appName = self::DEFAULT_APP_NAME;
-        $primaryColor = AppSettingController::DEFAULT_PRIMARY_COLOR;
+        $primaryColor = PrimaryColor::DEFAULT;
 
         try {
             $settings = AppSetting::query()
@@ -63,9 +62,9 @@ final class MailBranding
                 $appName = $configuredAppName;
             }
 
-            $primaryColor = AppSettingController::normalizePrimaryColor($settings['primary_color'] ?? null);
+            $primaryColor = PrimaryColor::normalize($settings['primary_color'] ?? null);
         } catch (\Throwable) {
-            $primaryColor = AppSettingController::DEFAULT_PRIMARY_COLOR;
+            $primaryColor = PrimaryColor::DEFAULT;
         }
 
         $logo = self::resolveLogoBinary();
@@ -194,7 +193,7 @@ final class MailBranding
         }
 
         if (strlen($hex) !== 6 || !ctype_xdigit($hex)) {
-            $hex = ltrim(AppSettingController::DEFAULT_PRIMARY_COLOR, '#');
+            $hex = ltrim(PrimaryColor::DEFAULT, '#');
         }
 
         return [

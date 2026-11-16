@@ -41,6 +41,29 @@ class AmountNormalizer
     }
 
     /**
+     * Wie im Finanzmodul: erst das Eingabeformat normalisieren ("1.500,00" =>
+     * "1500.00"), dann prüfen. Ohne die Prüfung wird "abc" still zu 0,00 und ein
+     * negativer Betrag kommentarlos gespeichert.
+     *
+     * Ein leeres Feld ist dagegen erlaubt und gilt als 0,00: Bei einer
+     * Kontaktanfrage stehen Paket und Betrag meist noch nicht fest, und auch
+     * eine Absage muss sich ohne Betrag festhalten lassen.
+     */
+    public static function normalizeNonNegative(string $amount): ?string
+    {
+        if ($amount === '') {
+            return '0.00';
+        }
+
+        $normalized = self::normalize($amount);
+        if (!is_numeric($normalized) || (float) $normalized < 0) {
+            return null;
+        }
+
+        return $normalized;
+    }
+
+    /**
      * Collapses a purely-grouped number (e.g. "1.234.567" or "1,234,567") that uses
      * $separator more than once. A trailing 3-digit group is treated as a thousands
      * group (dropped); any other length is treated as the decimal fraction.

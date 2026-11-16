@@ -8,6 +8,7 @@ use App\Models\UserMailAccount;
 use App\Services\MailCredentialCryptoService;
 use App\Services\WebmailSsoTokenService;
 use App\Util\AppUrlResolver;
+use App\Util\MailBadgeRefresh;
 use App\Util\MailboxAllowlist;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -124,7 +125,7 @@ class WebmailController
         // stellt von sich aus keine Anfrage mehr. Ohne diesen Vermerk sperrte die
         // reguläre Wartezeit den nächsten IMAP-Abgleich, und das Badge zeigte nach dem
         // Lesen weiterhin die alte Zahl ungelesener Nachrichten.
-        $_SESSION[MailBadgeController::FORCE_SESSION_KEY] = true;
+        $_SESSION[MailBadgeRefresh::FORCE_SESSION_KEY] = true;
 
         $this->logger->info(
             'Webmail SSO redirect issued.',

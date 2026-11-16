@@ -6,7 +6,12 @@ namespace Tests\Feature;
 
 use App\Controllers\AppSettingController;
 use App\Controllers\AttachmentController;
+use App\Controllers\AttendanceController;
 use App\Controllers\AuthController;
+use App\Controllers\DashboardController;
+use App\Controllers\EvaluationController;
+use App\Controllers\RegistrationController;
+use App\Controllers\SponsorController;
 use App\Controllers\EventController;
 use App\Controllers\EventTypeController;
 use App\Controllers\FinanceController;
@@ -24,11 +29,13 @@ use App\Controllers\VoiceGroupController;
 use App\Logging\DatabaseWriteLogger;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\MailBadgeRefreshMiddleware;
+use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
 use App\Queries\ProjectQuery;
 use App\Services\AttachmentAccessRegistry;
 use App\Services\BackupService;
 use App\Services\MailDeliveryService;
+use App\Services\NameFormatterService;
 use App\Services\Mailer;
 use App\Services\MailCredentialCryptoService;
 use App\Services\RememberLoginService;
@@ -36,6 +43,7 @@ use App\Services\SessionInvalidationService;
 use DI\Container;
 use DI\ContainerBuilder;
 use Monolog\Logger;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 use ReflectionClass;
@@ -488,5 +496,101 @@ final class DependenciesContainerWiringTest extends TestCase
             $this->propertyOf($controller, 'projectQuery'),
             'EventController muss die ProjectQuery des Containers bekommen, keine eigene.'
         );
+    }
+
+    /**
+     * UserPersistence schreibt Mitglied und Projektzuordnung in einer Transaktion
+     * und braucht dafür dieselbe ProjectPersistence wie der Container. Der
+     * Parameter ist optional; ohne ausdrücklichen Eintrag bliebe es bei einer
+     * eigenen Instanz, wie bei jedem optionalen Parameter unter PHP-DI.
+     */
+    public function testUserPersistenceReceivesTheContainersProjectPersistence(): void
+    {
+        $container = $this->buildContainer();
+
+        $persistence = $container->get(UserPersistence::class);
+
+        $this->assertSame(
+            $container->get(ProjectPersistence::class),
+            $this->propertyOf($persistence, 'projects')
+        );
+    }
+
+    /**
+     * Die Startseite rendert den Betreff des letzten Newsletters mit dem
+     * eingestellten Namensformat - so, wie er in der Mail ankam.
+     *
+     * Der DashboardController baute sich den Platzhalterdienst früher selbst mit
+     * `new NameFormatterService()`, also im Standardformat: Wer "Nachname Vorname"
+     * eingestellt hatte, las auf der Startseite einen anderen Betreff als in der
+     * Mail. Geprüft wird die Identität bis zum Formatter des Containers, denn nur
+     * der kennt die Einstellung `name_display_format`.
+     */
+    public function testDashboardRendersNewsletterSubjectsWithTheConfiguredNameFormat(): void
+    {
+        $container = $this->buildContainer();
+
+        $placeholders = $this->propertyOf($container->get(DashboardController::class), 'placeholders');
+
+        $this->assertSame(
+            $container->get(NameFormatterService::class),
+            $this->propertyOf($placeholders, 'nameFormatter')
+        );
+    }
+
+    /**
+     * Die Meldungen der Sammelaktionen ("... übersprungen") nennen Mitglieder im
+     * eingestellten Namensformat. Auch hier stand früher ein eigener
+     * `new NameFormatterService()` im Standardformat.
+     */
+    public function testUserControllerNamesMembersWithTheConfiguredNameFormat(): void
+    {
+        $container = $this->buildContainer();
+
+        $this->assertSame(
+            $container->get(NameFormatterService::class),
+            $this->propertyOf($container->get(UserController::class), 'nameFormatter')
+        );
+    }
+
+    /**
+     * Die zwölf Controller, die Tests über BuildsControllers bauen.
+     *
+     * Die Tests bauen sie nicht über den Container, deshalb merkt keiner von ihnen,
+     * wenn ein Handeintrag in Dependencies.php hinter einem geänderten Konstruktor
+     * zurückbleibt. Dieser Test holt jeden aus dem echten Container.
+     *
+     * @return array<string, array{class-string}>
+     */
+    public static function layeredControllers(): array
+    {
+        $classes = [
+            EventController::class,
+            UserController::class,
+            SponsorController::class,
+            TaskController::class,
+            FinanceController::class,
+            RegistrationController::class,
+            AttendanceController::class,
+            EvaluationController::class,
+            ProfileController::class,
+            PasswordResetController::class,
+            DashboardController::class,
+            VoiceGroupController::class,
+        ];
+
+        return array_combine(
+            array_map(static fn (string $class): string => substr($class, (int) strrpos($class, '\\') + 1), $classes),
+            array_map(static fn (string $class): array => [$class], $classes)
+        );
+    }
+
+    /**
+     * @param class-string $class
+     */
+    #[DataProvider('layeredControllers')]
+    public function testEveryLayeredControllerResolvesFromTheContainer(string $class): void
+    {
+        $this->assertInstanceOf($class, $this->buildContainer()->get($class));
     }
 }

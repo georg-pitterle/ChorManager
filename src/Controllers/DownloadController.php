@@ -14,6 +14,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
 use Slim\Views\Twig;
 use App\Util\UploadValidator;
+use App\Util\WebdavUrl;
 
 class DownloadController
 {
@@ -219,7 +220,7 @@ class DownloadController
         unset($_SESSION[self::WEBDAV_FLASH_KEY]);
 
         return [
-            'url' => WebdavController::baseUrl($request),
+            'url' => WebdavUrl::base($request),
             'user' => (string) (User::where('id', $userId)->value('email') ?? ''),
             'exists' => $this->webdav->hasTokenForUser($userId),
             'token' => is_string($fresh) && $fresh !== '' ? $fresh : null,

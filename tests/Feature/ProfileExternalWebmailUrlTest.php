@@ -39,7 +39,6 @@ final class ProfileExternalWebmailUrlTest extends TestCase
 
         $this->controller = $this->profileController([
             'view' => $this->createStub(Twig::class),
-            'rememberLoginService' => null,
             'notificationService' => null,
             'mailboxAllowlist' => TestMailboxAllowlist::standard(),
         ]);

@@ -38,7 +38,6 @@ final class ProfileMailboxFeatureTest extends TestCase
         $this->controller = $this->profileController([
             'view' => $this->twigMock,
             'crypto' => $this->crypto,
-            'rememberLoginService' => null,
             'notificationService' => null,
             'mailboxAllowlist' => TestMailboxAllowlist::standard(),
         ]);
@@ -533,7 +532,6 @@ final class ProfileMailboxFeatureTest extends TestCase
             'view' => $this->twigMock,
             'logger' => $logger,
             'crypto' => $this->crypto,
-            'rememberLoginService' => null,
             'notificationService' => null,
             'mailboxAllowlist' => TestMailboxAllowlist::standard(),
         ]);

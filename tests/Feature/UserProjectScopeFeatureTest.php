@@ -98,9 +98,7 @@ class UserProjectScopeFeatureTest extends TestCase
 
 
         $userPersistence = $this->createMock(UserPersistence::class);
-        $userPersistence->expects($this->never())->method('save');
-        $userPersistence->expects($this->never())->method('syncRoles');
-        $userPersistence->expects($this->never())->method('syncVoiceGroups');
+        $userPersistence->expects($this->never())->method('saveWithAssignments');
 
         $projectPersistence = $this->createMock(ProjectPersistence::class);
         $projectPersistence->expects($this->once())
@@ -169,21 +167,13 @@ class UserProjectScopeFeatureTest extends TestCase
             ->willReturn($targetUser);
 
 
+        // Ein globaler Bearbeiter reicht die Projektauswahl ungefiltert durch: [2, 3, 4].
         $userPersistence = $this->createMock(UserPersistence::class);
         $userPersistence->expects($this->once())
-            ->method('save')
-            ->with($targetUser);
-        $userPersistence->expects($this->once())
-            ->method('syncRoles')
-            ->with($targetUser, [$this->roleId]);
-        $userPersistence->expects($this->once())
-            ->method('syncVoiceGroups')
-            ->with($targetUser, []);
+            ->method('saveWithAssignments')
+            ->with($targetUser, [$this->roleId], [], [2, 3, 4]);
 
-        $projectPersistence = $this->createMock(ProjectPersistence::class);
-        $projectPersistence->expects($this->once())
-            ->method('setUserProjects')
-            ->with($this->targetUserId, [2, 3, 4]);
+        $projectPersistence = $this->createStub(ProjectPersistence::class);
 
         $mailQueueService = $this->createStub(MailQueueService::class);
         $logger = $this->createStub(LoggerInterface::class);

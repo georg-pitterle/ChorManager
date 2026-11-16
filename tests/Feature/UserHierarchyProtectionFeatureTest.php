@@ -121,8 +121,7 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
-        $userPersistence->expects($this->never())->method('save');
-        $userPersistence->expects($this->never())->method('syncRoles');
+        $userPersistence->expects($this->never())->method('saveWithAssignments');
 
         $projectPersistence = $this->createMock(ProjectPersistence::class);
         $projectPersistence->expects($this->never())->method('setUserProjects');
@@ -164,14 +163,15 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
-        $userPersistence->expects($this->once())->method('save')->with($target);
         // Rolle bei Level 80 und Level 100 liegen oberhalb des Akteurs (Level 50)
-        // und muessen deshalb aus der Zuweisung fallen.
-        $userPersistence->expects($this->once())->method('syncRoles')->with(
+        // und müssen deshalb aus der Zuweisung fallen. Keine Stimmgruppen und, weil
+        // der Akteur keine Projekte zuordnen darf, auch keine Projektliste (null).
+        $userPersistence->expects($this->once())->method('saveWithAssignments')->with(
             $target,
-            [$this->roleIdByLevel[10], $this->roleIdByLevel[50]]
+            [$this->roleIdByLevel[10], $this->roleIdByLevel[50]],
+            [],
+            null
         );
-        $userPersistence->expects($this->once())->method('syncVoiceGroups')->with($target, []);
 
         $projectPersistence = $this->createMock(ProjectPersistence::class);
         // Die Projektzuordnung hängt allein an can_manage_project_members, und das
@@ -217,9 +217,9 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
-        $userPersistence->expects($this->once())->method('save')->with($target);
-        $userPersistence->expects($this->once())->method('syncRoles')->with($target, [$this->roleIdByLevel[80]]);
-        $userPersistence->expects($this->once())->method('syncVoiceGroups')->with($target, []);
+        $userPersistence->expects($this->once())
+            ->method('saveWithAssignments')
+            ->with($target, [$this->roleIdByLevel[80]], [], null);
 
         $projectPersistence = $this->createMock(ProjectPersistence::class);
         // Die Projektzuordnung hängt allein an can_manage_project_members, und das
@@ -262,7 +262,9 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
-        $userPersistence->expects($this->once())->method('save')->with($target);
+        $userPersistence->expects($this->once())
+            ->method('saveWithAssignments')
+            ->with($target, $this->anything(), $this->anything(), $this->anything());
 
         $controller = $this->makeController(
             $userQuery,

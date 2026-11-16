@@ -178,4 +178,37 @@ class PollVoteService
             ->where('user_id', $userId)
             ->exists();
     }
+
+    /**
+     * Welche der Umfragen das Mitglied schon beantwortet hat, in einer Abfrage für
+     * die ganze Übersicht statt einer je Zeile.
+     *
+     * @param list<int> $pollIds
+     * @return list<int>
+     */
+    public function votedPollIds(int $userId, array $pollIds): array
+    {
+        return DB::table('poll_participants')
+            ->where('user_id', $userId)
+            ->whereIn('poll_id', $pollIds ?: [0])
+            ->pluck('poll_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+    }
+
+    /**
+     * Die Optionen, die das Mitglied für diese Umfrage gewählt hat - bei einer
+     * anonymen Umfrage leer, weil `poll_votes.user_id` dort leer bleibt.
+     *
+     * @return list<int>
+     */
+    public function ownOptionIds(Poll $poll, int $userId): array
+    {
+        return DB::table('poll_votes')
+            ->where('poll_id', $poll->id)
+            ->where('user_id', $userId)
+            ->pluck('option_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+    }
 }

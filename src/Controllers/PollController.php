@@ -75,12 +75,7 @@ class PollController
         }
         $polls = $query->get();
 
-        $votedIds = DB::table('poll_participants')
-            ->where('user_id', $userId)
-            ->whereIn('poll_id', $polls->pluck('id')->all() ?: [0])
-            ->pluck('poll_id')
-            ->map(static fn ($id): int => (int) $id)
-            ->all();
+        $votedIds = $this->votes->votedPollIds($userId, $polls->pluck('id')->all());
 
         $open = [];
         $closed = [];
@@ -143,7 +138,7 @@ class PollController
 
         [$voteError, $selection, $answerText] = $this->takeVoteFeedback((int) $poll->id);
         if ($voteError === null && $showBallot && $hasVoted) {
-            $selection = $this->ownOptionIds($poll, $userId);
+            $selection = $this->votes->ownOptionIds($poll, $userId);
             $answerText = $this->votes->ownAnswer($poll, $userId);
         }
 
@@ -599,17 +594,6 @@ class PollController
             array_values(array_map('intval', (array) ($feedback['selection'] ?? []))),
             is_string($answer) ? $answer : null,
         ];
-    }
-
-    /** @return list<int> */
-    private function ownOptionIds(Poll $poll, int $userId): array
-    {
-        return DB::table('poll_votes')
-            ->where('poll_id', $poll->id)
-            ->where('user_id', $userId)
-            ->pluck('option_id')
-            ->map(static fn ($id): int => (int) $id)
-            ->all();
     }
 
     private function notifyAudience(Request $request, Poll $poll): void

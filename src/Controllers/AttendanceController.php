@@ -14,11 +14,11 @@ use App\Models\Attendance;
 use App\Services\AttendanceScopeService;
 use App\Services\EventAudienceService;
 use App\Services\NameFormatterService;
+use App\Services\ParticipationWriter;
 use App\Util\VoiceGroupOrder;
 use App\Util\InputValidator;
 use App\Util\ParticipantStateFingerprint;
 use Carbon\Carbon;
-use Illuminate\Database\Capsule\Manager as Capsule;
 
 class AttendanceController
 {
@@ -33,17 +33,23 @@ class AttendanceController
     private AttendanceScopeService $scopeService;
     private LoggerInterface $logger;
     private NameFormatterService $nameFormatter;
+    private ParticipationWriter $writer;
+    private EventAudienceService $audienceService;
 
     public function __construct(
         Twig $view,
         AttendanceScopeService $scopeService,
         LoggerInterface $logger,
-        NameFormatterService $nameFormatter
+        NameFormatterService $nameFormatter,
+        ParticipationWriter $writer,
+        EventAudienceService $audienceService
     ) {
         $this->view = $view;
         $this->scopeService = $scopeService;
         $this->logger = $logger;
         $this->nameFormatter = $nameFormatter;
+        $this->writer = $writer;
+        $this->audienceService = $audienceService;
     }
 
     /**
@@ -132,7 +138,7 @@ class AttendanceController
                 $canManageAttendanceAll = (bool) ($_SESSION['can_manage_attendance_all'] ?? false);
 
                 // Only members within the event's audience scope may appear.
-                $users = (new EventAudienceService())->eligibleUsersQuery($event);
+                $users = $this->audienceService->eligibleUsersQuery($event);
 
                 // Ohne das Recht für alle Mitglieder bleibt nur der eigene Stimmgruppen-Scope.
                 // Eine leere Liste braucht keinen Sonderfall: whereIn() setzt dafür
@@ -244,7 +250,7 @@ class AttendanceController
             );
         }
 
-        $eligibleUserIds = (new EventAudienceService())->eligibleUsersQuery($event)
+        $eligibleUserIds = $this->audienceService->eligibleUsersQuery($event)
             ->pluck('id')
             ->map(static fn($id): int => (int) $id)
             ->all();
@@ -287,28 +293,11 @@ class AttendanceController
 
         [$rowsToWrite, $userIdsToClear] = $this->buildAttendanceChanges($eventId, $attendances, $notes);
 
-        Capsule::beginTransaction();
-
         try {
-            if ($rowsToWrite !== []) {
-                // upsert statt updateOrCreate: ein gleichzeitiger Ersteintrag
-                // derselben Zeile liefe sonst in den Unique-Key und würde das
-                // gesamte Formular zurückrollen.
-                Attendance::upsert($rowsToWrite, ['event_id', 'user_id'], ['status', 'note']);
-            }
-
-            if ($userIdsToClear !== []) {
-                Attendance::where('event_id', $eventId)
-                    ->whereIn('user_id', $userIdsToClear)
-                    ->delete();
-            }
-
-            Capsule::commit();
+            $this->writer->saveAttendances($eventId, $rowsToWrite, $userIdsToClear);
             $_SESSION[self::SELECTED_EVENT_SESSION_KEY] = $eventId;
             $_SESSION['success'] = 'Anwesenheiten erfolgreich gespeichert.';
         } catch (\Exception $e) {
-            Capsule::rollBack();
-
             $this->logger->error('Saving attendances failed.', [
                 'event' => 'attendance.save.failed',
                 'event_id' => $eventId,

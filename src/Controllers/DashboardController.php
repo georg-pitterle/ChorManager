@@ -13,8 +13,8 @@ use App\Policies\NewsletterPolicy;
 use App\Policies\TaskPolicy;
 use App\Services\EventAudienceService;
 use App\Services\EventScheduleFormatter;
-use App\Services\NameFormatterService;
 use App\Services\NewsletterPlaceholderService;
+use App\Services\PendingRegistrationSummaryService;
 use App\Services\PollAudienceService;
 use App\Services\PollLabels;
 use App\Services\Storage\StorageUsageService;
@@ -32,6 +32,10 @@ class DashboardController
     private \App\Services\MailQueueAdminService $mailQueueAdminService;
     private TaskPolicy $taskPolicy;
     private NewsletterPolicy $newsletterPolicy;
+    private EventAudienceService $audienceService;
+    private PollAudienceService $pollAudience;
+    private NewsletterPlaceholderService $placeholders;
+    private PendingRegistrationSummaryService $registrationSummaryService;
     private array $settings;
 
     public function __construct(
@@ -39,6 +43,10 @@ class DashboardController
         \App\Services\MailQueueAdminService $mailQueueAdminService,
         TaskPolicy $taskPolicy,
         NewsletterPolicy $newsletterPolicy,
+        EventAudienceService $audienceService,
+        PollAudienceService $pollAudience,
+        NewsletterPlaceholderService $placeholders,
+        PendingRegistrationSummaryService $registrationSummaryService,
         array $settings = [],
         private readonly ?StorageUsageService $storageUsage = null,
         private readonly LoggerInterface $logger = new NullLogger()
@@ -47,6 +55,10 @@ class DashboardController
         $this->mailQueueAdminService = $mailQueueAdminService;
         $this->taskPolicy = $taskPolicy;
         $this->newsletterPolicy = $newsletterPolicy;
+        $this->audienceService = $audienceService;
+        $this->pollAudience = $pollAudience;
+        $this->placeholders = $placeholders;
+        $this->registrationSummaryService = $registrationSummaryService;
         $this->settings = $settings;
     }
 
@@ -125,7 +137,7 @@ class DashboardController
         $registrationModuleEnabled = (bool) ($this->settings['modules']['registration'] ?? false);
         $registrationSummary = null;
         if ($registrationModuleEnabled && $userId > 0) {
-            $registrationSummary = (new \App\Services\PendingRegistrationSummaryService())->forUser($userId);
+            $registrationSummary = $this->registrationSummaryService->forUser($userId);
         }
 
         $upcomingEvents = $userId > 0 ? $this->upcomingEvents($userId, $registrationModuleEnabled) : [];
@@ -142,7 +154,7 @@ class DashboardController
         $openPolls = [];
         if ((bool) ($this->settings['modules']['polls'] ?? false) && $userId > 0) {
             $labels = new PollLabels();
-            foreach ((new PollAudienceService())->awaitingVote($userId) as $poll) {
+            foreach ($this->pollAudience->awaitingVote($userId) as $poll) {
                 $openPolls[] = $labels->overviewRow($poll, true, false);
             }
         }
@@ -199,7 +211,7 @@ class DashboardController
         $now = Carbon::now();
         $formatter = new EventScheduleFormatter();
 
-        $events = (new EventAudienceService())->visibleEventsQuery($userId)
+        $events = $this->audienceService->visibleEventsQuery($userId)
             ->where(static function ($query) use ($now): void {
                 $query->where('events.ends_at', '>=', $now)->orWhere('events.starts_at', '>=', $now);
             })
@@ -227,12 +239,16 @@ class DashboardController
     /**
      * Betreff so, wie er in der Mail ankam: ein Titel mit Platzhaltern stünde sonst als
      * "{{vorname}}: Probenplan" auf der Startseite.
+     *
+     * Der Platzhalterdienst kommt aus dem Container und damit mit dem eingestellten
+     * Namensformat - derselbe, der auch die Mail rendert. Ein hier selbst gebauter
+     * Dienst nähme das Standardformat und zeigte bei "Nachname Vorname" einen anderen
+     * Betreff als die Mail.
      */
     private function renderedSubject(Request $request, Newsletter $newsletter, int $userId): string
     {
-        $placeholders = new NewsletterPlaceholderService(new NameFormatterService());
-        $context = $placeholders->contextFor($newsletter, AppUrlResolver::resolveBaseUrl($request));
+        $context = $this->placeholders->contextFor($newsletter, AppUrlResolver::resolveBaseUrl($request));
 
-        return $placeholders->renderSubject((string) $newsletter->title, $context, User::find($userId));
+        return $this->placeholders->renderSubject((string) $newsletter->title, $context, User::find($userId));
     }
 }

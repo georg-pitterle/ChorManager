@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Slim\Views\Twig;
 use App\Models\SponsorPackage;
 use App\Policies\SponsoringPolicy;
+use App\Util\AmountNormalizer;
 use App\Util\BenefitList;
 use App\Util\InputValidator;
 use App\Util\SponsorPackageColor;
@@ -64,7 +65,7 @@ class SponsorPackageController
 
         // Das Feld ist optional; leer heißt "kein Mindestbetrag".
         $minAmountInput = trim(InputValidator::asString($data['min_amount'] ?? null));
-        $minAmount = SponsorshipController::validateAmount($minAmountInput === '' ? '0' : $minAmountInput);
+        $minAmount = AmountNormalizer::normalizeNonNegative($minAmountInput === '' ? '0' : $minAmountInput);
         if ($minAmount === null) {
             $_SESSION['error'] = self::AMOUNT_ERROR;
             return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);
@@ -124,7 +125,7 @@ class SponsorPackageController
 
         // Das Feld ist optional; leer heißt "kein Mindestbetrag".
         $minAmountInput = trim(InputValidator::asString($data['min_amount'] ?? null));
-        $minAmount = SponsorshipController::validateAmount($minAmountInput === '' ? '0' : $minAmountInput);
+        $minAmount = AmountNormalizer::normalizeNonNegative($minAmountInput === '' ? '0' : $minAmountInput);
         if ($minAmount === null) {
             $_SESSION['error'] = self::AMOUNT_ERROR;
             return $response->withHeader('Location', '/sponsoring/packages')->withStatus(302);

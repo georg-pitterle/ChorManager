@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Services\MailBadgeViewService;
+use App\Util\MailBadgeRefresh;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -23,21 +24,11 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  */
 class MailBadgeController
 {
-    /**
-     * Pfad dieses Endpunkts.
-     *
-     * Ein Aufruf hier ist per Definition die Bitte um einen aktuellen Zählerstand,
-     * nicht um den zwischengespeicherten - die Middleware erzwingt dafür einen
-     * IMAP-Abgleich.
-     */
-    public const REFRESH_PATH = '/profile/mail-badge';
+    /** Pfad dieses Endpunkts; Beschreibung und Wert stehen in MailBadgeRefresh. */
+    public const REFRESH_PATH = MailBadgeRefresh::PATH;
 
-    /**
-     * Einmalvermerk in der Session: Der nächste Request gleicht ab, egal wie kurz
-     * der letzte Abgleich her ist. Gesetzt beim Start des Webmails, weil sich das
-     * Postfach in einem separaten Tab öffnet und dieser Tab davon nichts mitbekommt.
-     */
-    public const FORCE_SESSION_KEY = 'mail_badge_refresh_due';
+    /** Einmalvermerk für den erzwungenen Abgleich; Beschreibung und Wert stehen in MailBadgeRefresh. */
+    public const FORCE_SESSION_KEY = MailBadgeRefresh::FORCE_SESSION_KEY;
 
     public function __construct(private readonly MailBadgeViewService $badgeView)
     {

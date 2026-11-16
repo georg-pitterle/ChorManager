@@ -22,21 +22,38 @@ use App\Policies\NewsletterPolicy;
 use App\Policies\SponsoringPolicy;
 use App\Policies\TaskPolicy;
 use App\Policies\UserEditPolicy;
+use App\Queries\EvaluationQuery;
 use App\Queries\ProjectQuery;
 use App\Queries\UserQuery;
+use App\Queries\VoiceGroupQuery;
+use App\Services\AccountLoginRevocationService;
 use App\Services\AttendanceScopeService;
+use App\Services\CalendarFeedService;
+use App\Services\CalendarSubscriptionService;
+use App\Services\EntityCleanupService;
+use App\Services\EventAudienceService;
+use App\Services\ImapConnectionProbe;
+use App\Services\NewsletterPlaceholderService;
+use App\Services\Oidc\AuthorizationCodeService;
+use App\Services\PendingRegistrationSummaryService;
+use App\Services\PollAudienceService;
+use App\Services\RememberLoginService;
 use App\Services\BankStatementImportService;
 use App\Services\BudgetService;
 use App\Services\EntityAttachmentService;
+use App\Services\EventWriteService;
 use App\Services\FinanceAccountService;
+use App\Services\FinanceBookingService;
 use App\Services\FinanceCsvExportService;
 use App\Services\FinanceJournalService;
 use App\Services\FinanceReportPdfService;
 use App\Services\HtmlSanitizer;
+use App\Services\TaskWriteService;
 use App\Services\MailCredentialCryptoService;
 use App\Services\MailQueueAdminService;
 use App\Services\MailQueueService;
 use App\Services\NameFormatterService;
+use App\Services\ParticipationWriter;
 use App\Services\PasswordPolicyService;
 use App\Services\Pdf\TcLibPdfCanvas;
 use InvalidArgumentException;
@@ -68,6 +85,10 @@ trait BuildsControllers
             'nameFormatter' => static fn (): NameFormatterService => new NameFormatterService(),
             'logger' => static fn (): LoggerInterface => new NullLogger(),
             'projectQuery' => static fn (): ProjectQuery => new ProjectQuery(new NameFormatterService()),
+            'eventWriter' => static fn (): EventWriteService => new EventWriteService(),
+            'audienceService' => static fn (): EventAudienceService => new EventAudienceService(),
+            'subscriptions' => static fn (): CalendarSubscriptionService => new CalendarSubscriptionService(),
+            'calendarFeed' => static fn (): CalendarFeedService => new CalendarFeedService(new NameFormatterService()),
         ]);
     }
 
@@ -77,6 +98,7 @@ trait BuildsControllers
         return $this->buildController(SponsorController::class, $with, [
             'policy' => static fn (): SponsoringPolicy => new SponsoringPolicy($_SESSION),
             'attachments' => static fn (): EntityAttachmentService => new EntityAttachmentService(new NullLogger()),
+            'cleanup' => static fn (): EntityCleanupService => new EntityCleanupService(),
         ]);
     }
 
@@ -87,6 +109,8 @@ trait BuildsControllers
             'scopeService' => static fn (): AttendanceScopeService => new AttendanceScopeService($_SESSION),
             'logger' => static fn (): LoggerInterface => new NullLogger(),
             'nameFormatter' => static fn (): NameFormatterService => new NameFormatterService(),
+            'writer' => static fn (): ParticipationWriter => new ParticipationWriter(),
+            'audienceService' => static fn (): EventAudienceService => new EventAudienceService(),
         ]);
     }
 
@@ -97,6 +121,8 @@ trait BuildsControllers
             'scopeService' => static fn (): AttendanceScopeService => new AttendanceScopeService($_SESSION),
             'logger' => static fn (): LoggerInterface => new NullLogger(),
             'nameFormatter' => static fn (): NameFormatterService => new NameFormatterService(),
+            'writer' => static fn (): ParticipationWriter => new ParticipationWriter(),
+            'audienceService' => static fn (): EventAudienceService => new EventAudienceService(),
         ]);
     }
 
@@ -105,6 +131,8 @@ trait BuildsControllers
     {
         return $this->buildController(EvaluationController::class, $with, [
             'projectQuery' => static fn (): ProjectQuery => new ProjectQuery(new NameFormatterService()),
+            'evaluationQuery' => static fn (): EvaluationQuery => new EvaluationQuery(),
+            'audienceService' => static fn (): EventAudienceService => new EventAudienceService(),
         ]);
     }
 
@@ -117,13 +145,17 @@ trait BuildsControllers
             'logger' => static fn (): LoggerInterface => new NullLogger(),
             // `final` und damit nicht doublebar: der echte Dienst, die Tests verschlüsseln nichts.
             'crypto' => static fn (): MailCredentialCryptoService => new MailCredentialCryptoService(),
+            'loginRevocation' => static fn (): AccountLoginRevocationService => self::loginRevocation(),
+            'imapProbe' => static fn (): ImapConnectionProbe => new ImapConnectionProbe(),
         ]);
     }
 
     /** @param array<string, mixed> $with */
     protected function passwordResetController(array $with = []): PasswordResetController
     {
-        return $this->buildController(PasswordResetController::class, $with, []);
+        return $this->buildController(PasswordResetController::class, $with, [
+            'loginRevocation' => static fn (): AccountLoginRevocationService => self::loginRevocation(),
+        ]);
     }
 
     /** @param array<string, mixed> $with */
@@ -133,13 +165,21 @@ trait BuildsControllers
             'mailQueueAdminService' => static fn (): MailQueueAdminService => new MailQueueAdminService(),
             'taskPolicy' => static fn (): TaskPolicy => new TaskPolicy($_SESSION),
             'newsletterPolicy' => static fn (): NewsletterPolicy => new NewsletterPolicy($_SESSION),
+            'audienceService' => static fn (): EventAudienceService => new EventAudienceService(),
+            'pollAudience' => static fn (): PollAudienceService => new PollAudienceService(),
+            'placeholders' => static fn (): NewsletterPlaceholderService => new NewsletterPlaceholderService(
+                new NameFormatterService()
+            ),
+            'registrationSummaryService' => static fn (): PendingRegistrationSummaryService => new PendingRegistrationSummaryService(),
         ]);
     }
 
     /** @param array<string, mixed> $with */
     protected function voiceGroupController(array $with = []): VoiceGroupController
     {
-        return $this->buildController(VoiceGroupController::class, $with, []);
+        return $this->buildController(VoiceGroupController::class, $with, [
+            'voiceGroupQuery' => static fn (): VoiceGroupQuery => new VoiceGroupQuery(),
+        ]);
     }
 
     /** @param array<string, mixed> $with */
@@ -150,6 +190,9 @@ trait BuildsControllers
             'policy' => static fn (): TaskPolicy => new TaskPolicy($_SESSION),
             'nameFormatter' => static fn (): NameFormatterService => new NameFormatterService(),
             'logger' => static fn (): LoggerInterface => new NullLogger(),
+            'taskWriter' => static fn (): TaskWriteService => new TaskWriteService(),
+            'subscriptions' => static fn (): CalendarSubscriptionService => new CalendarSubscriptionService(),
+            'calendarFeed' => static fn (): CalendarFeedService => new CalendarFeedService(new NameFormatterService()),
         ]);
     }
 
@@ -166,6 +209,7 @@ trait BuildsControllers
             'accountService' => static fn (): FinanceAccountService => new FinanceAccountService(),
             'journal' => static fn (): FinanceJournalService => new FinanceJournalService(),
             'csvExportService' => static fn (): FinanceCsvExportService => new FinanceCsvExportService(),
+            'bookings' => static fn (): FinanceBookingService => new FinanceBookingService(new FinanceJournalService()),
         ]);
     }
 
@@ -179,7 +223,18 @@ trait BuildsControllers
             'mailQueueService' => fn (): MailQueueService => $this->createStub(MailQueueService::class),
             'logger' => static fn (): LoggerInterface => new NullLogger(),
             'userEditPolicy' => static fn (): UserEditPolicy => new UserEditPolicy($_SESSION),
+            'nameFormatter' => static fn (): NameFormatterService => new NameFormatterService(),
         ]);
+    }
+
+    /** Beendet alle Anmeldungen eines Kontos: Angemeldet-bleiben-Token, Sitzungen, Zugangstoken. */
+    private static function loginRevocation(): AccountLoginRevocationService
+    {
+        return new AccountLoginRevocationService(
+            new RememberLoginService(),
+            new AuthorizationCodeService(new NullLogger()),
+            new NullLogger()
+        );
     }
 
     /**

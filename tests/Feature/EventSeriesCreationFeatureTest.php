@@ -7,10 +7,14 @@ namespace Tests\Feature;
 use App\Controllers\EventController;
 use App\Models\Event;
 use App\Models\EventSeries;
+use App\Models\User;
+use App\Services\NotificationService;
+use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
+use RuntimeException;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 
@@ -172,5 +176,44 @@ final class EventSeriesCreationFeatureTest extends TestCase
         $series = EventSeries::where('id', '>', $before)->orderBy('id', 'desc')->first();
 
         $this->assertNull($series->weekdays, 'Wochentage gehören nur zum Wochentakt.');
+    }
+
+    /**
+     * Die Benachrichtigung geht erst nach dem Festschreiben raus. Scheitert sie,
+     * bleibt der Termin stehen - er gehörte sonst mit dem Mailserver in dieselbe
+     * Transaktion.
+     */
+    public function testAFailingNotificationDoesNotUndoTheEvent(): void
+    {
+        User::create([
+            'first_name' => 'Mail',
+            'last_name' => 'Fehler',
+            'email' => 'mailfehler.' . bin2hex(random_bytes(4)) . '@example.test',
+            'password' => PasswordHasher::hash('Test-Passwort-1'),
+            'is_active' => 1,
+        ]);
+        $notifications = $this->createMock(NotificationService::class);
+        $notifications->expects($this->atLeastOnce())
+            ->method('notify')
+            ->willThrowException(new RuntimeException('Mailserver nicht erreichbar'));
+        $controller = $this->eventController([
+            'view' => $this->createStub(Twig::class),
+            'notificationService' => $notifications,
+        ]);
+        $before = Event::count();
+
+        $controller->create(
+            $this->makeRequest('POST', '/events', [
+                'title' => 'Termin trotz Mailfehler',
+                'starts_at' => '2030-10-21',
+                'start_time' => '19:00',
+                'end_time' => '21:00',
+                'audience' => [['all' => '1']],
+            ]),
+            $this->makeResponse()
+        );
+
+        $this->assertSame($before + 1, Event::count(), 'Der Termin muss trotz Mailfehler gespeichert sein.');
+        $this->assertTrue(Event::where('title', 'Termin trotz Mailfehler')->exists());
     }
 }

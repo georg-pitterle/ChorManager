@@ -28,6 +28,7 @@ use App\Services\CalendarFeedService;
 use App\Services\EventAudienceService;
 use App\Services\EventRecurrenceService;
 use App\Services\EventScheduleFormatter;
+use App\Services\EventWriteService;
 use App\Services\NotificationService;
 use App\Services\Notifications\InAppMessage;
 use App\Services\Notifications\InAppNotificationStore;
@@ -37,7 +38,6 @@ use App\Services\EntityCleanupService;
 use App\Util\AppUrlResolver;
 use App\Util\NotificationType;
 use App\Util\InputValidator;
-use App\Util\WallClockOffset;
 use App\Util\SafeRedirect;
 use App\Util\SessionConfig;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
@@ -95,22 +95,29 @@ class EventController
     private ProjectQuery $projectQuery;
     private UserQuery $userQuery;
 
+    private EventWriteService $eventWriter;
+    private EventAudienceService $audienceService;
+    private CalendarSubscriptionService $subscriptions;
+    private CalendarFeedService $calendarFeed;
     private ?NotificationService $notificationService;
     private EntityCleanupService $cleanup;
 
     /**
-     * `$notificationService` steht am Ende und ist optional: Zahlreiche Tests
-     * bauen diesen Controller mit festen Positionsargumenten, ein Parameter in
-     * der Mitte hätte sie stumm verschoben. Im Betrieb reicht ihn die
-     * ausdrückliche Registrierung in `Dependencies.php` durch - PHP-DI füllt
-     * optionale Parameter nicht selbst, dagegen steht
-     * `NotificationWiringFeatureTest`.
+     * `$notificationService` ist optional: Viele Tests bauen den Controller ohne
+     * Benachrichtigung. Im Betrieb reicht ihn die ausdrückliche Registrierung in
+     * `Dependencies.php` durch - PHP-DI füllt optionale Parameter nicht selbst,
+     * dagegen steht `NotificationWiringFeatureTest`. Die Tests bauen den
+     * Controller über `Tests\Feature\BuildsControllers`, nicht mit Positionsargumenten.
      */
     public function __construct(
         Twig $view,
         NameFormatterService $nameFormatter,
         LoggerInterface $logger,
         ProjectQuery $projectQuery,
+        EventWriteService $eventWriter,
+        EventAudienceService $audienceService,
+        CalendarSubscriptionService $subscriptions,
+        CalendarFeedService $calendarFeed,
         ?NotificationService $notificationService = null,
         ?EntityCleanupService $cleanup = null,
         ?UserQuery $userQuery = null
@@ -119,6 +126,10 @@ class EventController
         $this->nameFormatter = $nameFormatter;
         $this->logger = $logger;
         $this->projectQuery = $projectQuery;
+        $this->eventWriter = $eventWriter;
+        $this->audienceService = $audienceService;
+        $this->subscriptions = $subscriptions;
+        $this->calendarFeed = $calendarFeed;
         $this->notificationService = $notificationService;
         $this->cleanup = $cleanup ?? new EntityCleanupService();
         $this->userQuery = $userQuery ?? new UserQuery($nameFormatter);
@@ -212,7 +223,7 @@ class EventController
             return new \Illuminate\Support\Collection();
         }
 
-        $idsByEvent = (new EventAudienceService())->eligibleUserIdsForEvents($events);
+        $idsByEvent = $this->audienceService->eligibleUserIdsForEvents($events);
 
         $userIds = [];
         foreach ($idsByEvent as $ids) {
@@ -440,7 +451,7 @@ class EventController
         $query = Event::query();
 
         if (!$seesAllEvents) {
-            $visibleIds = (new EventAudienceService())
+            $visibleIds = $this->audienceService
                 ->visibleEventsQuery($userId)
                 ->pluck('id')
                 ->map(static fn($id): int => (int) $id)
@@ -646,9 +657,8 @@ class EventController
         $data = (array) $request->getParsedBody();
         $target = $this->subscriptionRedirectTarget($data['redirect_to'] ?? null);
 
-        $subscriptionService = new CalendarSubscriptionService();
-        $rotated = $subscriptionService->hasTokenForUser($userId);
-        $token = $subscriptionService->rotateTokenForUser($userId);
+        $rotated = $this->subscriptions->hasTokenForUser($userId);
+        $token = $this->subscriptions->rotateTokenForUser($userId);
 
         // Der Token statt der fertigen Adresse: Aus ihm entstehen beide Links,
         // und ob der zweite gebraucht wird, entscheidet erst die Anzeige.
@@ -700,10 +710,8 @@ class EventController
         // Ohne frisch erzeugten Token gibt es keine Adresse zu zeigen: Gespeichert
         // ist nur der Hash. Die Oberfläche meldet das Abo als vorhanden und bietet
         // das Neuerzeugen an.
-        $subscriptionService = new CalendarSubscriptionService();
-
         return [
-            'exists' => $subscriptionService->hasTokenForUser($userId),
+            'exists' => $this->subscriptions->hasTokenForUser($userId),
             'url' => null,
             'task_url' => null,
             'autoshow' => false,
@@ -758,7 +766,7 @@ class EventController
 
     public function exportCalendar(Request $request, Response $response, array $args): Response
     {
-        $subscription = (new CalendarSubscriptionService())->findByToken((string) $args['token']);
+        $subscription = $this->subscriptions->findByToken((string) $args['token']);
         if (!$subscription) {
             return $response->withStatus(404);
         }
@@ -772,7 +780,7 @@ class EventController
             return $response->withStatus(404);
         }
 
-        return (new CalendarFeedService($this->nameFormatter))
+        return $this->calendarFeed
             ->eventCalendarResponse($response, $user, AppUrlResolver::resolveBaseUrl($request));
     }
 
@@ -1034,10 +1042,9 @@ class EventController
             'attendance_required' => $attendanceRequired,
         ];
 
-        $audienceService = new EventAudienceService();
         $formData['audience'] = AudienceFormInput::rows($data['audience'] ?? []);
         try {
-            $audienceSets = $audienceService->readRows($data);
+            $audienceSets = $this->audienceService->readRows($data);
         } catch (InvalidAudienceFilterException $exception) {
             $createService = new ModalFormService('event_create');
             $createService->setError($exception->getMessage(), $formData);
@@ -1133,7 +1140,7 @@ class EventController
 
             if (!$repeat) {
                 // Single event
-                $event = Event::create([
+                $event = $this->eventWriter->createSingle([
                     'title' => $title,
                     'starts_at' => $startsAt,
                     'ends_at' => $endsAt,
@@ -1142,18 +1149,16 @@ class EventController
                     'registration_enabled' => $registrationEnabled,
                     'registration_deadline' => $registrationDeadline,
                     'attendance_required' => $attendanceRequired,
-                ]);
-                $audienceService->setAudience($event, $audienceSets);
+                ], $audienceSets);
 
                 if ($this->shouldNotifyMembers($data)) {
-                    $createdEvent = $event->fresh();
                     $this->notifyAudience(
                         $request,
                         NotificationType::EVENT_CREATED,
-                        [$createdEvent],
+                        [$event],
                         'Neuer Termin: ' . $title,
                         'emails/notification_event_created.twig',
-                        $this->describeWhen([$createdEvent]),
+                        $this->describeWhen([$event]),
                         ['series_title' => $title]
                     );
                 }
@@ -1162,55 +1167,27 @@ class EventController
             } else {
                 // Series - $frequency, $interval, $weekdays (1 = Mo bis 7 = So) und
                 // $seriesEnd sind oben bereits geprüft.
-                $endDateStr = $seriesEnd->format('Y-m-d');
-
-                $series = EventSeries::create([
-                    'frequency' => $frequency,
-                    'recurrence_interval' => $interval,
-                    'weekdays' => !empty($weekdays) ? implode(',', $weekdays) : null,
-                    'end_date' => $endDateStr
-                ]);
-
-                $occurrences = (new EventRecurrenceService())->occurrences(
-                    CarbonImmutable::parse($startsAtDate),
-                    $frequency,
-                    $interval,
-                    $weekdays,
-                    $seriesEnd
-                );
-
-                // Anmeldeschluss wie bei der Serienänderung als Vorlauf zum jeweiligen
-                // Terminbeginn. Ein absoluter Zeitpunkt schlösse alle Termine der Serie
-                // gleichzeitig; ihn stattdessen zu verwerfen, ließe die Eingabe aus dem
-                // Formular kommentarlos verschwinden.
-                $deadlineLeadSeconds = null;
-                if ($registrationEnabled && $registrationDeadline !== null) {
-                    $deadlineLeadSeconds = WallClockOffset::seconds($startsAt, $registrationDeadline);
-                }
-
-                $count = 0;
-                $createdEvents = [];
-                foreach ($occurrences as $occurrence) {
-                    $day = $occurrence->format('Y-m-d');
-                    $occurrenceStart = Carbon::parse($day . ' ' . $startTime . ':00');
-
-                    $seriesEvent = Event::create([
+                $createdEvents = $this->eventWriter->createSeries(
+                    [
                         'title' => $title,
-                        'starts_at' => $occurrenceStart->format('Y-m-d H:i:s'),
-                        'ends_at' => $day . ' ' . $endTime . ':00',
                         'event_type_id' => $eventTypeId,
-                        'series_id' => $series->id,
                         'location' => trim(InputValidator::asString($data['location'] ?? null)),
                         'registration_enabled' => $registrationEnabled,
-                        'registration_deadline' => $deadlineLeadSeconds === null
-                            ? null
-                            : WallClockOffset::shift($occurrenceStart, $deadlineLeadSeconds)->format('Y-m-d H:i:s'),
                         'attendance_required' => $attendanceRequired,
-                    ]);
-                    $audienceService->setAudience($seriesEvent, $audienceSets);
-                    $createdEvents[] = $seriesEvent->fresh();
-                    $count++;
-                }
+                    ],
+                    $startsAtDate,
+                    $startTime,
+                    $endTime,
+                    $registrationDeadline,
+                    [
+                        'frequency' => $frequency,
+                        'interval' => $interval,
+                        'weekdays' => $weekdays,
+                        'end' => $seriesEnd,
+                    ],
+                    $audienceSets
+                );
+                $count = count($createdEvents);
 
                 if ($this->shouldNotifyMembers($data)) {
                     $this->notifyAudience(
@@ -1354,10 +1331,9 @@ class EventController
             'attendance_required' => $attendanceRequired,
         ];
 
-        $audienceService = new EventAudienceService();
         $formData['audience'] = AudienceFormInput::rows($data['audience'] ?? []);
         try {
-            $audienceSets = $audienceService->readRows($data);
+            $audienceSets = $this->audienceService->readRows($data);
         } catch (InvalidAudienceFilterException $exception) {
             $editService = new ModalFormService('event_edit');
             $editService->setError($exception->getMessage(), $formData);
@@ -1438,64 +1414,15 @@ class EventController
                     );
                 }
 
-                $newStartTime = Carbon::parse($startsAt)->format('H:i');
-                $newEndTime = Carbon::parse($endsAt)->format('H:i');
-
-                // Ein absoluter Anmeldeschluss ergibt für eine ganze Serie keinen
-                // Sinn - er würde alle Termine zum selben Zeitpunkt schließen.
-                // Übernommen wird daher der Vorlauf zum jeweiligen Terminbeginn.
-                $deadlineLeadSeconds = null;
-                if ($registrationEnabled && $registrationDeadline !== null) {
-                    $deadlineLeadSeconds = WallClockOffset::seconds($startsAt, $registrationDeadline);
-                }
-
-                // Nur die gewählten Feldgruppen wandern auf die Folgetermine. Wer
-                // einen einzelnen Termin bewusst anders angesetzt hat - eigener
-                // Titel, eigener Ort, engere Zielgruppe - verliert das sonst mit
-                // jeder Serienänderung, ohne es zu merken.
-                foreach ($eventsToUpdate as $eventInSeries) {
-                    $seriesUpdate = [];
-
-                    if (in_array('title', $seriesFields, true)) {
-                        $seriesUpdate['title'] = $updateData['title'];
-                        $seriesUpdate['event_type_id'] = $updateData['event_type_id'];
-                    }
-
-                    if (in_array('location', $seriesFields, true)) {
-                        $seriesUpdate['location'] = $updateData['location'];
-                    }
-
-                    if (in_array('attendance', $seriesFields, true)) {
-                        $seriesUpdate['attendance_required'] = $updateData['attendance_required'];
-                    }
-
-                    $seriesStart = Carbon::parse($eventInSeries->starts_at)->setTimeFromTimeString($newStartTime);
-
-                    if (in_array('time', $seriesFields, true)) {
-                        $seriesUpdate['starts_at'] = $seriesStart;
-                        $seriesUpdate['ends_at'] = Carbon::parse($eventInSeries->ends_at)
-                            ->setTimeFromTimeString($newEndTime);
-                    }
-
-                    if (in_array('registration', $seriesFields, true)) {
-                        $seriesUpdate['registration_enabled'] = $updateData['registration_enabled'];
-                        // Der Vorlauf zählt ab dem Beginn, den dieser Termin nachher hat.
-                        $deadlineBase = in_array('time', $seriesFields, true)
-                            ? $seriesStart
-                            : Carbon::parse($eventInSeries->starts_at);
-                        $seriesUpdate['registration_deadline'] = $deadlineLeadSeconds === null
-                            ? null
-                            : WallClockOffset::shift($deadlineBase, $deadlineLeadSeconds);
-                    }
-
-                    if ($seriesUpdate !== []) {
-                        $eventInSeries->update($seriesUpdate);
-                    }
-
-                    if (in_array('audience', $seriesFields, true)) {
-                        $audienceService->setAudience($eventInSeries, $audienceSets);
-                    }
-                }
+                $this->eventWriter->updateSeries(
+                    $eventsToUpdate,
+                    $seriesFields,
+                    $updateData,
+                    $startsAt,
+                    $endsAt,
+                    $registrationDeadline,
+                    $audienceSets
+                );
 
                 $_SESSION['success'] = 'Event-Serie (' . count($eventsToUpdate) . ' Termine) erfolgreich aktualisiert.';
             } else {
@@ -1506,8 +1433,7 @@ class EventController
                 // Der Vergleich braucht die alten Werte, also vor dem Speichern.
                 $changes = $this->describeScheduleChanges($event, $startsAt, $endsAt, $updateData['location'] ?? null);
 
-                $event->update($updateData);
-                $audienceService->setAudience($event, $audienceSets);
+                $this->eventWriter->updateSingle($event, $updateData, $audienceSets);
 
                 if ($changes !== [] && $this->shouldNotifyMembers($data)) {
                     $this->notifyAudience(
@@ -1670,7 +1596,7 @@ class EventController
             return false;
         }
 
-        return (new EventAudienceService())->isUserEligible($event, $userId);
+        return $this->audienceService->isUserEligible($event, $userId);
     }
 
     private function hydrateVisibleComments(EloquentCollection $events, int $userId): void

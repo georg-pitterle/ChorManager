@@ -183,7 +183,7 @@ class TaskFeatureTest extends TestCase
         $this->assertStringContainsString('use App\\Services\\HtmlSanitizer;', $controllerContent);
         $this->assertStringContainsString('private HtmlSanitizer $htmlSanitizer;', $controllerContent);
         $this->assertStringContainsString('$this->htmlSanitizer->sanitizeTaskHtml', $controllerContent);
-        $this->assertGreaterThanOrEqual(2, substr_count($controllerContent, "'description'      => " . '$description'));
+        $this->assertGreaterThanOrEqual(2, substr_count($controllerContent, "'description' => " . '$description'));
         $this->assertStringContainsString('$oldDescription = trim((string) $task->description);', $controllerContent);
         $this->assertStringContainsString("$" . "changes[] = 'Beschreibung aktualisiert';", $controllerContent);
     }
@@ -776,8 +776,10 @@ class TaskFeatureTest extends TestCase
 
         // Must NOT use DB facade (no facade application set in this app)
         $this->assertStringNotContainsString('Illuminate\\Support\\Facades\\DB', $controllerContent);
-        // Must use Capsule::connection()->transaction() pattern
-        $this->assertStringContainsString('Capsule::connection()->transaction(', $controllerContent);
+        // Must use Capsule::connection()->transaction() pattern - seit dem Umzug im TaskWriteService
+        $serviceContent = file_get_contents(dirname(__DIR__) . '/../src/Services/TaskWriteService.php');
+        $this->assertIsString($serviceContent);
+        $this->assertStringContainsString('Capsule::connection()->transaction(', $serviceContent);
     }
 
     /**

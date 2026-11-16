@@ -68,7 +68,6 @@ class ProfileFeatureTest extends TestCase
         $controller = $this->profileController([
             'view' => $twig,
             'logger' => new Logger('test'),
-            'rememberLoginService' => null,
             'notificationService' => null,
             'mailboxAllowlist' => TestMailboxAllowlist::standard(),
         ]);
@@ -111,7 +110,6 @@ class ProfileFeatureTest extends TestCase
         $controller = $this->profileController([
             'view' => $this->createStub(Twig::class),
             'logger' => $logger,
-            'rememberLoginService' => null,
             'notificationService' => null,
             'mailboxAllowlist' => TestMailboxAllowlist::standard(),
         ]);
@@ -165,7 +163,6 @@ class ProfileFeatureTest extends TestCase
         $controller = $this->profileController([
             'view' => $this->createStub(Twig::class),
             'logger' => $logger,
-            'rememberLoginService' => null,
             'notificationService' => null,
             'mailboxAllowlist' => TestMailboxAllowlist::standard(),
         ]);
@@ -233,7 +230,6 @@ class ProfileFeatureTest extends TestCase
         $controller = $this->profileController([
             'view' => $this->createStub(Twig::class),
             'logger' => $logger,
-            'rememberLoginService' => null,
             'notificationService' => null,
             'mailboxAllowlist' => TestMailboxAllowlist::standard(),
         ]);

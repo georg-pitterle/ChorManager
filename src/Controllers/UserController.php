@@ -55,8 +55,11 @@ class UserController
     /** Merker für minimalRoleLevel(); null heißt "noch nicht ermittelt". */
     private ?int $minimalRoleLevel = null;
 
-    /** Erst bei Bedarf gebaut: nur die Meldungen der Sammelaktionen nennen Namen. */
-    private ?NameFormatterService $nameFormatter = null;
+    /**
+     * Aus dem Container, damit die Namen in den Meldungen der Sammelaktionen dem
+     * eingestellten Namensformat folgen - wie überall sonst.
+     */
+    private NameFormatterService $nameFormatter;
 
     public function __construct(
         Twig $view,
@@ -65,8 +68,10 @@ class UserController
         ProjectPersistence $projectPersistence,
         MailQueueService $mailQueueService,
         LoggerInterface $logger,
-        UserEditPolicy $userEditPolicy
+        UserEditPolicy $userEditPolicy,
+        NameFormatterService $nameFormatter
     ) {
+        $this->nameFormatter = $nameFormatter;
         $this->view = $view;
         $this->userQuery = $userQuery;
         $this->userPersistence = $userPersistence;
@@ -296,14 +301,29 @@ class UserController
             $user->password = PasswordHasher::hash($temporaryPassword);
             $user->is_active = 1;
 
-            $this->userPersistence->save($user);
+            // Gleich ins laufende Projekt setzen statt anlegen, suchen, bearbeiten.
+            // Dieselbe Rechteregel wie in update(), und jetzt auch wirklich
+            // dieselbe: Hier stand sie als vierte Fassung aus der Sitzung
+            // zusammengesetzt, und zwar eine weitere als die drei, die der
+            // Review-Lauf 59 beim Bearbeiten zusammengezogen hat.
+            $projectIds = $this->userEditPolicy->canAssignProjectsOnCreate()
+                ? (array) ($data['projects'] ?? [])
+                : null;
+
+            // Konto, Rollen, Stimmgruppen und Projekte in einer Transaktion: Scheitert
+            // die Zuordnung, bleibt kein Mitglied ohne sie zurück. Protokolliert wird
+            // erst danach - vorher stünde "User created" für ein Konto, das es nicht gibt.
+            $this->userPersistence->saveWithAssignments(
+                $user,
+                $roleIds,
+                self::buildVoiceGroupPivot((array) $voiceGroupIds, (array) $subVoices),
+                $projectIds
+            );
 
             $this->logger->info('User created.', [
                 'event' => 'user.created',
                 'user_id' => (int) $user->id,
             ]);
-
-            $this->userPersistence->syncRoles($user, $roleIds);
 
             foreach (array_map('intval', $roleIds) as $assignedRoleId) {
                 $this->logger->info('Role assigned to user.', [
@@ -311,20 +331,6 @@ class UserController
                     'user_id' => (int) $user->id,
                     'role_id' => $assignedRoleId,
                 ]);
-            }
-
-            $this->userPersistence->syncVoiceGroups(
-                $user,
-                self::buildVoiceGroupPivot((array) $voiceGroupIds, (array) $subVoices)
-            );
-
-            // Gleich ins laufende Projekt setzen statt anlegen, suchen, bearbeiten.
-            // Dieselbe Rechteregel wie in update(), und jetzt auch wirklich
-            // dieselbe: Hier stand sie als vierte Fassung aus der Sitzung
-            // zusammengesetzt, und zwar eine weitere als die drei, die der
-            // Review-Lauf 59 beim Bearbeiten zusammengezogen hat.
-            if ($this->userEditPolicy->canAssignProjectsOnCreate()) {
-                $this->projectPersistence->setUserProjects((int) $user->id, (array) ($data['projects'] ?? []));
             }
 
             // Einladen nur mit Mitgliederverwaltung - dieselbe Regel wie invite()
@@ -532,7 +538,29 @@ class UserController
             $targetUser->email = $email;
 
 
-            $this->userPersistence->save($targetUser);
+            // $voiceGroupIds steht bereits fest: Für einen globalen Verwalter ist es die
+            // Auswahl aus dem Formular, sonst hat der Block oben die eigenen Gruppen mit
+            // den nicht verwaltbaren zusammengeführt und deren Untergruppen in $subVoices
+            // gesichert. Die frühere zweite Berechnung an dieser Stelle war Wort für Wort
+            // dieselbe und lieferte zwangsläufig dasselbe Ergebnis.
+            //
+            // can_manage_project_members reicht projektübergreifend, deshalb wird die
+            // Projektauswahl hier nicht mehr auf die eigenen Projekte gefiltert.
+            //
+            // Die Policy entscheidet allein; das rohe `can_edit_users` aus der
+            // Sitzung lag hier zuvor als zweite Bedingung daneben, und editForm()
+            // schaltete die Kästchen nach einer dritten Regel frei. Eine Quelle -
+            // sonst zeigt das Formular ein Feld, das das Speichern still verwirft.
+            //
+            // Konto, Rollen, Stimmgruppen und Projekte in einer Transaktion: Scheitert
+            // die Zuordnung, bleiben Name und Rollen beim alten Stand. Protokolliert
+            // wird erst danach.
+            $this->userPersistence->saveWithAssignments(
+                $targetUser,
+                $roleIds,
+                self::buildVoiceGroupPivot((array) $voiceGroupIds, (array) $subVoices),
+                $canEditProjects ? $projectIds : null
+            );
 
             if ($previousEmail !== $email) {
                 $this->logger->info('User email changed.', [
@@ -542,8 +570,6 @@ class UserController
                     'new_email' => $email,
                 ]);
             }
-
-            $this->userPersistence->syncRoles($targetUser, $roleIds);
 
             $newRoleIds = array_map('intval', $roleIds);
             foreach (array_diff($newRoleIds, $previousRoleIds) as $assignedRoleId) {
@@ -559,27 +585,6 @@ class UserController
                     'user_id' => (int) $targetUser->id,
                     'role_id' => $revokedRoleId,
                 ]);
-            }
-
-            // $voiceGroupIds steht bereits fest: Für einen globalen Verwalter ist es die
-            // Auswahl aus dem Formular, sonst hat der Block oben die eigenen Gruppen mit
-            // den nicht verwaltbaren zusammengeführt und deren Untergruppen in $subVoices
-            // gesichert. Die frühere zweite Berechnung an dieser Stelle war Wort für Wort
-            // dieselbe und lieferte zwangsläufig dasselbe Ergebnis.
-            $this->userPersistence->syncVoiceGroups(
-                $targetUser,
-                self::buildVoiceGroupPivot((array) $voiceGroupIds, (array) $subVoices)
-            );
-
-            // can_manage_project_members reicht projektübergreifend, deshalb wird die
-            // Projektauswahl hier nicht mehr auf die eigenen Projekte gefiltert.
-            //
-            // Die Policy entscheidet allein; das rohe `can_edit_users` aus der
-            // Sitzung lag hier zuvor als zweite Bedingung daneben, und editForm()
-            // schaltete die Kästchen nach einer dritten Regel frei. Eine Quelle -
-            // sonst zeigt das Formular ein Feld, das das Speichern still verwirft.
-            if ($canEditProjects) {
-                $this->projectPersistence->setUserProjects($userId, $projectIds);
             }
 
             $_SESSION['success'] = 'Mitglied erfolgreich aktualisiert.';
@@ -895,8 +900,6 @@ class UserController
 
     private function skippedMember(User $targetUser, string $reason): string
     {
-        $this->nameFormatter ??= new NameFormatterService();
-
         return $this->nameFormatter->formatPerson($targetUser) . ' (' . $reason . ')';
     }
 

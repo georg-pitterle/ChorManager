@@ -10,7 +10,7 @@ use App\Services\WebdavAccessService;
 use App\Services\WebdavNode;
 use App\Services\WebdavTreeService;
 use App\Services\WebdavXmlBuilder;
-use App\Util\AppUrlResolver;
+use App\Util\WebdavUrl;
 use DOMDocument;
 use DOMElement;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -32,7 +32,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  */
 class WebdavController
 {
-    public const BASE_PATH = '/webdav';
+    public const BASE_PATH = WebdavUrl::BASE_PATH;
 
     private const REALM = 'ChorManager';
 
@@ -60,28 +60,6 @@ class WebdavController
         $this->tree = $tree;
         $this->xml = $xml;
         $this->attachments = $attachments;
-    }
-
-    /**
-     * Die Adresse, die in der Noten-App einzutragen ist.
-     *
-     * Über AppUrlResolver und nicht selbst zusammengesetzt. Zwei Gründe:
-     *
-     *  - `Uri::getAuthority()` lieferte hinter dem Proxy
-     *    `https://chor.example.org:80/webdav/` - Schema aus
-     *    `X-Forwarded-Proto`, Port aus `SERVER_PORT` des internen Servers. Das
-     *    nimmt kein Klient an.
-     *  - Der `Host`-Kopf allein taugt auch nicht: Er ist frei wählbar. Der
-     *    Resolver zieht deshalb `APP_URL` vor und wertet Weiterleitungsköpfe
-     *    nur von einem vertrauten Proxy aus - dieselbe Grundlage, auf der die
-     *    Links in Einladungen und Passwort-Mails stehen.
-     *
-     * Eine Adresse, die dauerhaft in einer App auf einem Tablet steht, gehört
-     * erst recht nicht aus einer einzelnen Anfrage abgeleitet.
-     */
-    public static function baseUrl(Request $request): string
-    {
-        return AppUrlResolver::resolveBaseUrl($request) . self::BASE_PATH . '/';
     }
 
     public function handle(Request $request, Response $response): Response

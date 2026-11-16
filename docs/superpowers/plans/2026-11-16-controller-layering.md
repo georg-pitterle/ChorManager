@@ -125,13 +125,13 @@ Test rot, bis der Eintrag aus der Liste gestrichen ist – so kann nichts zurüc
   Task 2 und 3 leeren, sowie die Helfer `controllerFiles()` und `codeWithoutComments()`, die
   Task 10 und 12 nutzen.
 
-- [ ] **Schritt 1: Branch anlegen**
+- [x] **Schritt 1: Branch anlegen**
 
 ```bash
 git switch -c refactor/controller-layering
 ```
 
-- [ ] **Schritt 2: Test schreiben**
+- [x] **Schritt 2: Test schreiben**
 
 ```php
 <?php
@@ -248,7 +248,7 @@ final class ControllerLayeringTest extends TestCase
 }
 ```
 
-- [ ] **Schritt 3: Lauf**
+- [x] **Schritt 3: Lauf**
 
 Ausführen: `ddev php vendor/bin/phpunit --filter ControllerLayeringTest`
 Erwartet: 2 Tests grün.
@@ -258,12 +258,12 @@ Prüfung übersehen hat. Dann: die Liste um genau diese Einträge ergänzen, unt
 eine Notiz mit den Zusatzeinträgen hinterlassen und sie in Task 3 nach demselben Muster
 beheben (Funktion nach `src/Util`, Aufrufer umstellen).
 
-- [ ] **Schritt 4: Schärfeprobe**
+- [x] **Schritt 4: Schärfeprobe**
 
 In `src/Util/ByteFormatter.php` testweise `use App\Controllers\AuthController;` einfügen →
 Test rot. Zurücknehmen → grün.
 
-- [ ] **Schritt 5: Commit**
+- [x] **Schritt 5: Commit**
 
 Betreff: `test(controllers): Wächter über die Abhängigkeitsrichtung der Controller`
 
@@ -295,24 +295,24 @@ Betreff: `test(controllers): Wächter über die Abhängigkeitsrichtung der Contr
   ```
   `contrastRatio()` und `relativeLuminance()` ziehen als `private static` mit.
 
-- [ ] **Schritt 1: Tests umziehen.** Die Testmethoden aus `AppSettingFeatureTest`, die
+- [x] **Schritt 1: Tests umziehen.** Die Testmethoden aus `AppSettingFeatureTest`, die
   `AppSettingController::normalizePrimaryColor()` und `::strongPrimaryColor()` aufrufen,
   wandern mit unveränderten Zusicherungen nach `tests/Unit/Util/PrimaryColorTest.php` und
   rufen `PrimaryColor::normalize()` bzw. `PrimaryColor::strong()`. Ohne Datenbank, also
   schlichter `TestCase` ohne `setUp()`. In `AppSettingFeatureTest` werden sie gestrichen.
-- [ ] **Schritt 2: Rotlauf.** `ddev php vendor/bin/phpunit --filter PrimaryColorTest` →
+- [x] **Schritt 2: Rotlauf.** `ddev php vendor/bin/phpunit --filter PrimaryColorTest` →
   scheitert mit "Class App\Util\PrimaryColor not found".
-- [ ] **Schritt 3: `PrimaryColor` anlegen**, Rümpfe unverändert aus dem Controller übernehmen.
-- [ ] **Schritt 4: Aufrufer umstellen.** Im `AppSettingController` die fünf Methoden und die
+- [x] **Schritt 3: `PrimaryColor` anlegen**, Rümpfe unverändert aus dem Controller übernehmen.
+- [x] **Schritt 4: Aufrufer umstellen.** Im `AppSettingController` die fünf Methoden und die
   Konstante `DEFAULT_PRIMARY_COLOR` entfernen, `save()` und `themeCss()` rufen `PrimaryColor`.
   In `MailBranding` den `use App\Controllers\AppSettingController;` streichen und die vier
   Stellen umstellen.
-- [ ] **Schritt 5: Sperrklinke.** `'Util/MailBranding.php'` aus `KNOWN_OUTSIDE_IMPORTS`
+- [x] **Schritt 5: Sperrklinke.** `'Util/MailBranding.php'` aus `KNOWN_OUTSIDE_IMPORTS`
   streichen.
-- [ ] **Schritt 6: Läufe.**
+- [x] **Schritt 6: Läufe.**
   `ddev php vendor/bin/phpunit --filter "PrimaryColorTest|AppSettingFeatureTest|MailBrandingFeatureTest|ControllerLayeringTest"`
   → grün. `ddev composer phpcs` → keine Verstöße.
-- [ ] **Schritt 7: Commit.** Betreff:
+- [x] **Schritt 7: Commit.** Betreff:
   `refactor(util): Vereinsfarbe als PrimaryColor, MailBranding ohne Controller`
 
 ---
@@ -368,7 +368,7 @@ Fünf kleine Umzüge, ein Commit. Nach dem Task sind beide Listen der Sperrklink
   `logoDeadlines()` nimmt statt `?Project $current` ein `bool $isNewProject`, damit `Util`
   kein Modell kennt: `true` entspricht dem bisherigen `$current === null`.
 
-- [ ] **Schritt 1: Tests schreiben.**
+- [x] **Schritt 1: Tests schreiben.**
 
   `AmountNormalizerTest` (DataProvider `nonNegativeAmounts`):
 
@@ -389,34 +389,34 @@ Fünf kleine Umzüge, ein Commit. Nach dem Task sind beide Listen der Sperrklink
   - `testAnEmptyFieldClearsTheDeadline`: `logoDeadlines(['logo_deadline_online' => ''], false)`
     ergibt `['logo_deadline_online' => null]`.
 
-- [ ] **Schritt 2: Rotlauf.**
+- [x] **Schritt 2: Rotlauf.**
   `ddev php vendor/bin/phpunit --filter "AmountNormalizerTest|ProjectDateInputTest"` → rot
   (Methode bzw. Klasse fehlt).
-- [ ] **Schritt 3: Betrag.** `AmountNormalizer::normalizeNonNegative()` anlegen,
+- [x] **Schritt 3: Betrag.** `AmountNormalizer::normalizeNonNegative()` anlegen,
   `SponsorshipController::validateAmount()` entfernen. Aufrufer: `SponsorshipController`
   (Zeilen 110, 251), `SponsorPackageController` (Zeilen 67, 127).
-- [ ] **Schritt 4: Projektdatum.** `ProjectDateInput` anlegen. Aus `ProjectController`
+- [x] **Schritt 4: Projektdatum.** `ProjectDateInput` anlegen. Aus `ProjectController`
   entfallen `normalizeProjectDate()`, `logoDeadlines()` und die Konstante. Aufrufer:
   `ProjectController` Zeile 196–197 und 238–239 (`normalize`), Zeile 214 (`logoDeadlines($data,
   true)`), Zeile 263 (`logoDeadlines($data, false)`), `SponsoringDashboardController` Zeile 437
   (`false`) und 439 (Konstante).
-- [ ] **Schritt 5: WebDAV-Adresse.** `WebdavUrl` anlegen. `WebdavController::baseUrl()`
+- [x] **Schritt 5: WebDAV-Adresse.** `WebdavUrl` anlegen. `WebdavController::baseUrl()`
   entfällt; `WebdavController::BASE_PATH` bleibt als Alias
   (`public const BASE_PATH = WebdavUrl::BASE_PATH;`), weil die Klasse sie selbst dreimal
   nutzt. Aufrufer: `DownloadController` Zeile 222, `WebdavFeatureTest`.
-- [ ] **Schritt 6: Entitätstyp.** `SponsorController` Zeile 477:
+- [x] **Schritt 6: Entitätstyp.** `SponsorController` Zeile 477:
   `SponsorshipController::ENTITY_TYPE` → `Sponsorship::ENTITY_TYPE`.
-- [ ] **Schritt 7: Postfach-Badge.** `MailBadgeRefresh` anlegen. `MailBadgeController` behält
+- [x] **Schritt 7: Postfach-Badge.** `MailBadgeRefresh` anlegen. `MailBadgeController` behält
   beide Konstanten als Alias (`public const REFRESH_PATH = MailBadgeRefresh::PATH;`,
   `public const FORCE_SESSION_KEY = MailBadgeRefresh::FORCE_SESSION_KEY;`), damit `Routes.php`
   und 26 Teststellen unberührt bleiben. `MailBadgeRefreshMiddleware` (Zeilen 7, 253, 262, 267)
   und `WebmailController` (Zeile 127) nutzen `MailBadgeRefresh` direkt.
-- [ ] **Schritt 8: Sperrklinke.** Beide Listen auf `[]` setzen. Falls Task 1 Zusatzeinträge
+- [x] **Schritt 8: Sperrklinke.** Beide Listen auf `[]` setzen. Falls Task 1 Zusatzeinträge
   notiert hat, diese jetzt nach demselben Muster beheben.
-- [ ] **Schritt 9: Läufe.**
+- [x] **Schritt 9: Läufe.**
   `ddev php vendor/bin/phpunit --filter "ControllerLayeringTest|AmountNormalizerTest|ProjectDateInputTest|Sponsor|Project|Webdav|MailBadge|Webmail|Download"`
   → grün. `ddev composer phpcs` → keine Verstöße.
-- [ ] **Schritt 10: Commit.** Betreff:
+- [x] **Schritt 10: Commit.** Betreff:
   `refactor(controllers): geteilte Hilfsfunktionen nach Util, kein Controller ruft einen anderen`
 
 ---
@@ -493,7 +493,7 @@ Fünf kleine Umzüge, ein Commit. Nach dem Task sind beide Listen der Sperrklink
   (vor `?NotificationService $notificationService`); Vorgabe in
   `BuildsControllers::eventController()`: `new EventWriteService()`.
 
-- [ ] **Schritt 1: Tests schreiben** (`EventWriteServiceFeatureTest`, Datenbank mit
+- [x] **Schritt 1: Tests schreiben** (`EventWriteServiceFeatureTest`, Datenbank mit
   Transaktion wie in `EventSeriesCreationFeatureTest`).
 
   Hilfsmittel im Test: eine anonyme Unterklasse von `EventAudienceService`, deren
@@ -534,9 +534,9 @@ Fünf kleine Umzüge, ein Commit. Nach dem Task sind beide Listen der Sperrklink
     Umsetzung nicht, ist das der bisherige Stand und bleibt als Wächter stehen; scheitert er
     nach der Umsetzung, liegt die Benachrichtigung fälschlich in der Transaktion.
 
-- [ ] **Schritt 2: Rotlauf.** `ddev php vendor/bin/phpunit --filter EventWriteServiceFeatureTest`
+- [x] **Schritt 2: Rotlauf.** `ddev php vendor/bin/phpunit --filter EventWriteServiceFeatureTest`
   → rot, Klasse fehlt.
-- [ ] **Schritt 3: `EventWriteService` schreiben.** Die Rümpfe kommen aus dem Controller:
+- [x] **Schritt 3: `EventWriteService` schreiben.** Die Rümpfe kommen aus dem Controller:
   - `createSingle`: `Event::create()` und `setAudience()` aus `create()` (Zeile 1136–1146),
     Rückgabe `$event->fresh()`.
   - `createSeries`: der `else`-Zweig von `create()` (Zeile 1164–1203) ohne Benachrichtigung
@@ -546,23 +546,23 @@ Fünf kleine Umzüge, ein Commit. Nach dem Task sind beide Listen der Sperrklink
     `$deadlineLeadSeconds` (Zeile 1444–1455) und die Schleife (Zeile 1461–1498). Die
     Vorlaufzeit wird nur gerechnet, wenn `$updateData['registration_enabled']` wahr und
     `$registrationDeadline` nicht `null` ist – wie bisher.
-- [ ] **Schritt 4: Controller umstellen.** `create()` und `update()` rufen den Dienst. Im
+- [x] **Schritt 4: Controller umstellen.** `create()` und `update()` rufen den Dienst. Im
   Controller bleiben: Eingaben lesen und prüfen, Rechteprüfung über die Serie
   (`$hasUnauthorizedSeriesEvent`), `describeScheduleChanges()` **vor** dem Schreiben,
   Benachrichtigungen und Flash-Meldungen **nach** dem Dienstaufruf, das umschließende
   `try/catch` mit Log und Formularfehler. Die Meldung `"Serie erfolgreich angelegt ($count
   Termine)."` zählt die Rückgabe von `createSeries()`.
-- [ ] **Schritt 5: Verdrahtung.** In `Dependencies.php` beim `EventController`
+- [x] **Schritt 5: Verdrahtung.** In `Dependencies.php` beim `EventController`
   `$c->get(EventWriteService::class)` an fünfter Stelle einfügen (hinter `ProjectQuery`, vor
   `NotificationService`). Ein eigener Eintrag für `EventWriteService` ist nicht nötig, PHP-DI
   baut die Klasse selbst. Gegenprobe: In `DependenciesContainerWiringTest` gibt es bereits
   Tests, die den `EventController` aus dem Container holen – sie laufen in Schritt 6 mit.
-- [ ] **Schritt 6: Läufe.**
+- [x] **Schritt 6: Läufe.**
   `ddev php vendor/bin/phpunit --filter "EventWriteService|EventSeries|EventFeatureTest|EventAudience|EventRegistrationSettings|EventSchedule|NotificationWiring|DependenciesContainerWiring|BuildsControllers"`
   → grün. `ddev composer phpcs` → keine Verstöße.
-- [ ] **Schritt 7: Schärfeprobe.** In `createSeries()` die Transaktionsklammer entfernen →
+- [x] **Schritt 7: Schärfeprobe.** In `createSeries()` die Transaktionsklammer entfernen →
   `testAFailingOccurrenceLeavesNoSeriesBehind` rot. Zurücknehmen → grün.
-- [ ] **Schritt 8: Commit.** Betreff:
+- [x] **Schritt 8: Commit.** Betreff:
   `fix(events): Terminserie entsteht und ändert sich ganz oder gar nicht`
 
 ---
@@ -602,7 +602,7 @@ Fünf kleine Umzüge, ein Commit. Nach dem Task sind beide Listen der Sperrklink
   Die Methode ruft der Reihe nach `save()`, `syncRoles()`, `syncVoiceGroups()` und – wenn
   `$projectIds !== null` – `ProjectPersistence::setUserProjects()`.
 
-- [ ] **Schritt 1: Tests schreiben.** Hilfsmittel: anonyme Unterklasse von
+- [x] **Schritt 1: Tests schreiben.** Hilfsmittel: anonyme Unterklasse von
   `ProjectPersistence`, deren `setUserProjects()` eine `RuntimeException` wirft. Mitglied und
   Rolle so anlegen wie in `tests/Feature/UserFeatureTest.php` (dort die vorhandenen Helfer
   ansehen und denselben Weg nehmen), E-Mail mit Zufallsanhängsel.
@@ -615,30 +615,30 @@ Fünf kleine Umzüge, ein Commit. Nach dem Task sind beide Listen der Sperrklink
     `'Alt'` und die Rollenliste `[A]`.
   - `testProjectsStayUntouchedWhenNoProjectListIsGiven`: Dienst mit der werfenden
     `ProjectPersistence`, `$projectIds = null` → kein Wurf, Mitglied gespeichert.
-- [ ] **Schritt 2: Rotlauf.** `ddev php vendor/bin/phpunit --filter UserPersistenceAtomicFeatureTest`
+- [x] **Schritt 2: Rotlauf.** `ddev php vendor/bin/phpunit --filter UserPersistenceAtomicFeatureTest`
   → rot, Methode fehlt.
-- [ ] **Schritt 3: `saveWithAssignments()` und den dritten Konstruktor-Parameter schreiben.**
-- [ ] **Schritt 4: `UserController::create()` umstellen.** Die vier Einzelaufrufe werden ein
+- [x] **Schritt 3: `saveWithAssignments()` und den dritten Konstruktor-Parameter schreiben.**
+- [x] **Schritt 4: `UserController::create()` umstellen.** Die vier Einzelaufrufe werden ein
   Aufruf; `$projectIds` ist `(array) ($data['projects'] ?? [])`, wenn
   `$this->userEditPolicy->canAssignProjectsOnCreate()`, sonst `null`. Die Log-Zeilen
   `user.created` und `user.role.assigned` stehen **nach** dem Aufruf – vorher hätte ein
   Rücksetzer ein Mitglied protokolliert, das es nicht gibt. Der Einladungsversand bleibt
   dahinter.
-- [ ] **Schritt 5: `UserController::update()` umstellen.** Ebenso; `$projectIds` ist
+- [x] **Schritt 5: `UserController::update()` umstellen.** Ebenso; `$projectIds` ist
   `$projectIds`, wenn `$canEditProjects`, sonst `null`. Die Log-Zeilen `user.email.changed`,
   `user.role.assigned` und `user.role.revoked` stehen nach dem Aufruf. Der einzelne
   `setUserProjects()`-Aufruf bei Zeile 425 gehört zu einem anderen Zweig und bleibt, wie er
   ist.
-- [ ] **Schritt 6: Verdrahtung.** `UserPersistence::class => \DI\autowire()` durch einen
+- [x] **Schritt 6: Verdrahtung.** `UserPersistence::class => \DI\autowire()` durch einen
   ausdrücklichen Eintrag ersetzen, der `LoggerInterface`, `AuthorizationCodeService` und
   `ProjectPersistence` aus dem Container übergibt. Prüfen, ob
   `DependenciesContainerWiringTest` zu `UserPersistence` etwas zusichert, und es grün halten.
-- [ ] **Schritt 7: Läufe.**
+- [x] **Schritt 7: Läufe.**
   `ddev php vendor/bin/phpunit --filter "UserPersistence|UserFeatureTest|UserController|UserEdit|DependenciesContainerWiring"`
   → grün. `ddev composer phpcs` → keine Verstöße.
-- [ ] **Schritt 8: Schärfeprobe.** Transaktionsklammer in `saveWithAssignments()` entfernen →
+- [x] **Schritt 8: Schärfeprobe.** Transaktionsklammer in `saveWithAssignments()` entfernen →
   die ersten beiden Tests rot. Zurücknehmen → grün.
-- [ ] **Schritt 9: Commit.** Betreff:
+- [x] **Schritt 9: Commit.** Betreff:
   `fix(users): Mitglied, Rollen, Stimmgruppen und Projekte in einer Transaktion`
 
 ---
@@ -691,30 +691,30 @@ Reiner Umzug. Die Regeln bewachen weiter `FinanceReversalAndLockFeatureTest`,
   – hat `FinanceJournalService` Konstruktor-Argumente, werden sie so gebaut wie an den
   Baustellen der Finanztests.
 
-- [ ] **Schritt 1: Anschluss-Test schreiben** (Review-Schwerpunkt 4). Controller so bauen wie
+- [x] **Schritt 1: Anschluss-Test schreiben** (Review-Schwerpunkt 4). Controller so bauen wie
   in `FinanceReversalAndLockFeatureTest`, zusätzlich mit einer anonymen Unterklasse von
   `FinanceBookingService`, deren `reverse()` den Aufruf zählt und `null` liefert.
   - `testReversalGoesThroughTheBookingService`: Storno-Route des Controllers für eine
     vorhandene Buchung aufrufen; `reverse()` wurde genau einmal gerufen, `$_SESSION['error']`
     ist `'Diese Buchung wurde bereits storniert.'`, und es gibt keine Buchung mit
     `reversal_of_id` der Ausgangsbuchung.
-- [ ] **Schritt 2: Rotlauf.** `--filter FinanceBookingWiringFeatureTest` → rot (Klasse fehlt).
-- [ ] **Schritt 3: Dienst schreiben.** Die vier Rümpfe unverändert übernehmen;
+- [x] **Schritt 2: Rotlauf.** `--filter FinanceBookingWiringFeatureTest` → rot (Klasse fehlt).
+- [x] **Schritt 3: Dienst schreiben.** Die vier Rümpfe unverändert übernehmen;
   `$this->currentUserId()` wird zum Parameter `$actorId`, `$lockError` zur Rückgabe `null`,
   `$alreadyReversed` zur Rückgabe `null`.
-- [ ] **Schritt 4: Controller umstellen.** Die drei Transaktionsblöcke und
+- [x] **Schritt 4: Controller umstellen.** Die drei Transaktionsblöcke und
   `reserveRunningNumbers()` entfallen, ebenso der `Capsule`-Import. Nutzen Tests
   `reserveRunningNumbers` am Controller (Suche unter `tests/`), werden sie auf den Dienst
   umgestellt.
-- [ ] **Schritt 5: Verdrahtung.** In `Dependencies.php` beim `FinanceController`
+- [x] **Schritt 5: Verdrahtung.** In `Dependencies.php` beim `FinanceController`
   `$c->get(FinanceBookingService::class)` an neunter Stelle anhängen (hinter
   `FinanceCsvExportService`; `attachments` wird dort bisher nicht übergeben und bleibt so).
-- [ ] **Schritt 6: Läufe.**
+- [x] **Schritt 6: Läufe.**
   `ddev php vendor/bin/phpunit --filter "Finance|Budget|DependenciesContainerWiring"` → grün.
   `ddev composer phpcs` → keine Verstöße.
-- [ ] **Schritt 7: Schärfeprobe.** Im Controller den Dienstaufruf beim Storno durch
+- [x] **Schritt 7: Schärfeprobe.** Im Controller den Dienstaufruf beim Storno durch
   `$reversal = null;` ohne Aufruf ersetzen → Anschluss-Test rot (Zähler 0). Zurücknehmen.
-- [ ] **Schritt 8: Commit.** Betreff:
+- [x] **Schritt 8: Commit.** Betreff:
   `refactor(finance): Buchen, Importieren und Stornieren im FinanceBookingService`
 
 ---
@@ -767,30 +767,30 @@ Reiner Umzug; die Regeln bewachen weiter `TaskFeatureTest` und die übrigen `Tas
   (vor `?NotificationService $notificationService`); Vorgabe in
   `BuildsControllers::taskController()`: `new TaskWriteService()`.
 
-- [ ] **Schritt 1: Anschluss-Test schreiben.** Controller wie in `TaskFeatureTest` bauen, mit
+- [x] **Schritt 1: Anschluss-Test schreiben.** Controller wie in `TaskFeatureTest` bauen, mit
   einer anonymen Unterklasse von `TaskWriteService`, die in `changeStatus()` den Aufruf
   festhält und `parent::changeStatus()` ruft.
   - `testStatusChangeGoesThroughTheWriteService`: `updateStatus()` mit neuem Status; der
     Dienst wurde einmal gerufen, die Aufgabe trägt den neuen Status, und es gibt genau einen
     neuen `Activity`-Eintrag mit `action = 'updated'`.
-- [ ] **Schritt 2: Rotlauf.** `--filter TaskWriteWiringFeatureTest` → rot.
-- [ ] **Schritt 3: Dienst schreiben.** Rümpfe aus den vier Closures; `$_SESSION['user_id']`
+- [x] **Schritt 2: Rotlauf.** `--filter TaskWriteWiringFeatureTest` → rot.
+- [x] **Schritt 3: Dienst schreiben.** Rümpfe aus den vier Closures; `$_SESSION['user_id']`
   wird zu `$actorId`. In `update()` ruft der Dienst nach `update()` und `sync()`
   `$describeChanges($task->fresh())` und schreibt den `Activity`-Eintrag nur bei einem Text.
-- [ ] **Schritt 4: Controller umstellen.** `validateStatus()` und `validatePriority()` laufen
+- [x] **Schritt 4: Controller umstellen.** `validateStatus()` und `validatePriority()` laufen
   im Controller, bevor `$attributes` übergeben wird. In `update()` baut der Controller die
   Closure aus dem bisherigen Änderungsblock (Zeile 632–655) und berechnet
   `$addedAssignedIds` nach dem Dienstaufruf über
   `$this->assigneeDiff($oldAssignedIds, $this->assigneeIds($task->fresh()))['added']`.
   Benachrichtigungen bleiben hinter dem Dienstaufruf. Der `Capsule`-Import entfällt.
-- [ ] **Schritt 5: Verdrahtung.** Beim `TaskController` `$c->get(TaskWriteService::class)`
+- [x] **Schritt 5: Verdrahtung.** Beim `TaskController` `$c->get(TaskWriteService::class)`
   an sechster Stelle einfügen (hinter `LoggerInterface`, vor `NotificationService`).
-- [ ] **Schritt 6: Läufe.**
+- [x] **Schritt 6: Läufe.**
   `ddev php vendor/bin/phpunit --filter "Task|DependenciesContainerWiring"` → grün.
   `ddev composer phpcs` → keine Verstöße.
-- [ ] **Schritt 7: Schärfeprobe.** In `changeStatus()` den `Activity`-Eintrag auskommentieren
+- [x] **Schritt 7: Schärfeprobe.** In `changeStatus()` den `Activity`-Eintrag auskommentieren
   → Anschluss-Test rot. Zurücknehmen.
-- [ ] **Schritt 8: Commit.** Betreff:
+- [x] **Schritt 8: Commit.** Betreff:
   `refactor(tasks): Aufgaben schreiben im TaskWriteService`
 
 ---
@@ -842,7 +842,7 @@ Reiner Umzug; die Regeln bewachen weiter `AttendanceSaveRobustnessFeatureTest`,
   `new ParticipationWriter()`. Beide Controller haben keinen Eintrag in `Dependencies.php`;
   PHP-DI füllt den Pflichtparameter selbst.
 
-- [ ] **Schritt 1: Anschluss-Tests schreiben.** Je ein Test mit einer Unterklasse, deren
+- [x] **Schritt 1: Anschluss-Tests schreiben.** Je ein Test mit einer Unterklasse, deren
   Methode wirft:
   - `testAFailingAttendanceWriteIsReportedAndLogged`: `AttendanceController::save()` (die
     Methode, die den Block enthält) antwortet mit Weiterleitung auf `/attendance/<id>`, und
@@ -850,19 +850,19 @@ Reiner Umzug; die Regeln bewachen weiter `AttendanceSaveRobustnessFeatureTest`,
   - `testAFailingProxyRegistrationWriteIsReported`: die entsprechende Methode des
     `RegistrationController` setzt `$_SESSION['error']` auf
     `'Fehler beim Speichern der Vertretungseinträge.'`.
-- [ ] **Schritt 2: Rotlauf.** `--filter ParticipationWriterWiringFeatureTest` → rot.
-- [ ] **Schritt 3: Dienst schreiben.** `saveAttendances`: `upsert` und `delete` aus Zeile
+- [x] **Schritt 2: Rotlauf.** `--filter ParticipationWriterWiringFeatureTest` → rot.
+- [x] **Schritt 3: Dienst schreiben.** `saveAttendances`: `upsert` und `delete` aus Zeile
   293–304. `saveProxyRegistrations`: `updateOrCreate` je Eintrag und `delete` aus Zeile
   523–532.
-- [ ] **Schritt 4: Controller umstellen.** Im `RegistrationController` bleibt die Schleife,
+- [x] **Schritt 4: Controller umstellen.** Im `RegistrationController` bleibt die Schleife,
   die Status prüft und Notizen kürzt (Zeile 500–521), baut aber nur noch `$entries` und
   `$userIdsToClear`. Das `try/catch` mit Log-Eintrag und Fehlermeldung bleibt in beiden
   Controllern um den Dienstaufruf. Beide `Capsule`-Importe entfallen.
-- [ ] **Schritt 5: Läufe.** `ddev php vendor/bin/phpunit --filter "Attendance|Registration|ParticipationWriter"`
+- [x] **Schritt 5: Läufe.** `ddev php vendor/bin/phpunit --filter "Attendance|Registration|ParticipationWriter"`
   → grün. `ddev composer phpcs` → keine Verstöße.
-- [ ] **Schritt 6: Schärfeprobe.** Im `AttendanceController` das `catch` um den Dienstaufruf
+- [x] **Schritt 6: Schärfeprobe.** Im `AttendanceController` das `catch` um den Dienstaufruf
   entfernen → erster Anschluss-Test rot (Ausnahme statt Meldung). Zurücknehmen.
-- [ ] **Schritt 7: Commit.** Betreff:
+- [x] **Schritt 7: Commit.** Betreff:
   `refactor(attendance): Anwesenheiten und Vertretungsanmeldungen schreibt der ParticipationWriter`
 
 ---
@@ -919,7 +919,7 @@ Reiner Umzug; die Regeln bewachen weiter `AttendanceSaveRobustnessFeatureTest`,
   `BuildsControllers`: `new EvaluationQuery()` und `new VoiceGroupQuery()`. Leere
   Eingabelisten liefern in allen Methoden `[]` ohne Abfrage.
 
-- [ ] **Schritt 1: Tests schreiben.**
+- [x] **Schritt 1: Tests schreiben.**
   - `EvaluationQueryFeatureTest::testEventsWithoutAnyonePresentCountZero`: Termin ohne
     Anwesenheitszeile → `presentCountsByEvent([$id])` ist `[$id => 0]`.
   - `EvaluationQueryFeatureTest::testOnlyPresentRowsAreCounted`: zwei Zeilen
@@ -932,11 +932,11 @@ Reiner Umzug; die Regeln bewachen weiter `AttendanceSaveRobustnessFeatureTest`,
 
   Für die beiden `PollVoteService`-Methoden kein neuer Test: `PollVoteFeatureTest` und
   `PollFeatureTest` prüfen Auswahl und Übersicht bereits über den Controller.
-- [ ] **Schritt 2: Rotlauf.** `--filter "EvaluationQueryFeatureTest|VoiceGroupQueryFeatureTest"`
+- [x] **Schritt 2: Rotlauf.** `--filter "EvaluationQueryFeatureTest|VoiceGroupQueryFeatureTest"`
   → rot.
-- [ ] **Schritt 3: Abfrageklassen und die zwei Dienstmethoden schreiben.** Rümpfe aus den
+- [x] **Schritt 3: Abfrageklassen und die zwei Dienstmethoden schreiben.** Rümpfe aus den
   privaten Controller-Methoden; die Kommentare zur Reihenfolge und zur Null ziehen mit.
-- [ ] **Schritt 4: Controller umstellen.**
+- [x] **Schritt 4: Controller umstellen.**
   - `EvaluationController`: die drei privaten Methoden entfallen. Der Aufrufer (Zeile
     580–582) sammelt die Kennungen selbst: Mitglieder aus `$eligibleByEvent`, Termine aus
     `$events`, und für die Anwesenheitsspalte nur vergangene Termine mit
@@ -947,16 +947,16 @@ Reiner Umzug; die Regeln bewachen weiter `AttendanceSaveRobustnessFeatureTest`,
     $polls->pluck('id')->all())`, die private `ownOptionIds()` entfällt zugunsten des
     Dienstes. Der `DB`-Import bleibt, weil `store()` und `update()` ihn noch für ihre
     Transaktionen brauchen (offener Posten, siehe Task 12).
-- [ ] **Schritt 5: Verdrahtung.** `EvaluationController`: `$c->get(EvaluationQuery::class)`
+- [x] **Schritt 5: Verdrahtung.** `EvaluationController`: `$c->get(EvaluationQuery::class)`
   an dritter Stelle (hinter `ProjectQuery`, vor dem `null` für die Policy).
   `VoiceGroupController`: `$c->get(VoiceGroupQuery::class)` an zweiter Stelle (hinter `Twig`,
   vor dem Logger).
-- [ ] **Schritt 6: Läufe.**
+- [x] **Schritt 6: Läufe.**
   `ddev php vendor/bin/phpunit --filter "Evaluation|VoiceGroup|Poll|DependenciesContainerWiring"`
   → grün. `ddev composer phpcs` → keine Verstöße.
-- [ ] **Schritt 7: Schärfeprobe.** In `presentCountsByEvent()` das Auffüllen mit 0 entfernen
+- [x] **Schritt 7: Schärfeprobe.** In `presentCountsByEvent()` das Auffüllen mit 0 entfernen
   → erster Test rot. Zurücknehmen.
-- [ ] **Schritt 8: Commit.** Betreff:
+- [x] **Schritt 8: Commit.** Betreff:
   `refactor(queries): Auswertungs-, Stimmgruppen- und Umfrageabfragen aus den Controllern`
 
 ---
@@ -1003,7 +1003,7 @@ Kann PHP-DI einen dieser Dienste nicht selbst bauen (Konstruktor mit Argumenten,
 Klassen sind), bekommt er in `Dependencies.php` einen Eintrag, der ihn so zusammensetzt wie
 die heutige Stelle im Controller – mit den Diensten aus dem Container.
 
-- [ ] **Schritt 1: Wächter schreiben.** In `ControllerLayeringTest`:
+- [x] **Schritt 1: Wächter schreiben.** In `ControllerLayeringTest`:
 
 ```php
     public function testControllersBuildServicesOnlyInTheirConstructor(): void
@@ -1038,27 +1038,27 @@ die heutige Stelle im Controller – mit den Diensten aus dem Container.
     }
 ```
 
-- [ ] **Schritt 2: Rotlauf.** `--filter ControllerLayeringTest` → der neue Wächter listet die
+- [x] **Schritt 2: Rotlauf.** `--filter ControllerLayeringTest` → der neue Wächter listet die
   Methoden aus der Tabelle.
-- [ ] **Schritt 3: Vorgaben ergänzen.** In `BuildsControllers` je neuem Parameter eine Zeile
+- [x] **Schritt 3: Vorgaben ergänzen.** In `BuildsControllers` je neuem Parameter eine Zeile
   in der Methode des Controllers.
-- [ ] **Schritt 4: Controller umstellen**, einen nach dem anderen laut Tabelle. Die lokale
+- [x] **Schritt 4: Controller umstellen**, einen nach dem anderen laut Tabelle. Die lokale
   Variable `$audienceService` in `EventController::create()` und `::update()` wird durch
   `$this->audienceService` ersetzt; im `UserController` entfällt das `??=` in Zeile 898.
-- [ ] **Schritt 5: `Dependencies.php` nachziehen.** Bei jedem Controller mit ausdrücklichem
+- [x] **Schritt 5: `Dependencies.php` nachziehen.** Bei jedem Controller mit ausdrücklichem
   Eintrag die neuen Argumente an der Stelle einfügen, die der Konstruktor vorgibt.
   `AttendanceController` und `RegistrationController` haben keinen Eintrag und brauchen
   keinen. Meldet der Wächter nach der Umstellung eine Methode, die nicht in der Tabelle
   steht, wird sie nach demselben Muster behoben und unter diesem Schritt notiert.
-- [ ] **Schritt 6: Läufe.**
+- [x] **Schritt 6: Läufe.**
   `ddev php vendor/bin/phpunit --filter "ControllerLayeringTest|DependenciesContainerWiring|NotificationWiring|Attendance|Registration|Dashboard|Evaluation|Event|Task|PasswordReset|Profile|Sponsor|User"`
   → grün. `ddev composer phpcs` → keine Verstöße.
-- [ ] **Schritt 7: Schärfeprobe.** In `Dependencies.php` beim `EventController` das Argument
+- [x] **Schritt 7: Schärfeprobe.** In `Dependencies.php` beim `EventController` das Argument
   für `EventAudienceService` streichen →
   `testEveryLayeredControllerResolvesFromTheContainer` (aus Task 4) rot. Zurücknehmen. In
   `AttendanceController` testweise `(new EventAudienceService())->…` in einen Methodenrumpf
   zurückschreiben → Wächter rot. Zurücknehmen.
-- [ ] **Schritt 8: Commit.** Betreff:
+- [x] **Schritt 8: Commit.** Betreff:
   `refactor(controllers): Dienste kommen aus dem Container, nicht aus dem Methodenrumpf`
 
 ---
@@ -1104,7 +1104,7 @@ die heutige Stelle im Controller – mit den Diensten aus dem Container.
   `loginRevocation` aus Task 10, vor `?RememberLoginService $rememberLoginService`); Vorgabe
   in `BuildsControllers::profileController()`: `new ImapConnectionProbe()`.
 
-- [ ] **Schritt 1: Tests schreiben** (ohne Netz, beide Closures vom Test gestellt):
+- [x] **Schritt 1: Tests schreiben** (ohne Netz, beide Closures vom Test gestellt):
   - `testAGreetingStartingWithAnAsteriskIsASuccess`: `$connect` liefert `"* OK ready\r\n"` →
     `OK`.
   - `testAnythingElseIsNotAnImapServer`: `$connect` liefert `"220 smtp"` → `NO_GREETING`;
@@ -1116,23 +1116,23 @@ die heutige Stelle im Controller – mit den Diensten aus dem Container.
     `'203.0.113.5'`; `probe('mail.example.org', 993, 'ssl')` ruft `$connect` mit
     `'ssl://203.0.113.5:993'` und `'mail.example.org'`. Eine IPv6-Adresse `'2001:db8::1'`
     ergibt `'ssl://[2001:db8::1]:993'`; Verschlüsselung ungleich `'ssl'` ergibt `tcp://`.
-- [ ] **Schritt 2: Rotlauf.** `--filter ImapConnectionProbeTest` → rot.
-- [ ] **Schritt 3: Dienst schreiben.**
-- [ ] **Schritt 4: Controller umstellen.** `testMailboxConnection()` behält Eingabeprüfung,
+- [x] **Schritt 2: Rotlauf.** `--filter ImapConnectionProbeTest` → rot.
+- [x] **Schritt 3: Dienst schreiben.**
+- [x] **Schritt 4: Controller umstellen.** `testMailboxConnection()` behält Eingabeprüfung,
   Freigabeliste, den Log-Eintrag `mailbox.test.host_blocked` und die vier Meldungen samt
   JSON- und Weiterleitungs-Zweig; es ordnet nur noch das Ergebnis von `probe()` der Meldung
   zu. `BLOCKED` und `UNREACHABLE` führen beide zu `'Verbindung fehlgeschlagen: Host ist nicht
   erreichbar.'` – der Unterschied darf nach außen nicht sichtbar werden, so wie heute.
-- [ ] **Schritt 5: Verdrahtung.** Beim `ProfileController` `$c->get(ImapConnectionProbe::class)`
+- [x] **Schritt 5: Verdrahtung.** Beim `ProfileController` `$c->get(ImapConnectionProbe::class)`
   an siebter Stelle einfügen (hinter `AccountLoginRevocationService`, vor
   `RememberLoginService`).
-- [ ] **Schritt 6: Läufe.**
+- [x] **Schritt 6: Läufe.**
   `ddev php vendor/bin/phpunit --filter "ImapConnectionProbe|ProfileMailbox|MailboxAllowlist|ReviewAnswersRun29|DependenciesContainerWiring"`
   → grün. `ddev composer phpcs` → keine Verstöße.
-- [ ] **Schritt 7: Schärfeprobe.** In `probe()` die Zieladresse aus dem Hostnamen statt aus
+- [x] **Schritt 7: Schärfeprobe.** In `probe()` die Zieladresse aus dem Hostnamen statt aus
   der aufgelösten Adresse bauen → `testTheConnectionGoesToTheResolvedAddressNotTheName` rot.
   Zurücknehmen.
-- [ ] **Schritt 8: Commit.** Betreff:
+- [x] **Schritt 8: Commit.** Betreff:
   `refactor(profile): IMAP-Verbindungstest als ImapConnectionProbe, ohne Netz prüfbar`
 
 ---
@@ -1142,7 +1142,7 @@ die heutige Stelle im Controller – mit den Diensten aus dem Container.
 **Dateien:**
 - Ändern: `tests/Unit/Controllers/ControllerLayeringTest.php`
 
-- [ ] **Schritt 1: Wächter schreiben.**
+- [x] **Schritt 1: Wächter schreiben.**
 
 ```php
     /**
@@ -1180,16 +1180,16 @@ die heutige Stelle im Controller – mit den Diensten aus dem Container.
     }
 ```
 
-- [ ] **Schritt 2: Lauf.** `--filter ControllerLayeringTest` → 4 Tests grün. Steht ein
+- [x] **Schritt 2: Lauf.** `--filter ControllerLayeringTest` → 4 Tests grün. Steht ein
   Controller aus Task 6 bis 9 noch in der gefundenen Menge, ist dort ein `Capsule`-Rest
   geblieben; der wird im betreffenden Controller entfernt, nicht in die Liste aufgenommen.
-- [ ] **Schritt 3: Schärfeprobe.** In `VoiceGroupController` testweise
+- [x] **Schritt 3: Schärfeprobe.** In `VoiceGroupController` testweise
   `use Illuminate\Database\Capsule\Manager as Capsule;` einfügen → rot. Zurücknehmen.
-- [ ] **Schritt 4: Volle Suite.** `ddev composer test:parallel` → grün; Zahl der Tests und
+- [x] **Schritt 4: Volle Suite.** `ddev composer test:parallel` → grün; Zahl der Tests und
   Zusicherungen notieren. `ddev composer phpcs` → keine Verstöße; Dateizahl notieren.
-- [ ] **Schritt 5: Commit.** Betreff:
+- [x] **Schritt 5: Commit.** Betreff:
   `test(controllers): Wächter über Datenbankzugriffe, offene Posten benannt`
-- [ ] **Schritt 6: Bericht an Georg.** Was sich geändert hat (je Task ein Satz), was lief
+- [x] **Schritt 6: Bericht an Georg.** Was sich geändert hat (je Task ein Satz), was lief
   (Befehle und Zahlen), was offen bleibt (die fünf Controller aus `KNOWN_DATABASE_ACCESS`
   und die Liste unten). Kein Squash, kein Merge, kein Push ohne seine Ansage.
 

@@ -21,7 +21,9 @@ use App\Controllers\SponsoringDashboardController;
 use App\Controllers\TaskController;
 use App\Controllers\UserNotificationController;
 use App\Controllers\HelpController;
+use App\Queries\EvaluationQuery;
 use App\Queries\ProjectQuery;
+use App\Queries\VoiceGroupQuery;
 use App\Services\HtmlSanitizer;
 use App\Queries\UserQuery;
 use App\Queries\SponsoringQuery;
@@ -38,6 +40,8 @@ use App\Services\NewsletterRecipientService;
 use App\Services\BankStatementImportService;
 use App\Services\FinanceAccountService;
 use App\Services\FinanceCsvExportService;
+use App\Services\FinanceBookingService;
+use App\Services\TaskWriteService;
 use App\Services\FinanceJournalService;
 use App\Services\BudgetService;
 use App\Services\SessionInvalidationService;
@@ -152,6 +156,7 @@ use App\Controllers\PollController;
 use App\Policies\SponsoringPolicy;
 use App\Policies\VoiceGroupListPolicy;
 use App\Policies\PollPolicy;
+use App\Services\PendingRegistrationSummaryService;
 use App\Services\PollAudienceService;
 use App\Services\PollResults;
 use App\Services\PollVoteService;
@@ -160,7 +165,13 @@ use App\Services\AttachmentAccessRegistry;
 use App\Services\AttendanceScopeService;
 use App\Services\AttachmentResponseFactory;
 use App\Services\EntityAttachmentService;
+use App\Services\AccountLoginRevocationService;
+use App\Services\CalendarFeedService;
+use App\Services\CalendarSubscriptionService;
 use App\Services\EntityCleanupService;
+use App\Services\EventAudienceService;
+use App\Services\ImapConnectionProbe;
+use App\Services\EventWriteService;
 use App\Policies\TaskPolicy;
 use App\Policies\UserEditPolicy;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -242,7 +253,16 @@ return function (ContainerBuilder $containerBuilder) {
             );
         },
         UserQuery::class => \DI\autowire(),
-        UserPersistence::class => \DI\autowire(),
+        // Nicht autowire(): Der Berechtigungscode-Dienst und die Projektzuordnung stehen als
+        // optionale Parameter mit Vorgabe, und PHP-DI überspringt optionale Parameter. Die
+        // Persistenz bekäme sonst eigene Instanzen statt der registrierten.
+        UserPersistence::class => function (ContainerInterface $c): UserPersistence {
+            return new UserPersistence(
+                $c->get(LoggerInterface::class),
+                $c->get(AuthorizationCodeService::class),
+                $c->get(ProjectPersistence::class)
+            );
+        },
         ProjectQuery::class => \DI\autowire(),
         ProjectPersistence::class => \DI\autowire(),
         SponsoringQuery::class => \DI\autowire(),
@@ -328,6 +348,16 @@ return function (ContainerBuilder $containerBuilder) {
         AuthorizationCodeService::class => function (ContainerInterface $c): AuthorizationCodeService {
             return new AuthorizationCodeService($c->get(LoggerInterface::class));
         },
+        // Nicht autowire(): Der Logger steht als optionaler Parameter mit Vorgabe, und PHP-DI
+        // überspringt optionale Parameter. Der Dienst bekäme sonst einen NullLogger, und die
+        // Protokollzeilen beim Beenden aller Anmeldungen kämen im Betrieb nie an.
+        AccountLoginRevocationService::class => function (ContainerInterface $c): AccountLoginRevocationService {
+            return new AccountLoginRevocationService(
+                $c->get(RememberLoginService::class),
+                $c->get(AuthorizationCodeService::class),
+                $c->get(LoggerInterface::class)
+            );
+        },
         // Nicht autowire(): Der Client-Dienst steht als optionaler Parameter mit
         // Vorgabe, und PHP-DI überspringt optionale Parameter. Der Token-Dienst
         // bekäme sonst einen zweiten OidcClientService statt des registrierten.
@@ -390,6 +420,9 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(TaskPolicy::class),
                 $c->get(NameFormatterService::class),
                 $c->get(LoggerInterface::class),
+                $c->get(TaskWriteService::class),
+                $c->get(CalendarSubscriptionService::class),
+                $c->get(CalendarFeedService::class),
                 $c->get(NotificationService::class),
                 $c->get(EntityAttachmentService::class),
                 $c->get(EntityCleanupService::class)
@@ -409,7 +442,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(PasswordPolicyService::class),
                 $c->get(LoggerInterface::class),
                 $c->get(MailCredentialCryptoService::class),
-                $c->get(RememberLoginService::class),
+                $c->get(AccountLoginRevocationService::class),
+                $c->get(ImapConnectionProbe::class),
                 $c->get(NotificationService::class)
             );
         },
@@ -419,6 +453,10 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(NameFormatterService::class),
                 $c->get(LoggerInterface::class),
                 $c->get(ProjectQuery::class),
+                $c->get(EventWriteService::class),
+                $c->get(EventAudienceService::class),
+                $c->get(CalendarSubscriptionService::class),
+                $c->get(CalendarFeedService::class),
                 $c->get(NotificationService::class),
                 $c->get(EntityCleanupService::class),
                 $c->get(UserQuery::class)
@@ -469,6 +507,7 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(Twig::class),
                 $c->get(SponsoringPolicy::class),
                 $c->get(EntityAttachmentService::class),
+                $c->get(EntityCleanupService::class),
                 $c->get(LoggerInterface::class),
                 $c->get(SponsoringQuery::class)
             );
@@ -488,6 +527,10 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(MailQueueAdminService::class),
                 $c->get(TaskPolicy::class),
                 $c->get(NewsletterPolicy::class),
+                $c->get(EventAudienceService::class),
+                $c->get(PollAudienceService::class),
+                $c->get(NewsletterPlaceholderService::class),
+                $c->get(PendingRegistrationSummaryService::class),
                 $c->get('settings'),
                 $c->get(StorageUsageService::class),
                 $c->get(LoggerInterface::class)
@@ -519,7 +562,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(BankStatementImportService::class),
                 $c->get(FinanceAccountService::class),
                 $c->get(FinanceJournalService::class),
-                $c->get(FinanceCsvExportService::class)
+                $c->get(FinanceCsvExportService::class),
+                $c->get(FinanceBookingService::class)
             );
         },
         CsrfMiddleware::class => function (ContainerInterface $c) {
@@ -557,7 +601,11 @@ return function (ContainerBuilder $containerBuilder) {
             return new EventTypeController($c->get(Twig::class), $c->get(LoggerInterface::class));
         },
         VoiceGroupController::class => function (ContainerInterface $c) {
-            return new VoiceGroupController($c->get(Twig::class), $c->get(LoggerInterface::class));
+            return new VoiceGroupController(
+                $c->get(Twig::class),
+                $c->get(VoiceGroupQuery::class),
+                $c->get(LoggerInterface::class)
+            );
         },
         // Beide Sponsoring-Controller tragen `?LoggerInterface $logger = null`.
         // PHP-DI autowired optionale Parameter nicht, sondern nimmt den
@@ -617,6 +665,8 @@ return function (ContainerBuilder $containerBuilder) {
             return new EvaluationController(
                 $c->get(Twig::class),
                 $c->get(ProjectQuery::class),
+                $c->get(EvaluationQuery::class),
+                $c->get(EventAudienceService::class),
                 null,
                 $c->get(LoggerInterface::class)
             );
@@ -633,12 +683,12 @@ return function (ContainerBuilder $containerBuilder) {
         PasswordResetController::class => function (ContainerInterface $c) {
             return new PasswordResetController(
                 $c->get(Twig::class),
+                $c->get(AccountLoginRevocationService::class),
                 $c->get(Mailer::class),
                 null,
                 null,
                 null,
-                $c->get(LoggerInterface::class),
-                $c->get(RememberLoginService::class)
+                $c->get(LoggerInterface::class)
             );
         },
         // Derselbe Fall wie bei SongLibraryController/PasswordResetController: der optionale

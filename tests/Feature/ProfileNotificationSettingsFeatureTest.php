@@ -236,7 +236,6 @@ final class ProfileNotificationSettingsFeatureTest extends TestCase
         // setzt deshalb den echten Dienst ein. Dieser Test verschlüsselt ohnehin nichts.
         return $this->profileController([
             'view' => $this->createStub(Twig::class),
-            'rememberLoginService' => null,
             'notificationService' => $this->service($modules),
         ]);
     }

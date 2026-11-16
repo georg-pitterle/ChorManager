@@ -6,6 +6,7 @@ namespace Tests\Unit\Controllers;
 
 use App\Controllers\HelpController;
 use App\Controllers\ProjectController;
+use App\Util\ProjectDateInput;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
@@ -111,9 +112,7 @@ final class ReviewAnswersRun35Test extends TestCase
     #[DataProvider('projectDates')]
     public function testProjectDateIsNormalisedOrRejected(mixed $value, string|false|null $expected): void
     {
-        $normalised = self::staticMethod(ProjectController::class, 'normalizeProjectDate')->invoke(null, $value);
-
-        $this->assertSame($expected, $normalised);
+        $this->assertSame($expected, ProjectDateInput::normalize($value));
     }
 
     // 6) Hilfe-Bilder

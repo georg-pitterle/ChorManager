@@ -347,9 +347,9 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
-        $userPersistence->expects($this->once())->method('save')->with($target);
-        $userPersistence->expects($this->once())->method('syncRoles')->with($target, [$this->roleIdLevelZero]);
-        $userPersistence->expects($this->once())->method('syncVoiceGroups');
+        $userPersistence->expects($this->once())
+            ->method('saveWithAssignments')
+            ->with($target, [$this->roleIdLevelZero], $this->anything(), null);
 
         $projectPersistence = $this->createMock(ProjectPersistence::class);
         $projectPersistence->expects($this->never())->method('setUserProjects');
@@ -389,7 +389,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
-        $userPersistence->expects($this->never())->method('save');
+        $userPersistence->expects($this->never())->method('saveWithAssignments');
 
         $controller = $this->makeUpdateController(
             $userQuery,
@@ -433,7 +433,7 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $userQuery->method('findIncludingArchived')->willReturn($target);
 
         $userPersistence = $this->createMock(UserPersistence::class);
-        $userPersistence->expects($this->never())->method('save');
+        $userPersistence->expects($this->never())->method('saveWithAssignments');
 
         $controller = $this->makeUpdateController(
             $userQuery,

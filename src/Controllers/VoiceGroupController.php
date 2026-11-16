@@ -14,7 +14,7 @@ use App\Models\VoiceGroup;
 use App\Models\SubVoice;
 use App\Services\ModalFormService;
 use App\Util\InputValidator;
-use Illuminate\Database\Capsule\Manager as Capsule;
+use App\Queries\VoiceGroupQuery;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class VoiceGroupController
@@ -33,11 +33,13 @@ class VoiceGroupController
         'Es gibt in dieser Stimmgruppe bereits eine Unterstimme mit diesem Namen.';
 
     private Twig $view;
+    private VoiceGroupQuery $voiceGroupQuery;
     private LoggerInterface $logger;
 
-    public function __construct(Twig $view, ?LoggerInterface $logger = null)
+    public function __construct(Twig $view, VoiceGroupQuery $voiceGroupQuery, ?LoggerInterface $logger = null)
     {
         $this->view = $view;
+        $this->voiceGroupQuery = $voiceGroupQuery;
         $this->logger = $logger ?? new NullLogger();
     }
 
@@ -72,21 +74,12 @@ class VoiceGroupController
             }
         }
 
-        $rows = Capsule::table('user_voice_groups')
-            ->selectRaw('voice_group_id, COUNT(*) AS member_count')
-            ->groupBy('voice_group_id')
-            ->get();
-        foreach ($rows as $row) {
-            $groupCounts[(int) $row->voice_group_id] = (int) $row->member_count;
+        $counts = $this->voiceGroupQuery->memberCounts();
+        foreach ($counts['groups'] as $groupId => $memberCount) {
+            $groupCounts[$groupId] = $memberCount;
         }
-
-        $subRows = Capsule::table('user_voice_groups')
-            ->selectRaw('sub_voice_id, COUNT(*) AS member_count')
-            ->whereNotNull('sub_voice_id')
-            ->groupBy('sub_voice_id')
-            ->get();
-        foreach ($subRows as $row) {
-            $subVoiceCounts[(int) $row->sub_voice_id] = (int) $row->member_count;
+        foreach ($counts['sub_voices'] as $subVoiceId => $memberCount) {
+            $subVoiceCounts[$subVoiceId] = $memberCount;
         }
 
         return [$groupCounts, $subVoiceCounts];

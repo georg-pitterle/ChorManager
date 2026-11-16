@@ -16,17 +16,12 @@ use App\Services\NameFormatterService;
 use Psr\Log\LoggerInterface;
 use App\Util\DownloadFileName;
 use App\Util\InputValidator;
+use App\Util\PrimaryColor;
 
 class AppSettingController
 {
     use FlashMessages;
 
-    public const DEFAULT_PRIMARY_COLOR = '#E8A817';
-
-    /** Dunkelster Seitenhintergrund (#EEF2F7), gegen den Text noch lesbar sein muss. */
-    private const PAGE_BACKGROUND_RGB = [238, 242, 247];
-
-    private const MIN_TEXT_CONTRAST = 4.5;
     /** @var array<int, string> */
     public const LOG_LEVELS = [
         'DEBUG',
@@ -141,7 +136,7 @@ class AppSettingController
     {
         $data = (array) $request->getParsedBody();
         $appName = trim(InputValidator::asString($data['app_name'] ?? null));
-        $primaryColor = self::normalizePrimaryColor($data['primary_color'] ?? null);
+        $primaryColor = PrimaryColor::normalize($data['primary_color'] ?? null);
         $mailQueueTriggerMode = self::normalizeMailQueueTriggerMode($data['mailqueue_trigger_mode'] ?? null);
         $mailQueueOpportunisticRateLimit = self::normalizePositiveInteger(
             $data['mailqueue_opportunistic_rate_limit'] ?? null,
@@ -352,46 +347,18 @@ class AppSettingController
         return $response->withHeader('Location', '/settings')->withStatus(302);
     }
 
-    public static function normalizePrimaryColor(mixed $value): string
-    {
-        $candidate = strtoupper(trim(InputValidator::asString($value)));
-
-        if ($candidate === '') {
-            return self::DEFAULT_PRIMARY_COLOR;
-        }
-
-        if ($candidate[0] !== '#') {
-            $candidate = '#' . $candidate;
-        }
-
-        if (preg_match('/^#([A-F0-9]{6}|[A-F0-9]{3})$/', $candidate) !== 1) {
-            return self::DEFAULT_PRIMARY_COLOR;
-        }
-
-        if (strlen($candidate) === 4) {
-            return sprintf(
-                '#%1$s%1$s%2$s%2$s%3$s%3$s',
-                $candidate[1],
-                $candidate[2],
-                $candidate[3]
-            );
-        }
-
-        return $candidate;
-    }
-
     public function themeCss(Request $request, Response $response): Response
     {
-        $themeColor = self::DEFAULT_PRIMARY_COLOR;
+        $themeColor = PrimaryColor::DEFAULT;
 
         try {
-            $themeColor = self::normalizePrimaryColor(AppSetting::query()->find('primary_color')?->setting_value);
+            $themeColor = PrimaryColor::normalize(AppSetting::query()->find('primary_color')?->setting_value);
         } catch (\Throwable $exception) {
-            $themeColor = self::DEFAULT_PRIMARY_COLOR;
+            $themeColor = PrimaryColor::DEFAULT;
         }
 
-        $themeRgb = self::hexToRgb($themeColor);
-        $themeStrong = self::strongPrimaryColor($themeColor);
+        $themeRgb = PrimaryColor::toRgb($themeColor);
+        $themeStrong = PrimaryColor::strong($themeColor);
 
         $css = ':root, [data-bs-theme="light"] {' . "\n"
             . "    --theme-primary: {$themeColor};\n"
@@ -406,77 +373,6 @@ class AppSettingController
         return $response
             ->withHeader('Content-Type', 'text/css; charset=utf-8')
             ->withHeader('Cache-Control', 'no-store, max-age=0');
-    }
-
-    private static function hexToRgb(string $hexColor): string
-    {
-        $normalized = ltrim(self::normalizePrimaryColor($hexColor), '#');
-
-        $red = hexdec(substr($normalized, 0, 2));
-        $green = hexdec(substr($normalized, 2, 2));
-        $blue = hexdec(substr($normalized, 4, 2));
-
-        return sprintf('%d, %d, %d', $red, $green, $blue);
-    }
-
-    /**
-     * Die dunkle Variante der Vereinsfarbe für Text auf hellem Grund (Links, Outline-Knöpfe).
-     *
-     * Dunkelt schrittweise ab, bis der Kontrast zum Seitenhintergrund mindestens 4,5:1
-     * beträgt (WCAG 1.4.3). Ein fester Abdunkelungsfaktor reicht dafür nicht: Das Standardgelb
-     * erreichte damit nur 2,9:1, hellere Vereinsfarben noch weniger. Farbton und Sättigung
-     * bleiben erhalten, nur die Helligkeit sinkt; eine schon lesbare Farbe bleibt unverändert.
-     */
-    public static function strongPrimaryColor(string $hexColor): string
-    {
-        $normalized = ltrim(self::normalizePrimaryColor($hexColor), '#');
-        $channels = [
-            (int) hexdec(substr($normalized, 0, 2)),
-            (int) hexdec(substr($normalized, 2, 2)),
-            (int) hexdec(substr($normalized, 4, 2)),
-        ];
-
-        for ($factor = 1.0; $factor > 0.0; $factor -= 0.01) {
-            $candidate = array_map(
-                static fn (int $channel): int => (int) round($channel * $factor),
-                $channels
-            );
-
-            if (self::contrastRatio($candidate, self::PAGE_BACKGROUND_RGB) >= self::MIN_TEXT_CONTRAST) {
-                return sprintf('#%02X%02X%02X', ...$candidate);
-            }
-        }
-
-        return '#000000';
-    }
-
-    /**
-     * @param array{int, int, int} $first
-     * @param array{int, int, int} $second
-     */
-    private static function contrastRatio(array $first, array $second): float
-    {
-        $firstLuminance = self::relativeLuminance($first);
-        $secondLuminance = self::relativeLuminance($second);
-
-        return (max($firstLuminance, $secondLuminance) + 0.05) / (min($firstLuminance, $secondLuminance) + 0.05);
-    }
-
-    /**
-     * @param array{int, int, int} $rgb
-     */
-    private static function relativeLuminance(array $rgb): float
-    {
-        [$red, $green, $blue] = array_map(
-            static function (int $channel): float {
-                $unit = $channel / 255;
-
-                return $unit <= 0.03928 ? $unit / 12.92 : (($unit + 0.055) / 1.055) ** 2.4;
-            },
-            $rgb
-        );
-
-        return 0.2126 * $red + 0.7152 * $green + 0.0722 * $blue;
     }
 
     /**

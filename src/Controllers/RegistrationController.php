@@ -12,6 +12,7 @@ use App\Services\AttendanceScopeService;
 use App\Services\EventAudienceService;
 use App\Services\EventScheduleFormatter;
 use App\Services\NameFormatterService;
+use App\Services\ParticipationWriter;
 use App\Util\RequestFormat;
 use App\Util\VoiceGroupOrder;
 use App\Util\InputValidator;
@@ -21,7 +22,6 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
 use Slim\Views\Twig;
-use Illuminate\Database\Capsule\Manager as Capsule;
 
 class RegistrationController
 {
@@ -42,14 +42,15 @@ class RegistrationController
         private readonly Twig $view,
         private readonly AttendanceScopeService $scopeService,
         private readonly LoggerInterface $logger,
-        private readonly NameFormatterService $nameFormatter
+        private readonly NameFormatterService $nameFormatter,
+        private readonly ParticipationWriter $writer,
+        private readonly EventAudienceService $audienceService
     ) {
     }
 
     public function index(Request $request, Response $response): Response
     {
         $userId = (int) ($_SESSION['user_id'] ?? 0);
-        $audienceService = new EventAudienceService();
 
         // Only events the user is actually part of (audience scope) are
         // relevant for self-registration.
@@ -57,7 +58,7 @@ class RegistrationController
         // audienceFilters.conditions wird mitgeladen, weil die Zielgruppe gleich für alle
         // Termine auf einmal aufgelöst wird - ohne das Vorladen holte schon deren
         // Bestimmung je Termin eine eigene Abfrage.
-        $events = $audienceService->visibleEventsQuery($userId)
+        $events = $this->audienceService->visibleEventsQuery($userId)
             ->where('registration_enabled', true)
             ->where('starts_at', '>', Carbon::now())
             ->orderBy('starts_at', 'asc')
@@ -68,7 +69,7 @@ class RegistrationController
             ])
             ->get();
 
-        $eligibleByEvent = $audienceService->eligibleUserIdsForEvents($events);
+        $eligibleByEvent = $this->audienceService->eligibleUserIdsForEvents($events);
         $countsByEvent = $this->statusCountsForEvents($events, $eligibleByEvent);
         $now = Carbon::now();
 
@@ -254,7 +255,7 @@ class RegistrationController
 
         // Self-registration is only allowed for members within the event's
         // audience scope — not for every otherwise authorised member.
-        if (!(new EventAudienceService())->isUserEligible($event, $userId)) {
+        if (!$this->audienceService->isUserEligible($event, $userId)) {
             if ($expectsJson) {
                 return $this->jsonResponse($response, ['error' => 'Du bist für diesen Termin nicht angemeldet.'], 403);
             }
@@ -446,7 +447,7 @@ class RegistrationController
 
         // Vertretungseinträge sind doppelt begrenzt: auf die verwaltbaren Mitglieder und
         // auf die Zielgruppe des Termins - sonst entstünden Anmeldungen für Unbeteiligte.
-        $eligibleUserIds = (new EventAudienceService())->eligibleUsersQuery($event)
+        $eligibleUserIds = $this->audienceService->eligibleUsersQuery($event)
             ->pluck('id')
             ->map(static fn($id): int => (int) $id)
             ->all();
@@ -492,9 +493,8 @@ class RegistrationController
                 ->withStatus(302);
         }
 
-        Capsule::beginTransaction();
-
         try {
+            $entries = [];
             $userIdsToClear = [];
 
             foreach ($registrations as $rawUserId => $status) {
@@ -519,22 +519,16 @@ class RegistrationController
 
                 $note = $this->boundedNote($notes[$rawUserId] ?? null);
 
-                EventRegistration::updateOrCreate(
-                    ['event_id' => (int) $event->id, 'user_id' => $targetUserId],
-                    ['status' => $status, 'note' => $note !== '' ? $note : null, 'updated_by' => $actorId]
-                );
+                $entries[] = [
+                    'user_id' => $targetUserId,
+                    'status' => $status,
+                    'note' => $note !== '' ? $note : null,
+                ];
             }
 
-            if ($userIdsToClear !== []) {
-                EventRegistration::where('event_id', (int) $event->id)
-                    ->whereIn('user_id', $userIdsToClear)
-                    ->delete();
-            }
-
-            Capsule::commit();
+            $this->writer->saveProxyRegistrations((int) $event->id, $entries, $userIdsToClear, $actorId);
             $_SESSION['success'] = 'Einträge für andere gespeichert.';
         } catch (\Exception $e) {
-            Capsule::rollBack();
             $this->logger->error('Saving proxy registrations failed.', [
                 'event' => 'registration.proxy_save_failed',
                 'event_id' => (int) $event->id,
@@ -640,7 +634,7 @@ class RegistrationController
      */
     private function eligibleStatusCounts(Event $event): array
     {
-        $eligibleByEvent = (new EventAudienceService())->eligibleUserIdsForEvents([$event]);
+        $eligibleByEvent = $this->audienceService->eligibleUserIdsForEvents([$event]);
 
         return $this->statusCountsForEvents([$event], $eligibleByEvent)[(int) $event->id];
     }
@@ -651,7 +645,7 @@ class RegistrationController
      */
     private function eligibleUsers(Event $event)
     {
-        return (new EventAudienceService())->eligibleUsersQuery($event)
+        return $this->audienceService->eligibleUsersQuery($event)
             ->with([
                 'voiceGroups',
                 'eventRegistrations' => fn($q) => $q->where('event_id', (int) $event->id),

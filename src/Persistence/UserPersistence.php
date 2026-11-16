@@ -6,19 +6,23 @@ namespace App\Persistence;
 
 use App\Models\User;
 use App\Services\Oidc\AuthorizationCodeService;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use Psr\Log\LoggerInterface;
 
 class UserPersistence
 {
     private LoggerInterface $logger;
     private AuthorizationCodeService $authorizationCodeService;
+    private ProjectPersistence $projects;
 
     public function __construct(
         LoggerInterface $logger,
-        ?AuthorizationCodeService $authorizationCodeService = null
+        ?AuthorizationCodeService $authorizationCodeService = null,
+        ?ProjectPersistence $projects = null
     ) {
         $this->logger = $logger;
         $this->authorizationCodeService = $authorizationCodeService ?? new AuthorizationCodeService($logger);
+        $this->projects = $projects ?? new ProjectPersistence();
     }
 
     /**
@@ -89,5 +93,34 @@ class UserPersistence
         // Eloquent sync with pivot data
         // $voiceGroupData format: [ voice_group_id => ['sub_voice_id' => $subId], ... ]
         $user->voiceGroups()->sync($voiceGroupData);
+    }
+
+    /**
+     * Speichert das Mitglied samt Rollen, Stimmgruppen und Projekten in einer
+     * Transaktion.
+     *
+     * Die vier Schritte standen einzeln im Controller. Scheiterte die
+     * Projektzuordnung, stand ein neues Mitglied ohne Zuordnung in der
+     * Datenbank, während der Aufrufer "Fehler beim Anlegen" meldete.
+     *
+     * @param list<int|string> $roleIds
+     * @param array<int, array{sub_voice_id: ?int}> $voiceGroupPivot wie bei syncVoiceGroups()
+     * @param ?array<int|string> $projectIds null lässt die Projekte unberührt
+     */
+    public function saveWithAssignments(
+        User $user,
+        array $roleIds,
+        array $voiceGroupPivot,
+        ?array $projectIds
+    ): void {
+        Capsule::connection()->transaction(function () use ($user, $roleIds, $voiceGroupPivot, $projectIds): void {
+            $this->save($user);
+            $this->syncRoles($user, $roleIds);
+            $this->syncVoiceGroups($user, $voiceGroupPivot);
+
+            if ($projectIds !== null) {
+                $this->projects->setUserProjects((int) $user->id, $projectIds);
+            }
+        });
     }
 }

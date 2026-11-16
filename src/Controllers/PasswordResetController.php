@@ -13,10 +13,8 @@ use App\Models\PasswordReset;
 use App\Models\InvitationToken;
 use App\Services\AccountLoginRevocationService;
 use App\Services\Mailer;
-use App\Services\Oidc\AuthorizationCodeService;
 use App\Services\PasswordPolicyService;
 use App\Services\RateLimiterService;
-use App\Services\RememberLoginService;
 use App\Services\MailQueueService;
 use App\Util\AppUrlResolver;
 use App\Util\ClientIpResolver;
@@ -41,24 +39,24 @@ class PasswordResetController
     private PasswordPolicyService $passwordPolicyService;
     private MailQueueService $mailQueueService;
     private LoggerInterface $logger;
-    private RememberLoginService $rememberLoginService;
+    private AccountLoginRevocationService $loginRevocation;
 
     public function __construct(
         Twig $view,
+        AccountLoginRevocationService $loginRevocation,
         ?Mailer $mailer = null,
         ?RateLimiterService $rateLimiter = null,
         ?PasswordPolicyService $passwordPolicyService = null,
         ?MailQueueService $mailQueueService = null,
-        ?LoggerInterface $logger = null,
-        ?RememberLoginService $rememberLoginService = null
+        ?LoggerInterface $logger = null
     ) {
         $this->view = $view;
+        $this->loginRevocation = $loginRevocation;
         $this->mailer = $mailer ?? new Mailer();
         $this->rateLimiter = $rateLimiter;
         $this->passwordPolicyService = $passwordPolicyService ?? new PasswordPolicyService();
         $this->mailQueueService = $mailQueueService ?? new MailQueueService();
         $this->logger = $logger ?? new NullLogger();
-        $this->rememberLoginService = $rememberLoginService ?? new RememberLoginService();
     }
 
     /**
@@ -69,11 +67,7 @@ class PasswordResetController
     {
         // Nicht nur die Token: Auch eine laufende Sitzung auf einem fremden Gerät
         // und die Zugangstoken angeschlossener Anwendungen enden hier.
-        (new AccountLoginRevocationService(
-            $this->rememberLoginService,
-            new AuthorizationCodeService($this->logger),
-            $this->logger
-        ))->revokeAllLogins($user, $reason);
+        $this->loginRevocation->revokeAllLogins($user, $reason);
     }
 
     /**

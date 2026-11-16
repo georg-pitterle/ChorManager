@@ -7,7 +7,6 @@ namespace App\Controllers;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
-use App\Controllers\ProjectController;
 use App\Models\AppSetting;
 use App\Models\Project;
 use App\Models\Sponsorship;
@@ -17,6 +16,7 @@ use App\Policies\SponsoringPolicy;
 use App\Queries\SponsoringQuery;
 use App\Services\NameFormatterService;
 use App\Util\LogoDeadline;
+use App\Util\ProjectDateInput;
 use App\Util\SponsorshipStatus;
 use App\Util\YoutubeVideoId;
 use Carbon\Carbon;
@@ -434,9 +434,9 @@ class SponsoringDashboardController
             return $back;
         }
 
-        $deadlines = ProjectController::logoDeadlines((array) $request->getParsedBody(), $project);
+        $deadlines = ProjectDateInput::logoDeadlines((array) $request->getParsedBody(), false);
         if ($deadlines === false) {
-            $_SESSION['error'] = ProjectController::INVALID_LOGO_DEADLINE_MESSAGE;
+            $_SESSION['error'] = ProjectDateInput::INVALID_LOGO_DEADLINE_MESSAGE;
             return $back;
         }
 

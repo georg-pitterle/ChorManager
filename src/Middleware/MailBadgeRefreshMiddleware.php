@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Middleware;
 
-use App\Controllers\MailBadgeController;
 use App\Models\UserMailAccount;
 use App\Services\MailBadgeService;
 use App\Util\AfterResponse;
+use App\Util\MailBadgeRefresh;
 use App\Util\OpportunisticWork;
 use App\Util\SessionConfig;
 use Carbon\Carbon;
@@ -250,7 +250,7 @@ class MailBadgeRefreshMiddleware implements MiddlewareInterface
      */
     private function isForced(Request $request): bool
     {
-        if (!empty($_SESSION[MailBadgeController::FORCE_SESSION_KEY])) {
+        if (!empty($_SESSION[MailBadgeRefresh::FORCE_SESSION_KEY])) {
             return true;
         }
 
@@ -259,12 +259,12 @@ class MailBadgeRefreshMiddleware implements MiddlewareInterface
 
     private function isBadgeEndpoint(Request $request): bool
     {
-        return $request->getUri()->getPath() === MailBadgeController::REFRESH_PATH;
+        return $request->getUri()->getPath() === MailBadgeRefresh::PATH;
     }
 
     private function clearForceSignal(): void
     {
-        unset($_SESSION[MailBadgeController::FORCE_SESSION_KEY]);
+        unset($_SESSION[MailBadgeRefresh::FORCE_SESSION_KEY]);
     }
 
     /**
