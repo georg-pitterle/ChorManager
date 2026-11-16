@@ -23,6 +23,13 @@ final class MigrationChainCompletionTest extends TestCase
 
     /**
      * Aktionen, die ohne Abschluss folgenlos bleiben.
+     *
+     * Die Liste ist der Bestand von `Phinx\Db\Table` ohne `truncate()`, das
+     * sofort ausführt. Bis Lauf 76 fehlten sechs davon - `addTimestamps()`
+     * steht in vier Migrationen und blieb nur deshalb sichtbar, weil in
+     * derselben Kette ein `addColumn()` davor stand. Eine Kette, die allein aus
+     * einer der sechs besteht, lief ungeprüft durch; genau das ist der Fehler,
+     * gegen den dieser Test geschrieben ist.
      */
     private const PENDING_ACTIONS = [
         'addColumn',
@@ -33,7 +40,12 @@ final class MigrationChainCompletionTest extends TestCase
         'removeIndex',
         'removeIndexByName',
         'addForeignKey',
+        'addForeignKeyWithName',
         'dropForeignKey',
+        'addTimestamps',
+        'addTimestampsWithTimezone',
+        'changePrimaryKey',
+        'changeComment',
         'drop',
         'rename',
     ];

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use AddChannelToUserNotificationSettings;
+use AddNewsletterRecipientSources;
 use AllowLockEntriesInFinanceJournal;
 use AllowMultipleTaskAssignees;
 use AllowNewslettersWithoutProject;
@@ -21,6 +22,7 @@ use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 use UseEnglishTaskStatusValues;
 
+require_once dirname(__DIR__, 2) . '/db/migrations/20260513220000_add_newsletter_recipient_sources.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260621120000_create_finance_groups_and_link.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260815140000_create_finance_accounts.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260830120000_allow_multiple_task_assignees.php';
@@ -57,6 +59,7 @@ final class DestructiveMigrationGuardTest extends TestCase
     private const AUDIENCE_TABLE = 'test_guard_event_audience_sources';
     private const BUDGET_TABLE = 'test_guard_budget_categories';
     private const NEWSLETTERS_TABLE = 'test_guard_newsletters';
+    private const RECIPIENT_SOURCES_TABLE = 'test_guard_newsletter_recipient_sources';
     private const REVISIONS_TABLE = 'test_guard_finance_revisions';
     private const SETTINGS_TABLE = 'test_guard_user_notification_settings';
     private const ASSIGNEES_TABLE = 'test_guard_task_assignees';
@@ -73,6 +76,7 @@ final class DestructiveMigrationGuardTest extends TestCase
         self::AUDIENCE_TABLE,
         self::EVENTS_TABLE,
         self::BUDGET_TABLE,
+        self::RECIPIENT_SOURCES_TABLE,
         self::NEWSLETTERS_TABLE,
         self::REVISIONS_TABLE,
         self::SETTINGS_TABLE,
@@ -135,6 +139,17 @@ final class DestructiveMigrationGuardTest extends TestCase
                 PRIMARY KEY (id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
             self::NEWSLETTERS_TABLE
+        ));
+
+        Capsule::connection()->statement(sprintf(
+            "CREATE TABLE %s (
+                id int(11) unsigned NOT NULL AUTO_INCREMENT,
+                newsletter_id int(11) NOT NULL,
+                source_type enum('project_members','event_attendees','role','user') NOT NULL,
+                reference_id int(11) NOT NULL,
+                PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
+            self::RECIPIENT_SOURCES_TABLE
         ));
 
         Capsule::connection()->statement(sprintf(
@@ -369,6 +384,71 @@ final class DestructiveMigrationGuardTest extends TestCase
         $this->assertSame(0, $this->countFrom(
             AllowNewslettersWithoutProject::PROJECTLESS_NEWSLETTERS_SQL,
             ['newsletters' => self::NEWSLETTERS_TABLE]
+        ));
+    }
+
+    /**
+     * Der Rückbau von 20260513220000 schreibt je Newsletter **eine**
+     * Terminquelle nach `newsletters.event_id` zurück und wirft die Tabelle
+     * danach weg. Die Prüfung darf deshalb nicht alle Zeilen zählen, sondern
+     * genau die, für die das alte Modell keinen Platz hat.
+     */
+    public function testRecipientSourceGuardFindsOnlyWhatTheOldModelCannotHold(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            'INSERT INTO %s (id, project_id) VALUES (1, 7), (2, 8)',
+            self::NEWSLETTERS_TABLE
+        ));
+
+        // Newsletter 1: die Projektquelle passt zu project_id 7 und ist
+        // herzuleiten; die erste Terminquelle kommt in event_id unter, die
+        // zweite nicht; "role" kennt das alte Modell nicht.
+        // Newsletter 2: die Projektquelle nennt ein anderes Projekt als
+        // project_id 8 - eine spätere Angabe, die verloren ginge -, und "user"
+        // kennt das alte Modell ebenso wenig wie "role".
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (newsletter_id, source_type, reference_id) VALUES
+                (1, 'project_members', 7),
+                (1, 'event_attendees', 41),
+                (1, 'event_attendees', 42),
+                (1, 'role', 3),
+                (2, 'project_members', 9),
+                (2, 'user', 12)",
+            self::RECIPIENT_SOURCES_TABLE
+        ));
+
+        $this->assertSame(4, $this->countFrom(
+            AddNewsletterRecipientSources::UNRESTORABLE_SOURCES_SQL,
+            [
+                'newsletter_recipient_sources' => self::RECIPIENT_SOURCES_TABLE,
+                'newsletters' => self::NEWSLETTERS_TABLE,
+            ],
+            'dropped'
+        ));
+    }
+
+    public function testRecipientSourceGuardStaysQuietWhenEverySourceFitsBack(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            'INSERT INTO %s (id, project_id) VALUES (1, 7), (2, 8)',
+            self::NEWSLETTERS_TABLE
+        ));
+
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (newsletter_id, source_type, reference_id) VALUES
+                (1, 'project_members', 7),
+                (1, 'event_attendees', 41),
+                (2, 'project_members', 8)",
+            self::RECIPIENT_SOURCES_TABLE
+        ));
+
+        $this->assertSame(0, $this->countFrom(
+            AddNewsletterRecipientSources::UNRESTORABLE_SOURCES_SQL,
+            [
+                'newsletter_recipient_sources' => self::RECIPIENT_SOURCES_TABLE,
+                'newsletters' => self::NEWSLETTERS_TABLE,
+            ],
+            'dropped'
         ));
     }
 

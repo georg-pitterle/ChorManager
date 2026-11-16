@@ -78,53 +78,76 @@ final class DestructiveStepNeedsGuardTest extends TestCase
     private const MIGRATION_DIR = __DIR__ . '/../../../db/migrations';
 
     /**
-     * Diese Migrationen kommen ohne Prüfung aus, weil an ihrer Stelle
+     * Diese **einzelnen Schritte** kommen ohne Prüfung aus, weil an ihrer Stelle
      * nachweislich nichts verloren geht: Entweder läuft die Umschreibung
      * unmittelbar davor bedingungslos und liest aus einer Quelle, die keine
      * Lücke haben kann, oder die getroffenen Zeilen waren schon vor der
      * Migration ohne Wert. Eine Prüfung wäre dort toter Code - sie könnte nie
      * anschlagen oder würde den Lauf dauerhaft blockieren.
      *
-     * Die Liste ist bewusst kurz und soll es bleiben: Eine neue Migration gehört
-     * nicht hier hinein, sondern bekommt ihre Prüfung. Die zwei Einträge aus Lauf
+     * Der Schlüssel nennt die Datei, darunter steht je ungedeckter Schritt
+     * genau sein Wortlaut aus der Meldung unten (`up(): column event_date`).
+     * Freigestellt ist damit nur dieser Schritt, nicht die Datei.
+     *
+     * Bis Lauf 76 stand hier je Datei ein einziger Grund, und ein Eintrag
+     * stellte die ganze Datei frei. Das trug genau einen Schritt weiter als
+     * gedacht: Der Grund zu 20260513220000 beschreibt das `removeColumn(event_id)`
+     * im `up()`, freigestellt war damit aber auch das `drop()` der Tabelle im
+     * `down()` - und das nahm die Empfängerquellen vom Typ "role" und "user"
+     * ungezählt mit, die der Rückbau von 20261004090300 kurz davor erst
+     * zurückgeschrieben hatte. Je Schritt einen Grund zu verlangen, macht so
+     * einen zweiten Schritt sichtbar, statt ihn mitzufreistellen.
+     *
+     * Die Liste ist bewusst kurz und soll es bleiben: Ein neuer Schritt gehört
+     * nicht hier hinein, sondern bekommt seine Prüfung. Die zwei Einträge aus Lauf
      * 69 sind keine neuen Migrationen - sie stehen seit August im Repo und waren
      * nur unsichtbar, weil das Netz nicht bis zu ihrer Anweisung reichte.
      *
-     * @var array<string, string>
+     * @var array<string, array<string, string>>
      */
     private const DOCUMENTED_EXCEPTIONS = [
-        '20260424100000_add_starts_at_ends_at_to_events.php' =>
-            'Der Backfill davor setzt starts_at/ends_at für jede Zeile aus event_date, '
-                . 'und event_date war NOT NULL - es kann keine Zeile ohne Wert geben, '
-                . 'wenn DROP COLUMN event_date an die Reihe kommt.',
-        '20260513220000_add_newsletter_recipient_sources.php' =>
-            'Das INSERT ... SELECT davor überträgt jedes newsletters.event_id IS NOT NULL '
-                . 'ohne weitere Bedingung nach newsletter_recipient_sources, bevor '
-                . 'removeColumn(event_id) folgt.',
-        '20260901122000_drop_plaintext_calendar_subscription_tokens.php' =>
-            'Das DELETE trifft nur Zeilen ohne Hash *und* ohne Klartext. Die sind über '
-                . 'keinen Weg mehr auffindbar und waren schon vor der Migration wertlos; '
-                . 'eine Prüfung davor könnte nur auf genau diese Zeilen anschlagen und '
-                . 'würde den Lauf dauerhaft blockieren. Die Prüfung, auf die es ankommt - '
-                . 'bleibt eine Zeile ohne Hash zurück - steht davor und bewacht das '
-                . 'removeColumn(token).',
-        '20260825120000_add_user_foreign_key_to_calendar_subscription_tokens.php' =>
-            'Das DELETE trifft nur Zeilen, deren user_id auf kein Mitglied mehr zeigt. '
-                . 'Der Feed lief damit schon vorher auf 404, die Zeile war also wertlos, und '
-                . 'ohne das Aufräumen scheiterte das ALTER an genau diesen Zeilen. Die '
-                . 'Zählabfrage davor steht da, bricht aber bewusst nicht ab, sondern '
-                . 'entscheidet, ob überhaupt gelöscht werden muss. Aufgefallen in Lauf 69, '
-                . 'weil die mehrtabellige Form "DELETE t FROM ..." vorher durch das Muster '
-                . 'fiel.',
-        '20260825120100_add_unique_index_to_audience_sources.php' =>
-            'Das DELETE führt Duplikate zusammen und behält je Kombination aus '
-                . 'Elternzeile, source_type und reference_id die kleinste id. Fachlich sind '
-                . 'die entfernten Zeilen dieselbe Quelle wie die stehengebliebene - es geht '
-                . 'keine Angabe verloren, und ohne das Zusammenführen wäre der eindeutige '
-                . 'Index danach nicht anzulegen. Eine Prüfung davor könnte nur auf genau '
-                . 'diese Duplikate anschlagen und würde den Lauf dauerhaft blockieren. '
-                . 'Aufgefallen in Lauf 69, weil das DELETE in einer privaten Methode steht '
-                . 'und vorher kein Netz dorthin reichte.',
+        '20260424100000_add_starts_at_ends_at_to_events.php' => [
+            'up(): column event_date' =>
+                'Der Backfill davor setzt starts_at/ends_at für jede Zeile aus event_date, '
+                    . 'und event_date war NOT NULL - es kann keine Zeile ohne Wert geben, '
+                    . 'wenn DROP COLUMN event_date an die Reihe kommt.',
+        ],
+        '20260513220000_add_newsletter_recipient_sources.php' => [
+            'up(): column event_id' =>
+                'Das INSERT ... SELECT davor überträgt jedes newsletters.event_id IS NOT NULL '
+                    . 'ohne weitere Bedingung nach newsletter_recipient_sources, bevor '
+                    . 'removeColumn(event_id) folgt.',
+        ],
+        '20260901122000_drop_plaintext_calendar_subscription_tokens.php' => [
+            'up(): rows calendar_subscription_tokens' =>
+                'Das DELETE trifft nur Zeilen ohne Hash *und* ohne Klartext. Die sind über '
+                    . 'keinen Weg mehr auffindbar und waren schon vor der Migration wertlos; '
+                    . 'eine Prüfung davor könnte nur auf genau diese Zeilen anschlagen und '
+                    . 'würde den Lauf dauerhaft blockieren. Die Prüfung, auf die es ankommt - '
+                    . 'bleibt eine Zeile ohne Hash zurück - steht davor und bewacht das '
+                    . 'removeColumn(token).',
+        ],
+        '20260825120000_add_user_foreign_key_to_calendar_subscription_tokens.php' => [
+            'up(): rows calendar_subscription_tokens' =>
+                'Das DELETE trifft nur Zeilen, deren user_id auf kein Mitglied mehr zeigt. '
+                    . 'Der Feed lief damit schon vorher auf 404, die Zeile war also wertlos, und '
+                    . 'ohne das Aufräumen scheiterte das ALTER an genau diesen Zeilen. Die '
+                    . 'Zählabfrage davor steht da, bricht aber bewusst nicht ab, sondern '
+                    . 'entscheidet, ob überhaupt gelöscht werden muss. Aufgefallen in Lauf 69, '
+                    . 'weil die mehrtabellige Form "DELETE t FROM ..." vorher durch das Muster '
+                    . 'fiel.',
+        ],
+        '20260825120100_add_unique_index_to_audience_sources.php' => [
+            'up(): rows %1$s' =>
+                'Das DELETE führt Duplikate zusammen und behält je Kombination aus '
+                    . 'Elternzeile, source_type und reference_id die kleinste id. Fachlich sind '
+                    . 'die entfernten Zeilen dieselbe Quelle wie die stehengebliebene - es geht '
+                    . 'keine Angabe verloren, und ohne das Zusammenführen wäre der eindeutige '
+                    . 'Index danach nicht anzulegen. Eine Prüfung davor könnte nur auf genau '
+                    . 'diese Duplikate anschlagen und würde den Lauf dauerhaft blockieren. '
+                    . 'Aufgefallen in Lauf 69, weil das DELETE in einer privaten Methode steht '
+                    . 'und vorher kein Netz dorthin reichte.',
+        ],
     ];
 
     /**
@@ -197,40 +220,45 @@ final class DestructiveStepNeedsGuardTest extends TestCase
             }
         }
 
-        if (isset(self::DOCUMENTED_EXCEPTIONS[basename($file)])) {
-            $this->assertNotSame(
-                [],
-                $unguarded,
-                sprintf(
-                    '%s steht als Ausnahme in DOCUMENTED_EXCEPTIONS, hat aber inzwischen eine '
-                        . 'Prüfung oder keinen destruktiven Schritt mehr. Eintrag entfernen.',
-                    basename($file)
-                )
-            );
-
-            return;
-        }
+        $documented = array_keys(self::DOCUMENTED_EXCEPTIONS[basename($file)] ?? []);
 
         $this->assertSame(
             [],
-            $unguarded,
+            array_values(array_diff($unguarded, $documented)),
             sprintf(
                 "%s: destruktiver Schritt ohne vorangehende Prüfung.\n%s\n"
                     . 'Vor jedem DROP COLUMN / DROP TABLE auf Bestand gehört eine Zählabfrage, '
                     . 'die mit RuntimeException abbricht - und zwar davor, nicht danach. '
                     . 'Muster: 20260421120000_drop_songs_project_id. Siehe /phinx-migration.',
                 basename($file),
-                implode("\n", $unguarded)
+                implode("\n", array_values(array_diff($unguarded, $documented)))
+            )
+        );
+
+        $this->assertSame(
+            [],
+            array_values(array_diff($documented, $unguarded)),
+            sprintf(
+                "%s: diese Schritte stehen als Ausnahme in DOCUMENTED_EXCEPTIONS, haben aber "
+                    . "inzwischen eine Prüfung oder gibt es nicht mehr:\n%s\nEintrag entfernen.",
+                basename($file),
+                implode("\n", array_values(array_diff($documented, $unguarded)))
             )
         );
     }
 
     public function testEveryDocumentedExceptionStillExists(): void
     {
-        foreach (array_keys(self::DOCUMENTED_EXCEPTIONS) as $name) {
+        foreach (self::DOCUMENTED_EXCEPTIONS as $name => $steps) {
             $this->assertFileExists(
                 self::MIGRATION_DIR . '/' . $name,
                 'Ausnahme nennt eine Migration, die es nicht mehr gibt: ' . $name
+            );
+
+            $this->assertNotSame(
+                [],
+                $steps,
+                'Ausnahme nennt keinen Schritt und stellt damit nichts frei: ' . $name
             );
         }
     }
