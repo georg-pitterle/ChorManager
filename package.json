@@ -10,16 +10,16 @@
     "e2e:headed": "playwright test --config tests/e2e/playwright.config.mjs --headed --workers=1"
   },
   "dependencies": {
-    "bootstrap": "5.3.8",
+    "bootstrap": "5.3.9",
     "bootstrap-icons": "1.13.2",
-    "fullcalendar": "7.1.4",
+    "fullcalendar": "7.1.5",
     "html-midi-player": "1.6.0",
     "pdfjs-dist": "6.5.438",
     "sortablejs": "^1.15.7",
-    "temporal-polyfill": "1.0.7",
-    "tinymce": "8.10.1",
+    "temporal-polyfill": "1.0.8",
+    "tinymce": "8.10.2",
     "tinymce-i18n": "26.11.2",
-    "tom-select": "^2.6.2"
+    "tom-select": "^2.7.0"
   },
   "overrides": {
     "minimist": "0.2.4",
@@ -27,7 +27,7 @@
     "static-eval": "^2.1.1"
   },
   "devDependencies": {
-    "@playwright/test": "^1.64.1"
+    "@playwright/test": "^1.65.1"
   },
   "allowScripts": {
     "core-js@3.51.0": true,
