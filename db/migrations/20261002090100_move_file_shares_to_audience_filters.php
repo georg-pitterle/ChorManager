@@ -31,6 +31,32 @@ final class MoveFileSharesToAudienceFilters extends AbstractMigration
         'project_members' => 'project',
     ];
 
+    /**
+     * Filter, auf die keine der beiden Freigabetabellen zeigt.
+     *
+     * Das `down()` endet mit `DELETE FROM audience_filters` ohne WHERE. Das ist
+     * heute richtig, aber nicht von sich aus: `audience_filters` trägt sieben
+     * Besitzerspalten, und dass am Ende nur noch die Freigabe-Filter dieser
+     * Migration übrig sind, liegt allein daran, dass jede andere Besitzerspalte
+     * im `down()` ihrer eigenen Migration vorher geräumt oder bewacht wird -
+     * 20261004090200 und 20261004090300 löschen gezielt, 20261103122000 bricht ab.
+     *
+     * Gezählt werden kann das nicht an den Besitzerspalten: Die hat
+     * 20261004090000 angelegt, und dessen `down()` nimmt sie weg, bevor dieses
+     * hier läuft. Übrig bleibt der umgekehrte Weg - ein Filter, auf den keine
+     * Freigabe zeigt, gehört jemand anderem oder niemandem und wäre mit dem
+     * DELETE still weg. Die Abfrage steht deshalb am Anfang des `down()`,
+     * solange `audience_filter_id` an den Freigaben noch existiert.
+     *
+     * Heute schlägt sie nicht an. Sie ist die Zusicherung für die achte
+     * Besitzerspalte, deren `down()` das Räumen vergisst.
+     */
+    public const FOREIGN_FILTERS_SQL =
+        'SELECT COUNT(*) AS dropped
+           FROM audience_filters f
+          WHERE NOT EXISTS (SELECT 1 FROM file_folder_shares s WHERE s.audience_filter_id = f.id)
+            AND NOT EXISTS (SELECT 1 FROM file_shares s WHERE s.audience_filter_id = f.id)';
+
     public function up(): void
     {
         foreach (self::TABLES as $table) {
@@ -99,6 +125,19 @@ final class MoveFileSharesToAudienceFilters extends AbstractMigration
 
     public function down(): void
     {
+        // Prüfung vor dem DELETE FROM audience_filters am Ende: Ein Filter, auf
+        // den keine Freigabe zeigt, gehört jemand anderem - und stünde dort
+        // nur, weil dessen eigenes down() ihn nicht geräumt hat.
+        $foreign = (int) ($this->fetchRow(self::FOREIGN_FILTERS_SQL)['dropped'] ?? 0);
+        if ($foreign > 0) {
+            throw new RuntimeException(sprintf(
+                'Rückbau abgebrochen: %d Zielgruppen-Filter gehören zu keiner Datei- oder '
+                    . 'Ordnerfreigabe und wären mit dem Leeren von audience_filters weg. Zuerst das '
+                    . 'down() der Migration laufen lassen, die diese Filter angelegt hat.',
+                $foreign
+            ));
+        }
+
         // Prüfung zuerst: Mehrere Bedingungen oder Untergruppen gibt es im
         // alten Modell nicht.
         foreach (self::TABLES as $table) {

@@ -13,6 +13,7 @@ use CreateFinanceAccounts;
 use CreateFinanceGroupsAndLink;
 use DropEventsProjectId;
 use DropTypeFromEvents;
+use MoveFileSharesToAudienceFilters;
 use MoveSponsorLogosToOwnAttachments;
 use RequireFileSizeOnAttachments;
 use RequireKnownAttendanceStatus;
@@ -23,6 +24,7 @@ use Tests\Unit\Bootstrap;
 use UseEnglishTaskStatusValues;
 
 require_once dirname(__DIR__, 2) . '/db/migrations/20260513220000_add_newsletter_recipient_sources.php';
+require_once dirname(__DIR__, 2) . '/db/migrations/20261002090100_move_file_shares_to_audience_filters.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260621120000_create_finance_groups_and_link.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260815140000_create_finance_accounts.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260830120000_allow_multiple_task_assignees.php';
@@ -60,6 +62,9 @@ final class DestructiveMigrationGuardTest extends TestCase
     private const BUDGET_TABLE = 'test_guard_budget_categories';
     private const NEWSLETTERS_TABLE = 'test_guard_newsletters';
     private const RECIPIENT_SOURCES_TABLE = 'test_guard_newsletter_recipient_sources';
+    private const FILTERS_TABLE = 'test_guard_audience_filters';
+    private const FOLDER_SHARES_TABLE = 'test_guard_file_folder_shares';
+    private const FILE_SHARES_TABLE = 'test_guard_file_shares';
     private const REVISIONS_TABLE = 'test_guard_finance_revisions';
     private const SETTINGS_TABLE = 'test_guard_user_notification_settings';
     private const ASSIGNEES_TABLE = 'test_guard_task_assignees';
@@ -77,6 +82,9 @@ final class DestructiveMigrationGuardTest extends TestCase
         self::EVENTS_TABLE,
         self::BUDGET_TABLE,
         self::RECIPIENT_SOURCES_TABLE,
+        self::FOLDER_SHARES_TABLE,
+        self::FILE_SHARES_TABLE,
+        self::FILTERS_TABLE,
         self::NEWSLETTERS_TABLE,
         self::REVISIONS_TABLE,
         self::SETTINGS_TABLE,
@@ -151,6 +159,29 @@ final class DestructiveMigrationGuardTest extends TestCase
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci",
             self::RECIPIENT_SOURCES_TABLE
         ));
+
+        // audience_filters trägt an dieser Stelle des Rückbaus keine
+        // Besitzerspalte mehr - 20261004090000 hat sie weggenommen. Genau
+        // deshalb zählt die Prüfung über die Freigaben, nicht über den Besitzer.
+        Capsule::connection()->statement(sprintf(
+            'CREATE TABLE %s (
+                id int(11) unsigned NOT NULL AUTO_INCREMENT,
+                created_at datetime NOT NULL,
+                PRIMARY KEY (id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
+            self::FILTERS_TABLE
+        ));
+
+        foreach ([self::FOLDER_SHARES_TABLE, self::FILE_SHARES_TABLE] as $shareTable) {
+            Capsule::connection()->statement(sprintf(
+                'CREATE TABLE %s (
+                    id int(11) unsigned NOT NULL AUTO_INCREMENT,
+                    audience_filter_id int(11) unsigned DEFAULT NULL,
+                    PRIMARY KEY (id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
+                $shareTable
+            ));
+        }
 
         Capsule::connection()->statement(sprintf(
             "CREATE TABLE %s (
@@ -447,6 +478,70 @@ final class DestructiveMigrationGuardTest extends TestCase
             [
                 'newsletter_recipient_sources' => self::RECIPIENT_SOURCES_TABLE,
                 'newsletters' => self::NEWSLETTERS_TABLE,
+            ],
+            'dropped'
+        ));
+    }
+
+    /**
+     * Der Rückbau von 20261002090100 endet mit `DELETE FROM audience_filters`
+     * ohne WHERE. Die Prüfung davor darf nicht die Freigabe-Filter zählen - die
+     * sollen weg -, sondern genau die, auf die keine Freigabe zeigt.
+     */
+    public function testFilterGuardFindsOnlyTheFiltersNoSharePointsTo(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (id, created_at) VALUES (1, '2026-11-16 00:00:00'), (2, '2026-11-16 00:00:00'),
+                (3, '2026-11-16 00:00:00'), (4, '2026-11-16 00:00:00')",
+            self::FILTERS_TABLE
+        ));
+
+        // Filter 1 hängt an einer Ordnerfreigabe, Filter 2 an einer
+        // Dateifreigabe - beide gehören dieser Migration und dürfen weg.
+        // Filter 3 und 4 gehören jemand anderem: Deren Besitzer hat beim
+        // Rückbau nicht geräumt, und das DELETE nähme sie still mit.
+        Capsule::connection()->insert(sprintf(
+            'INSERT INTO %s (audience_filter_id) VALUES (1), (NULL)',
+            self::FOLDER_SHARES_TABLE
+        ));
+        Capsule::connection()->insert(sprintf(
+            'INSERT INTO %s (audience_filter_id) VALUES (2)',
+            self::FILE_SHARES_TABLE
+        ));
+
+        $this->assertSame(2, $this->countFrom(
+            MoveFileSharesToAudienceFilters::FOREIGN_FILTERS_SQL,
+            [
+                'audience_filters' => self::FILTERS_TABLE,
+                'file_folder_shares' => self::FOLDER_SHARES_TABLE,
+                'file_shares' => self::FILE_SHARES_TABLE,
+            ],
+            'dropped'
+        ));
+    }
+
+    public function testFilterGuardStaysQuietWhenEveryFilterBelongsToAShare(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (id, created_at) VALUES (1, '2026-11-16 00:00:00'), (2, '2026-11-16 00:00:00')",
+            self::FILTERS_TABLE
+        ));
+
+        Capsule::connection()->insert(sprintf(
+            'INSERT INTO %s (audience_filter_id) VALUES (1)',
+            self::FOLDER_SHARES_TABLE
+        ));
+        Capsule::connection()->insert(sprintf(
+            'INSERT INTO %s (audience_filter_id) VALUES (2)',
+            self::FILE_SHARES_TABLE
+        ));
+
+        $this->assertSame(0, $this->countFrom(
+            MoveFileSharesToAudienceFilters::FOREIGN_FILTERS_SQL,
+            [
+                'audience_filters' => self::FILTERS_TABLE,
+                'file_folder_shares' => self::FOLDER_SHARES_TABLE,
+                'file_shares' => self::FILE_SHARES_TABLE,
             ],
             'dropped'
         ));

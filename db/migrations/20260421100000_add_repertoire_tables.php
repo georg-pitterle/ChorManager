@@ -62,6 +62,13 @@ final class AddRepertoireTables extends AbstractMigration
             );
         }
 
+        // Dass hier drei gefüllte Tabellen ohne Zählabfrage fallen, verstößt
+        // gegen /phinx-migration - nachgetragen wird sie trotzdem nicht: Dieses
+        // down() ist unerreichbar, weil 20260421110000 den Rückbau unbedingt
+        // abbricht und Phinx die Kette von hinten abarbeitet. Die Begründung
+        // steht dort im Klassenkommentar, die Zusicherung in
+        // Tests\Unit\Migrations\RollbackFloorTest. So entschieden in der
+        // Nacharbeit zu Lauf 76.
         $this->execute('DROP TABLE IF EXISTS project_song_assignments');
         $this->execute('DROP TABLE IF EXISTS song_category_assignments');
         $this->execute('DROP TABLE IF EXISTS repertoire_categories');
