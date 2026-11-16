@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\SponsorController;
 use App\Controllers\SponsoringDashboardController;
 use App\Controllers\SponsorshipController;
 use App\Models\Sponsor;
@@ -21,6 +20,7 @@ use Tests\Unit\Bootstrap;
 class SponsorshipStatusFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     protected function setUp(): void
     {
@@ -274,11 +274,10 @@ class SponsorshipStatusFeatureTest extends TestCase
             'requests_blocked_note' => 'Kontakt nur über die Geschäftsführung.',
         ]);
 
-        $controller = new SponsorController(
-            $this->createStub(Twig::class),
-            new \App\Policies\SponsoringPolicy($_SESSION),
-            $this->attachmentService()
-        );
+        $controller = $this->sponsorController([
+            'view' => $this->createStub(Twig::class),
+            'policy' => new \App\Policies\SponsoringPolicy($_SESSION),
+        ]);
 
         try {
             // Sperre aufheben, Begründung steht weiterhin im Formular.

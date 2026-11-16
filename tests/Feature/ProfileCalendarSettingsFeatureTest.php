@@ -6,13 +6,8 @@ namespace Tests\Feature;
 
 use App\Controllers\ProfileController;
 use App\Models\User;
-use App\Queries\UserQuery;
-use App\Services\MailCredentialCryptoService;
-use App\Services\NameFormatterService;
-use App\Services\PasswordPolicyService;
 use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 
@@ -26,6 +21,7 @@ use Tests\Unit\Bootstrap;
 final class ProfileCalendarSettingsFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private ProfileController $controller;
     private User $user;
@@ -35,13 +31,7 @@ final class ProfileCalendarSettingsFeatureTest extends TestCase
         parent::setUp();
         Bootstrap::setupTestDatabase();
 
-        $this->controller = new ProfileController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new PasswordPolicyService(),
-            new NullLogger(),
-            new MailCredentialCryptoService()
-        );
+        $this->controller = $this->profileController(['view' => $this->createStub(Twig::class)]);
 
         $this->user = User::create([
             'first_name' => 'Kalender',

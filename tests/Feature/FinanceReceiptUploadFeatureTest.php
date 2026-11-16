@@ -10,16 +10,8 @@ use App\Models\Finance;
 use App\Models\FinanceAccount;
 use App\Models\FinanceRevision;
 use App\Models\Setting;
-use App\Services\BankStatementImportService;
-use App\Services\BudgetService;
-use App\Services\FinanceAccountService;
-use App\Services\FinanceCsvExportService;
-use App\Services\FinanceJournalService;
-use App\Services\FinanceReportPdfService;
-use App\Services\Pdf\TcLibPdfCanvas;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Psr7\Factory\StreamFactory;
 use Slim\Psr7\UploadedFile;
 use Slim\Views\Twig;
@@ -41,6 +33,7 @@ use Tests\Unit\Bootstrap;
 final class FinanceReceiptUploadFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private FinanceAccount $account;
 
@@ -192,15 +185,6 @@ final class FinanceReceiptUploadFeatureTest extends TestCase
 
     private function controller(): FinanceController
     {
-        return new FinanceController(
-            $this->createStub(Twig::class),
-            new BudgetService(),
-            new NullLogger(),
-            new FinanceReportPdfService(new TcLibPdfCanvas()),
-            new BankStatementImportService(new NullLogger()),
-            new FinanceAccountService(),
-            new FinanceJournalService(),
-            new FinanceCsvExportService()
-        );
+        return $this->financeController(['view' => $this->createStub(Twig::class)]);
     }
 }

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\FinanceController;
 use App\Models\Attachment;
 use App\Models\Finance;
 use App\Models\FinanceAccount;
@@ -12,17 +11,9 @@ use App\Models\FinanceRevision;
 use App\Models\Setting;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
-use App\Services\BankStatementImportService;
-use App\Services\BudgetService;
-use App\Services\FinanceAccountService;
-use App\Services\FinanceCsvExportService;
-use App\Services\FinanceJournalService;
-use App\Services\FinanceReportPdfService;
 use App\Services\NameFormatterService;
-use App\Services\Pdf\TcLibPdfCanvas;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 use Twig\Loader\FilesystemLoader;
@@ -46,6 +37,7 @@ final class FinanceAttachmentBlobLoadFeatureTest extends TestCase
 {
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private FinanceAccount $account;
 
@@ -96,7 +88,7 @@ final class FinanceAttachmentBlobLoadFeatureTest extends TestCase
 
         $statements = $this->attachmentStatementsDuring(function (): void {
             $request = $this->makeRequest('GET', '/finances', [], ['year' => '2025']);
-            $this->financeController('/finances')->index($request, $this->makeResponse());
+            $this->financeController(['view' => $this->createFinanceTwig('/finances')])->index($request, $this->makeResponse());
         });
 
         $this->assertNotSame([], $statements, 'Ohne Anhang-Abfrage prüft der Test nichts.');
@@ -108,7 +100,7 @@ final class FinanceAttachmentBlobLoadFeatureTest extends TestCase
         $this->bookingWithReceipt();
 
         $request = $this->makeRequest('GET', '/finances', [], ['year' => '2025']);
-        $response = $this->financeController('/finances')->index($request, $this->makeResponse());
+        $response = $this->financeController(['view' => $this->createFinanceTwig('/finances')])->index($request, $this->makeResponse());
 
         $this->assertStringContainsString(
             'Rechnung Notenpult.pdf',
@@ -123,7 +115,7 @@ final class FinanceAttachmentBlobLoadFeatureTest extends TestCase
 
         $statements = $this->attachmentStatementsDuring(function (): void {
             $request = $this->makeRequest('GET', '/finances/export', [], ['year' => '2025']);
-            $this->financeController('/finances')->exportCsv($request, $this->makeResponse());
+            $this->financeController(['view' => $this->createFinanceTwig('/finances')])->exportCsv($request, $this->makeResponse());
         });
 
         $this->assertNotSame([], $statements, 'Ohne Anhang-Abfrage prüft der Test nichts.');
@@ -136,7 +128,7 @@ final class FinanceAttachmentBlobLoadFeatureTest extends TestCase
         $this->receipt($booking, 'Zweiter Beleg.pdf');
 
         $request = $this->makeRequest('GET', '/finances/export', [], ['year' => '2025']);
-        $response = $this->financeController('/finances')->exportCsv($request, $this->makeResponse());
+        $response = $this->financeController(['view' => $this->createFinanceTwig('/finances')])->exportCsv($request, $this->makeResponse());
 
         $lines = array_values(array_filter(explode("\n", (string) $response->getBody())));
         $row = (string) end($lines);
@@ -150,7 +142,7 @@ final class FinanceAttachmentBlobLoadFeatureTest extends TestCase
 
         $statements = $this->attachmentStatementsDuring(function (): void {
             $request = $this->makeRequest('GET', '/finances/report.pdf', [], ['year' => '2025']);
-            $this->financeController('/finances/report')->reportPdf($request, $this->makeResponse());
+            $this->financeController(['view' => $this->createFinanceTwig('/finances/report')])->reportPdf($request, $this->makeResponse());
         });
 
         $this->assertSame(
@@ -239,20 +231,6 @@ final class FinanceAttachmentBlobLoadFeatureTest extends TestCase
             'file_size' => strlen($content),
             'file_content' => $content,
         ]);
-    }
-
-    private function financeController(string $currentPath): FinanceController
-    {
-        return new FinanceController(
-            $this->createFinanceTwig($currentPath),
-            new BudgetService(),
-            new NullLogger(),
-            new FinanceReportPdfService(new TcLibPdfCanvas()),
-            new BankStatementImportService(new NullLogger()),
-            new FinanceAccountService(),
-            new FinanceJournalService(),
-            new FinanceCsvExportService()
-        );
     }
 
     private function createFinanceTwig(string $currentPath): Twig

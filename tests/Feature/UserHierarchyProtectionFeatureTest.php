@@ -11,7 +11,6 @@ use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
 use App\Policies\UserEditPolicy;
 use App\Queries\UserQuery;
-use App\Services\MailQueueService;
 use App\Util\PasswordHasher;
 use Illuminate\Support\Collection;
 use PHPUnit\Framework\TestCase;
@@ -22,6 +21,7 @@ use Tests\Unit\Bootstrap;
 class UserHierarchyProtectionFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     /** Haengt an jeden Rollennamen, damit er in der geteilten Datenbank eindeutig bleibt. */
     private string $suffix = '';
@@ -97,15 +97,13 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         UserPersistence $userPersistence,
         ProjectPersistence $projectPersistence
     ): UserController {
-        return new UserController(
-            $this->createStub(Twig::class),
-            $userQuery,
-            $userPersistence,
-            $projectPersistence,
-            $this->createStub(MailQueueService::class),
-            $this->createStub(LoggerInterface::class),
-            new UserEditPolicy($_SESSION)
-        );
+        return $this->userController([
+            'view' => $this->createStub(Twig::class),
+            'userQuery' => $userQuery,
+            'userPersistence' => $userPersistence,
+            'projectPersistence' => $projectPersistence,
+            'logger' => $this->createStub(LoggerInterface::class),
+        ]);
     }
 
     public function testUpdateDeniesEditingMemberThatOutranksActor(): void

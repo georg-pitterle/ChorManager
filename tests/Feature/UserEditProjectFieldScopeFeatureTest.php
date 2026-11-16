@@ -4,17 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\UserController;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\VoiceGroup;
-use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
 use App\Policies\UserEditPolicy;
-use App\Queries\UserQuery;
-use App\Services\MailQueueService;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use DI\ContainerBuilder;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -45,6 +40,7 @@ use Tests\Unit\Bootstrap;
 final class UserEditProjectFieldScopeFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private VoiceGroup $ownGroup;
     private Role $memberRole;
@@ -141,15 +137,11 @@ final class UserEditProjectFieldScopeFeatureTest extends TestCase
 
     private function renderEditForm(): string
     {
-        $controller = new UserController(
-            $this->twig,
-            new UserQuery(new NameFormatterService()),
-            new UserPersistence(new Logger('test')),
-            new ProjectPersistence(),
-            $this->createStub(MailQueueService::class),
-            new Logger('test'),
-            new UserEditPolicy($_SESSION)
-        );
+        $controller = $this->userController([
+            'view' => $this->twig,
+            'userPersistence' => new UserPersistence(new Logger('test')),
+            'logger' => new Logger('test'),
+        ]);
 
         $response = $controller->editForm(
             $this->makeRequest('GET', '/users/' . $this->target->id . '/edit-form'),
@@ -255,15 +247,11 @@ final class UserEditProjectFieldScopeFeatureTest extends TestCase
     {
         $_SESSION = $this->voiceGroupManagerSession();
 
-        $controller = new UserController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new UserPersistence(new Logger('test')),
-            new ProjectPersistence(),
-            $this->createStub(MailQueueService::class),
-            new Logger('test'),
-            new UserEditPolicy($_SESSION)
-        );
+        $controller = $this->userController([
+            'view' => $this->createStub(Twig::class),
+            'userPersistence' => new UserPersistence(new Logger('test')),
+            'logger' => new Logger('test'),
+        ]);
 
         $controller->update(
             $this->makeRequest('POST', '/users/' . $this->target->id, [

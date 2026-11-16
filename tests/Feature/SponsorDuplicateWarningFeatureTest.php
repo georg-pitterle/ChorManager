@@ -7,7 +7,6 @@ namespace Tests\Feature;
 use App\Controllers\SponsorController;
 use App\Models\Sponsor;
 use App\Models\User;
-use App\Policies\SponsoringPolicy;
 use App\Services\ModalFormService;
 use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -27,6 +26,7 @@ final class SponsorDuplicateWarningFeatureTest extends TestCase
 {
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private Sponsor $existing;
 
@@ -173,6 +173,6 @@ final class SponsorDuplicateWarningFeatureTest extends TestCase
 
     private function controller(Twig $twig): SponsorController
     {
-        return new SponsorController($twig, new SponsoringPolicy($_SESSION), $this->attachmentService());
+        return $this->sponsorController(['view' => $twig]);
     }
 }

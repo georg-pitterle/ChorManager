@@ -4,12 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\DashboardController;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
-use App\Policies\NewsletterPolicy;
-use App\Policies\TaskPolicy;
-use App\Services\MailQueueAdminService;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
 use Twig\Loader\FilesystemLoader;
@@ -34,6 +30,7 @@ class NavigationLayoutSeamFeatureTest extends TestCase
 {
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     protected function setUp(): void
     {
@@ -51,13 +48,7 @@ class NavigationLayoutSeamFeatureTest extends TestCase
     {
         $settings = ['modules' => ['registration' => true]];
 
-        $controller = new DashboardController(
-            $this->createTwig($settings),
-            new MailQueueAdminService(),
-            new TaskPolicy($_SESSION),
-            new NewsletterPolicy($_SESSION),
-            $settings
-        );
+        $controller = $this->dashboardController(['view' => $this->createTwig($settings), 'settings' => $settings]);
 
         $request = $this->makeRequest('GET', '/dashboard');
         $response = $controller->index($request, $this->makeResponse());

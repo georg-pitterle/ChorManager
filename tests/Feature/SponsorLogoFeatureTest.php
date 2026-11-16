@@ -41,6 +41,7 @@ final class SponsorLogoFeatureTest extends TestCase
 {
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private User $owner;
     private User $assignee;
@@ -360,11 +361,7 @@ final class SponsorLogoFeatureTest extends TestCase
 
     private function renderDetail(): string
     {
-        $controller = new SponsorController(
-            $this->createAppTwig('/sponsoring/sponsors'),
-            new SponsoringPolicy($_SESSION),
-            $this->attachmentService()
-        );
+        $controller = $this->sponsorController(['view' => $this->createAppTwig('/sponsoring/sponsors')]);
         $response = $controller->detail(
             $this->makeRequest('GET', '/sponsoring/sponsors/' . $this->sponsor->id),
             $this->makeResponse(),
@@ -414,7 +411,7 @@ final class SponsorLogoFeatureTest extends TestCase
 
     private function controller(): SponsorController
     {
-        return new SponsorController($this->createStub(Twig::class), new SponsoringPolicy($_SESSION), $this->attachmentService());
+        return $this->sponsorController(['view' => $this->createStub(Twig::class)]);
     }
 
     private function registry(): AttachmentAccessRegistry

@@ -11,7 +11,6 @@ use App\Models\Event;
 use App\Models\User;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
-use App\Services\AttendanceScopeService;
 use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
@@ -33,6 +32,7 @@ final class AttendanceSaveRobustnessFeatureTest extends TestCase
     use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private Event $event;
     /** @var array<int, User> */
@@ -113,12 +113,7 @@ final class AttendanceSaveRobustnessFeatureTest extends TestCase
 
     private function controller(?\Psr\Log\LoggerInterface $logger = null): AttendanceController
     {
-        return new AttendanceController(
-            $this->createTwig(),
-            new AttendanceScopeService($_SESSION),
-            $logger ?? new NullLogger(),
-            new NameFormatterService()
-        );
+        return $this->attendanceController(['view' => $this->createTwig(), 'logger' => $logger ?? new NullLogger()]);
     }
 
     /**

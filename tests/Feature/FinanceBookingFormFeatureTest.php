@@ -11,16 +11,9 @@ use App\Models\FinanceRevision;
 use App\Models\Setting;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
-use App\Services\BankStatementImportService;
-use App\Services\BudgetService;
-use App\Services\FinanceAccountService;
-use App\Services\FinanceCsvExportService;
 use App\Services\FinanceJournalService;
-use App\Services\FinanceReportPdfService;
-use App\Services\Pdf\TcLibPdfCanvas;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 use Twig\Loader\FilesystemLoader;
@@ -37,6 +30,7 @@ final class FinanceBookingFormFeatureTest extends TestCase
 {
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private FinanceAccount $account;
 
@@ -108,16 +102,7 @@ final class FinanceBookingFormFeatureTest extends TestCase
             }
         ));
 
-        return new FinanceController(
-            $twig,
-            new BudgetService(),
-            new NullLogger(),
-            new FinanceReportPdfService(new TcLibPdfCanvas()),
-            new BankStatementImportService(new NullLogger()),
-            new FinanceAccountService(),
-            new FinanceJournalService(),
-            new FinanceCsvExportService()
-        );
+        return $this->financeController(['view' => $twig]);
     }
 
     private function renderIndex(string $year = '2025'): string

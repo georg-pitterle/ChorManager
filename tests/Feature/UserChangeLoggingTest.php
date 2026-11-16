@@ -7,12 +7,7 @@ namespace Tests\Feature;
 use App\Controllers\UserController;
 use App\Models\Role;
 use App\Models\User;
-use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
-use App\Policies\UserEditPolicy;
-use App\Queries\UserQuery;
-use App\Services\MailQueueService;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Illuminate\Database\QueryException;
 use Monolog\Handler\TestHandler;
@@ -26,6 +21,7 @@ use Tests\Unit\Bootstrap;
 final class UserChangeLoggingTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private Role $role;
     private Role $secondRole;
@@ -293,15 +289,11 @@ final class UserChangeLoggingTest extends TestCase
             }
         };
 
-        $controller = new UserController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            $throwingPersistence,
-            new ProjectPersistence(),
-            $this->createStub(MailQueueService::class),
-            $logger,
-            new UserEditPolicy($_SESSION)
-        );
+        $controller = $this->userController([
+            'view' => $this->createStub(Twig::class),
+            'userPersistence' => $throwingPersistence,
+            'logger' => $logger,
+        ]);
 
         $controller->create(
             $this->makeRequest('POST', '/users', [
@@ -338,15 +330,11 @@ final class UserChangeLoggingTest extends TestCase
 
     private function controller(Logger $logger): UserController
     {
-        return new UserController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new UserPersistence($logger),
-            new ProjectPersistence(),
-            $this->createStub(MailQueueService::class),
-            $logger,
-            new UserEditPolicy($_SESSION)
-        );
+        return $this->userController([
+            'view' => $this->createStub(Twig::class),
+            'userPersistence' => new UserPersistence($logger),
+            'logger' => $logger,
+        ]);
     }
 
     /**

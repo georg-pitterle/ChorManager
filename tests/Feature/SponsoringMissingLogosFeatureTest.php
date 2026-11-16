@@ -38,6 +38,7 @@ final class SponsoringMissingLogosFeatureTest extends TestCase
 {
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private User $manager;
     private ?Role $sponsoringRole = null;
@@ -407,11 +408,7 @@ final class SponsoringMissingLogosFeatureTest extends TestCase
             'needs_logo_print' => true,
         ]);
 
-        $response = (new \App\Controllers\SponsorController(
-            $this->createAppTwig('/sponsoring/sponsors'),
-            new SponsoringPolicy($_SESSION),
-            $this->attachmentService()
-        ))->detail(
+        $response = $this->sponsorController(['view' => $this->createAppTwig('/sponsoring/sponsors')])->detail(
             $this->makeRequest('GET', '/sponsoring/sponsors/' . $sponsorship->sponsor_id),
             $this->makeResponse(),
             ['id' => (string) $sponsorship->sponsor_id]

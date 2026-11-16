@@ -14,12 +14,9 @@ use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
-use App\Queries\ProjectQuery;
-use App\Services\AttendanceScopeService;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
-use Psr\Log\NullLogger;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
@@ -39,6 +36,7 @@ class AttendanceRequiredFeatureTest extends TestCase
     use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private static ?Capsule $capsule = null;
 
@@ -105,12 +103,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = $this->sessionMemberId();
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new AttendanceController(
-            $this->createTwig(),
-            new AttendanceScopeService($_SESSION),
-            new NullLogger(),
-            new \App\Services\NameFormatterService()
-        );
+        $controller = $this->attendanceController(['view' => $this->createTwig()]);
 
         $request = $this->makeRequest('POST', '/attendance/' . $event->id, [
             'attendance' => ['1' => 'present'],
@@ -148,12 +141,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = $this->sessionMemberId();
         $_SESSION['can_manage_users'] = true;
 
-        $controller = new AttendanceController(
-            $this->createTwig(),
-            new AttendanceScopeService($_SESSION),
-            new NullLogger(),
-            new \App\Services\NameFormatterService()
-        );
+        $controller = $this->attendanceController(['view' => $this->createTwig()]);
 
         $request = $this->makeRequest('GET', '/attendance/' . $requiredEvent->id);
         $response = $controller->show($request, $this->makeResponse(), [
@@ -220,12 +208,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_attendance_all'] = true;
 
-        $controller = new AttendanceController(
-            $this->createTwig(),
-            new AttendanceScopeService($_SESSION),
-            new NullLogger(),
-            new \App\Services\NameFormatterService()
-        );
+        $controller = $this->attendanceController(['view' => $this->createTwig()]);
 
         $request = $this->makeRequest('GET', '/attendance/' . $fixture['event']->id);
         $response = $controller->show($request, $this->makeResponse(), [
@@ -252,12 +235,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_attendance_all'] = true;
 
-        $controller = new AttendanceController(
-            $this->createTwig(),
-            new AttendanceScopeService($_SESSION),
-            new NullLogger(),
-            new \App\Services\NameFormatterService()
-        );
+        $controller = $this->attendanceController(['view' => $this->createTwig()]);
 
         $request = $this->makeRequest('POST', '/attendance/' . $fixture['event']->id, [
             'attendance' => [(string) $fixture['outScope']->id => 'present'],
@@ -281,12 +259,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         $_SESSION['user_id'] = 1;
         $_SESSION['can_manage_attendance_all'] = true;
 
-        $controller = new AttendanceController(
-            $this->createTwig(),
-            new AttendanceScopeService($_SESSION),
-            new NullLogger(),
-            new \App\Services\NameFormatterService()
-        );
+        $controller = $this->attendanceController(['view' => $this->createTwig()]);
 
         $request = $this->makeRequest('POST', '/attendance/' . $fixture['event']->id, [
             'attendance' => [(string) $fixture['inScope']->id => 'present'],
@@ -366,7 +339,7 @@ class AttendanceRequiredFeatureTest extends TestCase
         // Anwesenheitsverwaltung; hier geht es um die Zählung, nicht um die Sicht.
         $_SESSION['can_manage_attendance_all'] = true;
 
-        $controller = new EvaluationController($this->createTwig(), new ProjectQuery(new \App\Services\NameFormatterService()));
+        $controller = $this->evaluationController(['view' => $this->createTwig()]);
 
         $request = $this->makeRequest('GET', '/evaluations', [], ['project_id' => (string) $project->id]);
         $response = $controller->index($request, $this->makeResponse());

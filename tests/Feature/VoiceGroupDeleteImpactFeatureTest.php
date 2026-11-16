@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\VoiceGroupController;
 use App\Models\SubVoice;
 use App\Models\User;
 use App\Models\VoiceGroup;
@@ -28,6 +27,7 @@ use Tests\Unit\Bootstrap;
 class VoiceGroupDeleteImpactFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     /** @var list<User> */
     private array $users = [];
@@ -95,7 +95,7 @@ class VoiceGroupDeleteImpactFeatureTest extends TestCase
             }
         );
 
-        $controller = new VoiceGroupController($twig, new NullLogger());
+        $controller = $this->voiceGroupController(['view' => $twig, 'logger' => new NullLogger()]);
         $controller->index($this->makeRequest('GET', '/voice-groups'), $this->makeResponse());
 
         return $captured;

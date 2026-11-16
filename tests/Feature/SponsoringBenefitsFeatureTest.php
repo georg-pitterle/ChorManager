@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\SponsorController;
 use App\Controllers\SponsorPackageController;
 use App\Controllers\SponsorshipController;
 use App\Models\Sponsor;
@@ -38,6 +37,7 @@ final class SponsoringBenefitsFeatureTest extends TestCase
 {
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private User $manager;
     private User $contributor;
@@ -235,7 +235,7 @@ final class SponsoringBenefitsFeatureTest extends TestCase
      */
     public function testAWebsiteMustBeAnHttpAddress(): void
     {
-        (new SponsorController($this->createStub(Twig::class), new SponsoringPolicy($_SESSION), $this->attachmentService()))
+        ($this->sponsorController(['view' => $this->createStub(Twig::class)]))
             ->create($this->makeRequest('POST', '/sponsoring/sponsors', [
                 'name' => 'Skript GmbH',
                 'website' => 'javascript://x/%0Aalert(1)',
@@ -525,7 +525,7 @@ final class SponsoringBenefitsFeatureTest extends TestCase
 
     private function renderSponsorDetail(Sponsor $sponsor): string
     {
-        $response = $this->sponsorController($this->createAppTwig('/sponsoring/sponsors'))->detail(
+        $response = $this->sponsorController(['view' => $this->createAppTwig('/sponsoring/sponsors')])->detail(
             $this->makeRequest('GET', '/sponsoring/sponsors/' . $sponsor->id),
             $this->makeResponse(),
             ['id' => (string) $sponsor->id]
@@ -538,11 +538,6 @@ final class SponsoringBenefitsFeatureTest extends TestCase
     private function sponsorshipController(): SponsorshipController
     {
         return new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
-    }
-
-    private function sponsorController(Twig $twig): SponsorController
-    {
-        return new SponsorController($twig, new SponsoringPolicy($_SESSION), $this->attachmentService());
     }
 
     private function packageController(): SponsorPackageController

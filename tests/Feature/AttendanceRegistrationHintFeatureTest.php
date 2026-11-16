@@ -4,19 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\AttendanceController;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\User;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
-use App\Services\AttendanceScopeService;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFunction;
@@ -33,6 +30,7 @@ class AttendanceRegistrationHintFeatureTest extends TestCase
     use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private static ?Capsule $capsule = null;
 
@@ -220,12 +218,7 @@ class AttendanceRegistrationHintFeatureTest extends TestCase
         $_SESSION['user_id'] = $member->id;
         $_SESSION['can_manage_attendance_all'] = true;
 
-        $controller = new AttendanceController(
-            $this->createTwig($registrationFeatureEnabled),
-            new AttendanceScopeService($_SESSION),
-            new NullLogger(),
-            new \App\Services\NameFormatterService()
-        );
+        $controller = $this->attendanceController(['view' => $this->createTwig($registrationFeatureEnabled)]);
 
         $request = $this->makeRequest('GET', '/attendance/' . $event->id);
         $response = $controller->show($request, $this->makeResponse(), [

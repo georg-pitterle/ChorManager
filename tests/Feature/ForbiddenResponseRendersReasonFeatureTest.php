@@ -4,20 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\EvaluationController;
-use App\Controllers\EventController;
-use App\Controllers\RegistrationController;
 use App\Models\Event;
 use App\Models\Project;
 use App\Models\User;
 use App\Models\VoiceGroup;
-use App\Queries\ProjectQuery;
-use App\Services\AttendanceScopeService;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Log\NullLogger;
 use PHPUnit\Framework\TestCase;
 use Tests\Unit\Bootstrap;
 
@@ -34,6 +27,7 @@ class ForbiddenResponseRendersReasonFeatureTest extends TestCase
     use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private Project $project;
     private User $outsider;
@@ -83,12 +77,7 @@ class ForbiddenResponseRendersReasonFeatureTest extends TestCase
 
     public function testEventIndexRejectsAForeignProjectWithAReadablePage(): void
     {
-        $controller = new EventController(
-            $this->createAppTwig('/events'),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createAppTwig('/events')]);
 
         $response = $controller->index(
             $this->makeRequest('GET', '/events', [], ['project_id' => (string) $this->project->id]),
@@ -102,12 +91,7 @@ class ForbiddenResponseRendersReasonFeatureTest extends TestCase
     {
         $event = $this->createScopedEvent();
 
-        $controller = new EventController(
-            $this->createAppTwig('/events'),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createAppTwig('/events')]);
 
         $response = $controller->detail(
             $this->makeRequest('GET', '/events/' . $event->id),
@@ -122,12 +106,7 @@ class ForbiddenResponseRendersReasonFeatureTest extends TestCase
     {
         $event = $this->createScopedEvent(['registration_enabled' => true]);
 
-        $controller = new RegistrationController(
-            $this->createAppTwig('/registrations'),
-            new AttendanceScopeService($_SESSION),
-            new NullLogger(),
-            new NameFormatterService()
-        );
+        $controller = $this->registrationController(['view' => $this->createAppTwig('/registrations')]);
 
         $response = $controller->detail(
             $this->makeRequest('GET', '/registrations/' . $event->id),
@@ -140,9 +119,7 @@ class ForbiddenResponseRendersReasonFeatureTest extends TestCase
 
     public function testEvaluationRejectsAForeignProjectWithAReadablePage(): void
     {
-        $controller = new EvaluationController(
-            $this->createAppTwig('/evaluations'),
-            new ProjectQuery(new NameFormatterService()));
+        $controller = $this->evaluationController(['view' => $this->createAppTwig('/evaluations')]);
 
         $response = $controller->index(
             $this->makeRequest('GET', '/evaluations', [], ['project_id' => (string) $this->project->id]),

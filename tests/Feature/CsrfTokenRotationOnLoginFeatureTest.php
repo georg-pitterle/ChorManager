@@ -5,13 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\AuthController;
-use App\Controllers\ProfileController;
 use App\Logging\RequestContext;
 use App\Middleware\AuthMiddleware;
 use App\Models\Role;
 use App\Models\User;
 use App\Queries\UserQuery;
-use App\Services\MailCredentialCryptoService;
 use App\Services\NameFormatterService;
 use App\Services\PasswordPolicyService;
 use App\Services\RateLimiterService;
@@ -41,6 +39,8 @@ use Tests\Unit\Bootstrap;
  */
 final class CsrfTokenRotationOnLoginFeatureTest extends TestCase
 {
+    use BuildsControllers;
+
     private User $user;
     private Role $role;
     private string $password = 'Correct-Horse-7';
@@ -180,7 +180,7 @@ final class CsrfTokenRotationOnLoginFeatureTest extends TestCase
                 'new_password_confirm' => 'Neues-Passwort-9',
             ]);
 
-        $this->profileController()->updatePassword($request, new SlimResponse());
+        $this->profileController(['view' => $this->createStub(Twig::class)])->updatePassword($request, new SlimResponse());
 
         $this->assertArrayNotHasKey('error', $_SESSION);
         $this->assertNotSame($before, $_SESSION[Csrf::SESSION_KEY] ?? null);
@@ -252,17 +252,6 @@ final class CsrfTokenRotationOnLoginFeatureTest extends TestCase
             new RateLimiterService($this->rateLimiterStoreDir),
             new PasswordPolicyService(),
             new NullLogger()
-        );
-    }
-
-    private function profileController(): ProfileController
-    {
-        return new ProfileController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new PasswordPolicyService(),
-            new NullLogger(),
-            new MailCredentialCryptoService()
         );
     }
 

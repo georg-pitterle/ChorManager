@@ -7,17 +7,10 @@ namespace Tests\Feature;
 use App\Controllers\FinanceController;
 use App\Models\Finance;
 use App\Models\Setting;
-use App\Services\BankStatementImportService;
 use App\Services\BudgetService;
-use App\Services\FinanceAccountService;
-use App\Services\FinanceCsvExportService;
-use App\Services\FinanceJournalService;
-use App\Services\FinanceReportPdfService;
-use App\Services\Pdf\TcLibPdfCanvas;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 
@@ -30,6 +23,7 @@ final class FinancePaymentDatePeriodTest extends TestCase
 {
     use TestHttpHelpers;
     use FinanceAccountFixture;
+    use BuildsControllers;
 
     private FinanceController $controller;
     /** @var array<int, array{0: string, 1: array<string, mixed>}> */
@@ -56,16 +50,7 @@ final class FinancePaymentDatePeriodTest extends TestCase
             }
         );
 
-        $this->controller = new FinanceController(
-            $twig,
-            new BudgetService(),
-            new NullLogger(),
-            new FinanceReportPdfService(new TcLibPdfCanvas()),
-            new BankStatementImportService(new NullLogger()),
-            new FinanceAccountService(),
-            new FinanceJournalService(),
-            new FinanceCsvExportService()
-        );
+        $this->controller = $this->financeController(['view' => $twig]);
 
         $_SESSION = [];
     }

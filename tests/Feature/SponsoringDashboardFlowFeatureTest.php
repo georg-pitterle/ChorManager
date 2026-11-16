@@ -4,19 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\SponsorController;
 use App\Controllers\SponsoringContactController;
 use App\Models\Sponsor;
 use App\Policies\SponsoringPolicy;
-use App\Services\EntityAttachmentService;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Tests\Unit\Bootstrap;
 use Slim\Views\Twig;
 
 class SponsoringDashboardFlowFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     protected function setUp(): void
     {
@@ -189,11 +187,7 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
 
     public function testSponsorCreateRejectsInvalidEmailBeforePersistence(): void
     {
-        $controller = new SponsorController(
-            Twig::create(dirname(__DIR__, 2) . '/templates'),
-            new SponsoringPolicy($_SESSION),
-            new EntityAttachmentService(new NullLogger())
-        );
+        $controller = $this->sponsorController(['view' => Twig::create(dirname(__DIR__, 2) . '/templates')]);
         $request = $this->makeRequest('POST', '/sponsoring/sponsors', [
             'name' => 'Test Sponsor',
             'email' => 'invalid-mail',
@@ -208,11 +202,7 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
 
     public function testSponsorCreateRejectsInvalidWebsiteBeforePersistence(): void
     {
-        $controller = new SponsorController(
-            Twig::create(dirname(__DIR__, 2) . '/templates'),
-            new SponsoringPolicy($_SESSION),
-            new EntityAttachmentService(new NullLogger())
-        );
+        $controller = $this->sponsorController(['view' => Twig::create(dirname(__DIR__, 2) . '/templates')]);
         $request = $this->makeRequest('POST', '/sponsoring/sponsors', [
             'name' => 'Test Sponsor',
             'website' => 'notaurl',
@@ -233,11 +223,7 @@ class SponsoringDashboardFlowFeatureTest extends TestCase
         // Rechtepruefung den Datensatz braucht.
         $sponsor = Sponsor::create(['name' => 'Namenspruefung ' . bin2hex(random_bytes(4))]);
 
-        $controller = new SponsorController(
-            Twig::create(dirname(__DIR__, 2) . '/templates'),
-            new SponsoringPolicy($_SESSION),
-            new EntityAttachmentService(new NullLogger())
-        );
+        $controller = $this->sponsorController(['view' => Twig::create(dirname(__DIR__, 2) . '/templates')]);
         $request = $this->makeRequest('POST', '/sponsoring/sponsors/' . $sponsor->id, [
             'name' => str_repeat('x', 256),
         ]);

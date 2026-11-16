@@ -10,10 +10,7 @@ use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\UserNotification;
-use App\Policies\TaskPolicy;
-use App\Services\HtmlSanitizer;
 use App\Services\MailQueueService;
-use App\Services\NameFormatterService;
 use App\Services\NotificationService;
 use App\Util\NotificationType;
 use App\Util\PasswordHasher;
@@ -33,6 +30,7 @@ use Tests\Unit\Bootstrap;
 final class NotificationTriggersFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private Project $project;
     private User $anna;
@@ -255,19 +253,15 @@ final class NotificationTriggersFeatureTest extends TestCase
 
     private function controller(): TaskController
     {
-        return new TaskController(
-            $this->createStub(Twig::class),
-            new HtmlSanitizer(),
-            new TaskPolicy($_SESSION),
-            new NameFormatterService(),
-            new NullLogger(),
-            new NotificationService(
+        return $this->taskController([
+            'view' => $this->createStub(Twig::class),
+            'notificationService' => new NotificationService(
                 new MailQueueService(),
                 Twig::create(dirname(__DIR__, 2) . '/templates'),
                 new NullLogger(),
                 ['tasks' => true]
-            )
-        );
+            ),
+        ]);
     }
 
     /**

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\TaskController;
 use App\Models\AppSetting;
 use App\Models\Event;
 use App\Models\Project;
@@ -13,14 +12,12 @@ use App\Models\User;
 use App\Services\CalendarFeedService;
 use App\Services\CalendarSubscriptionService;
 use App\Services\EventAudienceService;
-use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
 use App\Policies\TaskPolicy;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 
@@ -36,6 +33,7 @@ final class CalendarTaskFeedFeatureTest extends TestCase
 {
     use AudienceFixtures;
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private const BASE_URL = 'https://chor.example';
 
@@ -317,13 +315,7 @@ final class CalendarTaskFeedFeatureTest extends TestCase
 
     private function exportWithToken(string $token): \Psr\Http\Message\ResponseInterface
     {
-        $controller = new TaskController(
-            $this->createStub(Twig::class),
-            new HtmlSanitizer(),
-            new TaskPolicy($_SESSION),
-            new NameFormatterService(),
-            new NullLogger()
-        );
+        $controller = $this->taskController(['view' => $this->createStub(Twig::class)]);
 
         return $controller->exportCalendar(
             $this->makeRequest('GET', '/tasks/export/' . $token . '.ics'),

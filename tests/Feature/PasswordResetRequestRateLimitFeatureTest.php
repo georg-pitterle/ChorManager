@@ -29,6 +29,7 @@ use Tests\Unit\Bootstrap;
 final class PasswordResetRequestRateLimitFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private const GENERIC_MESSAGE = 'Existiert die E-Mail-Adresse, wurde ein Link zum Zurücksetzen des Passworts gesendet.';
 
@@ -112,13 +113,13 @@ final class PasswordResetRequestRateLimitFeatureTest extends TestCase
         $twig = $this->createStub(Twig::class);
         $twig->method('fetch')->willReturn('<p>Link</p>');
 
-        return new PasswordResetController(
-            $twig,
-            null,
-            new RateLimiterService($this->storeDir),
-            new PasswordPolicyService(),
-            $mailQueue
-        );
+        return $this->passwordResetController([
+            'view' => $twig,
+            'mailer' => null,
+            'rateLimiter' => new RateLimiterService($this->storeDir),
+            'passwordPolicyService' => new PasswordPolicyService(),
+            'mailQueueService' => $mailQueue,
+        ]);
     }
 
     private function request(

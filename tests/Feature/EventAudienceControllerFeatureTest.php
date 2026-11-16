@@ -7,13 +7,10 @@ namespace Tests\Feature;
 use App\Controllers\EventController;
 use App\Models\Event;
 use App\Models\Project;
-use App\Services\NameFormatterService;
 use Carbon\Carbon;
-use Psr\Log\NullLogger;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
-use App\Queries\ProjectQuery;
 
 /**
  * Ein Termin ohne Zielgruppen-Quellen gilt für alle Mitglieder. Beim Speichern
@@ -25,6 +22,7 @@ final class EventAudienceControllerFeatureTest extends TestCase
     use AudienceFixtures;
     use TestHttpHelpers;
     use EventScopeFixtures;
+    use BuildsControllers;
 
     protected function setUp(): void
     {
@@ -45,12 +43,7 @@ final class EventAudienceControllerFeatureTest extends TestCase
 
     private function controller(): EventController
     {
-        return new EventController(
-            Twig::create(dirname(__DIR__, 2) . '/templates'),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        return $this->eventController(['view' => Twig::create(dirname(__DIR__, 2) . '/templates')]);
     }
 
     private function createEventWithProjectAudience(Project $project): Event

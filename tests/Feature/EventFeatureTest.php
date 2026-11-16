@@ -18,7 +18,6 @@ use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFunction;
@@ -30,6 +29,7 @@ class EventFeatureTest extends TestCase
     use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private static ?Capsule $capsule = null;
     private User $sessionUser;
@@ -225,12 +225,7 @@ class EventFeatureTest extends TestCase
         ]);
         $this->openToEveryone($oldEvent);
 
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
 
         $request = $this->makeRequest('GET', '/events?show_old_events=1', [], ['show_old_events' => '1']);
         $response = $this->makeResponse();
@@ -274,12 +269,7 @@ class EventFeatureTest extends TestCase
         ]);
         $this->openToEveryone($oldEventOtherProject);
 
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
         $request = $this->makeRequest(
             'GET',
             '/events?show_old_events=1&project_id=' . $project->id . '&event_type_id=' . $eventType->id,
@@ -349,12 +339,7 @@ class EventFeatureTest extends TestCase
 
     public function testCreateEventRequiresAllTimeFields(): void
     {
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
         unset($_SESSION['error']);
         $request = $this->makeRequest('POST', '/events', [
             'title' => 'Missing Time',
@@ -371,12 +356,7 @@ class EventFeatureTest extends TestCase
 
     public function testCreateEventRejectsInvertedTimeRange(): void
     {
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
         unset($_SESSION['error']);
         $request = $this->makeRequest('POST', '/events', [
             'title' => 'Bad Times',
@@ -394,12 +374,7 @@ class EventFeatureTest extends TestCase
 
     public function testCreateEventValidationErrorKeepsEnteredModalValues(): void
     {
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
         $request = $this->makeRequest('POST', '/events', [
             'title' => 'Probe Dienstag',
             'starts_at' => '2026-06-10',
@@ -434,12 +409,7 @@ class EventFeatureTest extends TestCase
 
     public function testCreateEventStoresTimeRange(): void
     {
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
         $request = $this->makeRequest('POST', '/events', [
             'title' => 'Probe Montag',
             'starts_at' => '2026-05-01',
@@ -465,12 +435,7 @@ class EventFeatureTest extends TestCase
         ]);
         $this->openToEveryone($event);
 
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
         $request = $this->makeRequest('POST', '/events/' . $event->id . '/update', [
             'title' => 'New Probe',
             'starts_at' => '2026-05-08',
@@ -496,12 +461,7 @@ class EventFeatureTest extends TestCase
         ]);
         $this->openToEveryone($event);
 
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
         $request = $this->makeRequest('POST', '/events/' . $event->id . '/update', [
             'title' => 'Neue Probe',
             'starts_at' => '2026-06-10',
@@ -563,12 +523,7 @@ class EventFeatureTest extends TestCase
         ]);
         $this->openToEveryone($event3);
 
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
         $request = $this->makeRequest('POST', '/events/' . $event1->id . '/update', [
             'title' => 'Probe',
             'starts_at' => '2026-05-05',
@@ -892,12 +847,7 @@ class EventFeatureTest extends TestCase
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_events'] = false;
 
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
         $request = $this->makeRequest('POST', '/events/' . $event->id . '/notes', [
             'content' => 'Neue private Bemerkung',
             'is_private' => '1',
@@ -940,12 +890,7 @@ class EventFeatureTest extends TestCase
             'is_private' => true,
         ]);
 
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
         $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
             'content' => 'Aktualisierte private Bemerkung',
         ]);
@@ -998,12 +943,7 @@ class EventFeatureTest extends TestCase
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_events'] = false;
 
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
         $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
             'content' => 'Manipulationsversuch',
         ]);
@@ -1062,12 +1002,7 @@ class EventFeatureTest extends TestCase
             'is_private' => false,
         ]);
 
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
         $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
             'content' => 'Öffentlich und berichtigt',
         ]);
@@ -1121,12 +1056,7 @@ class EventFeatureTest extends TestCase
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_events'] = false;
 
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
         $updateResult = $controller->updateNote(
             $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
                 'content' => 'Manipulationsversuch',
@@ -1181,12 +1111,7 @@ class EventFeatureTest extends TestCase
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_events'] = true;
 
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
         $updateResult = $controller->updateNote(
             $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
                 'content' => 'Von der Verwaltung angefasst',
@@ -1234,12 +1159,7 @@ class EventFeatureTest extends TestCase
         $_SESSION['can_manage_users'] = false;
         $_SESSION['can_manage_events'] = true;
 
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
         $updateRequest = $this->makeRequest('POST', '/events/' . $event->id . '/notes/' . $note->id . '/update', [
             'content' => 'Von Bearbeiter aktualisiert',
         ]);
@@ -1314,12 +1234,7 @@ class EventFeatureTest extends TestCase
 
         $twig = $this->createTwig();
 
-        $controller = new EventController(
-            $twig,
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $twig]);
         $request = $this->makeRequest('GET', '/events', [], $queryParams);
         $response = $this->makeResponse();
 
@@ -1333,12 +1248,7 @@ class EventFeatureTest extends TestCase
         $_SERVER['REQUEST_URI'] = '/events/' . $eventId;
 
         $twig = $this->createTwig();
-        $controller = new EventController(
-            $twig,
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $twig]);
         $request = $this->makeRequest('GET', '/events/' . $eventId);
         $response = $this->makeResponse();
 
@@ -1350,12 +1260,7 @@ class EventFeatureTest extends TestCase
     private function renderEventCalendarExport(string $token)
     {
         $twig = $this->createTwig();
-        $controller = new EventController(
-            $twig,
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $twig]);
         $request = $this->makeRequest('GET', '/events/export/' . $token . '.ics');
         $response = $this->makeResponse();
 
@@ -1474,12 +1379,7 @@ class EventFeatureTest extends TestCase
             }
         };
 
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            $spy
-        );
+        $controller = $this->eventController(['view' => $this->createTwig(), 'projectQuery' => $spy]);
 
         $controller->index($this->makeRequest('GET', '/events'), $this->makeResponse());
 

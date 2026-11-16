@@ -33,6 +33,8 @@ use Tests\Unit\Bootstrap;
  */
 class ControllerArrayInputRobustnessFeatureTest extends TestCase
 {
+    use BuildsControllers;
+
     private string $rateLimiterStoreDir;
     private ?User $user = null;
     private ?Role $role = null;
@@ -82,14 +84,14 @@ class ControllerArrayInputRobustnessFeatureTest extends TestCase
 
     private function makePasswordResetController(): PasswordResetController
     {
-        return new PasswordResetController(
-            $this->createStub(Twig::class),
-            null,
-            new RateLimiterService($this->rateLimiterStoreDir),
-            new PasswordPolicyService(),
-            null,
-            new NullLogger()
-        );
+        return $this->passwordResetController([
+            'view' => $this->createStub(Twig::class),
+            'mailer' => null,
+            'rateLimiter' => new RateLimiterService($this->rateLimiterStoreDir),
+            'passwordPolicyService' => new PasswordPolicyService(),
+            'mailQueueService' => null,
+            'logger' => new NullLogger(),
+        ]);
     }
 
     public function testInputValidatorAcceptsNonScalarWithoutCrashing(): void

@@ -7,17 +7,10 @@ namespace Tests\Feature;
 use App\Controllers\FinanceController;
 use App\Models\Finance;
 use App\Models\Setting;
-use App\Services\BankStatementImportService;
-use App\Services\BudgetService;
-use App\Services\FinanceAccountService;
-use App\Services\FinanceCsvExportService;
 use App\Services\FinanceJournalService;
-use App\Services\FinanceReportPdfService;
-use App\Services\Pdf\TcLibPdfCanvas;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 
@@ -36,6 +29,7 @@ final class FinanceReportReversalDisclosureFeatureTest extends TestCase
 {
     use TestHttpHelpers;
     use FinanceAccountFixture;
+    use BuildsControllers;
 
     /** Geschäftsjahr ohne Seed-Buchungen, damit der Bericht nur den Testbestand zeigt. */
     private const EMPTY_FISCAL_YEAR = 2035;
@@ -65,16 +59,7 @@ final class FinanceReportReversalDisclosureFeatureTest extends TestCase
 
     private function controller(): FinanceController
     {
-        return new FinanceController(
-            $this->createStub(Twig::class),
-            new BudgetService(),
-            new NullLogger(),
-            new FinanceReportPdfService(new TcLibPdfCanvas()),
-            new BankStatementImportService(new NullLogger()),
-            new FinanceAccountService(),
-            new FinanceJournalService(),
-            new FinanceCsvExportService()
-        );
+        return $this->financeController(['view' => $this->createStub(Twig::class)]);
     }
 
     private function createBooking(string $paymentDate, string $type, float $amount): Finance

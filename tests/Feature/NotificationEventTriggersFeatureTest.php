@@ -13,7 +13,6 @@ use App\Models\User;
 use App\Models\UserNotification;
 use App\Services\EventAudienceService;
 use App\Services\MailQueueService;
-use App\Services\NameFormatterService;
 use App\Services\NotificationService;
 use App\Util\NotificationType;
 use App\Util\PasswordHasher;
@@ -24,7 +23,6 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
-use App\Queries\ProjectQuery;
 
 /**
  * Die Termin-Auslöser.
@@ -37,6 +35,7 @@ final class NotificationEventTriggersFeatureTest extends TestCase
 {
     use AudienceFixtures;
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private EventController $controller;
     private User $singer;
@@ -58,18 +57,15 @@ final class NotificationEventTriggersFeatureTest extends TestCase
             static fn (ResponseInterface $response): ResponseInterface => $response
         );
 
-        $this->controller = new EventController(
-            $twig,
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService()),
-            new NotificationService(
+        $this->controller = $this->eventController([
+            'view' => $twig,
+            'notificationService' => new NotificationService(
                 new MailQueueService(),
                 Twig::create(dirname(__DIR__, 2) . '/templates'),
                 new NullLogger(),
                 []
-            )
-        );
+            ),
+        ]);
 
         $_SESSION = ['user_id' => (int) $this->organiser->id, 'can_manage_events' => true];
     }

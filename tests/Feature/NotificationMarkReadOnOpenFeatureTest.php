@@ -4,10 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\EventController;
 use App\Controllers\ProjectController;
-use App\Controllers\SponsorController;
-use App\Controllers\TaskController;
 use App\Models\Event;
 use App\Models\Project;
 use App\Models\Sponsor;
@@ -16,10 +13,7 @@ use App\Models\User;
 use App\Models\UserNotification;
 use App\Persistence\ProjectPersistence;
 use App\Policies\ProjectMemberPolicy;
-use App\Policies\SponsoringPolicy;
-use App\Policies\TaskPolicy;
 use App\Queries\ProjectQuery;
-use App\Services\HtmlSanitizer;
 use App\Services\NameFormatterService;
 use App\Util\NotificationType;
 use App\Util\PasswordHasher;
@@ -39,6 +33,7 @@ use Tests\Unit\Bootstrap;
 final class NotificationMarkReadOnOpenFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private User $anna;
     private User $bernd;
@@ -84,7 +79,7 @@ final class NotificationMarkReadOnOpenFeatureTest extends TestCase
         $otherObject = $this->entry($this->anna, 'task', (int) $otherTask->id);
         $otherPerson = $this->entry($this->bernd, 'task', (int) $task->id);
 
-        $this->taskController()->detail(
+        $this->taskController(['view' => $this->createStub(Twig::class)])->detail(
             $this->makeRequest('GET', '/tasks/' . $task->id),
             $this->makeResponse(),
             ['id' => (string) $task->id]
@@ -101,7 +96,7 @@ final class NotificationMarkReadOnOpenFeatureTest extends TestCase
         $entry = $this->entry($this->anna, 'task', (int) $task->id);
         $_SESSION['can_manage_tasks'] = false;
 
-        $this->taskController()->detail(
+        $this->taskController(['view' => $this->createStub(Twig::class)])->detail(
             $this->makeRequest('GET', '/tasks/' . $task->id),
             $this->makeResponse(),
             ['id' => (string) $task->id]
@@ -118,12 +113,7 @@ final class NotificationMarkReadOnOpenFeatureTest extends TestCase
         $otherObject = $this->entry($this->anna, 'event', (int) $otherEvent->id);
         $otherPerson = $this->entry($this->bernd, 'event', (int) $event->id);
 
-        (new EventController(
-            $this->createStub(Twig::class),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        ))->detail(
+        $this->eventController(['view' => $this->createStub(Twig::class)])->detail(
             $this->makeRequest('GET', '/events/' . $event->id),
             $this->makeResponse(),
             ['id' => (string) $event->id]
@@ -161,29 +151,13 @@ final class NotificationMarkReadOnOpenFeatureTest extends TestCase
         $sponsor = Sponsor::create(['type' => 'organization', 'name' => 'Musikhaus Klang']);
         $entry = $this->entry($this->anna, 'sponsor', (int) $sponsor->id);
 
-        (new SponsorController(
-            $this->createStub(Twig::class),
-            new SponsoringPolicy($_SESSION),
-            $this->attachmentService(),
-            new NullLogger()
-        ))->detail(
+        $this->sponsorController(['view' => $this->createStub(Twig::class), 'logger' => new NullLogger()])->detail(
             $this->makeRequest('GET', '/sponsoring/sponsors/' . $sponsor->id),
             $this->makeResponse(),
             ['id' => (string) $sponsor->id]
         );
 
         $this->assertNotNull($entry->fresh()->read_at);
-    }
-
-    private function taskController(): TaskController
-    {
-        return new TaskController(
-            $this->createStub(Twig::class),
-            new HtmlSanitizer(),
-            new TaskPolicy($_SESSION),
-            new NameFormatterService(),
-            new NullLogger()
-        );
     }
 
     private function makeTask(string $name): Task

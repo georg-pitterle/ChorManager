@@ -4,18 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\PasswordResetController;
-use App\Controllers\ProfileController;
 use App\Logging\RequestContext;
 use App\Middleware\AuthMiddleware;
 use App\Models\OidcAccessToken;
 use App\Models\PasswordReset;
 use App\Models\User;
 use App\Queries\UserQuery;
-use App\Services\MailCredentialCryptoService;
 use App\Services\NameFormatterService;
 use App\Services\Oidc\OidcClientService;
-use App\Services\PasswordPolicyService;
 use App\Services\RememberLoginService;
 use App\Services\SessionAuthService;
 use App\Util\PasswordHasher;
@@ -43,6 +39,7 @@ use Tests\Unit\Bootstrap;
 final class PasswordChangeEndsOtherSessionsFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     protected function setUp(): void
     {
@@ -122,7 +119,7 @@ final class PasswordChangeEndsOtherSessionsFeatureTest extends TestCase
         $user = $this->createUser('fehlversuch');
         $_SESSION = ['user_id' => (int) $user->id, 'auth_epoch' => time() - 60];
 
-        $this->profileController()->updatePassword(
+        $this->profileController(['view' => $this->createStub(Twig::class), 'logger' => new Logger('test')])->updatePassword(
             $this->makeRequest('POST', '/profile/password', [
                 'old_password' => 'Wrong-Password-9',
                 'new_password' => 'Correct-Horse-2',
@@ -145,7 +142,7 @@ final class PasswordChangeEndsOtherSessionsFeatureTest extends TestCase
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
-        (new PasswordResetController($this->createStub(Twig::class)))->processReset(
+        $this->passwordResetController(['view' => $this->createStub(Twig::class)])->processReset(
             $this->makeRequest('POST', '/reset-password', [
                 'token' => $token,
                 'email' => $user->email,
@@ -183,7 +180,7 @@ final class PasswordChangeEndsOtherSessionsFeatureTest extends TestCase
 
     private function changePasswordInProfile(): void
     {
-        $this->profileController()->updatePassword(
+        $this->profileController(['view' => $this->createStub(Twig::class), 'logger' => new Logger('test')])->updatePassword(
             $this->makeRequest('POST', '/profile/password', [
                 'old_password' => 'Old-Password-1',
                 'new_password' => 'Correct-Horse-2',
@@ -219,17 +216,6 @@ final class PasswordChangeEndsOtherSessionsFeatureTest extends TestCase
     {
         $this->assertSame(302, $response->getStatusCode());
         $this->assertStringStartsWith('/login', $response->getHeaderLine('Location'));
-    }
-
-    private function profileController(): ProfileController
-    {
-        return new ProfileController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new PasswordPolicyService(),
-            new Logger('test'),
-            new MailCredentialCryptoService()
-        );
     }
 
     private function createUser(string $prefix): User

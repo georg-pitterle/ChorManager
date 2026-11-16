@@ -7,15 +7,12 @@ namespace Tests\Feature;
 use App\Controllers\ProfileController;
 use App\Models\User;
 use App\Models\UserMailAccount;
-use App\Queries\UserQuery;
 use App\Services\MailCredentialCryptoService;
-use App\Services\PasswordPolicyService;
 use App\Util\PasswordHasher;
 use Illuminate\Database\QueryException;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Support\TestMailboxAllowlist;
 use Tests\Unit\Bootstrap;
@@ -23,6 +20,7 @@ use Tests\Unit\Bootstrap;
 final class ProfileMailboxFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private ProfileController $controller;
     private MailCredentialCryptoService $crypto;
@@ -37,16 +35,13 @@ final class ProfileMailboxFeatureTest extends TestCase
         $this->crypto = new MailCredentialCryptoService();
 
         $this->twigMock = $this->createStub(Twig::class);
-        $this->controller = new ProfileController(
-            $this->twigMock,
-            new UserQuery(new \App\Services\NameFormatterService()),
-            new PasswordPolicyService(),
-            new NullLogger(),
-            $this->crypto,
-            null,
-            null,
-            TestMailboxAllowlist::standard()
-        );
+        $this->controller = $this->profileController([
+            'view' => $this->twigMock,
+            'crypto' => $this->crypto,
+            'rememberLoginService' => null,
+            'notificationService' => null,
+            'mailboxAllowlist' => TestMailboxAllowlist::standard(),
+        ]);
 
         $this->user = User::create([
             'first_name' => 'Mailbox',
@@ -534,16 +529,14 @@ final class ProfileMailboxFeatureTest extends TestCase
         $logger = new Logger('test');
         $logger->pushHandler($handler);
 
-        $controllerWithLogger = new ProfileController(
-            $this->twigMock,
-            new UserQuery(new \App\Services\NameFormatterService()),
-            new PasswordPolicyService(),
-            $logger,
-            $this->crypto,
-            null,
-            null,
-            TestMailboxAllowlist::standard()
-        );
+        $controllerWithLogger = $this->profileController([
+            'view' => $this->twigMock,
+            'logger' => $logger,
+            'crypto' => $this->crypto,
+            'rememberLoginService' => null,
+            'notificationService' => null,
+            'mailboxAllowlist' => TestMailboxAllowlist::standard(),
+        ]);
 
         $originalSessionUserId = $_SESSION['user_id'];
         $_SESSION['user_id'] = 999999999; // no such user -> FK violation on insert

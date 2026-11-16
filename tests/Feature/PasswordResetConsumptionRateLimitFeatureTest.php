@@ -30,6 +30,7 @@ use Tests\Unit\Bootstrap;
 final class PasswordResetConsumptionRateLimitFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private const MAX_ATTEMPTS = 10;
 
@@ -67,14 +68,14 @@ final class PasswordResetConsumptionRateLimitFeatureTest extends TestCase
         [$logger, $handler] = $this->logger();
         $this->logHandler = $handler;
 
-        return new PasswordResetController(
-            $this->createStub(Twig::class),
-            null,
-            new RateLimiterService($this->storeDir),
-            new PasswordPolicyService(),
-            null,
-            $logger
-        );
+        return $this->passwordResetController([
+            'view' => $this->createStub(Twig::class),
+            'mailer' => null,
+            'rateLimiter' => new RateLimiterService($this->storeDir),
+            'passwordPolicyService' => new PasswordPolicyService(),
+            'mailQueueService' => null,
+            'logger' => $logger,
+        ]);
     }
 
     /**
@@ -233,12 +234,12 @@ final class PasswordResetConsumptionRateLimitFeatureTest extends TestCase
     /** Ohne Begrenzer im Container bleibt der Weg offen - wie bei sendResetLink(). */
     public function testWithoutALimiterTheAttemptIsNotBlocked(): void
     {
-        $controller = new PasswordResetController(
-            $this->createStub(Twig::class),
-            null,
-            null,
-            new PasswordPolicyService()
-        );
+        $controller = $this->passwordResetController([
+            'view' => $this->createStub(Twig::class),
+            'mailer' => null,
+            'rateLimiter' => null,
+            'passwordPolicyService' => new PasswordPolicyService(),
+        ]);
 
         for ($i = 1; $i <= self::MAX_ATTEMPTS + 2; $i++) {
             $controller->processReset(

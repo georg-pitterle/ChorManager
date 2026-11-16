@@ -4,20 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\EventController;
 use App\Models\Event;
 use App\Models\EventSeries;
 use App\Models\User;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Twig\Loader\FilesystemLoader;
-use App\Queries\ProjectQuery;
 
 /**
  * Serienanlage: Takt und Intervall kommen aus dem Formular und steuern die
@@ -31,6 +27,7 @@ class EventSeriesRecurrenceValidationFeatureTest extends TestCase
 {
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private static ?Capsule $capsule = null;
     private User $sessionUser;
@@ -229,12 +226,7 @@ class EventSeriesRecurrenceValidationFeatureTest extends TestCase
             'series_end_date' => $start->copy()->addDays(21)->format('Y-m-d'),
         ], $overrides);
 
-        $controller = new EventController(
-            $this->createTwig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createTwig()]);
 
         return $controller->create(
             $this->makeRequest('POST', '/events', $payload),

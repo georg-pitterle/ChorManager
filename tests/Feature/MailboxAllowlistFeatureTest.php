@@ -8,10 +8,7 @@ use App\Controllers\ProfileController;
 use App\Controllers\WebmailController;
 use App\Models\User;
 use App\Models\UserMailAccount;
-use App\Queries\UserQuery;
 use App\Services\MailCredentialCryptoService;
-use App\Services\NameFormatterService;
-use App\Services\PasswordPolicyService;
 use App\Services\WebmailSsoTokenService;
 use App\Util\MailboxAllowlist;
 use App\Util\PasswordHasher;
@@ -32,6 +29,7 @@ use Tests\Unit\Bootstrap;
 final class MailboxAllowlistFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private const ENV_KEYS = ['WEBMAIL_SSO_SECRET', 'MAIL_CREDENTIAL_KEY'];
 
@@ -78,7 +76,7 @@ final class MailboxAllowlistFeatureTest extends TestCase
 
     public function testAllowedMailboxIsSaved(): void
     {
-        $response = $this->profileController($this->allowlist())->updateMailbox(
+        $response = $this->profileControllerWith($this->allowlist())->updateMailbox(
             $this->makeRequest('POST', '/profile/mailbox', $this->form()),
             $this->makeResponse()
         );
@@ -93,7 +91,7 @@ final class MailboxAllowlistFeatureTest extends TestCase
      */
     public function testAllowedAddressWithForeignHostIsNotSaved(): void
     {
-        $response = $this->profileController($this->allowlist())->updateMailbox(
+        $response = $this->profileControllerWith($this->allowlist())->updateMailbox(
             $this->makeRequest('POST', '/profile/mailbox', $this->form(['imap_host' => 'imap.boese.example'])),
             $this->makeResponse()
         );
@@ -108,7 +106,7 @@ final class MailboxAllowlistFeatureTest extends TestCase
 
     public function testForeignSmtpHostIsNotSaved(): void
     {
-        $this->profileController($this->allowlist())->updateMailbox(
+        $this->profileControllerWith($this->allowlist())->updateMailbox(
             $this->makeRequest('POST', '/profile/mailbox', $this->form(['smtp_host' => 'smtp.boese.example'])),
             $this->makeResponse()
         );
@@ -122,7 +120,7 @@ final class MailboxAllowlistFeatureTest extends TestCase
 
     public function testPrivateAddressIsNotSaved(): void
     {
-        $this->profileController($this->allowlist())->updateMailbox(
+        $this->profileControllerWith($this->allowlist())->updateMailbox(
             $this->makeRequest('POST', '/profile/mailbox', $this->form(['imap_username' => 'ich@privat.example'])),
             $this->makeResponse()
         );
@@ -136,7 +134,7 @@ final class MailboxAllowlistFeatureTest extends TestCase
 
     public function testNothingIsSavedWithoutConfiguredLists(): void
     {
-        $this->profileController(new MailboxAllowlist([], []))->updateMailbox(
+        $this->profileControllerWith(new MailboxAllowlist([], []))->updateMailbox(
             $this->makeRequest('POST', '/profile/mailbox', $this->form()),
             $this->makeResponse()
         );
@@ -154,7 +152,7 @@ final class MailboxAllowlistFeatureTest extends TestCase
      */
     public function testRejectedChangeLeavesTheStoredAccountUntouched(): void
     {
-        $controller = $this->profileController($this->allowlist());
+        $controller = $this->profileControllerWith($this->allowlist());
         $controller->updateMailbox(
             $this->makeRequest('POST', '/profile/mailbox', $this->form()),
             $this->makeResponse()
@@ -173,7 +171,7 @@ final class MailboxAllowlistFeatureTest extends TestCase
         $request = $this->makeRequest('POST', '/profile/mailbox', $this->form(['imap_host' => 'imap.boese.example']))
             ->withHeader('Accept', 'application/json');
 
-        $response = $this->profileController($this->allowlist())->updateMailbox($request, $this->makeResponse());
+        $response = $this->profileControllerWith($this->allowlist())->updateMailbox($request, $this->makeResponse());
 
         $this->assertSame(422, $response->getStatusCode());
         $payload = json_decode((string) $response->getBody(), true);
@@ -187,7 +185,7 @@ final class MailboxAllowlistFeatureTest extends TestCase
      */
     public function testConnectionTestRefusesForeignHostBeforeConnecting(): void
     {
-        $response = $this->profileController($this->allowlist())->testMailboxConnection(
+        $response = $this->profileControllerWith($this->allowlist())->testMailboxConnection(
             $this->makeRequest('POST', '/profile/mailbox/test', $this->form(['imap_host' => 'imap.boese.example'])),
             $this->makeResponse()
         );
@@ -283,7 +281,7 @@ final class MailboxAllowlistFeatureTest extends TestCase
             }
         );
 
-        $this->profileController($this->allowlist(), $twig)->index(
+        $this->profileControllerWith($this->allowlist(), $twig)->index(
             $this->makeRequest('GET', '/profile'),
             $this->makeResponse()
         );
@@ -308,18 +306,15 @@ final class MailboxAllowlistFeatureTest extends TestCase
         return new MailboxAllowlist(['chor.example'], ['imap.provider.example', 'smtp.provider.example']);
     }
 
-    private function profileController(MailboxAllowlist $allowlist, ?Twig $twig = null): ProfileController
+    private function profileControllerWith(MailboxAllowlist $allowlist, ?Twig $twig = null): ProfileController
     {
-        return new ProfileController(
-            $twig ?? $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new PasswordPolicyService(),
-            new NullLogger(),
-            $this->crypto,
-            null,
-            null,
-            $allowlist
-        );
+        return $this->profileController([
+            'view' => $twig ?? $this->createStub(Twig::class),
+            'crypto' => $this->crypto,
+            'rememberLoginService' => null,
+            'notificationService' => null,
+            'mailboxAllowlist' => $allowlist,
+        ]);
     }
 
     private function webmailController(MailboxAllowlist $allowlist): WebmailController

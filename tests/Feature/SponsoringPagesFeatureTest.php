@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\SponsorController;
 use App\Controllers\SponsoringDashboardController;
 use App\Controllers\SponsorPackageController;
 use App\Models\Sponsor;
@@ -32,6 +31,7 @@ final class SponsoringPagesFeatureTest extends TestCase
 {
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private User $manager;
     private User $reader;
@@ -313,11 +313,7 @@ final class SponsoringPagesFeatureTest extends TestCase
 
     private function renderDetail(Sponsor $sponsor): string
     {
-        $response = (new SponsorController(
-            $this->createAppTwig('/sponsoring/sponsors'),
-            new SponsoringPolicy($_SESSION),
-            $this->attachmentService()
-        ))->detail(
+        $response = $this->sponsorController(['view' => $this->createAppTwig('/sponsoring/sponsors')])->detail(
             $this->makeRequest('GET', '/sponsoring/sponsors/' . $sponsor->id),
             $this->makeResponse(),
             ['id' => (string) $sponsor->id]
@@ -329,11 +325,9 @@ final class SponsoringPagesFeatureTest extends TestCase
 
     private function renderIndex(): string
     {
-        $response = (new SponsorController(
-            $this->createAppTwig('/sponsoring/sponsors'),
-            new SponsoringPolicy($_SESSION),
-            $this->attachmentService()
-        ))->index($this->makeRequest('GET', '/sponsoring/sponsors'), $this->makeResponse());
+        $response = $this->sponsorController([
+            'view' => $this->createAppTwig('/sponsoring/sponsors'),
+        ])->index($this->makeRequest('GET', '/sponsoring/sponsors'), $this->makeResponse());
         $this->assertSame(200, $response->getStatusCode());
 
         return (string) $response->getBody();
@@ -351,7 +345,7 @@ final class SponsoringPagesFeatureTest extends TestCase
             }
         );
 
-        (new SponsorController($twig, new SponsoringPolicy($_SESSION), $this->attachmentService()))
+        ($this->sponsorController(['view' => $twig]))
             ->index($this->makeRequest('GET', '/sponsoring/sponsors'), $this->makeResponse());
 
         return $captured;

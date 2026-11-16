@@ -14,7 +14,6 @@ use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
-use App\Policies\NewsletterPolicy;
 use App\Policies\TaskPolicy;
 use App\Services\MailQueueAdminService;
 use App\Services\Storage\StorageUsageNode;
@@ -36,6 +35,7 @@ class DashboardFeatureTest extends TestCase
     use TestHttpHelpers;
     use TwigViewStubs;
     use AudienceFixtures;
+    use BuildsControllers;
 
     protected function setUp(): void
     {
@@ -133,13 +133,10 @@ class DashboardFeatureTest extends TestCase
         ];
 
         $settings = ['modules' => ['newsletter' => true]];
-        $controller = new DashboardController(
-            $this->createDashboardTwig($settings),
-            new MailQueueAdminService(),
-            new TaskPolicy($_SESSION),
-            new NewsletterPolicy($_SESSION),
-            $settings
-        );
+        $controller = $this->dashboardController([
+            'view' => $this->createDashboardTwig($settings),
+            'settings' => $settings,
+        ]);
 
         $response = $controller->index($this->makeRequest('GET', '/dashboard'), $this->makeResponse());
         $body = (string) $response->getBody();
@@ -174,13 +171,10 @@ class DashboardFeatureTest extends TestCase
         ];
 
         $settings = ['modules' => ['newsletter' => true]];
-        $controller = new DashboardController(
-            $this->createDashboardTwig($settings),
-            new MailQueueAdminService(),
-            new TaskPolicy($_SESSION),
-            new NewsletterPolicy($_SESSION),
-            $settings
-        );
+        $controller = $this->dashboardController([
+            'view' => $this->createDashboardTwig($settings),
+            'settings' => $settings,
+        ]);
 
         $response = $controller->index($this->makeRequest('GET', '/dashboard'), $this->makeResponse());
         $body = (string) $response->getBody();
@@ -307,13 +301,11 @@ class DashboardFeatureTest extends TestCase
      */
     private function renderDashboardFor(array $settings, ?MailQueueAdminService $mail = null): string
     {
-        $controller = new DashboardController(
-            $this->createDashboardTwig($settings),
-            $mail ?? new MailQueueAdminService(),
-            new TaskPolicy($_SESSION),
-            new NewsletterPolicy($_SESSION),
-            $settings
-        );
+        $controller = $this->dashboardController([
+            'view' => $this->createDashboardTwig($settings),
+            'mailQueueAdminService' => $mail ?? new MailQueueAdminService(),
+            'settings' => $settings,
+        ]);
 
         return (string) $controller->index($this->makeRequest('GET', '/dashboard'), $this->makeResponse())->getBody();
     }
@@ -709,14 +701,11 @@ class DashboardFeatureTest extends TestCase
     private function renderDashboard(?StorageUsageService $storage): string
     {
         $settings = ['modules' => []];
-        $controller = new DashboardController(
-            $this->createDashboardTwig($settings),
-            new MailQueueAdminService(),
-            new TaskPolicy($_SESSION),
-            new NewsletterPolicy($_SESSION),
-            $settings,
-            $storage
-        );
+        $controller = $this->dashboardController([
+            'view' => $this->createDashboardTwig($settings),
+            'settings' => $settings,
+            'storageUsage' => $storage,
+        ]);
 
         try {
             return (string) $controller->index($this->makeRequest('GET', '/dashboard'), $this->makeResponse())->getBody();

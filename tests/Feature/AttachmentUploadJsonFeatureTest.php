@@ -14,10 +14,6 @@ use App\Models\Song;
 use App\Models\Sponsor;
 use App\Models\Task;
 use App\Models\User;
-use App\Policies\SponsoringPolicy;
-use App\Policies\TaskPolicy;
-use App\Services\HtmlSanitizer;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Monolog\Logger;
@@ -38,6 +34,7 @@ use Tests\Unit\Bootstrap;
 class AttachmentUploadJsonFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private User $user;
 
@@ -151,7 +148,7 @@ class AttachmentUploadJsonFeatureTest extends TestCase
         $task = $this->task();
         $_SESSION = ['user_id' => (int) $this->user->id, 'can_manage_tasks' => true];
 
-        $response = $this->taskController()->uploadAttachment(
+        $response = $this->taskController(['view' => $this->createStub(Twig::class), 'logger' => new Logger('test')])->uploadAttachment(
             $this->jsonUpload('/tasks/' . $task->id . '/attachments', $this->pdf('protokoll.pdf')),
             $this->makeResponse(),
             ['id' => (string) $task->id]
@@ -175,7 +172,7 @@ class AttachmentUploadJsonFeatureTest extends TestCase
         $task = $this->task();
         $_SESSION = ['user_id' => (int) $this->user->id];
 
-        $response = $this->taskController()->uploadAttachment(
+        $response = $this->taskController(['view' => $this->createStub(Twig::class), 'logger' => new Logger('test')])->uploadAttachment(
             $this->jsonUpload('/tasks/' . $task->id . '/attachments', $this->pdf('protokoll.pdf')),
             $this->makeResponse(),
             ['id' => (string) $task->id]
@@ -189,7 +186,7 @@ class AttachmentUploadJsonFeatureTest extends TestCase
     {
         $_SESSION = ['user_id' => (int) $this->user->id, 'can_manage_tasks' => true];
 
-        $response = $this->taskController()->uploadAttachment(
+        $response = $this->taskController(['view' => $this->createStub(Twig::class), 'logger' => new Logger('test')])->uploadAttachment(
             $this->jsonUpload('/tasks/999999/attachments', $this->pdf('protokoll.pdf')),
             $this->makeResponse(),
             ['id' => '999999']
@@ -205,7 +202,7 @@ class AttachmentUploadJsonFeatureTest extends TestCase
 
         $request = $this->makeRequest('POST', '/tasks/' . $task->id . '/attachments')
             ->withUploadedFiles(['attachments' => [$this->pdf('a.pdf'), $this->pdf('b.pdf')]]);
-        $response = $this->taskController()->uploadAttachment($request, $this->makeResponse(), ['id' => (string) $task->id]);
+        $response = $this->taskController(['view' => $this->createStub(Twig::class), 'logger' => new Logger('test')])->uploadAttachment($request, $this->makeResponse(), ['id' => (string) $task->id]);
 
         $this->assertSame(302, $response->getStatusCode());
         $this->assertSame('/tasks/' . $task->id, $response->getHeaderLine('Location'));
@@ -222,7 +219,7 @@ class AttachmentUploadJsonFeatureTest extends TestCase
     {
         $_SESSION = ['user_id' => (int) $this->user->id, 'can_manage_sponsoring' => true];
 
-        $response = $this->sponsorController()->uploadAttachment(
+        $response = $this->sponsorController(['view' => $this->createStub(Twig::class)])->uploadAttachment(
             $this->jsonUpload('/sponsoring/sponsors/999999/attachments', $this->pdf('logo.pdf')),
             $this->makeResponse(),
             ['id' => '999999']
@@ -238,7 +235,7 @@ class AttachmentUploadJsonFeatureTest extends TestCase
 
         $request = $this->makeRequest('POST', '/sponsoring/sponsors/' . $sponsor->id . '/attachments')
             ->withUploadedFiles(['attachments' => [$this->pdf('logo.pdf')]]);
-        $response = $this->sponsorController()->uploadAttachment($request, $this->makeResponse(), ['id' => (string) $sponsor->id]);
+        $response = $this->sponsorController(['view' => $this->createStub(Twig::class)])->uploadAttachment($request, $this->makeResponse(), ['id' => (string) $sponsor->id]);
 
         $this->assertSame(302, $response->getStatusCode());
         $this->assertSame('/sponsoring/sponsors/' . $sponsor->id, $response->getHeaderLine('Location'));
@@ -250,7 +247,7 @@ class AttachmentUploadJsonFeatureTest extends TestCase
         $sponsor = Sponsor::create(['name' => 'Ablage ' . bin2hex(random_bytes(4))]);
         $_SESSION = ['user_id' => (int) $this->user->id, 'can_manage_sponsoring' => true];
 
-        $response = $this->sponsorController()->uploadAttachment(
+        $response = $this->sponsorController(['view' => $this->createStub(Twig::class)])->uploadAttachment(
             $this->jsonUpload('/sponsoring/sponsors/' . $sponsor->id . '/attachments', $this->pdf('logo.pdf')),
             $this->makeResponse(),
             ['id' => (string) $sponsor->id]
@@ -266,7 +263,7 @@ class AttachmentUploadJsonFeatureTest extends TestCase
         $sponsor = Sponsor::create(['name' => 'Ablage ' . bin2hex(random_bytes(4))]);
         $_SESSION = ['user_id' => (int) $this->user->id, 'can_create_own_sponsorships' => true];
 
-        $response = $this->sponsorController()->uploadAttachment(
+        $response = $this->sponsorController(['view' => $this->createStub(Twig::class)])->uploadAttachment(
             $this->jsonUpload('/sponsoring/sponsors/' . $sponsor->id . '/attachments', $this->pdf('logo.pdf')),
             $this->makeResponse(),
             ['id' => (string) $sponsor->id]
@@ -337,25 +334,5 @@ class AttachmentUploadJsonFeatureTest extends TestCase
     private function songController(): SongLibraryController
     {
         return new SongLibraryController($this->createStub(Twig::class), new Logger('test'));
-    }
-
-    private function taskController(): TaskController
-    {
-        return new TaskController(
-            $this->createStub(Twig::class),
-            new HtmlSanitizer(),
-            new TaskPolicy($_SESSION),
-            new NameFormatterService(),
-            new Logger('test')
-        );
-    }
-
-    private function sponsorController(): SponsorController
-    {
-        return new SponsorController(
-            $this->createStub(Twig::class),
-            new SponsoringPolicy($_SESSION),
-            $this->attachmentService()
-        );
     }
 }

@@ -4,21 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\EventController;
-use App\Controllers\TaskController;
 use App\Models\User;
 use App\Policies\TaskPolicy;
 use App\Services\CalendarSubscriptionService;
-use App\Services\HtmlSanitizer;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
-use App\Queries\ProjectQuery;
 
 /**
  * Kalender-Abo eines archivierten Mitglieds.
@@ -33,6 +27,7 @@ use App\Queries\ProjectQuery;
 final class CalendarFeedInactiveUserFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private User $user;
 
@@ -108,12 +103,7 @@ final class CalendarFeedInactiveUserFeatureTest extends TestCase
 
     private function exportEvents(string $token): ResponseInterface
     {
-        $controller = new EventController(
-            $this->createStub(Twig::class),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createStub(Twig::class)]);
 
         return $controller->exportCalendar(
             $this->makeRequest('GET', '/events/export/' . $token . '.ics'),
@@ -124,13 +114,7 @@ final class CalendarFeedInactiveUserFeatureTest extends TestCase
 
     private function exportTasks(string $token): ResponseInterface
     {
-        $controller = new TaskController(
-            $this->createStub(Twig::class),
-            new HtmlSanitizer(),
-            new TaskPolicy($_SESSION),
-            new NameFormatterService(),
-            new NullLogger()
-        );
+        $controller = $this->taskController(['view' => $this->createStub(Twig::class)]);
 
         return $controller->exportCalendar(
             $this->makeRequest('GET', '/tasks/export/' . $token . '.ics'),

@@ -4,20 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\AttendanceController;
 use App\Models\Event;
 use App\Models\EventType;
 use App\Models\User;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
-use App\Services\AttendanceScopeService;
 use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Twig\Loader\FilesystemLoader;
 use Twig\TwigFilter;
@@ -44,6 +41,7 @@ class EventTypeNameFollowsRenameFeatureTest extends TestCase
     use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private static ?Capsule $capsule = null;
 
@@ -192,12 +190,7 @@ class EventTypeNameFollowsRenameFeatureTest extends TestCase
         $_SESSION['user_id'] = $member->id;
         $_SESSION['can_manage_attendance_all'] = true;
 
-        $controller = new AttendanceController(
-            $this->createAttendanceTwig(),
-            new AttendanceScopeService($_SESSION),
-            new NullLogger(),
-            new NameFormatterService()
-        );
+        $controller = $this->attendanceController(['view' => $this->createAttendanceTwig()]);
 
         $request = $this->makeRequest('GET', '/attendance/' . $event->id);
         $response = $controller->show($request, $this->makeResponse(), [

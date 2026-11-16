@@ -35,6 +35,7 @@ final class EvaluationMemberViewFeatureTest extends TestCase
     use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     /** @var array<int, array{0: string, 1: array<string, mixed>}> */
     private array $renderCalls = [];
@@ -130,7 +131,7 @@ final class EvaluationMemberViewFeatureTest extends TestCase
 
         $nameFormatter = new NameFormatterService();
 
-        return new EvaluationController($twig, new ProjectQuery($nameFormatter));
+        return $this->evaluationController(['view' => $twig, 'projectQuery' => new ProjectQuery($nameFormatter)]);
     }
 
     /** @return array<string, mixed> */

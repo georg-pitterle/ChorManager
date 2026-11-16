@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\FinanceAccountController;
-use App\Controllers\FinanceController;
 use App\Models\Finance;
 use App\Models\FinanceAccount;
 use App\Models\FinanceRevision;
@@ -13,13 +12,8 @@ use App\Models\Setting;
 use App\Models\User;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
-use App\Services\BankStatementImportService;
-use App\Services\BudgetService;
 use App\Services\FinanceAccountService;
-use App\Services\FinanceCsvExportService;
 use App\Services\FinanceJournalService;
-use App\Services\FinanceReportPdfService;
-use App\Services\Pdf\TcLibPdfCanvas;
 use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
@@ -41,6 +35,7 @@ final class FinanceTemplateRenderTest extends TestCase
 {
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private FinanceAccount $account;
 
@@ -114,20 +109,6 @@ final class FinanceTemplateRenderTest extends TestCase
         return $twig;
     }
 
-    private function financeController(string $currentPath): FinanceController
-    {
-        return new FinanceController(
-            $this->createTwig($currentPath),
-            new BudgetService(),
-            new NullLogger(),
-            new FinanceReportPdfService(new TcLibPdfCanvas()),
-            new BankStatementImportService(new NullLogger()),
-            new FinanceAccountService(),
-            new FinanceJournalService(),
-            new FinanceCsvExportService()
-        );
-    }
-
     private function booking(int $number, string $paymentDate, string $type, string $amount): Finance
     {
         return Finance::create([
@@ -165,7 +146,7 @@ final class FinanceTemplateRenderTest extends TestCase
         ]);
 
         $request = $this->makeRequest('GET', '/finances', [], ['year' => '2025']);
-        $response = $this->financeController('/finances')->index($request, $this->makeResponse());
+        $response = $this->financeController(['view' => $this->createTwig('/finances')])->index($request, $this->makeResponse());
         $html = (string) $response->getBody();
 
         $this->assertSame(200, $response->getStatusCode());
@@ -191,7 +172,7 @@ final class FinanceTemplateRenderTest extends TestCase
         $this->booking(5006, '2025-11-01', 'expense', '120.00');
 
         $request = $this->makeRequest('GET', '/finances/report', [], ['year' => '2025']);
-        $response = $this->financeController('/finances/report')->report($request, $this->makeResponse());
+        $response = $this->financeController(['view' => $this->createTwig('/finances/report')])->report($request, $this->makeResponse());
         $html = (string) $response->getBody();
 
         $this->assertSame(200, $response->getStatusCode());
@@ -215,7 +196,7 @@ final class FinanceTemplateRenderTest extends TestCase
         );
 
         $request = $this->makeRequest('GET', '/finances/journal');
-        $response = $this->financeController('/finances/journal')->journal($request, $this->makeResponse());
+        $response = $this->financeController(['view' => $this->createTwig('/finances/journal')])->journal($request, $this->makeResponse());
         $html = (string) $response->getBody();
 
         $this->assertSame(200, $response->getStatusCode());
@@ -255,7 +236,7 @@ final class FinanceTemplateRenderTest extends TestCase
         $user->delete();
 
         $request = $this->makeRequest('GET', '/finances/journal');
-        $response = $this->financeController('/finances/journal')->journal($request, $this->makeResponse());
+        $response = $this->financeController(['view' => $this->createTwig('/finances/journal')])->journal($request, $this->makeResponse());
         $html = (string) $response->getBody();
 
         $this->assertSame(200, $response->getStatusCode());
@@ -271,7 +252,7 @@ final class FinanceTemplateRenderTest extends TestCase
         (new FinanceJournalService())->recordReverse($reversal, $original, 1);
 
         $request = $this->makeRequest('GET', '/finances/journal');
-        $response = $this->financeController('/finances/journal')->journal($request, $this->makeResponse());
+        $response = $this->financeController(['view' => $this->createTwig('/finances/journal')])->journal($request, $this->makeResponse());
         $html = (string) $response->getBody();
 
         $this->assertStringContainsString('Storno zu:', $html);
@@ -315,7 +296,7 @@ final class FinanceTemplateRenderTest extends TestCase
                 'statement' => new \Slim\Psr7\UploadedFile($path, 'auszug.csv', null, filesize($path) ?: null),
             ]);
 
-        $response = $this->financeController('/finances')->importPreview($request, $this->makeResponse());
+        $response = $this->financeController(['view' => $this->createTwig('/finances')])->importPreview($request, $this->makeResponse());
         $html = (string) $response->getBody();
 
         unlink($path);

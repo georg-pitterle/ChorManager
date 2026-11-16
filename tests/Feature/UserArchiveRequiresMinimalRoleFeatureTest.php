@@ -9,10 +9,6 @@ use App\Models\Role;
 use App\Models\User;
 use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
-use App\Policies\UserEditPolicy;
-use App\Queries\UserQuery;
-use App\Services\MailQueueService;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Monolog\Logger;
@@ -34,6 +30,7 @@ use Tests\Unit\Bootstrap;
 final class UserArchiveRequiresMinimalRoleFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private Role $baseRole;
     private Role $elevatedRole;
@@ -98,15 +95,11 @@ final class UserArchiveRequiresMinimalRoleFeatureTest extends TestCase
             }
         );
 
-        return new UserController(
-            $twig,
-            new UserQuery(new NameFormatterService()),
-            new UserPersistence($logger),
-            new ProjectPersistence(),
-            $this->createStub(MailQueueService::class),
-            $logger,
-            new UserEditPolicy($_SESSION)
-        );
+        return $this->userController([
+            'view' => $twig,
+            'userPersistence' => new UserPersistence($logger),
+            'logger' => $logger,
+        ]);
     }
 
     private function deactivate(): void

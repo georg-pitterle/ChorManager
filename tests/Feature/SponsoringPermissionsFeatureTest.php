@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\SponsorController;
 use App\Controllers\SponsorPackageController;
 use App\Controllers\SponsorshipController;
 use App\Middleware\RoleMiddleware;
@@ -41,6 +40,7 @@ use Tests\Unit\Bootstrap;
 class SponsoringPermissionsFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private User $contributor;
     private User $otherUser;
@@ -186,7 +186,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
         $sponsor = $this->makeSponsor();
 
         try {
-            $response = $this->sponsorController()->delete(
+            $response = $this->sponsorController(['view' => $this->createStub(Twig::class)])->delete(
                 $this->makeRequest('POST', '/sponsoring/sponsors/' . $sponsor->id . '/delete'),
                 $this->makeResponse(),
                 ['id' => (string) $sponsor->id]
@@ -561,7 +561,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
         $sponsorAttachment = $this->makeAttachment('sponsor', (int) $sponsor->id);
         $agreementAttachment = $this->makeAttachment('sponsorship', (int) $sponsorship->id);
 
-        $response = $this->sponsorController()->delete(
+        $response = $this->sponsorController(['view' => $this->createStub(Twig::class)])->delete(
             $this->makeRequest('POST', '/sponsoring/sponsors/' . $sponsor->id . '/delete'),
             $this->makeResponse(),
             ['id' => (string) $sponsor->id]
@@ -1056,22 +1056,13 @@ class SponsoringPermissionsFeatureTest extends TestCase
             }
         );
 
-        (new SponsorController($twig, new SponsoringPolicy($_SESSION), $this->attachmentService()))->detail(
+        $this->sponsorController(['view' => $twig])->detail(
             $this->makeRequest('GET', '/sponsoring/sponsors/' . $sponsorId),
             $this->makeResponse(),
             ['id' => (string) $sponsorId]
         );
 
         return $captured;
-    }
-
-    private function sponsorController(): SponsorController
-    {
-        return new SponsorController(
-            $this->createStub(Twig::class),
-            new SponsoringPolicy($_SESSION),
-            $this->attachmentService()
-        );
     }
 
     private function passThrough(): RequestHandlerInterface

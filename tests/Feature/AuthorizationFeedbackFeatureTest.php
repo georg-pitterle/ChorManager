@@ -5,12 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\ProjectController;
-use App\Controllers\TaskController;
 use App\Policies\ProjectMemberPolicy;
-use App\Policies\TaskPolicy;
 use App\Services\FlashMessageService;
-use App\Services\HtmlSanitizer;
-use App\Services\NameFormatterService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -29,6 +25,7 @@ use Twig\Loader\FilesystemLoader;
 class AuthorizationFeedbackFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     /** Id des selbst angelegten Projekts, mit dem die Tests dieser Klasse arbeiten. */
     private int $projectId = 0;
@@ -128,13 +125,7 @@ class AuthorizationFeedbackFeatureTest extends TestCase
         $_SESSION['can_manage_tasks'] = false;
 
         [$logger, $handler] = $this->logger();
-        $controller = new TaskController(
-            $this->createStub(Twig::class),
-            new HtmlSanitizer(),
-            new TaskPolicy($_SESSION),
-            new NameFormatterService(),
-            $logger
-        );
+        $controller = $this->taskController(['view' => $this->createStub(Twig::class), 'logger' => $logger]);
 
         $controller->index(
             $this->makeRequest('GET', '/projects/' . $this->projectId . '/tasks'),

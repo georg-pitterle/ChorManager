@@ -4,20 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\UserController;
 use App\Models\MailQueue;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\VoiceGroup;
-use App\Persistence\ProjectPersistence;
-use App\Persistence\UserPersistence;
-use App\Policies\UserEditPolicy;
-use App\Queries\UserQuery;
 use App\Services\MailQueueService;
-use App\Services\NameFormatterService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 
@@ -31,6 +24,7 @@ use Tests\Unit\Bootstrap;
 final class UserCreateInviteRightsFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private int $mailsQueued = 0;
     private Role $role;
@@ -105,15 +99,10 @@ final class UserCreateInviteRightsFeatureTest extends TestCase
             return new MailQueue();
         });
 
-        $controller = new UserController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new UserPersistence(new NullLogger()),
-            new ProjectPersistence(),
-            $mailQueue,
-            new NullLogger(),
-            new UserEditPolicy($_SESSION)
-        );
+        $controller = $this->userController([
+            'view' => $this->createStub(Twig::class),
+            'mailQueueService' => $mailQueue,
+        ]);
 
         $controller->create(
             $this->makeRequest('POST', '/users', [

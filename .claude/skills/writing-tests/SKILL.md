@@ -86,6 +86,14 @@ Begründung im Kommentar. Was die Suite bisher teuer gemacht hat:
 - **Nur aufbauen, was der Test braucht.** Den Controller von Hand mit den nötigen Diensten
   bauen; den ganzen Container (`ContainerBuilder` + `Dependencies.php`) nur, wenn die
   Verdrahtung selbst geprüft wird. Zwei Personen statt zwanzig.
+- **Controller über `Tests\Feature\BuildsControllers` bauen**, nie mit `new`, wenn er in
+  `ControllersAreBuiltThroughBuildersTest::MIGRATED` steht:
+  `$this->eventController(['view' => $twig, 'logger' => $logger])`. Die Schlüssel sind die
+  Parameternamen des Konstruktors, Pflichtparameter ohne Eintrag bekommen eine Vorgabe, `view`
+  nennt jeder Test selbst. Ein neuer Pflichtparameter im Konstruktor ist dort eine Zeile,
+  nicht eine Änderung an jeder Testdatei. Ein weiterer Controller wird beim nächsten Anfassen
+  umgestellt und in die Liste aufgenommen. Eine gleichnamige private Hilfsmethode in der
+  Testklasse überdeckt den Baustein - dann die Hilfsmethode streichen oder umbenennen.
 
 ## Isolation
 
@@ -124,7 +132,7 @@ final class TaskReminderSkipsArchivedMembersFeatureTest extends TestCase
   er selbst. Was eine andere Klasse „schon gesetzt hat“, gilt im parallelen Lauf nicht.
 - Dateien nur unter `sys_get_temp_dir()`, im `tearDown()` wieder weg. Nie nach `var/`.
 - Vorhandene Bausteine nutzen statt neu bauen: `TestHttpHelpers`, `TwigViewStubs`,
-  `FileFixtures`, `AudienceFixtures`, `PollFixtures`, `OfficeFixtures`.
+  `FileFixtures`, `AudienceFixtures`, `PollFixtures`, `OfficeFixtures`, `BuildsControllers`.
 
 ## Schreiben
 

@@ -31,6 +31,8 @@ use Twig\Loader\ArrayLoader;
  */
 class VoiceNameUniquenessFeatureTest extends TestCase
 {
+    use BuildsControllers;
+
     private string $suffix = '';
 
     protected function setUp(): void
@@ -196,7 +198,7 @@ class VoiceNameUniquenessFeatureTest extends TestCase
     {
         // Die geprüften Methoden leiten nur weiter und rendern nichts; ein leerer
         // Lader genügt deshalb und hält den Test von den echten Vorlagen fern.
-        return new VoiceGroupController(new Twig(new ArrayLoader([])));
+        return $this->voiceGroupController(['view' => new Twig(new ArrayLoader([]))]);
     }
 
     /**

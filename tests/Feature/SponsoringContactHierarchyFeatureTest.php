@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\SponsorController;
 use App\Models\Sponsor;
 use App\Models\SponsoringContact;
 use App\Models\Sponsorship;
-use App\Policies\SponsoringPolicy;
 use App\Util\SponsorshipStatus;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
@@ -22,6 +20,7 @@ use Tests\Unit\Bootstrap;
 class SponsoringContactHierarchyFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     protected function setUp(): void
     {
@@ -76,7 +75,7 @@ class SponsoringContactHierarchyFeatureTest extends TestCase
                 }
             );
 
-            $controller = new SponsorController($twig, new SponsoringPolicy($_SESSION), $this->attachmentService());
+            $controller = $this->sponsorController(['view' => $twig]);
             $controller->detail(
                 $this->makeRequest('GET', '/sponsoring/sponsors/' . $sponsor->id),
                 $this->makeResponse(),

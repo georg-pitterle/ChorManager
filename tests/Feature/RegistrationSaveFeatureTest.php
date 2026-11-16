@@ -9,11 +9,9 @@ use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\User;
 use App\Models\VoiceGroup;
-use App\Services\AttendanceScopeService;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 
@@ -22,6 +20,7 @@ class RegistrationSaveFeatureTest extends TestCase
     use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private Event $event;
     private User $user;
@@ -68,12 +67,7 @@ class RegistrationSaveFeatureTest extends TestCase
 
     private function controller(): RegistrationController
     {
-        return new RegistrationController(
-            $this->createAppTwig('/registrations'),
-            new AttendanceScopeService($_SESSION),
-            new NullLogger(),
-            new \App\Services\NameFormatterService()
-        );
+        return $this->registrationController(['view' => $this->createAppTwig('/registrations')]);
     }
 
     public function testSelfRegistrationCreateAndUpdate(): void

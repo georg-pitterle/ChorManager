@@ -8,12 +8,8 @@ use App\Controllers\TaskController;
 use App\Models\Project;
 use App\Models\Task;
 use App\Models\User;
-use App\Policies\TaskPolicy;
-use App\Services\HtmlSanitizer;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 
@@ -29,6 +25,7 @@ use Tests\Unit\Bootstrap;
 class TaskAssigneeValidationFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private Project $project;
     private User $member;
@@ -184,13 +181,7 @@ class TaskAssigneeValidationFeatureTest extends TestCase
 
     private function controller(): TaskController
     {
-        return new TaskController(
-            $this->createStub(Twig::class),
-            new HtmlSanitizer(),
-            new TaskPolicy($_SESSION),
-            new NameFormatterService(),
-            new NullLogger()
-        );
+        return $this->taskController(['view' => $this->createStub(Twig::class)]);
     }
 
     private function createUser(string $prefix): User

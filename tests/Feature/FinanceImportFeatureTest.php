@@ -9,18 +9,11 @@ use App\Models\Finance;
 use App\Models\FinanceAccount;
 use App\Models\FinanceGroup;
 use App\Models\FinanceRevision;
-use App\Services\BankStatementImportService;
-use App\Services\BudgetService;
-use App\Services\FinanceAccountService;
-use App\Services\FinanceCsvExportService;
 use App\Services\FinanceJournalService;
-use App\Services\FinanceReportPdfService;
-use App\Services\Pdf\TcLibPdfCanvas;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Eloquent\Builder;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Log\NullLogger;
 use Slim\Psr7\UploadedFile;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
@@ -28,6 +21,7 @@ use Tests\Unit\Bootstrap;
 final class FinanceImportFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private const TEST_GROUP = 'Import-Testgruppe';
 
@@ -71,16 +65,7 @@ final class FinanceImportFeatureTest extends TestCase
             }
         );
 
-        $this->controller = new FinanceController(
-            $twig,
-            new BudgetService(),
-            new NullLogger(),
-            new FinanceReportPdfService(new TcLibPdfCanvas()),
-            new BankStatementImportService(new NullLogger()),
-            new FinanceAccountService(),
-            new FinanceJournalService(),
-            new FinanceCsvExportService()
-        );
+        $this->controller = $this->financeController(['view' => $twig]);
 
         $_SESSION = [];
     }

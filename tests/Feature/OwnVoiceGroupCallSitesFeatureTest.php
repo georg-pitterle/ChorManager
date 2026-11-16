@@ -14,7 +14,6 @@ use App\Persistence\UserPersistence;
 use App\Policies\UserEditPolicy;
 use App\Queries\UserQuery;
 use App\Services\AttendanceScopeService;
-use App\Services\MailQueueService;
 use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Support\Collection;
@@ -31,6 +30,7 @@ use Tests\Unit\Bootstrap;
 class OwnVoiceGroupCallSitesFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     /** Haengt an jeden Rollennamen, damit er in der geteilten Datenbank eindeutig bleibt. */
     private string $suffix = '';
@@ -189,15 +189,13 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         UserQuery $userQuery,
         UserPersistence $userPersistence
     ): UserController {
-        return new UserController(
-            $this->createStub(Twig::class),
-            $userQuery,
-            $userPersistence,
-            $this->createStub(ProjectPersistence::class),
-            $this->createStub(MailQueueService::class),
-            $this->createStub(LoggerInterface::class),
-            new UserEditPolicy($_SESSION)
-        );
+        return $this->userController([
+            'view' => $this->createStub(Twig::class),
+            'userQuery' => $userQuery,
+            'userPersistence' => $userPersistence,
+            'projectPersistence' => $this->createStub(ProjectPersistence::class),
+            'logger' => $this->createStub(LoggerInterface::class),
+        ]);
     }
 
     private function makeUserWithVoiceGroups(int $id, array $voiceGroupIds): User
@@ -320,15 +318,13 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         UserPersistence $userPersistence,
         ProjectPersistence $projectPersistence
     ): UserController {
-        return new UserController(
-            $this->createStub(Twig::class),
-            $userQuery,
-            $userPersistence,
-            $projectPersistence,
-            $this->createStub(MailQueueService::class),
-            $this->createStub(LoggerInterface::class),
-            new UserEditPolicy($_SESSION)
-        );
+        return $this->userController([
+            'view' => $this->createStub(Twig::class),
+            'userQuery' => $userQuery,
+            'userPersistence' => $userPersistence,
+            'projectPersistence' => $projectPersistence,
+            'logger' => $this->createStub(LoggerInterface::class),
+        ]);
     }
 
     public function testUpdateAllowsVoiceGroupRepWithOnlyFlagForOwnGroupMember(): void
@@ -567,15 +563,13 @@ class OwnVoiceGroupCallSitesFeatureTest extends TestCase
         $view = $this->createStub(Twig::class);
         $view->method('fetch')->willReturn('<html>invite</html>');
 
-        return new UserController(
-            $view,
-            $userQuery,
-            $this->createStub(UserPersistence::class),
-            $this->createStub(ProjectPersistence::class),
-            $this->createStub(MailQueueService::class),
-            $this->createStub(LoggerInterface::class),
-            new UserEditPolicy($_SESSION)
-        );
+        return $this->userController([
+            'view' => $view,
+            'userQuery' => $userQuery,
+            'userPersistence' => $this->createStub(UserPersistence::class),
+            'projectPersistence' => $this->createStub(ProjectPersistence::class),
+            'logger' => $this->createStub(LoggerInterface::class),
+        ]);
     }
 
     /**

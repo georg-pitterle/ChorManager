@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\EventTypeController;
-use App\Controllers\VoiceGroupController;
 use App\Models\EventType;
 use PHPUnit\Framework\TestCase;
 use Slim\Views\Twig;
@@ -32,6 +31,7 @@ use Twig\Loader\ArrayLoader;
 class MasterDataDeleteFeedbackFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     protected function setUp(): void
     {
@@ -87,7 +87,7 @@ class MasterDataDeleteFeedbackFeatureTest extends TestCase
     public function testDeletingAMissingVoiceGroupNamesTheReason(): void
     {
         [$logger, $handler] = $this->logger();
-        $controller = new VoiceGroupController($this->emptyTwig(), $logger);
+        $controller = $this->voiceGroupController(['view' => $this->emptyTwig(), 'logger' => $logger]);
 
         [$result, $message] = $this->deleteAndReadMessage(fn() => $controller->deleteGroup(
             $this->makeRequest('POST', '/voice-groups/0/delete'),
@@ -105,7 +105,7 @@ class MasterDataDeleteFeedbackFeatureTest extends TestCase
     public function testDeletingAMissingSubVoiceNamesTheReason(): void
     {
         [$logger, $handler] = $this->logger();
-        $controller = new VoiceGroupController($this->emptyTwig(), $logger);
+        $controller = $this->voiceGroupController(['view' => $this->emptyTwig(), 'logger' => $logger]);
 
         [$result, $message] = $this->deleteAndReadMessage(fn() => $controller->deleteSubVoice(
             $this->makeRequest('POST', '/voice-groups/1/sub/0/delete'),
@@ -153,7 +153,7 @@ class MasterDataDeleteFeedbackFeatureTest extends TestCase
     public function testAFailedVoiceGroupWriteReachesTheLog(): void
     {
         [$logger, $handler] = $this->logger();
-        $controller = new VoiceGroupController($this->emptyTwig(), $logger);
+        $controller = $this->voiceGroupController(['view' => $this->emptyTwig(), 'logger' => $logger]);
 
         $request = $this->makeRequest('POST', '/voice-groups', ['name' => str_repeat('x', 300)]);
         $result = $controller->createGroup($request, $this->makeResponse());

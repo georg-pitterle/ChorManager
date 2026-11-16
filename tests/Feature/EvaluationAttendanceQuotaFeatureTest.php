@@ -31,6 +31,7 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
     use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private EvaluationController $controller;
     /** @var array<int, array{0: string, 1: array<string, mixed>}> */
@@ -55,9 +56,10 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
         );
 
         $nameFormatter = new NameFormatterService();
-        $this->controller = new EvaluationController(
-            $twig,
-            new ProjectQuery($nameFormatter));
+        $this->controller = $this->evaluationController([
+            'view' => $twig,
+            'projectQuery' => new ProjectQuery($nameFormatter),
+        ]);
 
         // Volle Sicht auf alle Projekte: hier geht es um die Quotenberechnung,
         // nicht um die Projektsichtbarkeit.
@@ -406,9 +408,10 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
     public function testPageRendersDashForMissingQuotaAndNamesTheEmptyReason(): void
     {
         $nameFormatter = new NameFormatterService();
-        $controller = new EvaluationController(
-            $this->createAppTwig('/evaluations'),
-            new ProjectQuery($nameFormatter));
+        $controller = $this->evaluationController([
+            'view' => $this->createAppTwig('/evaluations'),
+            'projectQuery' => new ProjectQuery($nameFormatter),
+        ]);
 
         $suffix = uniqid();
         ['project' => $project, 'member' => $alto] = $this->projectWithOneMember($suffix);

@@ -7,12 +7,8 @@ namespace Tests\Feature;
 use App\Controllers\ProfileController;
 use App\Models\User;
 use App\Models\UserMailAccount;
-use App\Queries\UserQuery;
-use App\Services\MailCredentialCryptoService;
-use App\Services\PasswordPolicyService;
 use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Support\TestMailboxAllowlist;
 use Tests\Unit\Bootstrap;
@@ -20,6 +16,7 @@ use Tests\Unit\Bootstrap;
 final class ProfileExternalWebmailUrlTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private const CRYPTO_ENV_KEY = 'MAIL_CREDENTIAL_KEY';
 
@@ -40,16 +37,12 @@ final class ProfileExternalWebmailUrlTest extends TestCase
         $_SERVER[self::CRYPTO_ENV_KEY] = $cryptoKey;
         putenv(self::CRYPTO_ENV_KEY . '=' . $cryptoKey);
 
-        $this->controller = new ProfileController(
-            $this->createStub(Twig::class),
-            new UserQuery(new \App\Services\NameFormatterService()),
-            new PasswordPolicyService(),
-            new NullLogger(),
-            new MailCredentialCryptoService(),
-            null,
-            null,
-            TestMailboxAllowlist::standard()
-        );
+        $this->controller = $this->profileController([
+            'view' => $this->createStub(Twig::class),
+            'rememberLoginService' => null,
+            'notificationService' => null,
+            'mailboxAllowlist' => TestMailboxAllowlist::standard(),
+        ]);
 
         $this->user = User::create([
             'first_name' => 'Extern',

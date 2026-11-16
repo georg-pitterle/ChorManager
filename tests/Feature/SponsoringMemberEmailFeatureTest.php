@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\SponsorController;
 use App\Controllers\SponsoringContactController;
 use App\Controllers\SponsoringDashboardController;
 use App\Models\Project;
@@ -35,6 +34,7 @@ final class SponsoringMemberEmailFeatureTest extends TestCase
 {
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private User $assignee;
     private User $contributor;
@@ -130,11 +130,9 @@ final class SponsoringMemberEmailFeatureTest extends TestCase
 
     private function renderSponsorPage(): string
     {
-        $controller = new SponsorController(
-            $this->createAppTwig('/sponsoring/sponsors/' . $this->sponsor->id),
-            new SponsoringPolicy($_SESSION),
-            $this->attachmentService()
-        );
+        $controller = $this->sponsorController([
+            'view' => $this->createAppTwig('/sponsoring/sponsors/' . $this->sponsor->id),
+        ]);
 
         return (string) $controller->detail(
             $this->makeRequest('GET', '/sponsoring/sponsors/' . $this->sponsor->id),

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\AuthController;
-use App\Controllers\EventController;
 use App\Logging\RequestContext;
 use App\Models\Event;
 use App\Models\Role;
@@ -23,7 +22,6 @@ use Slim\Psr7\Response as SlimResponse;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 use Twig\Loader\ArrayLoader;
-use App\Queries\ProjectQuery;
 
 /**
  * Antworten auf die Rückfragen aus dem Review-Lauf 21.
@@ -42,6 +40,7 @@ use App\Queries\ProjectQuery;
 class ReviewAnswersRun21FeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private string $rateLimiterStoreDir;
 
@@ -74,17 +73,6 @@ class ReviewAnswersRun21FeatureTest extends TestCase
         parent::tearDown();
     }
 
-    private function eventController(?NullLogger $logger = null): EventController
-    {
-        // create() leitet in jedem geprüften Fall weiter und rendert nichts.
-        return new EventController(
-            new Twig(new ArrayLoader([])),
-            new NameFormatterService(),
-            $logger ?? new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
-    }
-
     /**
      * @param array<string, mixed> $overrides
      * @return array<string, mixed>
@@ -104,7 +92,8 @@ class ReviewAnswersRun21FeatureTest extends TestCase
     {
         unset($_SESSION['event_create_message'], $_SESSION['error']);
 
-        $this->eventController()->create(
+        // create() leitet in jedem geprüften Fall weiter und rendert nichts.
+        $this->eventController(['view' => new Twig(new ArrayLoader([]))])->create(
             $this->makeRequest('POST', '/events', $form),
             $this->makeResponse()
         );
@@ -151,12 +140,7 @@ class ReviewAnswersRun21FeatureTest extends TestCase
 
         unset($_SESSION['event_create_message'], $_SESSION['error']);
 
-        $controller = new EventController(
-            new Twig(new ArrayLoader([])),
-            new NameFormatterService(),
-            $logger,
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => new Twig(new ArrayLoader([])), 'logger' => $logger]);
         $controller->create(
             $this->makeRequest('POST', '/events', $this->eventForm(['title' => str_repeat('x', 300)])),
             $this->makeResponse()

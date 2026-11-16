@@ -4,19 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\EvaluationController;
-use App\Controllers\RegistrationController;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\User;
-use App\Queries\ProjectQuery;
-use App\Services\AttendanceScopeService;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Tests\Unit\Bootstrap;
 
 /**
@@ -33,6 +27,7 @@ class RegistrationQueryCountFeatureTest extends TestCase
 {
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     /** @var list<int> */
     private array $eventIds = [];
@@ -149,21 +144,14 @@ class RegistrationQueryCountFeatureTest extends TestCase
 
     private function renderOverview(): void
     {
-        $controller = new RegistrationController(
-            $this->createAppTwig('/registrations'),
-            new AttendanceScopeService($_SESSION),
-            new NullLogger(),
-            new NameFormatterService()
-        );
+        $controller = $this->registrationController(['view' => $this->createAppTwig('/registrations')]);
 
         $controller->index($this->makeRequest('GET', '/registrations'), $this->makeResponse());
     }
 
     private function renderEvaluation(): void
     {
-        $controller = new EvaluationController(
-            $this->createAppTwig('/evaluations'),
-            new ProjectQuery(new NameFormatterService()));
+        $controller = $this->evaluationController(['view' => $this->createAppTwig('/evaluations')]);
 
         $controller->registrations(
             $this->makeRequest('GET', '/evaluations/registrations'),

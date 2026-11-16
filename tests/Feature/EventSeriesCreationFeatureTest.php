@@ -7,15 +7,12 @@ namespace Tests\Feature;
 use App\Controllers\EventController;
 use App\Models\Event;
 use App\Models\EventSeries;
-use App\Services\NameFormatterService;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
-use App\Queries\ProjectQuery;
 
 /**
  * Serienanlage in EventController::save().
@@ -28,6 +25,7 @@ use App\Queries\ProjectQuery;
 final class EventSeriesCreationFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private EventController $controller;
 
@@ -42,12 +40,7 @@ final class EventSeriesCreationFeatureTest extends TestCase
             static fn(ResponseInterface $response): ResponseInterface => $response
         );
 
-        $this->controller = new EventController(
-            $twig,
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $this->controller = $this->eventController(['view' => $twig]);
         $_SESSION = ['user_id' => 1, 'can_manage_events' => true];
     }
 

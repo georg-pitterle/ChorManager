@@ -4,19 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\UserController;
 use App\Models\InvitationToken;
 use App\Models\User;
 use App\Persistence\ProjectPersistence;
-use App\Persistence\UserPersistence;
-use App\Policies\UserEditPolicy;
 use App\Queries\UserQuery;
-use App\Services\MailQueueService;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 
@@ -33,6 +27,7 @@ use Tests\Unit\Bootstrap;
 final class InviteArchivedMemberFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     protected function setUp(): void
     {
@@ -96,15 +91,10 @@ final class InviteArchivedMemberFeatureTest extends TestCase
 
     private function invite(int $userId): \Psr\Http\Message\ResponseInterface
     {
-        $controller = new UserController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new UserPersistence(new NullLogger()),
-            $this->createStub(ProjectPersistence::class),
-            $this->createStub(MailQueueService::class),
-            new NullLogger(),
-            new UserEditPolicy($_SESSION)
-        );
+        $controller = $this->userController([
+            'view' => $this->createStub(Twig::class),
+            'projectPersistence' => $this->createStub(ProjectPersistence::class),
+        ]);
 
         return $controller->invite(
             $this->makeRequest('POST', '/users/' . $userId . '/invite'),

@@ -8,12 +8,7 @@ use App\Controllers\UserController;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\VoiceGroup;
-use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
-use App\Policies\UserEditPolicy;
-use App\Queries\UserQuery;
-use App\Services\MailQueueService;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
@@ -32,6 +27,7 @@ use Tests\Unit\Bootstrap;
 final class UserVoiceGroupManagerBoundaryFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private VoiceGroup $ownGroup;
     private VoiceGroup $foreignGroup;
@@ -92,15 +88,11 @@ final class UserVoiceGroupManagerBoundaryFeatureTest extends TestCase
     {
         $logger = new Logger('test');
 
-        return new UserController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new UserPersistence($logger),
-            new ProjectPersistence(),
-            $this->createStub(MailQueueService::class),
-            $logger,
-            new UserEditPolicy($_SESSION)
-        );
+        return $this->userController([
+            'view' => $this->createStub(Twig::class),
+            'userPersistence' => new UserPersistence($logger),
+            'logger' => $logger,
+        ]);
     }
 
     /**

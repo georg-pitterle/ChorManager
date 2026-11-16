@@ -34,6 +34,7 @@ use Slim\Psr7\Response as SlimResponse;
 class TaskFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private const INITIAL_MIGRATION_PATH = __DIR__ . '/../../db/migrations/20260314130000_initial.php';
 
@@ -138,13 +139,10 @@ class TaskFeatureTest extends TestCase
         $_SESSION = ['user_id' => (int) $member->id, 'can_manage_tasks' => false];
 
         try {
-            $controller = new TaskController(
-                $this->createStub(Twig::class),
-                new HtmlSanitizer(),
-                new TaskPolicy($_SESSION),
-                new NameFormatterService(),
-                new Logger('test')
-            );
+            $controller = $this->taskController([
+                'view' => $this->createStub(Twig::class),
+                'logger' => new Logger('test'),
+            ]);
 
             $response = $controller->index(
                 $this->makeRequest('GET', '/projects/' . $project->id . '/tasks'),
@@ -259,13 +257,10 @@ class TaskFeatureTest extends TestCase
         $_SESSION = ['user_id' => $user->id, 'can_manage_tasks' => true];
 
         try {
-            $controller = new TaskController(
-                $this->createStub(Twig::class),
-                new HtmlSanitizer(),
-                new TaskPolicy($_SESSION),
-                new NameFormatterService(),
-                new Logger('test')
-            );
+            $controller = $this->taskController([
+                'view' => $this->createStub(Twig::class),
+                'logger' => new Logger('test'),
+            ]);
 
             $controller->delete(
                 $this->makeRequest('POST', '/tasks/' . $task->id . '/delete'),
@@ -331,13 +326,10 @@ class TaskFeatureTest extends TestCase
         );
 
         try {
-            $controller = new TaskController(
-                $this->createStub(Twig::class),
-                new HtmlSanitizer(),
-                new TaskPolicy($_SESSION),
-                new NameFormatterService(),
-                new Logger('test')
-            );
+            $controller = $this->taskController([
+                'view' => $this->createStub(Twig::class),
+                'logger' => new Logger('test'),
+            ]);
 
             $controller->uploadAttachment(
                 $this->makeRequest('POST', '/tasks/' . $task->id . '/attachments')
@@ -814,13 +806,10 @@ class TaskFeatureTest extends TestCase
         $this->removeAfterTest($project, $user, $task);
 
         $_SESSION = ['user_id' => $user->id, 'can_manage_tasks' => true];
-        $controller = new TaskController(
-            $this->createStub(Twig::class),
-            new HtmlSanitizer(),
-            new TaskPolicy($_SESSION),
-            new NameFormatterService(),
-            new Logger('test')
-        );
+        $controller = $this->taskController([
+            'view' => $this->createStub(Twig::class),
+            'logger' => new Logger('test'),
+        ]);
 
         $request = $this->makeRequest(
             'POST',
@@ -866,13 +855,11 @@ class TaskFeatureTest extends TestCase
         $this->removeAfterTest($project, $user, $task);
 
         $makeController = function (array $session): TaskController {
-            return new TaskController(
-                $this->createStub(Twig::class),
-                new HtmlSanitizer(),
-                new TaskPolicy($session),
-                new NameFormatterService(),
-                new Logger('test')
-            );
+            return $this->taskController([
+                'view' => $this->createStub(Twig::class),
+                'policy' => new TaskPolicy($session),
+                'logger' => new Logger('test'),
+            ]);
         };
         $args = ['id' => (string) $task->id];
 
@@ -928,13 +915,7 @@ class TaskFeatureTest extends TestCase
         $handlerLog = new TestHandler();
         $logger = new Logger('test');
         $logger->pushHandler($handlerLog);
-        $controller = new TaskController(
-            $this->createStub(Twig::class),
-            new HtmlSanitizer(),
-            new TaskPolicy($_SESSION),
-            new NameFormatterService(),
-            $logger
-        );
+        $controller = $this->taskController(['view' => $this->createStub(Twig::class), 'logger' => $logger]);
 
         $oversizedContent = str_repeat('x', (10 * 1024 * 1024) + 1);
         $stream = (new StreamFactory())->createStream($oversizedContent);

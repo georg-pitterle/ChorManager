@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\EvaluationController;
 use App\Models\Project;
 use App\Policies\ProjectMemberPolicy;
 use App\Queries\ProjectQuery;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Eloquent\Collection;
@@ -25,6 +23,7 @@ use Tests\Unit\Bootstrap;
 class ProjectMembersVoicingFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private int $userId = 0;
     private int $projectId = 0;
@@ -85,11 +84,11 @@ class ProjectMembersVoicingFeatureTest extends TestCase
         $projectQuery->method('getAccessibleProjects')
             ->willReturnCallback(static fn (): Collection => Project::orderBy('name')->get());
 
-        $controller = new EvaluationController(
-            $twig,
-            $projectQuery,
-            new ProjectMemberPolicy($_SESSION)
-        );
+        $controller = $this->evaluationController([
+            'view' => $twig,
+            'projectQuery' => $projectQuery,
+            'memberPolicy' => new ProjectMemberPolicy($_SESSION),
+        ]);
         $controller->projectMembers(
             $this->makeRequest('GET', '/evaluations/project-members', [], ['project_id' => (string) $this->projectId]),
             $this->makeResponse()

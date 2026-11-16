@@ -4,19 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\UserController;
 use App\Models\Project;
 use App\Models\Role;
 use App\Models\User;
-use App\Persistence\ProjectPersistence;
-use App\Persistence\UserPersistence;
 use App\Policies\UserEditPolicy;
-use App\Queries\UserQuery;
-use App\Services\MailQueueService;
-use App\Services\NameFormatterService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 
@@ -33,6 +26,7 @@ use Tests\Unit\Bootstrap;
 final class UserCreateWithProjectsFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private Role $role;
     private Project $project;
@@ -115,15 +109,7 @@ final class UserCreateWithProjectsFeatureTest extends TestCase
     {
         $email = 'anlegen-' . bin2hex(random_bytes(5)) . '@example.test';
 
-        $controller = new UserController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new UserPersistence(new NullLogger()),
-            new ProjectPersistence(),
-            $this->createStub(MailQueueService::class),
-            new NullLogger(),
-            new UserEditPolicy($_SESSION)
-        );
+        $controller = $this->userController(['view' => $this->createStub(Twig::class)]);
 
         $controller->create(
             $this->makeRequest('POST', '/users', [

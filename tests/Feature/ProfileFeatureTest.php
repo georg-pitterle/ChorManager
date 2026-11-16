@@ -4,13 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\ProfileController;
 use App\Models\Project;
 use App\Models\User;
-use App\Queries\UserQuery;
-use App\Services\MailCredentialCryptoService;
-use App\Services\NameFormatterService;
-use App\Services\PasswordPolicyService;
 use App\Util\PasswordHasher;
 use Monolog\Handler\TestHandler;
 use Monolog\Logger;
@@ -23,6 +18,8 @@ use Tests\Unit\Bootstrap;
 
 class ProfileFeatureTest extends TestCase
 {
+    use BuildsControllers;
+
     public function testProfileStructureExists(): void
     {
         $routesContent = file_get_contents(dirname(__DIR__) . '/../src/Routes.php');
@@ -68,16 +65,13 @@ class ProfileFeatureTest extends TestCase
             }
         );
 
-        $controller = new ProfileController(
-            $twig,
-            new UserQuery(new NameFormatterService()),
-            new PasswordPolicyService(),
-            new Logger('test'),
-            new MailCredentialCryptoService(),
-            null,
-            null,
-            TestMailboxAllowlist::standard()
-        );
+        $controller = $this->profileController([
+            'view' => $twig,
+            'logger' => new Logger('test'),
+            'rememberLoginService' => null,
+            'notificationService' => null,
+            'mailboxAllowlist' => TestMailboxAllowlist::standard(),
+        ]);
 
         $_SESSION = ['user_id' => $user->id];
 
@@ -114,16 +108,13 @@ class ProfileFeatureTest extends TestCase
             'is_active' => 1,
         ]);
 
-        $controller = new ProfileController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new PasswordPolicyService(),
-            $logger,
-            new MailCredentialCryptoService(),
-            null,
-            null,
-            TestMailboxAllowlist::standard()
-        );
+        $controller = $this->profileController([
+            'view' => $this->createStub(Twig::class),
+            'logger' => $logger,
+            'rememberLoginService' => null,
+            'notificationService' => null,
+            'mailboxAllowlist' => TestMailboxAllowlist::standard(),
+        ]);
 
         $_SESSION = ['user_id' => $user->id];
 
@@ -171,16 +162,13 @@ class ProfileFeatureTest extends TestCase
             'is_active' => 1,
         ]);
 
-        $controller = new ProfileController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new PasswordPolicyService(),
-            $logger,
-            new MailCredentialCryptoService(),
-            null,
-            null,
-            TestMailboxAllowlist::standard()
-        );
+        $controller = $this->profileController([
+            'view' => $this->createStub(Twig::class),
+            'logger' => $logger,
+            'rememberLoginService' => null,
+            'notificationService' => null,
+            'mailboxAllowlist' => TestMailboxAllowlist::standard(),
+        ]);
 
         $_SESSION = ['user_id' => $user->id];
 
@@ -242,16 +230,13 @@ class ProfileFeatureTest extends TestCase
             'is_active' => 1,
         ]);
 
-        $controller = new ProfileController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new PasswordPolicyService(),
-            $logger,
-            new MailCredentialCryptoService(),
-            null,
-            null,
-            TestMailboxAllowlist::standard()
-        );
+        $controller = $this->profileController([
+            'view' => $this->createStub(Twig::class),
+            'logger' => $logger,
+            'rememberLoginService' => null,
+            'notificationService' => null,
+            'mailboxAllowlist' => TestMailboxAllowlist::standard(),
+        ]);
 
         $_SESSION = ['user_id' => $user->id];
 

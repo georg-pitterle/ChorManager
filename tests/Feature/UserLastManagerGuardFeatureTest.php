@@ -7,12 +7,7 @@ namespace Tests\Feature;
 use App\Controllers\UserController;
 use App\Models\Role;
 use App\Models\User;
-use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
-use App\Policies\UserEditPolicy;
-use App\Queries\UserQuery;
-use App\Services\MailQueueService;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Monolog\Logger;
@@ -29,6 +24,7 @@ use Tests\Unit\Bootstrap;
 final class UserLastManagerGuardFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private Role $managerRole;
     private Role $memberRole;
@@ -85,15 +81,11 @@ final class UserLastManagerGuardFeatureTest extends TestCase
     {
         $logger = new Logger('test');
 
-        return new UserController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new UserPersistence($logger),
-            new ProjectPersistence(),
-            $this->createStub(MailQueueService::class),
-            $logger,
-            new UserEditPolicy($_SESSION)
-        );
+        return $this->userController([
+            'view' => $this->createStub(Twig::class),
+            'userPersistence' => new UserPersistence($logger),
+            'logger' => $logger,
+        ]);
     }
 
     public function testTheLastUserManagerCannotBeArchived(): void

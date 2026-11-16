@@ -13,7 +13,6 @@ use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
-use App\Queries\ProjectQuery;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
@@ -40,6 +39,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
     use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private static ?Capsule $capsule = null;
 
@@ -164,7 +164,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
         // nicht die Sichtbarkeit, und laufen daher mit dem vollen Recht.
         $_SESSION['can_manage_attendance_all'] = true;
 
-        $controller = new EvaluationController($this->createTwig(), new ProjectQuery(new \App\Services\NameFormatterService()));
+        $controller = $this->evaluationController(['view' => $this->createTwig()]);
         $request = $this->makeRequest('GET', '/evaluations/registrations');
         $response = $controller->registrations($request, $this->makeResponse());
         $body = (string) $response->getBody();
@@ -205,7 +205,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
         // nicht die Sichtbarkeit, und laufen daher mit dem vollen Recht.
         $_SESSION['can_manage_attendance_all'] = true;
 
-        $controller = new EvaluationController($this->createTwig(), new ProjectQuery(new \App\Services\NameFormatterService()));
+        $controller = $this->evaluationController(['view' => $this->createTwig()]);
         $request = $this->makeRequest('GET', '/evaluations/registrations');
         $response = $controller->registrations($request, $this->makeResponse());
         $body = (string) $response->getBody();
@@ -237,7 +237,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
         ]);
         $this->openToEveryone($pastEvent);
 
-        $controller = new EvaluationController($this->createTwig(), new ProjectQuery(new \App\Services\NameFormatterService()));
+        $controller = $this->evaluationController(['view' => $this->createTwig()]);
 
         $defaultResponse = $controller->registrations(
             $this->makeRequest('GET', '/evaluations/registrations'),
@@ -284,9 +284,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
         ]);
         $this->openToEveryone($open);
 
-        $controller = new EvaluationController(
-            $this->createTwig(),
-            new ProjectQuery(new \App\Services\NameFormatterService()));
+        $controller = $this->evaluationController(['view' => $this->createTwig()]);
 
         $_SESSION['user_id'] = (int) $outsider->id;
         $_SESSION['can_manage_attendance_all'] = false;
@@ -329,9 +327,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
         $_SESSION['user_id'] = (int) $outsider->id;
         $_SESSION['can_manage_attendance_all'] = false;
 
-        $controller = new EvaluationController(
-            $this->createTwig(),
-            new ProjectQuery(new \App\Services\NameFormatterService()));
+        $controller = $this->evaluationController(['view' => $this->createTwig()]);
         $body = (string) $controller->registrations(
             $this->makeRequest('GET', '/evaluations/registrations', [], ['include_past' => '1']),
             $this->makeResponse()
@@ -379,7 +375,7 @@ class RegistrationEvaluationFeatureTest extends TestCase
         ]);
         $this->openToEveryone($futureRequired);
 
-        $controller = new EvaluationController($this->createTwig(), new ProjectQuery(new \App\Services\NameFormatterService()));
+        $controller = $this->evaluationController(['view' => $this->createTwig()]);
         $response = $controller->registrations(
             $this->makeRequest('GET', '/evaluations/registrations', [], ['include_past' => '1']),
             $this->makeResponse()

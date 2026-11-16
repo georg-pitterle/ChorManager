@@ -10,16 +10,13 @@ use App\Models\EventSeries;
 use App\Models\User;
 use App\Models\VoiceGroup;
 use App\Services\EventAudienceService;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
-use App\Queries\ProjectQuery;
 
 /**
  * Serienänderung, Serienlöschung und Zielgruppen-Quellen.
@@ -35,6 +32,7 @@ use App\Queries\ProjectQuery;
 final class EventSeriesScopeAndDeletionFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private EventController $controller;
     private EventSeries $series;
@@ -52,12 +50,7 @@ final class EventSeriesScopeAndDeletionFeatureTest extends TestCase
             static fn(ResponseInterface $response): ResponseInterface => $response
         );
 
-        $this->controller = new EventController(
-            $twig,
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $this->controller = $this->eventController(['view' => $twig]);
 
         $this->series = EventSeries::create([
             'frequency' => 'weekly',

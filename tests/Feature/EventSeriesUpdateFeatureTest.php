@@ -7,15 +7,12 @@ namespace Tests\Feature;
 use App\Controllers\EventController;
 use App\Models\Event;
 use App\Models\EventSeries;
-use App\Services\NameFormatterService;
 use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
-use Psr\Log\NullLogger;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
-use App\Queries\ProjectQuery;
 
 /**
  * Serienbearbeitung in EventController::update().
@@ -28,6 +25,7 @@ final class EventSeriesUpdateFeatureTest extends TestCase
 {
     use AudienceFixtures;
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private EventController $controller;
     private EventSeries $series;
@@ -45,12 +43,7 @@ final class EventSeriesUpdateFeatureTest extends TestCase
             static fn(ResponseInterface $response): ResponseInterface => $response
         );
 
-        $this->controller = new EventController(
-            $twig,
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $this->controller = $this->eventController(['view' => $twig]);
 
         $this->series = EventSeries::create([
             'frequency' => 'weekly',

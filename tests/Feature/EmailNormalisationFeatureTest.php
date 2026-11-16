@@ -4,21 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\ProfileController;
-use App\Controllers\UserController;
 use App\Models\Role;
 use App\Models\User;
-use App\Persistence\ProjectPersistence;
-use App\Persistence\UserPersistence;
-use App\Policies\UserEditPolicy;
-use App\Queries\UserQuery;
-use App\Services\MailCredentialCryptoService;
-use App\Services\MailQueueService;
-use App\Services\NameFormatterService;
-use App\Services\PasswordPolicyService;
 use App\Util\PasswordHasher;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 
@@ -35,6 +24,7 @@ use Tests\Unit\Bootstrap;
 final class EmailNormalisationFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private string $suffix = '';
 
@@ -66,7 +56,7 @@ final class EmailNormalisationFeatureTest extends TestCase
 
         $mixedCase = 'Max.Mustermann.' . $this->suffix . '@Example.TEST';
 
-        $this->userController()->create(
+        $this->userController(['view' => $this->createStub(Twig::class)])->create(
             $this->makeRequest('POST', '/users', [
                 'first_name' => 'Max',
                 'last_name' => 'Mustermann',
@@ -94,7 +84,7 @@ final class EmailNormalisationFeatureTest extends TestCase
         $user = $this->member('profil-' . $this->suffix . '@example.test');
         $_SESSION['user_id'] = (int) $user->id;
 
-        $this->profileController()->updateProfile(
+        $this->profileController(['view' => $this->createStub(Twig::class)])->updateProfile(
             $this->makeRequest('POST', '/profile', [
                 'first_name' => 'Rita',
                 'last_name' => 'Testperson',
@@ -126,7 +116,7 @@ final class EmailNormalisationFeatureTest extends TestCase
         $_SESSION['can_edit_users'] = false;
         $_SESSION['role_level'] = 100;
 
-        $this->userController()->update(
+        $this->userController(['view' => $this->createStub(Twig::class)])->update(
             $this->makeRequest('POST', '/users/' . $user->id, [
                 'first_name' => 'Bestand',
                 'last_name' => 'Testperson',
@@ -149,33 +139,5 @@ final class EmailNormalisationFeatureTest extends TestCase
             'password' => PasswordHasher::hash('irrelevant'),
             'is_active' => 1,
         ]);
-    }
-
-    private function userController(): UserController
-    {
-        $logger = new NullLogger();
-
-        return new UserController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new UserPersistence($logger),
-            new ProjectPersistence(),
-            $this->createStub(MailQueueService::class),
-            $logger,
-            new UserEditPolicy($_SESSION)
-        );
-    }
-
-    private function profileController(): ProfileController
-    {
-        return new ProfileController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new PasswordPolicyService(),
-            new NullLogger(),
-            // `final` - lässt sich nicht doubeln, also der echte Dienst. Dieser
-            // Test verschlüsselt ohnehin nichts.
-            new MailCredentialCryptoService()
-        );
     }
 }

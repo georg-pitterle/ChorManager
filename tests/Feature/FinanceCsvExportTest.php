@@ -9,23 +9,16 @@ use App\Models\Finance;
 use App\Models\FinanceAccount;
 use App\Models\FinanceRevision;
 use App\Models\Setting;
-use App\Services\BankStatementImportService;
-use App\Services\BudgetService;
-use App\Services\FinanceAccountService;
-use App\Services\FinanceCsvExportService;
-use App\Services\FinanceJournalService;
-use App\Services\FinanceReportPdfService;
-use App\Services\Pdf\TcLibPdfCanvas;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Log\NullLogger;
 use Slim\Views\Twig;
 use Tests\Unit\Bootstrap;
 
 final class FinanceCsvExportTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private FinanceController $controller;
     private FinanceAccount $account;
@@ -53,16 +46,7 @@ final class FinanceCsvExportTest extends TestCase
             'sort_order' => 1,
         ]);
 
-        $this->controller = new FinanceController(
-            $this->createStub(Twig::class),
-            new BudgetService(),
-            new NullLogger(),
-            new FinanceReportPdfService(new TcLibPdfCanvas()),
-            new BankStatementImportService(new NullLogger()),
-            new FinanceAccountService(),
-            new FinanceJournalService(),
-            new FinanceCsvExportService()
-        );
+        $this->controller = $this->financeController(['view' => $this->createStub(Twig::class)]);
 
         $_SESSION = [];
     }

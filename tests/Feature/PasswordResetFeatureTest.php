@@ -21,6 +21,7 @@ use Tests\Unit\Bootstrap;
 class PasswordResetFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private string $rateLimitStoreDir;
 
@@ -48,12 +49,12 @@ class PasswordResetFeatureTest extends TestCase
 
     private function makeController(Twig $twig): PasswordResetController
     {
-        return new PasswordResetController(
-            $twig,
-            null,
-            new RateLimiterService($this->rateLimitStoreDir),
-            new PasswordPolicyService()
-        );
+        return $this->passwordResetController([
+            'view' => $twig,
+            'mailer' => null,
+            'rateLimiter' => new RateLimiterService($this->rateLimitStoreDir),
+            'passwordPolicyService' => new PasswordPolicyService(),
+        ]);
     }
 
     public function testPasswordResetStructureExists(): void
@@ -195,13 +196,13 @@ class PasswordResetFeatureTest extends TestCase
         $mailQueueService = $this->createMock(MailQueueService::class);
         $mailQueueService->expects($this->never())->method('enqueuePasswordResetMail');
 
-        $controller = new PasswordResetController(
-            $twig,
-            null,
-            $rateLimiter,
-            null,
-            $mailQueueService
-        );
+        $controller = $this->passwordResetController([
+            'view' => $twig,
+            'mailer' => null,
+            'rateLimiter' => $rateLimiter,
+            'passwordPolicyService' => null,
+            'mailQueueService' => $mailQueueService,
+        ]);
 
         $request = $this->makeRequest('POST', '/forgot-password', ['email' => $unknownEmail]);
         $response = $this->makeResponse();
@@ -249,7 +250,14 @@ class PasswordResetFeatureTest extends TestCase
         $logger->pushHandler($handler);
 
         $twig = $this->createStub(Twig::class);
-        $controller = new PasswordResetController($twig, null, null, null, null, $logger);
+        $controller = $this->passwordResetController([
+            'view' => $twig,
+            'mailer' => null,
+            'rateLimiter' => null,
+            'passwordPolicyService' => null,
+            'mailQueueService' => null,
+            'logger' => $logger,
+        ]);
 
         $email = 'reset.request.' . bin2hex(random_bytes(4)) . '@example.test';
         $request = $this->makeRequest('POST', '/forgot-password', ['email' => $email]);
@@ -292,7 +300,14 @@ class PasswordResetFeatureTest extends TestCase
         ]);
 
         $twig = $this->createStub(Twig::class);
-        $controller = new PasswordResetController($twig, null, null, null, null, $logger);
+        $controller = $this->passwordResetController([
+            'view' => $twig,
+            'mailer' => null,
+            'rateLimiter' => null,
+            'passwordPolicyService' => null,
+            'mailQueueService' => null,
+            'logger' => $logger,
+        ]);
 
         $request = $this->makeRequest('POST', '/reset-password', [
             'token' => $token,
@@ -348,7 +363,14 @@ class PasswordResetFeatureTest extends TestCase
         ]);
 
         $twig = $this->createStub(Twig::class);
-        $controller = new PasswordResetController($twig, null, null, null, null, $logger);
+        $controller = $this->passwordResetController([
+            'view' => $twig,
+            'mailer' => null,
+            'rateLimiter' => null,
+            'passwordPolicyService' => null,
+            'mailQueueService' => null,
+            'logger' => $logger,
+        ]);
 
         $request = $this->makeRequest('POST', '/reset-password', [
             'token' => $token,

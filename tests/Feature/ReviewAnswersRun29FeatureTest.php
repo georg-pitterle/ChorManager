@@ -7,13 +7,9 @@ namespace Tests\Feature;
 use App\Controllers\ProfileController;
 use App\Models\User;
 use App\Models\UserMailAccount;
-use App\Queries\UserQuery;
 use App\Services\HtmlSanitizer;
-use App\Services\MailCredentialCryptoService;
-use App\Services\NameFormatterService;
 use App\Services\Oidc\OidcAdminService;
 use App\Services\Oidc\OidcClaimsBuilder;
-use App\Services\PasswordPolicyService;
 use App\Util\PasswordHasher;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -43,6 +39,7 @@ use Tests\Unit\Bootstrap;
 final class ReviewAnswersRun29FeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private User $user;
     private ProfileController $controller;
@@ -60,16 +57,12 @@ final class ReviewAnswersRun29FeatureTest extends TestCase
             'is_active' => 1,
         ]);
 
-        $this->controller = new ProfileController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new PasswordPolicyService(),
-            new NullLogger(),
-            new MailCredentialCryptoService(),
-            null,
-            null,
-            TestMailboxAllowlist::standard()
-        );
+        $this->controller = $this->profileController([
+            'view' => $this->createStub(Twig::class),
+            'rememberLoginService' => null,
+            'notificationService' => null,
+            'mailboxAllowlist' => TestMailboxAllowlist::standard(),
+        ]);
 
         $_SESSION = [];
         $_SESSION['user_id'] = $this->user->id;

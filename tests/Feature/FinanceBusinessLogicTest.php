@@ -10,13 +10,6 @@ use App\Models\Finance;
 use App\Models\FinanceAccount;
 use App\Models\FinanceGroup;
 use App\Models\Setting;
-use App\Services\BankStatementImportService;
-use App\Services\BudgetService;
-use App\Services\FinanceAccountService;
-use App\Services\FinanceCsvExportService;
-use App\Services\FinanceJournalService;
-use App\Services\FinanceReportPdfService;
-use App\Services\Pdf\TcLibPdfCanvas;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Monolog\Handler\TestHandler;
@@ -38,6 +31,7 @@ final class FinanceBusinessLogicTest extends TestCase
 {
     use TestHttpHelpers;
     use FinanceAccountFixture;
+    use BuildsControllers;
 
     private static ?Capsule $capsule = null;
 
@@ -104,16 +98,7 @@ final class FinanceBusinessLogicTest extends TestCase
     {
         $view = $this->createStub(Twig::class);
 
-        return new FinanceController(
-            $view,
-            new BudgetService(),
-            $logger ?? new NullLogger(),
-            new FinanceReportPdfService(new TcLibPdfCanvas()),
-            new BankStatementImportService(new NullLogger()),
-            new FinanceAccountService(),
-            new FinanceJournalService(),
-            new FinanceCsvExportService()
-        );
+        return $this->financeController(['view' => $view, 'logger' => $logger ?? new NullLogger()]);
     }
 
     private function baseFinanceData(array $overrides = []): array

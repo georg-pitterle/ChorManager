@@ -13,14 +13,12 @@ use App\Models\VoiceGroup;
 use App\Policies\TaskPolicy;
 use App\Services\AttendanceScopeService;
 use App\Services\EventAudienceService;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use Psr\Log\NullLogger;
 use Slim\Psr7\Factory\ServerRequestFactory;
 use Slim\Psr7\Response;
 use Slim\Views\Twig;
@@ -36,6 +34,7 @@ final class AttendanceEventScopeFeatureTest extends TestCase
     use EventScopeFixtures;
     use TwigViewStubs;
     use TestHttpHelpers;
+    use BuildsControllers;
 
     protected function setUp(): void
     {
@@ -52,12 +51,7 @@ final class AttendanceEventScopeFeatureTest extends TestCase
 
     private function controller(): RegistrationController
     {
-        return new RegistrationController(
-            $this->createAppTwig('/registrations'),
-            new AttendanceScopeService($_SESSION),
-            new NullLogger(),
-            new NameFormatterService()
-        );
+        return $this->registrationController(['view' => $this->createAppTwig('/registrations')]);
     }
 
     private function createUser(string $prefix = 'scope'): User

@@ -4,11 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\EventController;
 use App\Controllers\NewsletterController;
 use App\Controllers\SongLibraryController;
-use App\Controllers\SponsorController;
-use App\Controllers\TaskController;
 use App\Models\Activity;
 use App\Models\Attachment;
 use App\Models\Comment;
@@ -21,9 +18,6 @@ use App\Models\Sponsor;
 use App\Models\Task;
 use App\Models\User;
 use App\Models\UserNotification;
-use App\Policies\SponsoringPolicy;
-use App\Policies\TaskPolicy;
-use App\Queries\ProjectQuery;
 use App\Services\EntityAttachmentService;
 use App\Services\EntityCleanupService;
 use App\Services\HtmlSanitizer;
@@ -68,6 +62,7 @@ use Tests\Unit\Bootstrap;
 final class EntityCleanupOnDeleteFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private User $user;
     private Project $project;
@@ -129,7 +124,7 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
         $this->history('task', $taskId);
         $this->bell('task', $taskId);
 
-        $this->taskController()->delete(
+        $this->taskController(['view' => $this->twig()])->delete(
             $this->makeRequest('POST', '/tasks/' . $taskId . '/delete'),
             $this->makeResponse(),
             ['id' => (string) $taskId]
@@ -163,7 +158,7 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
         $this->note('event', $eventId);
         $this->bell('event', $eventId);
 
-        $this->eventController()->delete(
+        $this->eventController(['view' => $this->twig()])->delete(
             $this->makeRequest('POST', '/events/' . $eventId . '/delete'),
             $this->makeResponse(),
             ['id' => (string) $eventId]
@@ -197,7 +192,7 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
         $this->note('event', (int) $first->id);
         $this->note('event', (int) $second->id);
 
-        $this->eventController()->deleteSeries(
+        $this->eventController(['view' => $this->twig()])->deleteSeries(
             $this->makeRequest('POST', '/events/' . $first->id . '/delete-series'),
             $this->makeResponse(),
             ['id' => (string) $first->id]
@@ -273,7 +268,7 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
         $this->attach('sponsor', $sponsorId);
         $this->bell('sponsor', $sponsorId);
 
-        $this->sponsorController()->delete(
+        $this->sponsorController(['view' => $this->twig(), 'logger' => new NullLogger()])->delete(
             $this->makeRequest('POST', '/sponsoring/sponsors/' . $sponsorId . '/delete'),
             $this->makeResponse(),
             ['id' => (string) $sponsorId]
@@ -342,27 +337,6 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
         return ((int) Task::query()->max('id')) + 1000;
     }
 
-    private function taskController(): TaskController
-    {
-        return new TaskController(
-            $this->twig(),
-            new HtmlSanitizer(),
-            new TaskPolicy($_SESSION),
-            new NameFormatterService(),
-            new NullLogger()
-        );
-    }
-
-    private function eventController(): EventController
-    {
-        return new EventController(
-            $this->twig(),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
-    }
-
     private function songController(): SongLibraryController
     {
         return new SongLibraryController($this->twig(), new NullLogger());
@@ -399,16 +373,6 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
             new NewsletterPolicy($_SESSION),
             new EntityAttachmentService(new NullLogger()),
             new NewsletterAttachmentService()
-        );
-    }
-
-    private function sponsorController(): SponsorController
-    {
-        return new SponsorController(
-            $this->twig(),
-            new SponsoringPolicy($_SESSION),
-            new EntityAttachmentService(new NullLogger()),
-            new NullLogger()
         );
     }
 

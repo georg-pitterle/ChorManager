@@ -7,12 +7,8 @@ namespace Tests\Feature;
 use App\Controllers\ProfileController;
 use App\Models\User;
 use App\Models\UserNotificationSetting;
-use App\Queries\UserQuery;
-use App\Services\MailCredentialCryptoService;
 use App\Services\MailQueueService;
-use App\Services\NameFormatterService;
 use App\Services\NotificationService;
-use App\Services\PasswordPolicyService;
 use App\Util\NotificationChannel;
 use App\Util\NotificationType;
 use App\Util\PasswordHasher;
@@ -31,6 +27,7 @@ use Tests\Unit\Bootstrap;
 final class ProfileNotificationSettingsFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private User $user;
 
@@ -235,16 +232,12 @@ final class ProfileNotificationSettingsFeatureTest extends TestCase
      */
     private function controller(array $modules = ['tasks' => true, 'sponsoring' => true]): ProfileController
     {
-        return new ProfileController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new PasswordPolicyService(),
-            new NullLogger(),
-            // `final` - laesst sich nicht doubeln, also der echte Dienst mit
-            // einem Wegwerf-Schluessel. Dieser Test verschluesselt ohnehin nichts.
-            new MailCredentialCryptoService(),
-            null,
-            $this->service($modules)
-        );
+        // Der Verschlüsselungsdienst ist `final` und lässt sich nicht doubeln; der Baustein
+        // setzt deshalb den echten Dienst ein. Dieser Test verschlüsselt ohnehin nichts.
+        return $this->profileController([
+            'view' => $this->createStub(Twig::class),
+            'rememberLoginService' => null,
+            'notificationService' => $this->service($modules),
+        ]);
     }
 }

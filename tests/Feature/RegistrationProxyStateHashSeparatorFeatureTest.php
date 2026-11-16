@@ -8,12 +8,9 @@ use App\Controllers\RegistrationController;
 use App\Models\Event;
 use App\Models\EventRegistration;
 use App\Models\User;
-use App\Services\AttendanceScopeService;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Tests\Unit\Bootstrap;
 
 /**
@@ -37,6 +34,7 @@ final class RegistrationProxyStateHashSeparatorFeatureTest extends TestCase
     use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private Event $event;
     private User $manager;
@@ -90,12 +88,7 @@ final class RegistrationProxyStateHashSeparatorFeatureTest extends TestCase
 
     private function controller(): RegistrationController
     {
-        return new RegistrationController(
-            $this->createAppTwig('/registrations'),
-            new AttendanceScopeService($_SESSION),
-            new NullLogger(),
-            new NameFormatterService()
-        );
+        return $this->registrationController(['view' => $this->createAppTwig('/registrations')]);
     }
 
     /** Liest den Zustands-Hash so aus, wie ihn das Formular mitschicken würde. */

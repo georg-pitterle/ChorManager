@@ -4,21 +4,17 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\EventController;
 use App\Controllers\EventTypeController;
 use App\Models\Comment;
 use App\Models\Event;
 use App\Models\EventType;
 use App\Models\User;
-use App\Queries\ProjectQuery;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseInterface;
-use Psr\Log\NullLogger;
 use Slim\Psr7\Factory\ServerRequestFactory;
 
 /**
@@ -32,6 +28,7 @@ class EventScheduleFeatureTest extends TestCase
     use AudienceFixtures;
     use TestHttpHelpers;
     use TwigViewStubs;
+    use BuildsControllers;
 
     private static ?Capsule $capsule = null;
     private User $sessionUser;
@@ -391,12 +388,7 @@ class EventScheduleFeatureTest extends TestCase
     ): ResponseInterface {
         $_SERVER['REQUEST_URI'] = '/events' . ($queryParams === [] ? '' : '?' . http_build_query($queryParams));
 
-        $controller = new EventController(
-            $this->createAppTwig('/events'),
-            new NameFormatterService(),
-            new NullLogger(),
-            new ProjectQuery(new NameFormatterService())
-        );
+        $controller = $this->eventController(['view' => $this->createAppTwig('/events')]);
 
         $request = (new ServerRequestFactory())->createServerRequest('GET', '/events', $serverParams)
             ->withQueryParams($queryParams)

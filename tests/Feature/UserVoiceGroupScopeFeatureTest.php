@@ -4,17 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\UserController;
 use App\Models\Role;
 use App\Models\SubVoice;
 use App\Models\User;
 use App\Models\VoiceGroup;
-use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
-use App\Policies\UserEditPolicy;
-use App\Queries\UserQuery;
-use App\Services\MailQueueService;
-use App\Services\NameFormatterService;
 use App\Util\PasswordHasher;
 use Monolog\Logger;
 use PHPUnit\Framework\TestCase;
@@ -32,6 +26,7 @@ use Tests\Unit\Bootstrap;
 class UserVoiceGroupScopeFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private VoiceGroup $ownGroup;
     private VoiceGroup $foreignGroup;
@@ -179,15 +174,11 @@ class UserVoiceGroupScopeFeatureTest extends TestCase
     {
         $logger = new Logger('test');
 
-        $controller = new UserController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new UserPersistence($logger),
-            new ProjectPersistence(),
-            $this->createStub(MailQueueService::class),
-            $logger,
-            new UserEditPolicy($_SESSION)
-        );
+        $controller = $this->userController([
+            'view' => $this->createStub(Twig::class),
+            'userPersistence' => new UserPersistence($logger),
+            'logger' => $logger,
+        ]);
 
         $controller->update(
             $this->makeRequest('POST', '/users/' . $this->target->id, array_merge([

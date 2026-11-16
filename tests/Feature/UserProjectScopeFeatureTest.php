@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\UserController;
 use App\Models\Role;
 use App\Models\User;
 use App\Persistence\ProjectPersistence;
@@ -21,6 +20,7 @@ use Tests\Unit\Bootstrap;
 class UserProjectScopeFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     /** Rein synthetische Id des Ziel-Mitglieds, nie geladen aus der DB. */
     private int $targetUserId = 0;
@@ -110,15 +110,14 @@ class UserProjectScopeFeatureTest extends TestCase
         $mailQueueService = $this->createStub(MailQueueService::class);
         $logger = $this->createStub(LoggerInterface::class);
 
-        $controller = new UserController(
-            $twig,
-            $userQuery,
-            $userPersistence,
-            $projectPersistence,
-            $mailQueueService,
-            $logger,
-            new UserEditPolicy($_SESSION)
-        );
+        $controller = $this->userController([
+            'view' => $twig,
+            'userQuery' => $userQuery,
+            'userPersistence' => $userPersistence,
+            'projectPersistence' => $projectPersistence,
+            'mailQueueService' => $mailQueueService,
+            'logger' => $logger,
+        ]);
 
         $request = $this->makeRequest('POST', '/users/' . $this->targetUserId, [
             'first_name' => 'Gekapert',
@@ -189,15 +188,14 @@ class UserProjectScopeFeatureTest extends TestCase
         $mailQueueService = $this->createStub(MailQueueService::class);
         $logger = $this->createStub(LoggerInterface::class);
 
-        $controller = new UserController(
-            $twig,
-            $userQuery,
-            $userPersistence,
-            $projectPersistence,
-            $mailQueueService,
-            $logger,
-            new UserEditPolicy($_SESSION)
-        );
+        $controller = $this->userController([
+            'view' => $twig,
+            'userQuery' => $userQuery,
+            'userPersistence' => $userPersistence,
+            'projectPersistence' => $projectPersistence,
+            'mailQueueService' => $mailQueueService,
+            'logger' => $logger,
+        ]);
 
         $request = $this->makeRequest('POST', '/users/' . $this->targetUserId, [
             'first_name' => 'Target',

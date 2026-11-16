@@ -4,16 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\PasswordResetController;
-use App\Controllers\ProfileController;
 use App\Models\InvitationToken;
 use App\Models\PasswordReset;
 use App\Models\RememberLogin;
 use App\Models\User;
-use App\Queries\UserQuery;
-use App\Services\MailCredentialCryptoService;
-use App\Services\NameFormatterService;
-use App\Services\PasswordPolicyService;
 use App\Services\RememberLoginService;
 use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -34,6 +28,7 @@ use Tests\Unit\Bootstrap;
 class PasswordChangeRevokesRememberTokensFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     protected function setUp(): void
     {
@@ -75,7 +70,7 @@ class PasswordChangeRevokesRememberTokensFeatureTest extends TestCase
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
-        $this->passwordResetController()->processReset(
+        $this->passwordResetController(['view' => $this->createStub(Twig::class)])->processReset(
             $this->makeRequest('POST', '/reset-password', [
                 'token' => $token,
                 'email' => $user->email,
@@ -106,7 +101,7 @@ class PasswordChangeRevokesRememberTokensFeatureTest extends TestCase
             'created_at' => date('Y-m-d H:i:s'),
         ]);
 
-        $this->passwordResetController()->processReset(
+        $this->passwordResetController(['view' => $this->createStub(Twig::class)])->processReset(
             $this->makeRequest('POST', '/reset-password', [
                 'token' => $token,
                 'email' => $user->email,
@@ -130,7 +125,7 @@ class PasswordChangeRevokesRememberTokensFeatureTest extends TestCase
 
         $_SESSION = ['user_id' => (int) $user->id];
 
-        $this->profileController()->updatePassword(
+        $this->profileController(['view' => $this->createStub(Twig::class), 'logger' => new Logger('test')])->updatePassword(
             $this->makeRequest('POST', '/profile/password', [
                 'old_password' => 'Old-Password-1',
                 'new_password' => 'Correct-Horse-2',
@@ -151,7 +146,7 @@ class PasswordChangeRevokesRememberTokensFeatureTest extends TestCase
 
         $_SESSION = ['user_id' => (int) $user->id];
 
-        $this->profileController()->updatePassword(
+        $this->profileController(['view' => $this->createStub(Twig::class), 'logger' => new Logger('test')])->updatePassword(
             $this->makeRequest('POST', '/profile/password', [
                 'old_password' => 'Wrong-Password-9',
                 'new_password' => 'Correct-Horse-2',
@@ -177,22 +172,6 @@ class PasswordChangeRevokesRememberTokensFeatureTest extends TestCase
         $this->assertSame(3, $revoked);
         $this->assertSame(0, $this->tokenCount($user));
         $this->assertSame(2, $this->tokenCount($other));
-    }
-
-    private function passwordResetController(): PasswordResetController
-    {
-        return new PasswordResetController($this->createStub(Twig::class));
-    }
-
-    private function profileController(): ProfileController
-    {
-        return new ProfileController(
-            $this->createStub(Twig::class),
-            new UserQuery(new NameFormatterService()),
-            new PasswordPolicyService(),
-            new Logger('test'),
-            new MailCredentialCryptoService()
-        );
     }
 
     private function createUser(string $prefix): User
