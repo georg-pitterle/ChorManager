@@ -34,4 +34,26 @@ class AppSetting extends Model
     protected $hidden = [
         'binary_content',
     ];
+
+    /**
+     * Schreibt eine Einstellung, die nur Text ist.
+     *
+     * Jeder dieser Schreibvorgänge füllt dieselben drei Spalten: den Wert, einen
+     * leeren BLOB und `text/plain`. Als `updateOrCreate` mit beiden Arrays stand
+     * das zwölfmal im AppSettingController, einmal in OpportunisticRunGate und
+     * einmal im SessionInvalidationService - jedes Mal fünf Zeilen, von denen
+     * zwei immer gleich lauten. Das Logo geht weiter eigene Wege: Es ist der
+     * einzige Eintrag mit Inhalt im BLOB und eigenem Medientyp.
+     */
+    public static function putText(string $key, string $value): self
+    {
+        return self::updateOrCreate(
+            ['setting_key' => $key],
+            [
+                'setting_value' => $value,
+                'binary_content' => '',
+                'mime_type' => 'text/plain',
+            ]
+        );
+    }
 }

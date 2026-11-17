@@ -45,14 +45,7 @@ final class OpportunisticRunGate
             return false;
         }
 
-        AppSetting::updateOrCreate(
-            ['setting_key' => $markerKey],
-            [
-                'setting_value' => Carbon::now()->format('Y-m-d H:i:s'),
-                'binary_content' => '',
-                'mime_type' => 'text/plain',
-            ]
-        );
+        AppSetting::putText($markerKey, Carbon::now()->format('Y-m-d H:i:s'));
 
         return true;
     }

@@ -281,6 +281,62 @@ class FileSharingControllerFeatureTest extends TestCase
     }
 
     /**
+     * Gezählt wird das Raten, nicht das Öffnen.
+     *
+     * Gefunden im rotierenden Review (Lauf 77): Die Obergrenze je Link zählte
+     * auch die richtigen Eingaben mit, und zurückgesetzt wurde nach dem Treffer
+     * nur der Zähler der eigenen IP. Ein Link aus dem Newsletter an den ganzen
+     * Chor sperrte sich damit nach fünfzig Empfängern in einer Viertelstunde
+     * für alle übrigen - ohne dass jemand ein Passwort geraten hätte.
+     */
+    public function testCorrectPasswordDoesNotUseUpTheLinkWideBudget(): void
+    {
+        [$file, $manager] = $this->managedFile('Geschützt');
+        [, $token] = $this->container->get(FileShareService::class)
+            ->createLink(new FileActor((int) $manager->id, false), $file, null, null, 'Chor2026');
+        $_SESSION = [];
+
+        $storeDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'cm_link_ok_' . bin2hex(random_bytes(6));
+        $controller = new PublicFileLinkController(
+            $this->container->get(\Slim\Views\Twig::class),
+            $this->container->get(FileShareService::class),
+            $this->container->get(\App\Services\Files\FileResponseFactory::class),
+            new \App\Services\RateLimiterService($storeDir),
+            new \Psr\Log\NullLogger()
+        );
+
+        try {
+            // So viele richtige Eingaben, wie die Obergrenze je Link zulässt -
+            // jede von einer anderen Adresse, wie bei einem Rundschreiben.
+            for ($i = 0; $i < PublicFileLinkController::MAX_PASSWORD_ATTEMPTS_PER_LINK; $i++) {
+                $_SESSION = [];
+                $controller->unlock(
+                    $this->requestFrom('203.0.113.' . ($i + 1), ['password' => 'Chor2026']),
+                    $this->makeResponse(),
+                    ['token' => $token]
+                );
+                $this->assertNull($_SESSION['public_link_error'] ?? null, 'Versuch ' . ($i + 1));
+            }
+
+            // Und noch einer darüber: Die Datei öffnet sich weiterhin.
+            $_SESSION = [];
+            $controller->unlock(
+                $this->requestFrom('198.51.100.200', ['password' => 'Chor2026']),
+                $this->makeResponse(),
+                ['token' => $token]
+            );
+            $this->assertNull($_SESSION['public_link_error'] ?? null);
+            $download = $controller->download($this->makeRequest('GET', '/'), $this->makeResponse(), ['token' => $token]);
+            $this->assertSame('Geschützt', $this->body($download));
+        } finally {
+            foreach ((array) glob($storeDir . DIRECTORY_SEPARATOR . '*') as $leftover) {
+                @unlink($leftover);
+            }
+            @rmdir($storeDir);
+        }
+    }
+
+    /**
      * @param array<string, string> $body
      */
     private function requestFrom(string $remoteAddress, array $body): \Psr\Http\Message\ServerRequestInterface

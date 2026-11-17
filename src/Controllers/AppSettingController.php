@@ -150,60 +150,14 @@ class AppSettingController
 
         try {
             if ($appName) {
-                AppSetting::updateOrCreate(
-                    ['setting_key' => 'app_name'],
-                    [
-                        'setting_value' => $appName,
-                        'binary_content' => '',
-                        'mime_type' => 'text/plain'
-                    ]
-                );
+                AppSetting::putText('app_name', $appName);
             }
 
-            AppSetting::updateOrCreate(
-                ['setting_key' => 'primary_color'],
-                [
-                    'setting_value' => $primaryColor,
-                    'binary_content' => '',
-                    'mime_type' => 'text/plain',
-                ]
-            );
-
-            AppSetting::updateOrCreate(
-                ['setting_key' => 'mailqueue_trigger_mode'],
-                [
-                    'setting_value' => $mailQueueTriggerMode,
-                    'binary_content' => '',
-                    'mime_type' => 'text/plain',
-                ]
-            );
-
-            AppSetting::updateOrCreate(
-                ['setting_key' => 'mailqueue_opportunistic_rate_limit'],
-                [
-                    'setting_value' => (string) $mailQueueOpportunisticRateLimit,
-                    'binary_content' => '',
-                    'mime_type' => 'text/plain',
-                ]
-            );
-
-            AppSetting::updateOrCreate(
-                ['setting_key' => 'mailqueue_batch_size'],
-                [
-                    'setting_value' => (string) $mailQueueBatchSize,
-                    'binary_content' => '',
-                    'mime_type' => 'text/plain',
-                ]
-            );
-
-            AppSetting::updateOrCreate(
-                ['setting_key' => 'registration_reminder_days_before'],
-                [
-                    'setting_value' => (string) $registrationReminderDaysBefore,
-                    'binary_content' => '',
-                    'mime_type' => 'text/plain',
-                ]
-            );
+            AppSetting::putText('primary_color', $primaryColor);
+            AppSetting::putText('mailqueue_trigger_mode', $mailQueueTriggerMode);
+            AppSetting::putText('mailqueue_opportunistic_rate_limit', (string) $mailQueueOpportunisticRateLimit);
+            AppSetting::putText('mailqueue_batch_size', (string) $mailQueueBatchSize);
+            AppSetting::putText('registration_reminder_days_before', (string) $registrationReminderDaysBefore);
 
             // Nicht angehakte Kästchen sendet der Browser nicht mit - deshalb
             // wird über die angebotenen Anlässe iteriert, nicht über die
@@ -214,13 +168,9 @@ class AppSettingController
 
                 foreach ($this->notificationService->moduleAvailableGrouped() as $types) {
                     foreach ($types as $type) {
-                        AppSetting::updateOrCreate(
-                            ['setting_key' => NotificationType::settingKey($type['type'])],
-                            [
-                                'setting_value' => empty($submitted[$type['type']]) ? '0' : '1',
-                                'binary_content' => '',
-                                'mime_type' => 'text/plain',
-                            ]
+                        AppSetting::putText(
+                            NotificationType::settingKey($type['type']),
+                            empty($submitted[$type['type']]) ? '0' : '1'
                         );
                     }
                 }
@@ -233,14 +183,7 @@ class AppSettingController
                     $raw = InputValidator::asString($data[$key] ?? null);
                     $days = $raw === '' ? $fallback : max(0, min(30, (int) $raw));
 
-                    AppSetting::updateOrCreate(
-                        ['setting_key' => $key],
-                        [
-                            'setting_value' => (string) $days,
-                            'binary_content' => '',
-                            'mime_type' => 'text/plain',
-                        ]
-                    );
+                    AppSetting::putText($key, (string) $days);
                 }
             }
 
@@ -253,42 +196,12 @@ class AppSettingController
                     continue;
                 }
 
-                AppSetting::updateOrCreate(
-                    ['setting_key' => $key],
-                    [
-                        'setting_value' => \App\Util\YoutubeVideoId::normalize($data[$key]),
-                        'binary_content' => '',
-                        'mime_type' => 'text/plain',
-                    ]
-                );
+                AppSetting::putText($key, \App\Util\YoutubeVideoId::normalize($data[$key]));
             }
 
-            AppSetting::updateOrCreate(
-                ['setting_key' => 'name_display_format'],
-                [
-                    'setting_value' => $nameDisplayFormat,
-                    'binary_content' => '',
-                    'mime_type' => 'text/plain',
-                ]
-            );
-
-            AppSetting::updateOrCreate(
-                ['setting_key' => 'log_level'],
-                [
-                    'setting_value' => $logLevel,
-                    'binary_content' => '',
-                    'mime_type' => 'text/plain',
-                ]
-            );
-
-            AppSetting::updateOrCreate(
-                ['setting_key' => 'log_db_writes'],
-                [
-                    'setting_value' => $logDbWrites,
-                    'binary_content' => '',
-                    'mime_type' => 'text/plain',
-                ]
-            );
+            AppSetting::putText('name_display_format', $nameDisplayFormat);
+            AppSetting::putText('log_level', $logLevel);
+            AppSetting::putText('log_db_writes', $logDbWrites);
 
             $uploadedFiles = $request->getUploadedFiles();
             if (isset($uploadedFiles['app_logo'])) {

@@ -30,6 +30,7 @@ use App\Util\RequestFormat;
 use App\Util\SponsorCategoryResolver;
 use App\Util\SponsorDuplicateFinder;
 use App\Util\SponsorLogoUpload;
+use App\Util\SponsoringUrl;
 use App\Util\SponsorResponsibility;
 use App\Services\ModalFormService;
 
@@ -557,7 +558,7 @@ class SponsorController
             $_SESSION['error'] = 'Anhang nicht gefunden.';
         }
 
-        return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+        return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
     }
 
     /**

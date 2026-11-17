@@ -13,6 +13,7 @@ use App\Models\Sponsorship;
 use App\Policies\SponsoringPolicy;
 use App\Services\NameFormatterService;
 use App\Util\InputValidator;
+use App\Util\SponsoringUrl;
 use App\Util\SponsorshipStatus;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
@@ -122,14 +123,14 @@ class SponsoringContactController
         $validation = $this->validateContactInput($data);
         if ($validation['error'] !== null) {
             $_SESSION['error'] = $validation['error'];
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
         }
 
         // Ein neuer Kontakt zu einem Sponsor, der sich Anfragen verbeten hat,
         // ist genau das, was die Generalabsage verhindern soll.
         if ($this->isBlocked($sponsorId)) {
             $_SESSION['error'] = self::BLOCKED_ERROR;
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
         }
 
         // Der Kontakt darf den Status seiner Anfrage gleich mit ändern: Eine
@@ -138,7 +139,7 @@ class SponsoringContactController
         $newStatus = trim(InputValidator::asString($data['sponsorship_status'] ?? null));
         if ($newStatus !== '' && !SponsorshipStatus::isValid($newStatus)) {
             $_SESSION['error'] = self::STATUS_ERROR;
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
         }
 
         $sponsorshipId = $validation['values']['sponsorship_id'];
@@ -162,7 +163,7 @@ class SponsoringContactController
             $_SESSION['error'] = 'Fehler beim Speichern des Kontakts.';
         }
 
-        return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+        return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
     }
 
     public function markDone(Request $request, Response $response, array $args): Response
@@ -193,13 +194,11 @@ class SponsoringContactController
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 
-        if ($redirectTo === 'dashboard') {
-            $redirectPath = '/sponsoring';
-        } elseif ($sponsorId) {
-            $redirectPath = '/sponsoring/sponsors/' . $sponsorId;
-        } else {
-            $redirectPath = '/sponsoring';
-        }
+        // Vom Dashboard geht es dorthin zurück; ohne Sponsor ebenfalls, denn die
+        // Wiedervorlage stand genau dort in der Liste.
+        $redirectPath = $redirectTo === 'dashboard' || $sponsorId <= 0
+            ? '/sponsoring'
+            : SponsoringUrl::sponsorDetail($sponsorId);
 
         return $response->withHeader('Location', $redirectPath)->withStatus(302);
     }
@@ -218,7 +217,7 @@ class SponsoringContactController
         $validation = $this->validateContactInput($data);
         if ($validation['error'] !== null) {
             $_SESSION['error'] = $validation['error'];
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
         }
 
         try {
@@ -240,7 +239,7 @@ class SponsoringContactController
             $_SESSION['error'] = 'Fehler beim Aktualisieren des Kontakts.';
         }
 
-        return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+        return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
     }
 
     public function delete(Request $request, Response $response, array $args): Response
@@ -268,7 +267,7 @@ class SponsoringContactController
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 
-        return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+        return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
     }
 
     /**

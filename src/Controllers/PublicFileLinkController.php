@@ -78,10 +78,11 @@ final class PublicFileLinkController
             return $this->unavailable($response);
         }
 
-        $key = 'files:public-link:' . (int) $link->id . ':' . ClientIpResolver::resolve($request);
+        $linkKey = 'files:public-link:' . (int) $link->id;
+        $key = $linkKey . ':' . ClientIpResolver::resolve($request);
         $limit = $this->rateLimiter->hit($key, self::MAX_PASSWORD_ATTEMPTS, self::PASSWORD_WINDOW_SECONDS);
         $linkLimit = $this->rateLimiter->hit(
-            'files:public-link:' . (int) $link->id,
+            $linkKey,
             self::MAX_PASSWORD_ATTEMPTS_PER_LINK,
             self::PASSWORD_WINDOW_SECONDS
         );
@@ -99,6 +100,14 @@ final class PublicFileLinkController
             $_SESSION['public_link_error'] = 'Zu viele Versuche. Bitte in einigen Minuten erneut probieren.';
         } elseif ($this->shares->checkPassword($link, $password)) {
             $this->rateLimiter->reset($key);
+            // Auch der Zähler über alle Quellen: Gezählt wird das Raten, nicht
+            // das Öffnen. Ohne diese Zeile verbrauchte jede richtige Eingabe
+            // einen der fünfzig Versuche je Viertelstunde - ein Link aus dem
+            // Newsletter an den ganzen Chor sperrte sich nach fünfzig
+            // Empfängern für alle übrigen aus. Dieselbe Reihenfolge wie bei der
+            // Anmeldung: AuthController::processLogin() setzt nach dem
+            // richtigen Passwort beide Zähler zurück.
+            $this->rateLimiter->reset($linkKey);
             $unlocked = $_SESSION[self::UNLOCK_SESSION_KEY] ?? [];
             $unlocked[(int) $link->id] = true;
             $_SESSION[self::UNLOCK_SESSION_KEY] = $unlocked;

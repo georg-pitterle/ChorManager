@@ -28,6 +28,7 @@ use Illuminate\Database\Capsule\Manager as Capsule;
 use App\Util\SponsorshipStatus;
 use App\Util\InputValidator;
 use App\Util\RequestFormat;
+use App\Util\SponsoringUrl;
 use App\Util\SponsorshipFileName;
 use App\Controllers\Concerns\AttachmentUploadJson;
 use App\Models\Attachment;
@@ -104,13 +105,13 @@ class SponsorshipController
 
         if (!$sponsorId) {
             $_SESSION['error'] = 'Sponsor ist ein Pflichtfeld.';
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
         }
 
         $normalizedAmount = AmountNormalizer::normalizeNonNegative($amount);
         if ($normalizedAmount === null) {
             $_SESSION['error'] = self::AMOUNT_ERROR;
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
         }
 
         // Ohne diese Prüfung landet ein unbekannter Wert direkt im Enum der
@@ -119,7 +120,7 @@ class SponsorshipController
         $status = InputValidator::asString($data['status'] ?? SponsorshipStatus::DEFAULT);
         if (!SponsorshipStatus::isValid($status)) {
             $_SESSION['error'] = self::STATUS_ERROR;
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
         }
 
         // Die Generalabsage ist kein Anzeigehinweis, sondern eine Zusage an den
@@ -127,19 +128,19 @@ class SponsorshipController
         // Vereinbarung angelegt.
         if ($this->isBlocked($sponsorId)) {
             $_SESSION['error'] = self::BLOCKED_ERROR;
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
         }
 
         $projectId = !empty($data['project_id']) ? (int) $data['project_id'] : null;
         if (!$this->policy->canUseProject($projectId)) {
             $_SESSION['error'] = self::PROJECT_ERROR;
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
         }
 
         $assignee = $this->validateAssignedUser($data, null);
         if ($assignee['error'] !== null) {
             $_SESSION['error'] = $assignee['error'];
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
         }
 
         $period = $this->prefillPeriodFromProject($data, $projectId);
@@ -147,19 +148,19 @@ class SponsorshipController
         $benefits = BenefitList::parse($data['benefits'] ?? null);
         if ($benefits['error'] !== null) {
             $_SESSION['error'] = $benefits['error'];
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
         }
 
         $deliverables = BenefitList::parse($data['deliverables'] ?? null, BenefitList::DELIVERABLE_LABELS);
         if ($deliverables['error'] !== null) {
             $_SESSION['error'] = $deliverables['error'];
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
         }
 
         $paidAt = self::validatePaidAt($data['paid_at'] ?? null);
         if ($paidAt === false) {
             $_SESSION['error'] = self::PAID_AT_ERROR;
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
         }
 
         $packageId = self::packageIdFor($data, $status);
@@ -226,7 +227,7 @@ class SponsorshipController
             $_SESSION['error'] = 'Die Anfrage konnte nicht angelegt werden.';
         }
 
-        return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+        return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
     }
 
     public function update(Request $request, Response $response, array $args): Response
@@ -251,19 +252,19 @@ class SponsorshipController
             $normalizedAmount = AmountNormalizer::normalizeNonNegative(trim(InputValidator::asString($data['amount'] ?? null)));
             if ($normalizedAmount === null) {
                 $_SESSION['error'] = self::AMOUNT_ERROR;
-                return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+                return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
             }
 
             $status = InputValidator::asString($data['status'] ?? $sponsorship->status);
             if (!SponsorshipStatus::isValid($status)) {
                 $_SESSION['error'] = self::STATUS_ERROR;
-                return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+                return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
             }
 
             $projectId = !empty($data['project_id']) ? (int) $data['project_id'] : null;
             if ($projectId !== (int) $sponsorship->project_id && !$this->policy->canUseProject($projectId)) {
                 $_SESSION['error'] = self::PROJECT_ERROR;
-                return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+                return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
             }
 
             $currentAssignee = $sponsorship->assigned_user_id === null
@@ -272,19 +273,19 @@ class SponsorshipController
             $assignee = $this->validateAssignedUser($data, $currentAssignee);
             if ($assignee['error'] !== null) {
                 $_SESSION['error'] = $assignee['error'];
-                return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+                return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
             }
 
             $benefits = BenefitList::parse($data['benefits'] ?? null);
             if ($benefits['error'] !== null) {
                 $_SESSION['error'] = $benefits['error'];
-                return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+                return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
             }
 
             $deliverables = BenefitList::parse($data['deliverables'] ?? null, BenefitList::DELIVERABLE_LABELS);
             if ($deliverables['error'] !== null) {
                 $_SESSION['error'] = $deliverables['error'];
-                return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+                return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
             }
 
             // Fehlt das Feld, bleibt der Zahlungsstand unverändert - ältere
@@ -294,7 +295,7 @@ class SponsorshipController
                 : $sponsorship->paid_at?->format('Y-m-d');
             if ($paidAt === false) {
                 $_SESSION['error'] = self::PAID_AT_ERROR;
-                return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+                return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
             }
 
             // Beim Ändern wird der Zeitraum NICHT aus dem Projekt nachgefüllt:
@@ -350,7 +351,7 @@ class SponsorshipController
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 
-        return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+        return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
     }
 
     /**
@@ -571,7 +572,7 @@ class SponsorshipController
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
         }
 
-        return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+        return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
     }
 
     /**
@@ -696,7 +697,7 @@ class SponsorshipController
         if ($sponsorship === null) {
             $_SESSION['error'] = 'Anfrage nicht gefunden.';
             $sponsorId = (int) ($data['sponsor_id'] ?? 0);
-            return $response->withHeader('Location', '/sponsoring/sponsors/' . $sponsorId)->withStatus(302);
+            return $response->withHeader('Location', SponsoringUrl::sponsorDetail($sponsorId))->withStatus(302);
         }
 
         if (!$this->policy->canEditSponsorship($sponsorship)) {

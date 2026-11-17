@@ -38,14 +38,7 @@ class SessionInvalidationService
 
     public function invalidateAllLogins(): void
     {
-        AppSetting::updateOrCreate(
-            ['setting_key' => 'session_valid_after'],
-            [
-                'setting_value' => (string) time(),
-                'binary_content' => '',
-                'mime_type' => 'text/plain',
-            ]
-        );
+        AppSetting::putText('session_valid_after', (string) time());
 
         $deletedTokens = (int) RememberLogin::query()->delete();
 
