@@ -30,14 +30,19 @@ final class BuildsControllersTest extends TestCase
         $this->eventController(['view' => $this->createStub(Twig::class), 'loger' => new NullLogger()]);
     }
 
+    /**
+     * Geprüft an einer eigenen Klasse und nicht an einem Controller: Seit der
+     * EventController den Benachrichtigungsdienst nicht mehr selbst hält
+     * (17.11.2026), steht keine Vorgabe des Bausteins mehr auf einem Parameter,
+     * der `null` annimmt - und genau diese Paarung ist hier die Frage.
+     */
     public function testAnExplicitNullIsNotReplacedByADefault(): void
     {
-        $controller = $this->eventController([
-            'view' => $this->createStub(Twig::class),
-            'notificationService' => null,
+        $built = $this->buildController(OptionalCollaboratorFixture::class, ['collaborator' => null], [
+            'collaborator' => static fn (): NullLogger => new NullLogger(),
         ]);
 
-        self::assertNull((new ReflectionProperty($controller, 'notificationService'))->getValue($controller));
+        self::assertNull($built->collaborator);
     }
 
     public function testAGivenCollaboratorIsTheOneTheControllerHolds(): void
@@ -46,5 +51,16 @@ final class BuildsControllersTest extends TestCase
         $controller = $this->eventController(['view' => $this->createStub(Twig::class), 'logger' => $logger]);
 
         self::assertSame($logger, (new ReflectionProperty($controller, 'logger'))->getValue($controller));
+    }
+}
+
+/**
+ * Eine Klasse mit genau dem, was der Baustein prüfbar machen soll: ein
+ * Mitarbeiter, der fehlen darf.
+ */
+final class OptionalCollaboratorFixture
+{
+    public function __construct(public readonly ?NullLogger $collaborator = null)
+    {
     }
 }

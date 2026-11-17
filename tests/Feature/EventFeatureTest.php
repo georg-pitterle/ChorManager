@@ -325,15 +325,21 @@ class EventFeatureTest extends TestCase
         $this->assertStringContainsString($globalEvent->title, $body);
         $this->assertStringNotContainsString($foreignEvent->title, $body);
 
+        // Eine Serienaktion prüft das Recht an jedem betroffenen Termin, nicht
+        // nur am angeklickten. Das Ändern steht im EventController, das Löschen
+        // seit dem 17.11.2026 im EventSeriesController.
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/EventController.php');
         $this->assertIsString($controllerContent);
         $this->assertStringContainsString(
             '$hasUnauthorizedSeriesEvent = $eventsToUpdate->contains(function ($seriesEvent) {',
             $controllerContent
         );
+
+        $seriesContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/EventSeriesController.php');
+        $this->assertIsString($seriesContent);
         $this->assertStringContainsString(
-            '$hasUnauthorizedSeriesEvent = $eventsToDelete->contains(function ($seriesEvent) {',
-            $controllerContent
+            'fn (Event $seriesEvent): bool => !$this->policy->canAccessEvent($seriesEvent)',
+            $seriesContent
         );
     }
 

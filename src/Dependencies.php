@@ -14,6 +14,7 @@ use Psr\Log\LoggerInterface;
 use Slim\Views\Twig;
 use App\Controllers\AppSettingController;
 use App\Controllers\EventController;
+use App\Controllers\EventSeriesController;
 use App\Controllers\ProfileController;
 use App\Controllers\ProjectController;
 use App\Controllers\SponsorController;
@@ -40,6 +41,7 @@ use App\Services\NewsletterRecipientService;
 use App\Services\BankStatementImportService;
 use App\Services\FinanceAccountService;
 use App\Services\FinanceCsvExportService;
+use App\Services\FinanceAccountWriteService;
 use App\Services\FinanceBookingService;
 use App\Services\TaskWriteService;
 use App\Services\FinanceJournalService;
@@ -147,6 +149,7 @@ use App\Services\Storage\VarDirectoryUsageProvider;
 use App\Util\AttachmentPreview;
 use App\Util\ByteFormatter;
 use App\Util\EnvHelper;
+use App\Policies\EventPolicy;
 use App\Policies\NewsletterPolicy;
 use App\Policies\ProjectMemberPolicy;
 use App\Controllers\SponsorPackageController;
@@ -171,6 +174,7 @@ use App\Services\CalendarSubscriptionService;
 use App\Services\EntityCleanupService;
 use App\Services\EventAudienceService;
 use App\Services\ImapConnectionProbe;
+use App\Services\EventAudienceNotifier;
 use App\Services\EventWriteService;
 use App\Policies\TaskPolicy;
 use App\Policies\UserEditPolicy;
@@ -457,9 +461,20 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(EventAudienceService::class),
                 $c->get(CalendarSubscriptionService::class),
                 $c->get(CalendarFeedService::class),
-                $c->get(NotificationService::class),
+                $c->get(EventAudienceNotifier::class),
+                $c->get(EventPolicy::class),
                 $c->get(EntityCleanupService::class),
                 $c->get(UserQuery::class)
+            );
+        },
+        EventSeriesController::class => function (ContainerInterface $c): EventSeriesController {
+            return new EventSeriesController(
+                $c->get(Twig::class),
+                $c->get(EventPolicy::class),
+                $c->get(EventAudienceNotifier::class),
+                $c->get(EventWriteService::class),
+                $c->get(EntityCleanupService::class),
+                $c->get(LoggerInterface::class)
             );
         },
         ProjectController::class => function (ContainerInterface $c): ProjectController {
@@ -548,6 +563,15 @@ return function (ContainerBuilder $containerBuilder) {
         BankStatementImportService::class => \DI\autowire(),
         FinanceAccountService::class => \DI\autowire(),
         FinanceJournalService::class => \DI\autowire(),
+        // Ausdrücklich verdrahtet wegen des optionalen Loggers: PHP-DI füllt
+        // optionale Parameter nicht, und ohne ihn verschwänden die sechs
+        // Protokollzeilen der Kontoverwaltung still in den NullLogger.
+        FinanceAccountWriteService::class => function (ContainerInterface $c) {
+            return new FinanceAccountWriteService(
+                $c->get(FinanceJournalService::class),
+                $c->get(LoggerInterface::class)
+            );
+        },
         FinanceCsvExportService::class => \DI\autowire(),
         FinanceAccountController::class => \DI\autowire(),
         // FinanceController braucht seit der PDF-Export-Action zusätzlich den
@@ -953,6 +977,19 @@ return function (ContainerBuilder $containerBuilder) {
         EntityAttachmentService::class => \DI\autowire(),
         EntityCleanupService::class => \DI\autowire(),
         TaskPolicy::class => static fn (): TaskPolicy => new TaskPolicy($_SESSION),
+        EventPolicy::class => static fn (ContainerInterface $c): EventPolicy => new EventPolicy(
+            $_SESSION,
+            $c->get(EventAudienceService::class)
+        ),
+        // Ausdrücklich verdrahtet: Der NotificationService ist optional, und
+        // PHP-DI füllt optionale Parameter nicht - ohne ihn verschickte der
+        // Terminversand still gar nichts.
+        EventAudienceNotifier::class => static fn (ContainerInterface $c): EventAudienceNotifier
+            => new EventAudienceNotifier(
+                $c->get(EventAudienceService::class),
+                $c->get(UserQuery::class),
+                $c->get(NotificationService::class)
+            ),
 
         NewsletterPolicy::class => static fn (): NewsletterPolicy => new NewsletterPolicy($_SESSION),
         UserEditPolicy::class => static fn (): UserEditPolicy => new UserEditPolicy($_SESSION),

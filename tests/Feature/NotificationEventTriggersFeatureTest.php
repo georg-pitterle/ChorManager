@@ -57,6 +57,10 @@ final class NotificationEventTriggersFeatureTest extends TestCase
             static fn (ResponseInterface $response): ResponseInterface => $response
         );
 
+        // Die Sitzung steht vor dem Bau des Controllers: Seine EventPolicy liest
+        // sie beim Bauen, wie jede Policy des Projekts.
+        $_SESSION = ['user_id' => (int) $this->organiser->id, 'can_manage_events' => true];
+
         $this->controller = $this->eventController([
             'view' => $twig,
             'notificationService' => new NotificationService(
@@ -66,8 +70,6 @@ final class NotificationEventTriggersFeatureTest extends TestCase
                 []
             ),
         ]);
-
-        $_SESSION = ['user_id' => (int) $this->organiser->id, 'can_manage_events' => true];
     }
 
     protected function tearDown(): void

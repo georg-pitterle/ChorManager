@@ -192,7 +192,7 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
         $this->note('event', (int) $first->id);
         $this->note('event', (int) $second->id);
 
-        $this->eventController(['view' => $this->twig()])->deleteSeries(
+        $this->eventSeriesController(['view' => $this->twig()])->delete(
             $this->makeRequest('POST', '/events/' . $first->id . '/delete-series'),
             $this->makeResponse(),
             ['id' => (string) $first->id]

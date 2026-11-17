@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\EventController;
+use App\Controllers\EventSeriesController;
 use App\Controllers\AttendanceController;
 use App\Controllers\DashboardController;
 use App\Controllers\EvaluationController;
@@ -18,6 +19,7 @@ use App\Controllers\UserController;
 use App\Controllers\VoiceGroupController;
 use App\Persistence\ProjectPersistence;
 use App\Persistence\UserPersistence;
+use App\Policies\EventPolicy;
 use App\Policies\NewsletterPolicy;
 use App\Policies\SponsoringPolicy;
 use App\Policies\TaskPolicy;
@@ -31,6 +33,7 @@ use App\Services\AttendanceScopeService;
 use App\Services\CalendarFeedService;
 use App\Services\CalendarSubscriptionService;
 use App\Services\EntityCleanupService;
+use App\Services\EventAudienceNotifier;
 use App\Services\EventAudienceService;
 use App\Services\ImapConnectionProbe;
 use App\Services\NewsletterPlaceholderService;
@@ -81,6 +84,20 @@ trait BuildsControllers
     /** @param array<string, mixed> $with */
     protected function eventController(array $with = []): EventController
     {
+        // Der Benachrichtigungsdienst erreicht den Versand seit der Trennung vom
+        // 17.11.2026 über den EventAudienceNotifier. Wer ihn hier vorgibt
+        // (vierzehn Testdateien tun das), soll ihn nicht zusätzlich in einen
+        // Notifier einpacken müssen - das macht derselbe Aufbau wie in
+        // Dependencies.php an dieser Stelle.
+        if (!array_key_exists('notifier', $with)) {
+            $with['notifier'] = new EventAudienceNotifier(
+                $with['audienceService'] ?? new EventAudienceService(),
+                new UserQuery(new NameFormatterService()),
+                $with['notificationService'] ?? null
+            );
+        }
+        unset($with['notificationService']);
+
         return $this->buildController(EventController::class, $with, [
             'nameFormatter' => static fn (): NameFormatterService => new NameFormatterService(),
             'logger' => static fn (): LoggerInterface => new NullLogger(),
@@ -89,6 +106,33 @@ trait BuildsControllers
             'audienceService' => static fn (): EventAudienceService => new EventAudienceService(),
             'subscriptions' => static fn (): CalendarSubscriptionService => new CalendarSubscriptionService(),
             'calendarFeed' => static fn (): CalendarFeedService => new CalendarFeedService(new NameFormatterService()),
+            'notifier' => static fn (): EventAudienceNotifier => new EventAudienceNotifier(
+                new EventAudienceService(),
+                new UserQuery(new NameFormatterService())
+            ),
+            'policy' => static fn (): EventPolicy => new EventPolicy($_SESSION ?? []),
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $with
+     */
+    protected function eventSeriesController(array $with = []): EventSeriesController
+    {
+        if (!array_key_exists('notifier', $with)) {
+            $with['notifier'] = new EventAudienceNotifier(
+                new EventAudienceService(),
+                new UserQuery(new NameFormatterService()),
+                $with['notificationService'] ?? null
+            );
+        }
+        unset($with['notificationService']);
+
+        return $this->buildController(EventSeriesController::class, $with, [
+            'policy' => static fn (): EventPolicy => new EventPolicy($_SESSION ?? []),
+            'eventWriter' => static fn (): EventWriteService => new EventWriteService(),
+            'cleanup' => static fn (): EntityCleanupService => new EntityCleanupService(),
+            'logger' => static fn (): LoggerInterface => new NullLogger(),
         ]);
     }
 

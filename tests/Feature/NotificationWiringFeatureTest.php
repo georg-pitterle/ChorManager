@@ -9,6 +9,7 @@ use App\Controllers\EventController;
 use App\Controllers\ProfileController;
 use App\Controllers\ProjectController;
 use App\Controllers\TaskController;
+use App\Services\EventAudienceNotifier;
 use App\Services\NotificationService;
 use DI\ContainerBuilder;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -75,7 +76,6 @@ final class NotificationWiringFeatureTest extends TestCase
     {
         return [
             'TaskController' => [TaskController::class],
-            'EventController' => [EventController::class],
             'ProjectController' => [ProjectController::class],
             'ProfileController' => [ProfileController::class],
             'AppSettingController' => [AppSettingController::class],
@@ -97,6 +97,28 @@ final class NotificationWiringFeatureTest extends TestCase
             NotificationService::class,
             $wired,
             $controllerClass . ' bekommt keinen Benachrichtigungsdienst - '
+                . 'die Registrierung in Dependencies.php fehlt.'
+        );
+    }
+
+    /**
+     * Beim EventController hängt der Dienst seit dem 17.11.2026 nicht mehr am
+     * Controller, sondern am EventAudienceNotifier - der Versand gehört dorthin.
+     * Geprüft wird deshalb dieselbe Zusage eine Schicht tiefer: Ohne
+     * NotificationService im Notifier verschickte der Terminversand still nichts.
+     */
+    public function testTheContainerHandsTheEventNotifierItsNotificationService(): void
+    {
+        $controller = $this->buildContainerController(EventController::class);
+
+        $notifier = (new ReflectionProperty(EventController::class, 'notifier'))->getValue($controller);
+        $this->assertInstanceOf(EventAudienceNotifier::class, $notifier);
+
+        $wired = (new ReflectionProperty(EventAudienceNotifier::class, 'notifications'))->getValue($notifier);
+        $this->assertInstanceOf(
+            NotificationService::class,
+            $wired,
+            'EventAudienceNotifier bekommt keinen Benachrichtigungsdienst - '
                 . 'die Registrierung in Dependencies.php fehlt.'
         );
     }

@@ -34,6 +34,76 @@ class FinanceAccountService
     }
 
     /**
+     * Buchungszahl je Konto-Kennung, in einer Abfrage.
+     *
+     * Die Kontoübersicht fragte das je Konto einzeln
+     * (`Finance::where(...)->count()` in der Schleife). Konten, die noch keine
+     * Buchung haben, fehlen im Ergebnis - der Aufrufer liest mit `?? 0`.
+     *
+     * @return array<int, int>
+     */
+    public function bookingCounts(): array
+    {
+        $counts = [];
+
+        $rows = Finance::query()
+            ->selectRaw('finance_account_id, COUNT(*) AS bookings')
+            ->groupBy('finance_account_id')
+            ->get();
+
+        foreach ($rows as $row) {
+            $counts[(int) $row->finance_account_id] = (int) $row->bookings;
+        }
+
+        return $counts;
+    }
+
+    /**
+     * Kontostand je Konto zum Ende des Tages, in einer Abfrage für alle Konten.
+     *
+     * Dieselbe Rechnung wie balanceAt(), nur über die Verknüpfung mit
+     * `finance_accounts`: Der Stichtag jedes Kontos steht dort, also kann die
+     * Datenbank die Bewegungen je Konto selbst ab dem jeweiligen Stichtag
+     * zählen. Ohne Stichtag (`opening_date IS NULL`) zählen alle Bewegungen -
+     * wie in movementSum(), wo der leere Stichtag ebenfalls keine Untergrenze
+     * setzt.
+     *
+     * @param iterable<FinanceAccount> $accounts
+     * @return array<int, float>
+     */
+    public function balancesFor(iterable $accounts, Carbon $date): array
+    {
+        $balances = [];
+        foreach ($accounts as $account) {
+            $balances[(int) $account->id] = (float) $account->opening_balance;
+        }
+
+        if ($balances === []) {
+            return [];
+        }
+
+        $rows = Finance::query()
+            ->join('finance_accounts', 'finance_accounts.id', '=', 'finances.finance_account_id')
+            ->whereIn('finances.finance_account_id', array_keys($balances))
+            ->whereNotNull('finances.payment_date')
+            ->where('finances.payment_date', '<=', $date->format('Y-m-d'))
+            ->where(static function ($query): void {
+                $query->whereNull('finance_accounts.opening_date')
+                    ->orWhereColumn('finances.payment_date', '>=', 'finance_accounts.opening_date');
+            })
+            ->groupBy('finances.finance_account_id', 'finances.type')
+            ->selectRaw('finances.finance_account_id AS account_id, finances.type AS type, SUM(finances.amount) AS total')
+            ->get();
+
+        foreach ($rows as $row) {
+            $signed = (float) $row->total * ((string) $row->type === Finance::TYPE_INCOME ? 1 : -1);
+            $balances[(int) $row->account_id] += $signed;
+        }
+
+        return $balances;
+    }
+
+    /**
      * Balance of one account at the end of the given day.
      */
     public function balanceAt(FinanceAccount $account, Carbon $date): float

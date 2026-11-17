@@ -8,6 +8,7 @@ use App\Controllers\FinanceAccountController;
 use App\Models\Finance;
 use App\Models\FinanceAccount;
 use App\Services\FinanceAccountService;
+use App\Services\FinanceAccountWriteService;
 use App\Services\FinanceJournalService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\QueryException;
@@ -49,8 +50,7 @@ final class FinanceAccountControllerTest extends TestCase
         $this->controller = new FinanceAccountController(
             $twig,
             new FinanceAccountService(),
-            new FinanceJournalService(),
-            new NullLogger()
+            new FinanceAccountWriteService(new FinanceJournalService(), new NullLogger())
         );
         $_SESSION = [];
     }

@@ -38,10 +38,12 @@ final class ControllerLayeringTest extends TestCase
      * falschen Ort. Wer einen davon anfasst, zieht den Block nach dem Muster von
      * FinanceBookingService in einen Dienst und streicht den Eintrag.
      *
+     * Der FinanceAccountController ist so gegangen (Antwort auf Review-Lauf 77):
+     * FinanceAccountWriteService hält jetzt Transaktion und Regeln.
+     *
      * @var list<string>
      */
     private const KNOWN_DATABASE_ACCESS = [
-        'FinanceAccountController',
         'PollController',
         'SponsorPackageController',
         'SponsoringContactController',

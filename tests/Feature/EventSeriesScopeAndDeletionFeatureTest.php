@@ -35,6 +35,7 @@ final class EventSeriesScopeAndDeletionFeatureTest extends TestCase
     use BuildsControllers;
 
     private EventController $controller;
+    private Twig $twigStub;
     private EventSeries $series;
     /** @var array<int, Event> */
     private array $events = [];
@@ -50,6 +51,11 @@ final class EventSeriesScopeAndDeletionFeatureTest extends TestCase
             static fn(ResponseInterface $response): ResponseInterface => $response
         );
 
+        $this->twigStub = $twig;
+
+        // Die Sitzung steht vor dem Bau des Controllers: Seine EventPolicy liest
+        // sie beim Bauen, wie jede Policy des Projekts.
+        $_SESSION = ['user_id' => 1, 'can_manage_events' => true];
         $this->controller = $this->eventController(['view' => $twig]);
 
         $this->series = EventSeries::create([
@@ -74,7 +80,12 @@ final class EventSeriesScopeAndDeletionFeatureTest extends TestCase
             ]);
         }
 
-        $_SESSION = ['user_id' => 1, 'can_manage_events' => true];
+    }
+
+    /** Der Serien-Controller mit derselben Vorlage wie der Termin-Controller. */
+    private function seriesController(): \App\Controllers\EventSeriesController
+    {
+        return $this->eventSeriesController(['view' => $this->twigStub]);
     }
 
     protected function tearDown(): void
@@ -159,7 +170,7 @@ final class EventSeriesScopeAndDeletionFeatureTest extends TestCase
 
     public function testDeletingASeriesFromAPastEventReportsTheActualScope(): void
     {
-        $this->controller->deleteSeries(
+        $this->seriesController()->delete(
             $this->makeRequest('POST', '/events/' . $this->events[0]->id . '/delete-series'),
             $this->makeResponse(),
             ['id' => (string) $this->events[0]->id]

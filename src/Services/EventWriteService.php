@@ -54,6 +54,36 @@ class EventWriteService
     }
 
     /**
+     * Löscht die Termine einer Serie ab dem angegebenen Termin.
+     *
+     * Gelöscht wird ab dem angeklickten Termin - liegt der in der Vergangenheit,
+     * trifft es auch vergangene Termine samt ihrer Anwesenheits- und Anmeldedaten
+     * (ON DELETE CASCADE). Die Notizen hängen über entity_type/entity_id und
+     * tragen keinen Fremdschlüssel; die Kaskade nimmt sie nicht mit, deshalb
+     * räumt EntityCleanupService sie in derselben Transaktion ab.
+     *
+     * Was gelöscht wird, steht vorher fest: Der Aufrufer braucht die Termine für
+     * die Absage, und nach dem Löschen wäre ihre Zielgruppe nicht mehr zu
+     * ermitteln.
+     *
+     * @param list<Event> $events Termine der Serie, vom Aufrufer geprüft
+     */
+    public function deleteSeriesEvents(array $events, EntityCleanupService $cleanup): int
+    {
+        if ($events === []) {
+            return 0;
+        }
+
+        $ids = array_map(static fn (Event $event): int => (int) $event->id, $events);
+
+        return Capsule::connection()->transaction(function () use ($ids, $cleanup): int {
+            $cleanup->purgeForEntities('event', $ids);
+
+            return (int) Event::whereIn('id', $ids)->delete();
+        });
+    }
+
+    /**
      * Legt eine Serie samt allen Terminen an. Takt, Intervall, Wochentage
      * (1 = Mo bis 7 = So) und Serienende sind vom Aufrufer bereits geprüft.
      *

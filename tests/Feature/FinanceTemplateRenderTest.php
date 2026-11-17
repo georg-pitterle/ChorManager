@@ -13,6 +13,7 @@ use App\Models\User;
 use App\Navigation\NavigationBuilder;
 use App\Navigation\NavigationContext;
 use App\Services\FinanceAccountService;
+use App\Services\FinanceAccountWriteService;
 use App\Services\FinanceJournalService;
 use App\Util\PasswordHasher;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -269,8 +270,7 @@ final class FinanceTemplateRenderTest extends TestCase
         $controller = new FinanceAccountController(
             $this->createTwig('/finances/accounts'),
             new FinanceAccountService(),
-            new FinanceJournalService(),
-            new NullLogger()
+            new FinanceAccountWriteService(new FinanceJournalService(), new NullLogger())
         );
 
         $request = $this->makeRequest('GET', '/finances/accounts');

@@ -6,7 +6,6 @@ namespace App\Controllers;
 
 use App\Controllers\Concerns\FlashMessages;
 use Carbon\Carbon;
-use Carbon\CarbonImmutable;
 use Exception;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -25,18 +24,19 @@ use App\Services\Audience\AudienceFormInput;
 use App\Services\Audience\InvalidAudienceFilterException;
 use App\Services\CalendarSubscriptionService;
 use App\Services\CalendarFeedService;
+use App\Policies\EventPolicy;
+use App\Services\EventAudienceNotifier;
 use App\Services\EventAudienceService;
 use App\Services\EventRecurrenceService;
 use App\Services\EventScheduleFormatter;
 use App\Services\EventWriteService;
-use App\Services\NotificationService;
-use App\Services\Notifications\InAppMessage;
 use App\Services\Notifications\InAppNotificationStore;
 use App\Services\ModalFormService;
 use App\Services\NameFormatterService;
 use App\Services\EntityCleanupService;
 use App\Util\AppUrlResolver;
 use App\Util\NotificationType;
+use App\Util\EventSeriesInput;
 use App\Util\InputValidator;
 use App\Util\SafeRedirect;
 use App\Util\SessionConfig;
@@ -54,18 +54,6 @@ class EventController
     private const SUBSCRIPTION_FLASH_KEY = 'calendar_subscription_token';
 
     /**
-     * Zugelassene Takte einer Terminserie. Ein unbekannter Takt darf nicht bis in
-     * die Terminerzeugung durchkommen - EventRecurrenceService kennt ihn nicht und
-     * würde ihn als Wochentakt auslegen.
-     */
-    private const SERIES_FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'];
-
-    /**
-     * Feldgruppen, die eine Serienänderung auf die Folgetermine überträgt. Ohne
-     * Auswahl gelten alle - so verhält sich die Serienänderung wie bisher, wer
-     * einzelne Termine angepasst hat, kann sie aber gezielt aussparen.
-     */
-    /**
      * Wie weit die Terminliste ohne gesetzten Haken zurückreicht. Ein gerade
      * vergangener Termin soll nicht sofort aus der Liste fallen - an ihm hängen
      * noch die Anwesenheiten.
@@ -77,18 +65,6 @@ class EventController
 
     private const VIEW_COOKIE_MAX_AGE = 365 * 86400;
 
-    private const SERIES_FIELD_GROUPS = ['title', 'location', 'time', 'registration', 'attendance', 'audience'];
-
-    /** Beschriftungen derselben Feldgruppen für das Bearbeiten-Formular. */
-    private const SERIES_FIELD_GROUP_LABELS = [
-        'title' => 'Titel und Terminart',
-        'location' => 'Ort',
-        'time' => 'Uhrzeit',
-        'registration' => 'Anmeldung und Anmeldeschluss',
-        'attendance' => 'Anwesenheitspflicht',
-        'audience' => 'Zielgruppe',
-    ];
-
     private Twig $view;
     private NameFormatterService $nameFormatter;
     private LoggerInterface $logger;
@@ -97,17 +73,17 @@ class EventController
 
     private EventWriteService $eventWriter;
     private EventAudienceService $audienceService;
+    private EventAudienceNotifier $notifier;
+    private EventPolicy $policy;
     private CalendarSubscriptionService $subscriptions;
     private CalendarFeedService $calendarFeed;
-    private ?NotificationService $notificationService;
     private EntityCleanupService $cleanup;
 
     /**
-     * `$notificationService` ist optional: Viele Tests bauen den Controller ohne
-     * Benachrichtigung. Im Betrieb reicht ihn die ausdrückliche Registrierung in
-     * `Dependencies.php` durch - PHP-DI füllt optionale Parameter nicht selbst,
-     * dagegen steht `NotificationWiringFeatureTest`. Die Tests bauen den
-     * Controller über `Tests\Feature\BuildsControllers`, nicht mit Positionsargumenten.
+     * Der Versand an die Zielgruppe läuft über den EventAudienceNotifier; den
+     * NotificationService kennt dieser Controller seit dem 17.11.2026 nicht mehr
+     * selbst. Die Tests bauen den Controller über
+     * `Tests\Feature\BuildsControllers`, nicht mit Positionsargumenten.
      */
     public function __construct(
         Twig $view,
@@ -118,7 +94,8 @@ class EventController
         EventAudienceService $audienceService,
         CalendarSubscriptionService $subscriptions,
         CalendarFeedService $calendarFeed,
-        ?NotificationService $notificationService = null,
+        EventAudienceNotifier $notifier,
+        EventPolicy $policy,
         ?EntityCleanupService $cleanup = null,
         ?UserQuery $userQuery = null
     ) {
@@ -130,7 +107,8 @@ class EventController
         $this->audienceService = $audienceService;
         $this->subscriptions = $subscriptions;
         $this->calendarFeed = $calendarFeed;
-        $this->notificationService = $notificationService;
+        $this->notifier = $notifier;
+        $this->policy = $policy;
         $this->cleanup = $cleanup ?? new EntityCleanupService();
         $this->userQuery = $userQuery ?? new UserQuery($nameFormatter);
     }
@@ -219,24 +197,7 @@ class EventController
      */
     private function audienceUsersFor(array $events): \Illuminate\Support\Collection
     {
-        if ($events === []) {
-            return new \Illuminate\Support\Collection();
-        }
-
-        $idsByEvent = $this->audienceService->eligibleUserIdsForEvents($events);
-
-        $userIds = [];
-        foreach ($idsByEvent as $ids) {
-            foreach ($ids as $id) {
-                $userIds[(int) $id] = true;
-            }
-        }
-
-        if ($userIds === []) {
-            return new \Illuminate\Support\Collection();
-        }
-
-        return $this->userQuery->getUsersByIds(array_keys($userIds));
+        return $this->notifier->recipientsFor($events);
     }
 
     private function actorName(int $actorId): ?string
@@ -267,17 +228,7 @@ class EventController
      */
     private function describeWhen(array $events): string
     {
-        $first = $events[0] ?? null;
-        if ($first === null || $first->starts_at === null) {
-            return '';
-        }
-
-        $startsAt = Carbon::parse($first->starts_at);
-        if (count($events) > 1) {
-            return count($events) . ' Termine ab ' . $startsAt->format('d.m.Y');
-        }
-
-        return $startsAt->format('d.m.Y, H:i') . ' Uhr';
+        return $this->notifier->describeWhen($events);
     }
 
     /**
@@ -298,26 +249,16 @@ class EventController
         string $inAppBody,
         array $extraContext = []
     ): void {
-        if ($this->notificationService === null || $recipients->isEmpty() || $events === []) {
-            return;
-        }
-
-        $baseUrl = AppUrlResolver::resolveBaseUrl($request);
-
-        $this->notificationService->notify(
+        $this->notifier->notifyResolvedAudience(
             $type,
             $recipients,
+            $events,
             $subject,
             $template,
-            // Der Termin ist gelöscht - der Eintrag führt in die Übersicht.
-            new InAppMessage($subject, $inAppBody, '/events'),
-            array_merge([
-                'events' => $events,
-                'event' => $events[0],
-                'link' => $baseUrl . '/events',
-                'profile_url' => $baseUrl . '/profile',
-            ], $extraContext),
-            (int) ($_SESSION['user_id'] ?? 0) ?: null
+            $inAppBody,
+            AppUrlResolver::resolveBaseUrl($request),
+            $this->actorId(),
+            $extraContext
         );
     }
 
@@ -341,44 +282,23 @@ class EventController
         array $extraContext = [],
         ?int $inAppCommentId = null
     ): void {
-        if ($this->notificationService === null || $events === []) {
-            return;
-        }
-
-        // Dieselbe Auflösung wie bei einem gelöschten Termin, deshalb dieselbe
-        // Methode: Das Einsammeln der Kennungen und die Abfrage dahinter standen
-        // hier wortgleich ein zweites Mal, und eine Änderung an einer der beiden
-        // Stellen hätte die andere unbemerkt zurückgelassen.
-        $recipients = $this->audienceUsersFor($events);
-
-        if ($recipients->isEmpty()) {
-            return;
-        }
-
-        $baseUrl = AppUrlResolver::resolveBaseUrl($request);
-        $first = $events[0];
-
-        $this->notificationService->notify(
+        $this->notifier->notifyAudience(
             $type,
-            $recipients,
+            $events,
             $subject,
             $template,
-            new InAppMessage(
-                $subject,
-                $inAppBody,
-                '/events/' . $first->id,
-                'event',
-                (int) $first->id,
-                $inAppCommentId
-            ),
-            array_merge([
-                'events' => $events,
-                'event' => $first,
-                'link' => $baseUrl . '/events/' . $first->id,
-                'profile_url' => $baseUrl . '/profile',
-            ], $extraContext),
-            (int) ($_SESSION['user_id'] ?? 0) ?: null
+            $inAppBody,
+            AppUrlResolver::resolveBaseUrl($request),
+            $this->actorId(),
+            $extraContext,
+            $inAppCommentId
         );
+    }
+
+    /** Die handelnde Person für Mail und Glocke, oder null ohne Anmeldung. */
+    private function actorId(): ?int
+    {
+        return $this->policy->currentUserId() ?: null;
     }
 
     /**
@@ -1085,14 +1005,14 @@ class EventController
         $interval = 1;
         $weekdays = [];
         if ($repeat) {
-            $frequency = self::normalizeSeriesFrequency($data['frequency'] ?? null);
-            $interval = self::normalizeRecurrenceInterval($data['recurrence_interval'] ?? null);
+            $frequency = EventSeriesInput::frequency($data['frequency'] ?? null);
+            $interval = EventSeriesInput::interval($data['recurrence_interval'] ?? null);
 
             // Wie bei den Zielgruppen-Quellen: Bleibt von angegebenen Wochentagen
             // nichts Gültiges übrig, wäre die Serie stillschweigend eine tägliche -
             // dann lieber gar nicht anlegen.
             $rawWeekdays = is_array($data['weekdays'] ?? null) ? $data['weekdays'] : [];
-            $weekdays = self::normalizeWeekdays($rawWeekdays);
+            $weekdays = EventSeriesInput::weekdays($rawWeekdays);
             $weekdaysDropped = $rawWeekdays !== [] && $weekdays === [];
 
             if ($frequency === null || $interval === null || $weekdaysDropped) {
@@ -1114,7 +1034,7 @@ class EventController
             // Ausnahmetext auf den Bildschirm musste. Als das, was es ist - eine
             // Eingabeprüfung - steht es hier bei den übrigen und der catch darf
             // schweigen.
-            $seriesEnd = self::parseSeriesEndDate($data['series_end_date'] ?? null);
+            $seriesEnd = EventSeriesInput::endDate($data['series_end_date'] ?? null);
             if ($seriesEnd === null) {
                 $createService = new ModalFormService('event_create');
                 $createService->setError(
@@ -1275,7 +1195,7 @@ class EventController
             'audience_options' => $audience['options'],
             'error' => $error,
             'edit_form' => $editForm,
-            'series_field_groups' => self::seriesFieldGroupOptions(),
+            'series_field_groups' => EventSeriesInput::fieldGroupOptions(),
         ]);
     }
 
@@ -1304,7 +1224,7 @@ class EventController
         $endTime = InputValidator::asString($data['end_time'] ?? null);
         $eventTypeId = !empty($data['event_type_id']) ? (int)$data['event_type_id'] : null;
         $updateSeries = !empty($data['update_series']);
-        $seriesFields = self::normalizeSeriesFieldGroups($data['series_fields'] ?? null);
+        $seriesFields = EventSeriesInput::fieldGroups($data['series_fields'] ?? null);
         $registrationEnabled = !empty($data['registration_enabled']);
         $attendanceRequired = !empty($data['attendance_required']);
         $registrationDeadlineRaw = trim(InputValidator::asString($data['registration_deadline'] ?? null));
@@ -1508,95 +1428,13 @@ class EventController
         return $response->withHeader('Location', '/events')->withStatus(302);
     }
 
-    public function deleteSeries(Request $request, Response $response, array $args): Response
-    {
-        $id = $args['id'];
-        $event = Event::find($id);
-        if ($event && !$this->canAccessEvent($event)) {
-            return $this->denyEventAccess(
-                $response,
-                'Du gehörst nicht zur Zielgruppe dieses Termins.',
-                'event.delete_series.forbidden',
-                (int) $event->id
-            );
-        }
-
-        if ($event && $event->series_id) {
-            $seriesId = $event->series_id;
-            $eventsToDelete = Event::where('series_id', $seriesId)
-                ->where('starts_at', '>=', $event->starts_at)
-                ->get();
-
-            $hasUnauthorizedSeriesEvent = $eventsToDelete->contains(function ($seriesEvent) {
-                return !$this->canAccessEvent($seriesEvent);
-            });
-
-            if ($hasUnauthorizedSeriesEvent) {
-                return $this->denyEventAccess(
-                    $response,
-                    'Die Serie enthält Termine, die du nicht löschen darfst. '
-                    . 'Es wurde nichts gelöscht.',
-                    'event.delete_series.series_forbidden',
-                    (int) $event->id
-                );
-            }
-
-            // Gelöscht wird ab dem angeklickten Termin - liegt der in der
-            // Vergangenheit, trifft es auch vergangene Termine samt ihrer
-            // Anwesenheits- und Anmeldedaten (ON DELETE CASCADE). Die Meldung
-            // benennt deshalb den tatsächlichen Umfang.
-            $deletedFrom = Carbon::parse($event->starts_at)->format('d.m.Y');
-            $deletedCount = $eventsToDelete->count();
-
-            // Wie beim Einzeltermin: erst auflösen, dann löschen.
-            $cancelled = $eventsToDelete
-                ->map(static function (Event $seriesEvent): Event {
-                    $copy = $seriesEvent->replicate();
-                    $copy->id = $seriesEvent->id;
-
-                    return $copy;
-                })
-                ->values()
-                ->all();
-            $recipients = $this->audienceUsersFor($eventsToDelete->all());
-
-            $deletedIds = array_map('intval', $eventsToDelete->pluck('id')->all());
-            $this->cleanup->purgeForEntities('event', $deletedIds);
-            Event::whereIn('id', $deletedIds)->delete();
-
-            $this->notifyResolvedAudience(
-                $request,
-                NotificationType::EVENT_CANCELLED,
-                $recipients,
-                $cancelled,
-                'Abgesagt: ' . $event->title,
-                'emails/notification_event_cancelled.twig',
-                $this->describeWhen($cancelled)
-            );
-
-            $_SESSION['success'] = sprintf(
-                'Termine der Serie ab dem %s gelöscht (%d Termine, inklusive Anwesenheiten und Anmeldungen).',
-                $deletedFrom,
-                $deletedCount
-            );
-        }
-        return $response->withHeader('Location', '/events')->withStatus(302);
-    }
-
+    /**
+     * Die Begründung steht an EventPolicy; hier bleibt nur der kurze Weg dorthin,
+     * damit die zwei Dutzend Aufrufstellen unverändert lesen.
+     */
     private function canAccessEvent(Event $event): bool
     {
-        // Terminverwalter müssen auch Termine außerhalb ihrer eigenen Zielgruppe sehen,
-        // sonst könnten sie genau die Termine nicht pflegen, für die sie zuständig sind.
-        if ($this->canManageEvents()) {
-            return true;
-        }
-
-        $userId = (int) ($_SESSION['user_id'] ?? 0);
-        if ($userId <= 0) {
-            return false;
-        }
-
-        return $this->audienceService->isUserEligible($event, $userId);
+        return $this->policy->canAccessEvent($event);
     }
 
     private function hydrateVisibleComments(EloquentCollection $events, int $userId): void
@@ -1669,12 +1507,12 @@ class EventController
 
     private function canEditEvent(Event $event): bool
     {
-        return $this->canManageEvents() && $this->canAccessEvent($event);
+        return $this->policy->canEditEvent($event);
     }
 
     private function canManageEvents(): bool
     {
-        return (bool) ($_SESSION['can_manage_events'] ?? false);
+        return $this->policy->canManageEvents();
     }
 
     /**
@@ -1698,116 +1536,5 @@ class EventController
         return $this->view->render($response->withStatus(403), 'errors/403.twig', [
             'error' => $message,
         ]);
-    }
-
-    /**
-     * Liefert den Takt einer Serie oder null, wenn der Wert nicht zu den vier
-     * unterstützten Takten gehört. Ein fehlendes Feld gilt weiterhin als
-     * "wöchentlich", ein gesetzter, aber unbekannter Wert nicht.
-     */
-    /**
-     * Feldgruppen, die eine Serienänderung überträgt. Fehlt die Angabe ganz -
-     * etwa aus einem älteren Formular -, gelten alle: das ist das bisherige
-     * Verhalten und die einzige Auslegung, die keine Änderung verschluckt.
-     *
-     * @return list<string>
-     */
-    /**
-     * Feldgruppen mit Beschriftung für das Formular.
-     *
-     * @return list<array{key: string, label: string}>
-     */
-    private static function seriesFieldGroupOptions(): array
-    {
-        $options = [];
-        foreach (self::SERIES_FIELD_GROUPS as $group) {
-            $options[] = ['key' => $group, 'label' => self::SERIES_FIELD_GROUP_LABELS[$group]];
-        }
-
-        return $options;
-    }
-
-    private static function normalizeSeriesFieldGroups(mixed $value): array
-    {
-        if (!is_array($value)) {
-            return self::SERIES_FIELD_GROUPS;
-        }
-
-        $selected = [];
-        foreach ($value as $candidate) {
-            $group = strtolower(trim(InputValidator::asString($candidate)));
-            if (in_array($group, self::SERIES_FIELD_GROUPS, true)) {
-                $selected[$group] = true;
-            }
-        }
-
-        return array_values(array_keys($selected));
-    }
-
-    private static function normalizeSeriesFrequency(mixed $value): ?string
-    {
-        if ($value === null) {
-            return 'weekly';
-        }
-
-        $candidate = strtolower(trim(InputValidator::asString($value)));
-
-        return in_array($candidate, self::SERIES_FREQUENCIES, true) ? $candidate : null;
-    }
-
-    /**
-     * Liefert das Wiederholungsintervall oder null bei einer ungültigen Angabe.
-     * Ein leeres Feld bleibt beim bisherigen Standardwert 1; 0 oder weniger ist
-     * kein Intervall, sondern ein Stillstand der Erzeugungsschleife.
-     */
-    private static function normalizeRecurrenceInterval(mixed $value): ?int
-    {
-        $candidate = trim(InputValidator::asString($value));
-        if ($candidate === '') {
-            return 1;
-        }
-
-        return ctype_digit($candidate) && (int) $candidate >= 1 ? (int) $candidate : null;
-    }
-
-    /**
-     * Reduziert die gewählten Wochentage auf gültige ISO-Nummern (1 = Mo bis 7 = So).
-     * Ein unbekannter Wert würde sonst als Text in der Serie landen und auf keinen
-     * Kalendertag passen.
-     *
-     * @param array<array-key, mixed> $value
-     * @return list<int>
-     */
-    private static function normalizeWeekdays(array $value): array
-    {
-        $weekdays = [];
-        foreach ($value as $day) {
-            $candidate = trim((string) $day);
-            if (ctype_digit($candidate) && (int) $candidate >= 1 && (int) $candidate <= 7) {
-                $weekdays[] = (int) $candidate;
-            }
-        }
-
-        return array_values(array_unique($weekdays));
-    }
-
-    /**
-     * Liest das Enddatum einer Serie oder liefert null, wenn nichts Lesbares
-     * ankam. Carbon nimmt fast alles entgegen und wirft beim Rest eine Ausnahme
-     * mit Zeitzonen-Innenleben im Text ("The timezone could not be found in the
-     * database") - die hatte im Formular nichts verloren.
-     */
-    private static function parseSeriesEndDate(mixed $value): ?CarbonImmutable
-    {
-        $candidate = trim(InputValidator::asString($value));
-        if ($candidate === '') {
-            return null;
-        }
-
-        try {
-            return CarbonImmutable::parse($candidate);
-        } catch (\Throwable) {
-            return null;
-        }
     }
 }

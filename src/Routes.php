@@ -13,6 +13,7 @@ use App\Controllers\DashboardController;
 use App\Controllers\UserController;
 use App\Controllers\ProjectController;
 use App\Controllers\EventController;
+use App\Controllers\EventSeriesController;
 use App\Controllers\TaskController;
 use App\Controllers\AttendanceController;
 use App\Controllers\RegistrationController;
@@ -424,7 +425,7 @@ return function (App $app) {
                     $eventGroup->get('/events/{id:[0-9]+}/edit', [EventController::class, 'edit']);
                     $eventGroup->post('/events/{id:[0-9]+}/update', [EventController::class, 'update']);
                     $eventGroup->post('/events/{id:[0-9]+}/delete', [EventController::class, 'delete']);
-                    $eventGroup->post('/events/{id:[0-9]+}/delete-series', [EventController::class, 'deleteSeries']);
+                    $eventGroup->post('/events/{id:[0-9]+}/delete-series', [EventSeriesController::class, 'delete']);
 
                     // Event Type Management
                     $eventGroup->get('/event-types', [EventTypeController::class, 'index']);
