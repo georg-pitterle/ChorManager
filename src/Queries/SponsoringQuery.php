@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Queries;
 
+use App\Models\Attachment;
+use App\Models\Sponsor;
+use App\Models\Sponsorship;
 use App\Models\User;
 use App\Services\NameFormatterService;
 use Illuminate\Database\Eloquent\Collection;
@@ -145,5 +148,42 @@ class SponsoringQuery
         }
 
         return User::select(User::LIST_COLUMNS)->find($userId);
+    }
+
+    /**
+     * Ob die Vereinbarung noch keine Betreuung hat, die sie tragen kann - nur dann
+     * darf aus "Ohne Zuständigkeit" heraus zugewiesen werden.
+     */
+    public function hasNoCapableAssignee(int $sponsorshipId): bool
+    {
+        return Sponsorship::query()->whereKey($sponsorshipId)->withoutCapableAssignee()->exists();
+    }
+
+    /** Ob der Sponsor sich weitere Anfragen verbeten hat. */
+    public function isSponsorBlocked(int $sponsorId): bool
+    {
+        return Sponsor::whereKey($sponsorId)->where('requests_blocked', true)->exists();
+    }
+
+    /**
+     * Die Dateinamen, die an der Vereinbarung schon hängen.
+     *
+     * @return list<string>
+     */
+    public function attachmentNames(int $sponsorshipId): array
+    {
+        return Attachment::where('entity_type', Sponsorship::ENTITY_TYPE)
+            ->where('entity_id', $sponsorshipId)
+            ->pluck('original_name')
+            ->all();
+    }
+
+    /** Ein Anhang der Vereinbarung - nur Kennung und Name; null, wenn er woanders hängt. */
+    public function findAttachment(int $sponsorshipId, int $attachmentId): ?Attachment
+    {
+        return Attachment::where('entity_type', Sponsorship::ENTITY_TYPE)
+            ->where('entity_id', $sponsorshipId)
+            ->whereKey($attachmentId)
+            ->first(['id', 'original_name']);
     }
 }

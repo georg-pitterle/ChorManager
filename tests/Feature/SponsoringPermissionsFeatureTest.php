@@ -101,7 +101,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
         $sponsor = $this->makeSponsor();
 
         try {
-            $response = $this->sponsorshipController()->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
+            $response = $this->controller()->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
                 'sponsor_id' => (string) $sponsor->id,
                 'amount' => '500',
                 'status' => SponsorshipStatus::REQUESTED,
@@ -124,7 +124,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
         try {
             $own = $this->makeSponsorship($sponsor, (int) $this->contributor->id);
             $foreign = $this->makeSponsorship($sponsor, (int) $this->otherUser->id);
-            $controller = $this->sponsorshipController();
+            $controller = $this->controller();
 
             $ownResponse = $controller->update(
                 $this->makeRequest('POST', '/sponsoring/sponsorships/' . $own->id, [
@@ -164,7 +164,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
             // konnte: ohne Urheber bleibt der Eintrag dem Vollrecht vorbehalten.
             $legacy = $this->makeSponsorship($sponsor, null);
 
-            $response = $this->sponsorshipController()->update(
+            $response = $this->controller()->update(
                 $this->makeRequest('POST', '/sponsoring/sponsorships/' . $legacy->id, [
                     'sponsor_id' => (string) $sponsor->id,
                     'amount' => '900',
@@ -240,7 +240,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
             $this->assertTrue($policy->canUseProject(null));
             $this->assertFalse($policy->canUseProject((int) $past->id));
 
-            $response = $this->sponsorshipController()->create(
+            $response = $this->controller()->create(
                 $this->makeRequest('POST', '/sponsoring/sponsorships', [
                     'sponsor_id' => (string) $sponsor->id,
                     'amount' => '400',
@@ -293,7 +293,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
         ]);
 
         try {
-            $this->sponsorshipController()->create(
+            $this->controller()->create(
                 $this->makeRequest('POST', '/sponsoring/sponsorships', [
                     'sponsor_id' => (string) $sponsor->id,
                     'amount' => '600',
@@ -321,7 +321,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
         ]);
 
         try {
-            $agreement = $this->sponsorshipController()->create(
+            $agreement = $this->controller()->create(
                 $this->makeRequest('POST', '/sponsoring/sponsorships', [
                     'sponsor_id' => (string) $sponsor->id,
                     'amount' => '300',
@@ -368,7 +368,7 @@ class SponsoringPermissionsFeatureTest extends TestCase
         ]);
 
         try {
-            $controller = $this->sponsorshipController();
+            $controller = $this->controller();
             $controller->create(
                 $this->makeRequest('POST', '/sponsoring/sponsorships', [
                     'sponsor_id' => (string) $sponsor->id,
@@ -1035,9 +1035,9 @@ class SponsoringPermissionsFeatureTest extends TestCase
         $_SESSION['can_create_own_sponsorships'] = true;
     }
 
-    private function sponsorshipController(): SponsorshipController
+    private function controller(): SponsorshipController
     {
-        return new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
+        return $this->sponsorshipController(['attachments' => $this->attachmentService()]);
     }
 
     /**

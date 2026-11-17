@@ -36,6 +36,7 @@ use Tests\Unit\Bootstrap;
 final class SponsoringDeliverablesFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
     use TwigViewStubs;
 
     private User $manager;
@@ -88,7 +89,7 @@ final class SponsoringDeliverablesFeatureTest extends TestCase
         $package = $this->makePackage(['Banner/Beachflag übergeben']);
         $sponsor = $this->makeSponsor();
 
-        $this->sponsorshipController()->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
+        $this->controller()->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
             'sponsor_id' => (string) $sponsor->id,
             'package_id' => (string) $package->id,
             'amount' => '200',
@@ -231,7 +232,7 @@ final class SponsoringDeliverablesFeatureTest extends TestCase
 
     private function toggle(SponsorshipDeliverable $deliverable, string $received = '1'): ResponseInterface
     {
-        return $this->sponsorshipController()->toggleDeliverable(
+        return $this->controller()->toggleDeliverable(
             $this->makeRequest(
                 'POST',
                 '/sponsoring/sponsorship-deliverables/' . $deliverable->id . '/toggle',
@@ -245,7 +246,7 @@ final class SponsoringDeliverablesFeatureTest extends TestCase
     /** @param array<string, mixed> $overrides */
     private function updateSponsorship(Sponsorship $sponsorship, array $overrides): void
     {
-        $this->sponsorshipController()->update(
+        $this->controller()->update(
             $this->makeRequest('POST', '/sponsoring/sponsorships/' . $sponsorship->id, $overrides + [
                 'sponsor_id' => (string) $sponsorship->sponsor_id,
                 'amount' => '100',
@@ -256,9 +257,9 @@ final class SponsoringDeliverablesFeatureTest extends TestCase
         );
     }
 
-    private function sponsorshipController(): SponsorshipController
+    private function controller(): SponsorshipController
     {
-        return new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
+        return $this->sponsorshipController(['attachments' => $this->attachmentService()]);
     }
 
     private function packageController(): SponsorPackageController

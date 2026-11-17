@@ -29,6 +29,7 @@ use Tests\Unit\Bootstrap;
 final class SponsoringErrorRedirectFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     protected function setUp(): void
     {
@@ -54,7 +55,7 @@ final class SponsoringErrorRedirectFeatureTest extends TestCase
 
     public function testCreateWithoutSponsorLandsOnTheSponsorListInsteadOfSponsorZero(): void
     {
-        $controller = new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
+        $controller = $this->sponsorshipController(['attachments' => $this->attachmentService()]);
 
         $response = $controller->create(
             $this->makeRequest('POST', '/sponsoring/sponsorships', ['amount' => '100']),
@@ -67,7 +68,7 @@ final class SponsoringErrorRedirectFeatureTest extends TestCase
 
     public function testUpdateOfAnAlreadyDeletedSponsorshipKeepsItsMessageReadable(): void
     {
-        $controller = new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
+        $controller = $this->sponsorshipController(['attachments' => $this->attachmentService()]);
         $goneId = ((int) (Sponsorship::query()->max('id') ?? 0)) + 5000;
 
         $response = $controller->update(
@@ -82,7 +83,7 @@ final class SponsoringErrorRedirectFeatureTest extends TestCase
 
     public function testDeleteOfAnAlreadyDeletedSponsorshipKeepsItsMessageReadable(): void
     {
-        $controller = new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
+        $controller = $this->sponsorshipController(['attachments' => $this->attachmentService()]);
         $goneId = ((int) (Sponsorship::query()->max('id') ?? 0)) + 5000;
 
         $response = $controller->delete(
@@ -115,7 +116,7 @@ final class SponsoringErrorRedirectFeatureTest extends TestCase
     public function testKnownSponsorStillRedirectsToItsOwnPage(): void
     {
         $sponsor = Sponsor::create(['name' => 'Rückwegtest ' . bin2hex(random_bytes(4))]);
-        $controller = new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
+        $controller = $this->sponsorshipController(['attachments' => $this->attachmentService()]);
 
         try {
             $response = $controller->create(

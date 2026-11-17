@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
-use App\Models\Project;
-use App\Models\VoiceGroup;
 use App\Models\VoiceGroupList;
 use App\Models\VoiceGroupListColumn;
 use App\Models\VoiceGroupListEntry;
+use App\Persistence\VoiceGroupListPersistence;
 use App\Policies\VoiceGroupListPolicy;
 use App\Queries\ProjectQuery;
+use App\Queries\VoiceGroupListQuery;
 use App\Services\NameFormatterService;
 use App\Services\VoiceGroupListRows;
 use App\Util\InputValidator;
@@ -51,6 +51,8 @@ class VoiceGroupListController
     private VoiceGroupListPolicy $policy;
     private VoiceGroupListRows $rows;
     private NameFormatterService $names;
+    private VoiceGroupListPersistence $persistence;
+    private VoiceGroupListQuery $listQuery;
     private LoggerInterface $logger;
     private ProjectQuery $projectQuery;
 
@@ -71,6 +73,8 @@ class VoiceGroupListController
         VoiceGroupListPolicy $policy,
         VoiceGroupListRows $rows,
         NameFormatterService $names,
+        VoiceGroupListPersistence $persistence,
+        VoiceGroupListQuery $listQuery,
         ?LoggerInterface $logger = null,
         ?ProjectQuery $projectQuery = null
     ) {
@@ -78,6 +82,8 @@ class VoiceGroupListController
         $this->policy = $policy;
         $this->rows = $rows;
         $this->names = $names;
+        $this->persistence = $persistence;
+        $this->listQuery = $listQuery;
         $this->logger = $logger ?? new NullLogger();
         $this->projectQuery = $projectQuery ?? new ProjectQuery($names);
     }
@@ -85,12 +91,8 @@ class VoiceGroupListController
     public function index(Request $request, Response $response): Response
     {
         $groupIds = $this->policy->accessibleVoiceGroupIds();
-        $voiceGroups = VoiceGroup::query()->whereIn('id', $groupIds)->get()->keyBy('name')->all();
-        $lists = VoiceGroupList::query()
-            ->with('project')
-            ->whereIn('voice_group_id', $groupIds)
-            ->orderBy('title')
-            ->get();
+        $voiceGroups = $this->listQuery->voiceGroupsByName($groupIds);
+        $lists = $this->listQuery->listsForVoiceGroups($groupIds);
 
         // Je Liste der Stand der ersten Häkchen-Spalte - daran erkennt man in der
         // Übersicht, welche Liste noch offen ist.
@@ -111,7 +113,7 @@ class VoiceGroupListController
 
         // Vorausgewählt ist das laufende Projekt - dieselbe Regel wie in den
         // Auswertungen (ProjectQuery::findCurrentProjectId).
-        $projects = $this->allowedProjects($groupIds);
+        $projects = $this->listQuery->allowedProjects($groupIds);
         $currentProjectId = $this->projectQuery->findCurrentProjectId(
             $projects->pluck('id')->map(static fn($id): int => (int) $id)->all()
         );
@@ -148,12 +150,12 @@ class VoiceGroupListController
             return $this->redirect($response, $back);
         }
 
-        $list = VoiceGroupList::create([
-            'voice_group_id' => $voiceGroupId,
-            'title' => $title,
-            'project_id' => $projectId,
-            'created_by_user_id' => $this->policy->currentUserId() ?: null,
-        ]);
+        $list = $this->persistence->createList(
+            $voiceGroupId,
+            $title,
+            $projectId,
+            $this->policy->currentUserId() ?: null
+        );
         $this->log('voice_group_list.created', $list);
         $_SESSION['success'] = 'Liste angelegt.';
 
@@ -203,7 +205,7 @@ class VoiceGroupListController
             'tooltips' => $tooltips,
             'progress' => $this->rows->progress($list, $memberIds),
             'open_column' => $openColumn,
-            'projects' => $this->allowedProjects([(int) $list->voice_group_id], $list->project_id),
+            'projects' => $this->listQuery->allowedProjects([(int) $list->voice_group_id], $list->project_id),
             'is_archived' => $list->isArchived(),
             'note_max_length' => self::NOTE_MAX_LENGTH,
             'active_nav' => 'voice_group_lists',
@@ -235,7 +237,7 @@ class VoiceGroupListController
             return $this->redirect($response, $back);
         }
 
-        $list->update(['title' => $title, 'project_id' => $projectId]);
+        $this->persistence->updateList($list, $title, $projectId);
         $this->log('voice_group_list.updated', $list);
         $_SESSION['success'] = 'Liste gespeichert.';
 
@@ -250,7 +252,7 @@ class VoiceGroupListController
         }
 
         if (!$list->isArchived()) {
-            $list->update(['archived_at' => Carbon::now()]);
+            $this->persistence->archiveList($list);
             $this->log('voice_group_list.archived', $list);
         }
         $_SESSION['success'] = 'Liste archiviert.';
@@ -266,7 +268,7 @@ class VoiceGroupListController
         }
 
         if ($list->isArchived()) {
-            $list->update(['archived_at' => null]);
+            $this->persistence->restoreList($list);
             $this->log('voice_group_list.restored', $list);
         }
         $_SESSION['success'] = 'Liste zurückgeholt.';
@@ -282,7 +284,7 @@ class VoiceGroupListController
         }
 
         $this->log('voice_group_list.deleted', $list);
-        $list->delete();
+        $this->persistence->deleteList($list);
         $_SESSION['success'] = 'Liste gelöscht.';
 
         return $this->redirect($response, '/voice-group-lists');
@@ -313,12 +315,7 @@ class VoiceGroupListController
             return $this->redirect($response, $back);
         }
 
-        $column = VoiceGroupListColumn::create([
-            'list_id' => $list->id,
-            'label' => $label,
-            'type' => $type,
-            'sort_order' => (int) $list->columns()->max('sort_order') + 1,
-        ]);
+        $column = $this->persistence->addColumn($list, $label, $type);
         $this->log('voice_group_list_column.created', $list, ['column_id' => (int) $column->id]);
 
         return $this->redirect($response, $back);
@@ -342,7 +339,7 @@ class VoiceGroupListController
         // Häkchen stille Notizen ohne Text.
         $label = $this->validColumnLabel(((array) $request->getParsedBody())['label'] ?? null);
         if ($label !== null) {
-            $column->update(['label' => $label]);
+            $this->persistence->renameColumn($column, $label);
             $this->log('voice_group_list_column.renamed', $list, ['column_id' => (int) $column->id]);
         }
 
@@ -370,13 +367,7 @@ class VoiceGroupListController
 
         if ($index !== false && $target !== null && isset($columns[$target])) {
             [$columns[$index], $columns[$target]] = [$columns[$target], $columns[$index]];
-            // Neu durchnummeriert statt getauscht: Gleiche sort_order-Werte
-            // (etwa aus einem Altbestand) ließen sich sonst nicht trennen.
-            foreach ($columns as $position => $each) {
-                if ((int) $each->sort_order !== $position) {
-                    $each->update(['sort_order' => $position]);
-                }
-            }
+            $this->persistence->renumberColumns($columns);
             $this->log('voice_group_list_column.moved', $list, ['column_id' => (int) $column->id]);
         }
 
@@ -398,7 +389,7 @@ class VoiceGroupListController
         }
 
         $this->log('voice_group_list_column.deleted', $list, ['column_id' => (int) $column->id]);
-        $column->delete();
+        $this->persistence->deleteColumn($column);
 
         return $this->redirect($response, $back);
     }
@@ -448,7 +439,7 @@ class VoiceGroupListController
             return $this->redirect($response, '/voice-group-lists/' . $list->id);
         }
 
-        $entry = $this->storeEntry($column, $userId, $value);
+        $entry = $this->persistence->storeEntry($column, $userId, $value, $this->policy->currentUserId() ?: null);
 
         if (!$json) {
             return $this->redirect($response, '/voice-group-lists/' . $list->id);
@@ -527,37 +518,6 @@ class VoiceGroupListController
             : null;
     }
 
-    /**
-     * Ein leeres Häkchen und eine leere Notiz sind kein Eintrag: Die Zeile
-     * verschwindet, eine neue Spalte ist damit für alle offen.
-     */
-    private function storeEntry(VoiceGroupListColumn $column, int $userId, bool|string $value): ?VoiceGroupListEntry
-    {
-        $existing = VoiceGroupListEntry::where('column_id', $column->id)->where('user_id', $userId)->first();
-
-        if ($value === false || $value === '') {
-            $existing?->delete();
-            return null;
-        }
-
-        // Ein schon gesetztes Häkchen bleibt, wie es ist: Klickt eine zweite
-        // Stimmvertretung auf einer veralteten Seite erneut, hieße es sonst
-        // "Abgehakt von ihr" - mit dem Datum der ersten.
-        if ($column->isCheckbox() && $existing?->checked_at !== null) {
-            return $existing->load('updatedBy');
-        }
-
-        $attributes = $column->isCheckbox()
-            ? ['checked_at' => Carbon::now()]
-            : ['note' => $value];
-        $attributes['updated_by_user_id'] = $this->policy->currentUserId() ?: null;
-
-        $entry = $existing ?? new VoiceGroupListEntry(['column_id' => $column->id, 'user_id' => $userId]);
-        $entry->fill($attributes)->save();
-
-        return $entry->load('updatedBy');
-    }
-
     private function jsonError(Response $response, int $status, string $message): Response
     {
         $response->getBody()->write((string) json_encode(['ok' => false, 'error' => $message], JSON_UNESCAPED_UNICODE));
@@ -627,38 +587,11 @@ class VoiceGroupListController
         }
 
         $id = (int) $input;
-        $allowed = $this->allowedProjects([$voiceGroupId], $currentProjectId)
+        $allowed = $this->listQuery->allowedProjects([$voiceGroupId], $currentProjectId)
             ->pluck('id')
             ->map(static fn($value): int => (int) $value);
 
         return $allowed->contains($id) ? $id : false;
-    }
-
-    /**
-     * Projekte mit mindestens einem Mitglied der genannten Stimmgruppen,
-     * neueste zuerst; dazu das bisherige Projekt einer Liste.
-     *
-     * @param list<int> $voiceGroupIds
-     * @return \Illuminate\Support\Collection<int, Project>
-     */
-    private function allowedProjects(array $voiceGroupIds, ?int $currentProjectId = null): \Illuminate\Support\Collection
-    {
-        if ($voiceGroupIds === []) {
-            return collect();
-        }
-
-        return Project::query()
-            ->whereExists(static function ($sub) use ($voiceGroupIds): void {
-                $sub->selectRaw('1')
-                    ->from('project_users')
-                    ->join('user_voice_groups', 'user_voice_groups.user_id', '=', 'project_users.user_id')
-                    ->whereColumn('project_users.project_id', 'projects.id')
-                    ->whereIn('user_voice_groups.voice_group_id', $voiceGroupIds);
-            })
-            ->when($currentProjectId !== null, static fn($query) => $query->orWhere('projects.id', $currentProjectId))
-            ->orderByDesc('start_date')
-            ->orderBy('name')
-            ->get(['id', 'name', 'start_date']);
     }
 
     private function log(string $event, VoiceGroupList $list, array $extra = []): void

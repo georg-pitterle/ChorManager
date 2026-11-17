@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\SongLibraryController;
 use App\Models\Attachment;
 use App\Models\Song;
 use PHPUnit\Framework\TestCase;
@@ -20,6 +19,7 @@ use Tests\Unit\Bootstrap;
 class SongAttachmentBulkDeleteFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     protected function setUp(): void
     {
@@ -132,7 +132,7 @@ class SongAttachmentBulkDeleteFeatureTest extends TestCase
      */
     private function bulkDelete(Song $song, array $body): ResponseInterface
     {
-        $controller = new SongLibraryController($this->createStub(Twig::class));
+        $controller = $this->songLibraryController(['view' => $this->createStub(Twig::class)]);
 
         return $controller->deleteAttachments(
             $this->makeRequest('POST', '/song-library/songs/' . $song->id . '/attachments/bulk-delete', $body),

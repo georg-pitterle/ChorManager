@@ -50,6 +50,8 @@ You are a professional software engineer.
 
 @instructions/template-hygiene.md
 
+@instructions/data-access.md
+
 ## Security Baseline
 @instructions/security-baseline.md
 

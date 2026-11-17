@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Controllers\SongLibraryController;
 use App\Models\Song;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use PHPUnit\Framework\TestCase;
@@ -14,6 +13,7 @@ use Tests\Unit\Bootstrap;
 class SongResourceFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     protected function setUp(): void
     {
@@ -62,7 +62,7 @@ class SongResourceFeatureTest extends TestCase
     public function testCreateLinkRejectsUnsupportedScheme(): void
     {
         $songId = (int) Capsule::table('songs')->insertGetId(['title' => 'Abendlied']);
-        $controller = new SongLibraryController($this->createStub(Twig::class));
+        $controller = $this->songLibraryController(['view' => $this->createStub(Twig::class)]);
 
         $request = $this->makeRequest('POST', '/song-library/songs/' . $songId . '/resources/links', [
             'title' => 'MIDI Player',
@@ -80,7 +80,7 @@ class SongResourceFeatureTest extends TestCase
     public function testDeleteLinkRejectsUnknownResourceId(): void
     {
         $songId = (int) Capsule::table('songs')->insertGetId(['title' => 'Abendlied']);
-        $controller = new SongLibraryController($this->createStub(Twig::class));
+        $controller = $this->songLibraryController(['view' => $this->createStub(Twig::class)]);
 
         $request = $this->makeRequest('POST', '/song-library/songs/' . $songId . '/resources/links/999/delete');
         $response = $this->makeResponse();

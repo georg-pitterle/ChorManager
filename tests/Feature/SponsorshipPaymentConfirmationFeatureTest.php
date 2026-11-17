@@ -32,6 +32,7 @@ use Tests\Unit\Bootstrap;
 final class SponsorshipPaymentConfirmationFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private Sponsor $sponsor;
     private Sponsorship $commitment;
@@ -169,7 +170,7 @@ final class SponsorshipPaymentConfirmationFeatureTest extends TestCase
 
     private function confirm(string $date): ResponseInterface
     {
-        return (new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService()))->confirmPayment(
+        return $this->sponsorshipController(['attachments' => $this->attachmentService()])->confirmPayment(
             $this->makeRequest('POST', '/sponsoring/sponsorships/' . $this->commitment->id . '/paid', ['paid_at' => $date]),
             $this->makeResponse(),
             ['id' => (string) $this->commitment->id]

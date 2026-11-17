@@ -6,11 +6,10 @@ namespace App\Controllers;
 
 use App\Controllers\Concerns\FlashMessages;
 use App\Controllers\Concerns\AttachmentUploadJson;
-use App\Models\Category;
-use App\Models\Project;
 use App\Models\Song;
-use App\Models\Attachment;
 use App\Models\SongResource;
+use App\Persistence\SongPersistence;
+use App\Queries\SongQuery;
 use App\Services\EntityAttachmentService;
 use App\Services\EntityCleanupService;
 use App\Util\InputValidator;
@@ -32,6 +31,8 @@ class SongLibraryController
     public const ENTITY_TYPE = Song::ENTITY_TYPE;
 
     private Twig $view;
+    private SongPersistence $songs;
+    private SongQuery $songQuery;
     private LoggerInterface $logger;
     private EntityAttachmentService $attachments;
     private EntityCleanupService $cleanup;
@@ -43,11 +44,15 @@ class SongLibraryController
      */
     public function __construct(
         Twig $view,
+        SongPersistence $songs,
+        SongQuery $songQuery,
         LoggerInterface $logger = new NullLogger(),
         ?EntityAttachmentService $attachments = null,
         ?EntityCleanupService $cleanup = null
     ) {
         $this->view = $view;
+        $this->songs = $songs;
+        $this->songQuery = $songQuery;
         $this->logger = $logger;
         $this->attachments = $attachments ?? new EntityAttachmentService($logger);
         $this->cleanup = $cleanup ?? new EntityCleanupService($this->attachments);
@@ -59,41 +64,11 @@ class SongLibraryController
         $search = trim(InputValidator::asString($queryParams['search'] ?? null));
         $categoryId = (int) ($queryParams['category'] ?? 0);
 
-        $songQuery = Song::with([
-            'categories',
-            'attachments' => function ($query) {
-                $query->orderBy('original_name', 'asc');
-            },
-            'projectAssignments.project',
-        ])->orderBy('title', 'asc');
-
-        if ($search !== '') {
-            $songQuery->where(function ($query) use ($search) {
-                $query->where('title', 'like', '%' . $search . '%')
-                    ->orWhere('composer', 'like', '%' . $search . '%')
-                    ->orWhere('arranger', 'like', '%' . $search . '%')
-                    ->orWhere('publisher', 'like', '%' . $search . '%');
-            });
-        }
-
-        if ($categoryId > 0) {
-            $songQuery->whereHas('categories', function ($query) use ($categoryId) {
-                $query->where('repertoire_categories.id', $categoryId);
-            });
-        }
-
-        $songs = $songQuery->get();
-        $categories = Category::orderBy('sort_order', 'asc')->orderBy('name', 'asc')->get();
+        $songs = $this->songQuery->forIndex($search, $categoryId);
+        $categories = $this->songQuery->categoriesInOrder();
 
         // Keep old view data available until templates are migrated in later tasks.
-        $projects = Project::with([
-            'assignedSongs' => function ($query) {
-                $query->orderBy('title', 'asc');
-            },
-            'assignedSongs.attachments' => function ($query) {
-                $query->orderBy('original_name', 'asc');
-            }
-        ])->orderBy('name', 'asc')->get();
+        $projects = $this->songQuery->projectsWithAssignedSongs();
 
         ['success' => $success, 'error' => $error] = $this->takeFlash();
 
@@ -132,8 +107,8 @@ class SongLibraryController
             return $response->withHeader('Location', '/song-library')->withStatus(302);
         }
 
-        $allCategories = Category::orderBy('sort_order', 'asc')->orderBy('name', 'asc')->get();
-        $allProjects = Project::query()->chronological()->get();
+        $allCategories = $this->songQuery->categoriesInOrder();
+        $allProjects = $this->songQuery->projectsChronological();
         $assignedProjectIds = $song->projectAssignments->pluck('project_id')->toArray();
 
         ['success' => $success, 'error' => $error] = $this->takeFlash();
@@ -152,7 +127,7 @@ class SongLibraryController
 
     public function create(Request $request, Response $response): Response
     {
-        $allCategories = Category::orderBy('sort_order', 'asc')->orderBy('name', 'asc')->get();
+        $allCategories = $this->songQuery->categoriesInOrder();
 
         ['success' => $success, 'error' => $error] = $this->takeFlash();
 
@@ -174,21 +149,17 @@ class SongLibraryController
             return $response->withHeader('Location', '/song-library/create')->withStatus(302);
         }
 
-        $song = Song::create([
+        $categoryIds = array_values(array_unique(array_filter(
+            array_map('intval', (array) ($data['category_ids'] ?? [])),
+            static fn($id) => $id > 0
+        )));
+        $song = $this->songs->createSong([
             'title' => $title,
             'composer' => trim(InputValidator::asString($data['composer'] ?? null)) ?: null,
             'arranger' => trim(InputValidator::asString($data['arranger'] ?? null)) ?: null,
             'publisher' => trim(InputValidator::asString($data['publisher'] ?? null)) ?: null,
             'created_by_user_id' => (int) ($_SESSION['user_id'] ?? 0) ?: null,
-        ]);
-
-        $categoryIds = array_values(array_unique(array_filter(
-            array_map('intval', (array) ($data['category_ids'] ?? [])),
-            static fn($id) => $id > 0
-        )));
-        if ($categoryIds !== []) {
-            $song->categories()->sync($categoryIds);
-        }
+        ], $categoryIds);
 
         $uploadedFiles = $request->getUploadedFiles();
         $files = $uploadedFiles['attachments'] ?? [];
@@ -230,7 +201,7 @@ class SongLibraryController
             return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
         }
 
-        $song->update([
+        $this->songs->updateSong($song, [
             'title' => $title,
             'composer' => trim(InputValidator::asString($data['composer'] ?? null)) ?: null,
             'arranger' => trim(InputValidator::asString($data['arranger'] ?? null)) ?: null,
@@ -252,7 +223,7 @@ class SongLibraryController
         }
 
         $this->cleanup->purgeForEntity(self::ENTITY_TYPE, $songId);
-        $song->delete();
+        $this->songs->deleteSong($song);
         $_SESSION['success'] = 'Lied erfolgreich gelöscht.';
         return $response->withHeader('Location', '/song-library')->withStatus(302);
     }
@@ -273,7 +244,7 @@ class SongLibraryController
             static fn($id) => $id > 0
         )));
 
-        $song->categories()->sync($categoryIds);
+        $this->songs->syncCategories($song, $categoryIds);
 
         $_SESSION['success'] = 'Kategorien erfolgreich aktualisiert.';
         return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
@@ -337,9 +308,7 @@ class SongLibraryController
             return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
         }
 
-        SongResource::create([
-            'song_id' => $songId,
-            'resource_type' => SongResource::TYPE_LINK,
+        $this->songs->createLinkResource($songId, [
             'title' => $payload['title'],
             'description' => $payload['description'],
             'url' => $payload['url'],
@@ -366,7 +335,7 @@ class SongLibraryController
             return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
         }
 
-        $resource->update([
+        $this->songs->updateLinkResource($resource, [
             'title' => $payload['title'],
             'description' => $payload['description'],
             'url' => $payload['url'],
@@ -387,7 +356,7 @@ class SongLibraryController
             return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
         }
 
-        $resource->delete();
+        $this->songs->deleteLinkResource($resource);
         $_SESSION['success'] = 'Link erfolgreich gelöscht.';
         return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
     }
@@ -440,13 +409,11 @@ class SongLibraryController
         $songId = (int) ($args['song_id'] ?? 0);
         $attachmentId = (int) ($args['attachment_id'] ?? 0);
 
-        $attachment = Attachment::where('entity_type', self::ENTITY_TYPE)->find($attachmentId);
-        if (!$attachment || $attachment->entity_id !== $songId) {
+        if (!$this->attachments->deleteForEntity(self::ENTITY_TYPE, $songId, $attachmentId)) {
             $_SESSION['error'] = 'Anhang nicht gefunden.';
             return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
         }
 
-        $attachment->delete();
         $_SESSION['success'] = 'Anhang erfolgreich gelöscht.';
         return $response->withHeader('Location', '/song-library/' . $songId)->withStatus(302);
     }

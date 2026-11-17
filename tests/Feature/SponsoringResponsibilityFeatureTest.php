@@ -480,7 +480,7 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
 
     public function testAnUnknownCaseEndsInAMessageNotAnError(): void
     {
-        $response = $this->sponsorshipController()->assign(
+        $response = $this->controller()->assign(
             $this->makeRequest('POST', '/sponsoring/sponsorships/999999999/assignee', ['assigned_user_id' => (string) $this->anna->id]),
             $this->makeResponse(),
             ['id' => '999999999']
@@ -647,7 +647,7 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
 
     private function assign(Sponsorship $case, string $userId, ?TestHandler $handler = null): \Psr\Http\Message\ResponseInterface
     {
-        return $this->sponsorshipController($handler)->assign(
+        return $this->controller($handler)->assign(
             $this->makeRequest('POST', '/sponsoring/sponsorships/' . $case->id . '/assignee', ['assigned_user_id' => $userId]),
             $this->makeResponse(),
             ['id' => (string) $case->id]
@@ -668,21 +668,21 @@ final class SponsoringResponsibilityFeatureTest extends TestCase
             'status' => (string) $case->status,
         ], $data);
 
-        return $this->sponsorshipController()->update(
+        return $this->controller()->update(
             $this->makeRequest('POST', '/sponsoring/sponsorships/' . $case->id, $body),
             $this->makeResponse(),
             ['id' => (string) $case->id]
         );
     }
 
-    private function sponsorshipController(?TestHandler $handler = null): SponsorshipController
+    private function controller(?TestHandler $handler = null): SponsorshipController
     {
         $logger = new Logger('test');
         if ($handler !== null) {
             $logger->pushHandler($handler);
         }
 
-        return new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService(), $logger);
+        return $this->sponsorshipController(['attachments' => $this->attachmentService(), 'logger' => $logger]);
     }
 
     private function case(Sponsor $sponsor, string $status, ?User $assignee): Sponsorship

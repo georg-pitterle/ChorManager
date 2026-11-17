@@ -42,6 +42,7 @@ use Tests\Unit\Bootstrap;
 class ReviewAnswersRun38FeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private string $suffix = '';
 
@@ -365,10 +366,7 @@ class ReviewAnswersRun38FeatureTest extends TestCase
 
     private function controller(): SponsorshipController
     {
-        return new SponsorshipController(
-            new SponsoringPolicy($_SESSION),
-            $this->attachmentService()
-        );
+        return $this->sponsorshipController(['attachments' => $this->attachmentService()]);
     }
 
     /**

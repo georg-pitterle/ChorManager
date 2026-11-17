@@ -18,6 +18,7 @@ use Tests\Unit\Bootstrap;
 class SongLibraryFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     public function testUploadAttachmentsLogsUploadRejectedForOversizedFileWithoutFilename(): void
     {
@@ -28,7 +29,7 @@ class SongLibraryFeatureTest extends TestCase
         $handlerLog = new TestHandler();
         $logger = new Logger('test');
         $logger->pushHandler($handlerLog);
-        $controller = new SongLibraryController($this->createStub(Twig::class), $logger);
+        $controller = $this->songLibraryController(['view' => $this->createStub(Twig::class), 'logger' => $logger]);
 
         $oversizedContent = str_repeat('x', (10 * 1024 * 1024) + 1);
         $stream = (new StreamFactory())->createStream($oversizedContent);
@@ -279,7 +280,7 @@ class SongLibraryFeatureTest extends TestCase
 
     private function controller(): SongLibraryController
     {
-        return new SongLibraryController($this->createStub(Twig::class), new Logger('test'));
+        return $this->songLibraryController(['view' => $this->createStub(Twig::class), 'logger' => new Logger('test')]);
     }
 
     private function songAttachment(int $songId): Attachment
@@ -350,7 +351,7 @@ class SongLibraryFeatureTest extends TestCase
         $controllerContent = file_get_contents(dirname(__DIR__) . '/../src/Controllers/SongLibraryController.php');
         $this->assertIsString($controllerContent);
         $this->assertStringContainsString("'category_ids'", $controllerContent);
-        $this->assertStringContainsString('$song->categories()->sync($categoryIds)', $controllerContent);
+        $this->assertStringContainsString('$this->songs->createSong(', $controllerContent);
     }
 
     public function testCreateSongHandlesAttachmentsOnCreation(): void

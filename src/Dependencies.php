@@ -164,6 +164,11 @@ use App\Services\PollAudienceService;
 use App\Services\PollResults;
 use App\Services\PollVoteService;
 use App\Services\VoiceGroupListRows;
+use App\Persistence\SongPersistence;
+use App\Persistence\SponsorshipPersistence;
+use App\Queries\SongQuery;
+use App\Persistence\VoiceGroupListPersistence;
+use App\Queries\VoiceGroupListQuery;
 use App\Services\AttachmentAccessRegistry;
 use App\Services\AttendanceScopeService;
 use App\Services\AttachmentResponseFactory;
@@ -612,6 +617,8 @@ return function (ContainerBuilder $containerBuilder) {
         SongLibraryController::class => function (ContainerInterface $c) {
             return new SongLibraryController(
                 $c->get(Twig::class),
+                new SongPersistence(),
+                new SongQuery(),
                 $c->get(LoggerInterface::class),
                 $c->get(EntityAttachmentService::class),
                 $c->get(EntityCleanupService::class)
@@ -639,6 +646,7 @@ return function (ContainerBuilder $containerBuilder) {
             return new SponsorshipController(
                 $c->get(SponsoringPolicy::class),
                 $c->get(EntityAttachmentService::class),
+                new SponsorshipPersistence(),
                 $c->get(LoggerInterface::class),
                 $c->get(NameFormatterService::class),
                 $c->get(SponsoringQuery::class)
@@ -650,6 +658,8 @@ return function (ContainerBuilder $containerBuilder) {
                 $c->get(VoiceGroupListPolicy::class),
                 new VoiceGroupListRows(),
                 $c->get(NameFormatterService::class),
+                new VoiceGroupListPersistence(),
+                new VoiceGroupListQuery(),
                 $c->get(LoggerInterface::class),
                 $c->get(ProjectQuery::class)
             );

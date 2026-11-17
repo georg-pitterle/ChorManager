@@ -20,6 +20,7 @@ use App\Controllers\PasswordResetController;
 use App\Controllers\ProfileController;
 use App\Controllers\RoleController;
 use App\Controllers\SongLibraryController;
+use App\Controllers\VoiceGroupListController;
 use App\Controllers\SponsorPackageController;
 use App\Controllers\SponsorshipController;
 use App\Services\EntityAttachmentService;
@@ -213,6 +214,14 @@ final class DependenciesContainerWiringTest extends TestCase
 
         $this->assertInstanceOf(CsrfMiddleware::class, $middleware);
         $this->assertInstanceOf(Logger::class, $this->loggerPropertyOf($middleware));
+    }
+
+    public function testVoiceGroupListControllerResolvesWithRealLogger(): void
+    {
+        $controller = $this->buildContainer()->get(VoiceGroupListController::class);
+
+        $this->assertInstanceOf(VoiceGroupListController::class, $controller);
+        $this->assertInstanceOf(Logger::class, $this->loggerPropertyOf($controller));
     }
 
     public function testSongLibraryControllerResolvesWithRealLogger(): void

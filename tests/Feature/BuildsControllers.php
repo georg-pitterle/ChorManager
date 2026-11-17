@@ -17,16 +17,25 @@ use App\Controllers\SponsorController;
 use App\Controllers\TaskController;
 use App\Controllers\UserController;
 use App\Controllers\VoiceGroupController;
+use App\Controllers\SongLibraryController;
+use App\Controllers\SponsorshipController;
+use App\Controllers\VoiceGroupListController;
 use App\Persistence\ProjectPersistence;
+use App\Persistence\SongPersistence;
+use App\Persistence\SponsorshipPersistence;
 use App\Persistence\UserPersistence;
+use App\Persistence\VoiceGroupListPersistence;
 use App\Policies\EventPolicy;
 use App\Policies\NewsletterPolicy;
 use App\Policies\SponsoringPolicy;
 use App\Policies\TaskPolicy;
+use App\Policies\VoiceGroupListPolicy;
 use App\Policies\UserEditPolicy;
 use App\Queries\EvaluationQuery;
 use App\Queries\ProjectQuery;
+use App\Queries\SongQuery;
 use App\Queries\UserQuery;
+use App\Queries\VoiceGroupListQuery;
 use App\Queries\VoiceGroupQuery;
 use App\Services\AccountLoginRevocationService;
 use App\Services\AttendanceScopeService;
@@ -52,6 +61,7 @@ use App\Services\FinanceJournalService;
 use App\Services\FinanceReportPdfService;
 use App\Services\HtmlSanitizer;
 use App\Services\TaskWriteService;
+use App\Services\VoiceGroupListRows;
 use App\Services\MailCredentialCryptoService;
 use App\Services\MailQueueAdminService;
 use App\Services\MailQueueService;
@@ -215,6 +225,37 @@ trait BuildsControllers
                 new NameFormatterService()
             ),
             'registrationSummaryService' => static fn (): PendingRegistrationSummaryService => new PendingRegistrationSummaryService(),
+        ]);
+    }
+
+    /** @param array<string, mixed> $with */
+    protected function voiceGroupListController(array $with = []): VoiceGroupListController
+    {
+        return $this->buildController(VoiceGroupListController::class, $with, [
+            'policy' => static fn (): VoiceGroupListPolicy => new VoiceGroupListPolicy($_SESSION),
+            'rows' => static fn (): VoiceGroupListRows => new VoiceGroupListRows(),
+            'names' => static fn (): NameFormatterService => new NameFormatterService(),
+            'persistence' => static fn (): VoiceGroupListPersistence => new VoiceGroupListPersistence(),
+            'listQuery' => static fn (): VoiceGroupListQuery => new VoiceGroupListQuery(),
+        ]);
+    }
+
+    /** @param array<string, mixed> $with */
+    protected function sponsorshipController(array $with = []): SponsorshipController
+    {
+        return $this->buildController(SponsorshipController::class, $with, [
+            'policy' => static fn (): SponsoringPolicy => new SponsoringPolicy($_SESSION),
+            'attachments' => static fn (): EntityAttachmentService => new EntityAttachmentService(new NullLogger()),
+            'persistence' => static fn (): SponsorshipPersistence => new SponsorshipPersistence(),
+        ]);
+    }
+
+    /** @param array<string, mixed> $with */
+    protected function songLibraryController(array $with = []): SongLibraryController
+    {
+        return $this->buildController(SongLibraryController::class, $with, [
+            'songs' => static fn (): SongPersistence => new SongPersistence(),
+            'songQuery' => static fn (): SongQuery => new SongQuery(),
         ]);
     }
 

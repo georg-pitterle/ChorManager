@@ -44,7 +44,7 @@ class SponsorshipStatusFeatureTest extends TestCase
     public function testCreateRejectsAnUnknownStatusInsteadOfRunningIntoTheColumnEnum(): void
     {
         $sponsor = $this->makeSponsor();
-        $controller = new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
+        $controller = $this->sponsorshipController(['attachments' => $this->attachmentService()]);
 
         try {
             $response = $controller->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
@@ -64,7 +64,7 @@ class SponsorshipStatusFeatureTest extends TestCase
     public function testCreateFallsBackToRequestedWhenNoStatusIsSubmitted(): void
     {
         $sponsor = $this->makeSponsor();
-        $controller = new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
+        $controller = $this->sponsorshipController(['attachments' => $this->attachmentService()]);
 
         try {
             $controller->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
@@ -106,7 +106,7 @@ class SponsorshipStatusFeatureTest extends TestCase
             'min_amount' => '100.00',
             'color' => 'info',
         ]);
-        $controller = new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
+        $controller = $this->sponsorshipController(['attachments' => $this->attachmentService()]);
 
         try {
             $controller->create($this->makeRequest('POST', '/sponsoring/sponsorships', [

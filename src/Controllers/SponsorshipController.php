@@ -8,15 +8,13 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\Project;
-use App\Models\Sponsor;
 use App\Models\SponsorPackage;
 use App\Models\Sponsorship;
 use App\Models\SponsorshipBenefit;
 use App\Models\SponsorshipDeliverable;
+use App\Persistence\SponsorshipPersistence;
 use App\Policies\SponsoringPolicy;
 use App\Queries\SponsoringQuery;
 use App\Services\EntityAttachmentService;
@@ -31,7 +29,6 @@ use App\Util\RequestFormat;
 use App\Util\SponsoringUrl;
 use App\Util\SponsorshipFileName;
 use App\Controllers\Concerns\AttachmentUploadJson;
-use App\Models\Attachment;
 
 class SponsorshipController
 {
@@ -59,16 +56,19 @@ class SponsorshipController
     private LoggerInterface $logger;
     private NameFormatterService $nameFormatter;
     private SponsoringQuery $sponsoringQuery;
+    private SponsorshipPersistence $persistence;
 
     public function __construct(
         SponsoringPolicy $policy,
         EntityAttachmentService $attachments,
+        SponsorshipPersistence $persistence,
         ?LoggerInterface $logger = null,
         ?NameFormatterService $nameFormatter = null,
         ?SponsoringQuery $sponsoringQuery = null
     ) {
         $this->policy = $policy;
         $this->attachments = $attachments;
+        $this->persistence = $persistence;
         $this->logger = $logger ?? new NullLogger();
         $this->nameFormatter = $nameFormatter ?? new NameFormatterService();
         // Dieselbe Namensreihenfolge wie die Auswahl, die die Abfrage ausliefert:
@@ -180,7 +180,7 @@ class SponsorshipController
                 $deliverables
             ): Sponsorship {
                 $package = $packageId !== null ? SponsorPackage::find($packageId) : null;
-                $sponsorship = Sponsorship::create($this->logoNeeds($data, $package) + [
+                $sponsorship = $this->persistence->create($this->logoNeeds($data, $package) + [
                 'sponsor_id'       => $sponsorId,
                 'project_id'       => $projectId,
                 'package_id'       => $packageId,
@@ -200,11 +200,11 @@ class SponsorshipController
                 // Kopiert, nicht verwiesen: was ausgehandelt ist, ändert sich
                 // nicht mit dem Paket.
                 // Dasselbe für die Leistungen des Sponsors.
-                $this->syncLines(
+                $this->persistence->syncLines(
                     $sponsorship->benefits(),
                     $benefits['items'] ?? ($package?->benefits()->pluck('description')->all() ?? [])
                 );
-                $this->syncLines(
+                $this->persistence->syncLines(
                     $sponsorship->deliverables(),
                     $deliverables['items'] ?? ($package?->deliverables()->pluck('description')->all() ?? [])
                 );
@@ -312,7 +312,7 @@ class SponsorshipController
                 $benefits,
                 $deliverables
             ): void {
-                $sponsorship->update($this->logoNeeds($data, null, $sponsorship) + [
+                $this->persistence->update($sponsorship, $this->logoNeeds($data, null, $sponsorship) + [
                 'project_id'       => $projectId,
                 'package_id'       => self::packageIdFor($data, $status),
                 'assigned_user_id' => $assignee['value'],
@@ -325,10 +325,10 @@ class SponsorshipController
                 ]);
 
                 if ($benefits['items'] !== null) {
-                    $this->syncLines($sponsorship->benefits(), $benefits['items']);
+                    $this->persistence->syncLines($sponsorship->benefits(), $benefits['items']);
                 }
                 if ($deliverables['items'] !== null) {
-                    $this->syncLines($sponsorship->deliverables(), $deliverables['items']);
+                    $this->persistence->syncLines($sponsorship->deliverables(), $deliverables['items']);
                 }
             });
 
@@ -468,12 +468,12 @@ class SponsorshipController
             return $back;
         }
 
-        if (!Sponsorship::query()->whereKey($sponsorship->id)->withoutCapableAssignee()->exists()) {
+        if (!$this->sponsoringQuery->hasNoCapableAssignee((int) $sponsorship->id)) {
             $_SESSION['error'] = self::ASSIGNEE_NOT_OPEN_ERROR;
             return $back;
         }
 
-        $sponsorship->update(['assigned_user_id' => $assignee['value']]);
+        $this->persistence->update($sponsorship, ['assigned_user_id' => $assignee['value']]);
         $this->logger->info('Sponsorship assignee changed.', [
             'event' => 'sponsorship.assignee.changed',
             'sponsorship_id' => (int) $sponsorship->id,
@@ -525,7 +525,7 @@ class SponsorshipController
             return $back;
         }
 
-        $sponsorship->update(['paid_at' => $paidAt]);
+        $this->persistence->update($sponsorship, ['paid_at' => $paidAt]);
         $this->logger->info('Sponsorship payment confirmed.', [
             'event' => 'sponsorship.payment.confirmed',
             'sponsorship_id' => (int) $sponsorship->id,
@@ -556,7 +556,7 @@ class SponsorshipController
             }
 
             $this->attachments->deleteAllForEntities(self::ENTITY_TYPE, [$id]);
-            $sponsorship->delete();
+            $this->persistence->delete($sponsorship);
             $_SESSION['success'] = 'Anfrage erfolgreich gelöscht.';
         } catch (ModelNotFoundException $e) {
             $_SESSION['error'] = 'Die Anfrage wurde nicht gefunden. '
@@ -601,10 +601,7 @@ class SponsorshipController
                 : $this->deny($response);
         }
 
-        $taken = Attachment::where('entity_type', self::ENTITY_TYPE)
-            ->where('entity_id', $sponsorship->id)
-            ->pluck('original_name')
-            ->all();
+        $taken = $this->sponsoringQuery->attachmentNames((int) $sponsorship->id);
 
         $result = $this->attachments->storeUploads(
             $request->getUploadedFiles()['attachments'] ?? null,
@@ -662,10 +659,7 @@ class SponsorshipController
             ->withHeader('Location', '/sponsoring/sponsors/' . $sponsorship->sponsor_id)
             ->withStatus(302);
 
-        $attachment = Attachment::where('entity_type', self::ENTITY_TYPE)
-            ->where('entity_id', $sponsorship->id)
-            ->whereKey((int) $args['attachment_id'])
-            ->first(['id', 'original_name']);
+        $attachment = $this->sponsoringQuery->findAttachment((int) $sponsorship->id, (int) $args['attachment_id']);
         if ($attachment === null) {
             $_SESSION['error'] = 'Anhang nicht gefunden.';
             return $back;
@@ -681,7 +675,7 @@ class SponsorshipController
             return $back;
         }
 
-        $attachment->update(['original_name' => $name]);
+        $this->persistence->renameAttachment($attachment, $name);
         $_SESSION['success'] = 'Datei umbenannt.';
 
         return $back;
@@ -775,14 +769,7 @@ class SponsorshipController
     ): Response {
         $data = (array) $request->getParsedBody();
         $wantDone = InputValidator::asString($data[$field] ?? '1') === '1';
-        $isDone = $line->getAttribute($field . '_at') !== null;
-
-        if ($wantDone !== $isDone) {
-            $line->update([
-                $field . '_at' => $wantDone ? Carbon::today()->format('Y-m-d') : null,
-                $field . '_by_user_id' => $wantDone ? $this->policy->currentUserId() : null,
-            ]);
-        }
+        $this->persistence->tickLine($line, $field, $wantDone, $this->policy->currentUserId());
 
         $query = $request->getQueryParams();
         $target = ($query['redirect_to'] ?? '') === 'dashboard'
@@ -790,41 +777,6 @@ class SponsorshipController
             : '/sponsoring/sponsors/' . $line->sponsorship->sponsor_id;
 
         return $response->withHeader('Location', $target)->withStatus(302);
-    }
-
-    /**
-     * Gleicht eine Leistungsliste der Vereinbarung - Gegenleistungen oder
-     * Leistungen des Sponsors - mit der neuen Liste ab.
-     *
-     * Eine Zeile, deren Text gleich bleibt, behält ihren Haken - sonst müsste
-     * nach jeder Korrektur der Liste alles neu abgehakt werden. Neue Zeilen
-     * kommen offen hinzu, gestrichene verschwinden.
-     *
-     * @param HasMany<Model, Sponsorship> $relation
-     * @param list<string> $items
-     */
-    private function syncLines(HasMany $relation, array $items): void
-    {
-        $existing = (clone $relation)->get();
-        $kept = [];
-
-        foreach ($items as $index => $description) {
-            $match = $existing->first(
-                static fn (Model $line): bool => $line->getAttribute('description') === $description
-                    && !in_array($line->getKey(), $kept, true)
-            );
-
-            if ($match !== null) {
-                $match->update(['sort_order' => $index]);
-                $kept[] = $match->getKey();
-                continue;
-            }
-
-            $created = (clone $relation)->create(['description' => $description, 'sort_order' => $index]);
-            $kept[] = $created->getKey();
-        }
-
-        (clone $relation)->whereNotIn('id', $kept === [] ? [0] : $kept)->delete();
     }
 
     /**
@@ -907,7 +859,7 @@ class SponsorshipController
      */
     private function isBlocked(int $sponsorId): bool
     {
-        return Sponsor::whereKey($sponsorId)->where('requests_blocked', true)->exists();
+        return $this->sponsoringQuery->isSponsorBlocked($sponsorId);
     }
 
     /**

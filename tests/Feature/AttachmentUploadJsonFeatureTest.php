@@ -333,6 +333,6 @@ class AttachmentUploadJsonFeatureTest extends TestCase
 
     private function songController(): SongLibraryController
     {
-        return new SongLibraryController($this->createStub(Twig::class), new Logger('test'));
+        return $this->songLibraryController(['view' => $this->createStub(Twig::class), 'logger' => new Logger('test')]);
     }
 }

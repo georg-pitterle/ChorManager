@@ -221,7 +221,7 @@ final class SponsoringMissingLogosFeatureTest extends TestCase
         ]);
         $sponsor = Sponsor::create(['name' => 'Paketübernahme ' . bin2hex(random_bytes(4))]);
 
-        $this->sponsorshipController()->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
+        $this->controller()->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
             'sponsor_id' => (string) $sponsor->id,
             'package_id' => (string) $package->id,
             'amount' => '100',
@@ -243,7 +243,7 @@ final class SponsoringMissingLogosFeatureTest extends TestCase
         ]);
         $sponsor = Sponsor::create(['name' => 'Formular entscheidet ' . bin2hex(random_bytes(4))]);
 
-        $this->sponsorshipController()->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
+        $this->controller()->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
             'sponsor_id' => (string) $sponsor->id,
             'package_id' => (string) $package->id,
             'amount' => '100',
@@ -266,7 +266,7 @@ final class SponsoringMissingLogosFeatureTest extends TestCase
     {
         $sponsor = Sponsor::create(['name' => 'Ein Häkchen ' . bin2hex(random_bytes(4))]);
 
-        $this->sponsorshipController()->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
+        $this->controller()->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
             'sponsor_id' => (string) $sponsor->id,
             'status' => SponsorshipStatus::ACCEPTED,
             'logo_needs' => '1',
@@ -277,7 +277,7 @@ final class SponsoringMissingLogosFeatureTest extends TestCase
         $this->assertTrue((bool) $sponsorship->needs_logo_print);
         $this->assertTrue((bool) $sponsorship->needs_logo_online);
 
-        $this->sponsorshipController()->update($this->makeRequest('POST', '/sponsoring/sponsorships/' . $sponsorship->id, [
+        $this->controller()->update($this->makeRequest('POST', '/sponsoring/sponsorships/' . $sponsorship->id, [
             'sponsor_id' => (string) $sponsor->id,
             'status' => SponsorshipStatus::ACCEPTED,
             'logo_needs' => '1',
@@ -445,9 +445,9 @@ final class SponsoringMissingLogosFeatureTest extends TestCase
         return new SponsoringDashboardController($twig, new NameFormatterService(), new SponsoringPolicy($_SESSION));
     }
 
-    private function sponsorshipController(): SponsorshipController
+    private function controller(): SponsorshipController
     {
-        return new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
+        return $this->sponsorshipController(['attachments' => $this->attachmentService()]);
     }
 
     /**

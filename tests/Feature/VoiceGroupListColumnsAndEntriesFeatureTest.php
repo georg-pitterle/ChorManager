@@ -10,9 +10,7 @@ use App\Models\VoiceGroup;
 use App\Models\VoiceGroupList;
 use App\Models\VoiceGroupListColumn;
 use App\Models\VoiceGroupListEntry;
-use App\Policies\VoiceGroupListPolicy;
 use App\Services\NameFormatterService;
-use App\Services\VoiceGroupListRows;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Monolog\Handler\TestHandler;
 use PHPUnit\Framework\TestCase;
@@ -30,6 +28,7 @@ use Tests\Unit\Bootstrap;
 final class VoiceGroupListColumnsAndEntriesFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
     use TwigViewStubs;
     use VoiceGroupListFixtures;
 
@@ -403,12 +402,9 @@ final class VoiceGroupListColumnsAndEntriesFeatureTest extends TestCase
         $this->logs ??= $handler;
         $logger->setHandlers([$this->logs]);
 
-        return new VoiceGroupListController(
-            $this->createAppTwig('/voice-group-lists'),
-            new VoiceGroupListPolicy($_SESSION),
-            new VoiceGroupListRows(),
-            new NameFormatterService(),
-            $logger
-        );
+        return $this->voiceGroupListController([
+            'view' => $this->createAppTwig('/voice-group-lists'),
+            'logger' => $logger,
+        ]);
     }
 }

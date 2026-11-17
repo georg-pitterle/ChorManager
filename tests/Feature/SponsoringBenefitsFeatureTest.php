@@ -103,7 +103,7 @@ final class SponsoringBenefitsFeatureTest extends TestCase
         $package = $this->makePackage(['Logo im Programmheft', '2 Freikarten']);
         $sponsor = $this->makeSponsor();
 
-        $this->sponsorshipController()->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
+        $this->controller()->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
             'sponsor_id' => (string) $sponsor->id,
             'package_id' => (string) $package->id,
             'amount' => '500',
@@ -122,7 +122,7 @@ final class SponsoringBenefitsFeatureTest extends TestCase
         $package = $this->makePackage(['Logo im Programmheft']);
         $sponsor = $this->makeSponsor();
 
-        $this->sponsorshipController()->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
+        $this->controller()->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
             'sponsor_id' => (string) $sponsor->id,
             'package_id' => (string) $package->id,
             'amount' => '500',
@@ -196,7 +196,7 @@ final class SponsoringBenefitsFeatureTest extends TestCase
         $package = $this->makePackage(['Logo im Programmheft']);
         $sponsor = $this->makeSponsor();
 
-        $this->sponsorshipController()->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
+        $this->controller()->create($this->makeRequest('POST', '/sponsoring/sponsorships', [
             'sponsor_id' => (string) $sponsor->id,
             'package_id' => (string) $package->id,
             'amount' => '500',
@@ -214,7 +214,7 @@ final class SponsoringBenefitsFeatureTest extends TestCase
         $sponsorship = $this->makeSponsorship($sponsor, (int) $this->manager->id);
         $sponsorship->benefits()->create(['description' => 'Logo im Programmheft', 'sort_order' => 0]);
 
-        $this->sponsorshipController()->update(
+        $this->controller()->update(
             $this->makeRequest('POST', '/sponsoring/sponsorships/' . $sponsorship->id, [
                 'sponsor_id' => (string) $sponsor->id,
                 'amount' => '100',
@@ -424,7 +424,7 @@ final class SponsoringBenefitsFeatureTest extends TestCase
             'sort_order' => 0,
         ]);
 
-        $this->sponsorshipController()->toggleDeliverable(
+        $this->controller()->toggleDeliverable(
             $this->makeRequest(
                 'POST',
                 '/sponsoring/sponsorship-deliverables/' . $deliverable->id . '/toggle',
@@ -498,7 +498,7 @@ final class SponsoringBenefitsFeatureTest extends TestCase
 
     private function toggle(SponsorshipBenefit $benefit, string $delivered = '1'): ResponseInterface
     {
-        return $this->sponsorshipController()->toggleBenefit(
+        return $this->controller()->toggleBenefit(
             $this->makeRequest(
                 'POST',
                 '/sponsoring/sponsorship-benefits/' . $benefit->id . '/toggle',
@@ -512,7 +512,7 @@ final class SponsoringBenefitsFeatureTest extends TestCase
     /** @param array<string, string> $overrides */
     private function updateSponsorship(Sponsorship $sponsorship, array $overrides): void
     {
-        $this->sponsorshipController()->update(
+        $this->controller()->update(
             $this->makeRequest('POST', '/sponsoring/sponsorships/' . $sponsorship->id, $overrides + [
                 'sponsor_id' => (string) $sponsorship->sponsor_id,
                 'amount' => '100',
@@ -535,9 +535,9 @@ final class SponsoringBenefitsFeatureTest extends TestCase
         return (string) $response->getBody();
     }
 
-    private function sponsorshipController(): SponsorshipController
+    private function controller(): SponsorshipController
     {
-        return new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
+        return $this->sponsorshipController(['attachments' => $this->attachmentService()]);
     }
 
     private function packageController(): SponsorPackageController

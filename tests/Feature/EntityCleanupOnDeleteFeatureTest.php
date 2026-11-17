@@ -339,7 +339,7 @@ final class EntityCleanupOnDeleteFeatureTest extends TestCase
 
     private function songController(): SongLibraryController
     {
-        return new SongLibraryController($this->twig(), new NullLogger());
+        return $this->songLibraryController(['view' => $this->twig(), 'logger' => new NullLogger()]);
     }
 
     /**

@@ -34,6 +34,9 @@ final class ControllersAreBuiltThroughBuildersTest extends TestCase
         'PasswordResetController',
         'DashboardController',
         'VoiceGroupController',
+        'VoiceGroupListController',
+        'SongLibraryController',
+        'SponsorshipController',
     ];
 
     public function testMigratedControllersAreNotConstructedByHand(): void

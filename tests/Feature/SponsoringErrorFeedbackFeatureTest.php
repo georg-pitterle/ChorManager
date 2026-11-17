@@ -38,6 +38,7 @@ use Twig\Loader\ArrayLoader;
 class SponsoringErrorFeedbackFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     protected function setUp(): void
     {
@@ -72,11 +73,7 @@ class SponsoringErrorFeedbackFeatureTest extends TestCase
             $_SESSION['user_id'] = 999999999;
 
             [$logger, $handler] = $this->logger();
-            $controller = new SponsorshipController(
-                new SponsoringPolicy($_SESSION),
-                $this->attachmentService(),
-                $logger
-            );
+            $controller = $this->sponsorshipController(['attachments' => $this->attachmentService(), 'logger' => $logger]);
 
             $controller->create(
                 $this->makeRequest('POST', '/sponsoring/sponsorships', [

@@ -10,7 +10,6 @@ use App\Models\Project;
 use App\Models\Sponsor;
 use App\Models\Sponsorship;
 use App\Models\User;
-use App\Policies\SponsoringPolicy;
 use App\Util\PasswordHasher;
 use App\Util\SponsorshipStatus;
 use Illuminate\Database\Capsule\Manager as Capsule;
@@ -28,6 +27,7 @@ use Tests\Unit\Bootstrap;
 final class SponsorshipContractUploadFeatureTest extends TestCase
 {
     use TestHttpHelpers;
+    use BuildsControllers;
 
     private Sponsor $sponsor;
     private Sponsorship $request;
@@ -150,7 +150,7 @@ final class SponsorshipContractUploadFeatureTest extends TestCase
 
     private function controller(): SponsorshipController
     {
-        return new SponsorshipController(new SponsoringPolicy($_SESSION), $this->attachmentService());
+        return $this->sponsorshipController(['attachments' => $this->attachmentService()]);
     }
 
     /**
