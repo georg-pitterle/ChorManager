@@ -10,14 +10,16 @@
 //  - templates/sponsoring/sponsors/detail.twig
 //      Anfrage #newSponsorshipModal: package_id [data-sponsorship-package], status,
 //      amount, project_id, assigned_user_id, benefits [data-sponsorship-benefits],
-//      deliverables [data-sponsorship-deliverables], [data-sponsorship-logo-print|online],
+//      deliverables [data-sponsorship-deliverables], ein Logo-Häkchen [data-sponsorship-logo]
+//      (Druck und online); die Paketwahl ist gesperrt, bis der Status eine Zusage ist
+//      (data-package-statuses, sponsorship-form.js),
 //      Absenden button[type="submit"] "Anlegen"
 //      Logo-Ablegefläche: Dateifeld #sponsor-logos (macros/upload.twig), Liste .sponsor-logos
 //      Anhang-Ablegefläche: Dateifeld #sponsor-attachments
 //      Abhaken: form mit input[name="received"|"delivered"], button.benefit-toggle
 //  - templates/sponsoring/packages/index.twig
 //      Dialog #newPackageModal, Formular POST /sponsoring/packages, Felder name, min_amount,
-//      benefits, deliverables, needs_logo_print, needs_logo_online
+//      benefits, deliverables, ein Logo-Häkchen needs_logo (setzt Druck und online)
 //  - templates/sponsoring/dashboard.twig
 //      "Logo fehlt": section[aria-labelledby="sponsoring-logos-title"] .work-item
 //      Fristen: details.logo-deadline-settings, je Projekt
@@ -44,8 +46,7 @@ export async function createPackage(page, pkg) {
     await modal.locator('input[name="min_amount"]').fill(pkg.minAmount);
     await modal.locator('textarea[name="benefits"]').fill(pkg.benefits.join('\n'));
     await modal.locator('textarea[name="deliverables"]').fill(pkg.deliverables.join('\n'));
-    await modal.locator('input[name="needs_logo_print"]').setChecked(pkg.logoPrint);
-    await modal.locator('input[name="needs_logo_online"]').setChecked(pkg.logoOnline);
+    await modal.locator('input[name="needs_logo"]').setChecked(pkg.logo);
 
     await modal.locator('button[type="submit"]').click();
     await page.waitForURL('**/sponsoring/packages');
@@ -103,6 +104,8 @@ export async function createSponsorship(page, { packageName = '', status = 'acce
     const modal = page.locator('#newSponsorshipModal');
     await modal.waitFor({ state: 'visible' });
 
+    // Zuerst der Status: Ein Paket steht erst mit der Zusage fest, vorher ist die Auswahl gesperrt.
+    await modal.locator('select[name="status"]').selectOption(status);
     if (packageName !== '') {
         const packageSelect = modal.locator('[data-sponsorship-package]');
         const packageValue = await packageSelect.locator('option', { hasText: packageName }).first().getAttribute('value');
@@ -112,11 +115,9 @@ export async function createSponsorship(page, { packageName = '', status = 'acce
     const suggested = {
         benefits: await modal.locator('[data-sponsorship-benefits]').inputValue(),
         deliverables: await modal.locator('[data-sponsorship-deliverables]').inputValue(),
-        logoPrint: await modal.locator('[data-sponsorship-logo-print]').isChecked(),
-        logoOnline: await modal.locator('[data-sponsorship-logo-online]').isChecked(),
+        logo: await modal.locator('[data-sponsorship-logo]').isChecked(),
     };
 
-    await modal.locator('select[name="status"]').selectOption(status);
     await modal.locator('input[name="amount"]').fill(amount);
     if (projectName !== '') {
         const projectSelect = modal.locator('select[name="project_id"]');

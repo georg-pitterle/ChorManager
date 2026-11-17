@@ -29,7 +29,7 @@ import {
 } from '../steps/sponsoring.mjs';
 import { ADMIN } from '../data/fixtures.mjs';
 import { createProject } from '../steps/projects.mjs';
-import { createMember } from '../steps/members.mjs';
+import { createMember, createMemberWithForeignRole } from '../steps/members.mjs';
 import { createRole } from '../steps/finances.mjs';
 import { login } from '../steps/auth.mjs';
 import { setMemberPassword } from '../steps/authz.mjs';
@@ -111,8 +111,7 @@ test('Logo fehlt: Frist aus dem Projekt, erledigt mit hochgeladenen Logo-Dateien
     });
     expect(suggested.benefits).toBe(LOGO_FLOW.package.benefits.join('\n'));
     expect(suggested.deliverables).toBe(LOGO_FLOW.package.deliverables.join('\n'));
-    expect(suggested.logoPrint).toBe(true);
-    expect(suggested.logoOnline).toBe(false);
+    expect(suggested.logo).toBe(true);
 
     // Auf der Übersicht: Druck-Frist des Projekts, in einer Woche -> "bald".
     let rows = await missingLogoRows(page);
@@ -161,21 +160,26 @@ test('Logo-Fristen im Dashboard nachtragen', async ({ page }) => {
     });
 
     // Ohne eingetragene Frist steht der Sponsor unter "ohne Frist".
-    let row = (await missingLogoRows(page)).find((text) => text.includes(DEADLINE_FLOW.sponsor.name));
+    // Das Logo-Häkchen gilt für Druck und online; je Anfrage steht eine Zeile da. Es zählt die
+    // Druck-Frist, ersatzweise die Online-Frist (LogoDeadline::for) - ohne beide "Druck, ohne Frist".
+    const sponsorRow = async () => (await missingLogoRows(page))
+        .find((text) => text.includes(DEADLINE_FLOW.sponsor.name));
+    let row = await sponsorRow();
     expect(row).toContain('ohne Frist');
-    expect(row).toContain('online');
+    expect(row).toContain('Druck');
 
-    // Online-Frist in der Vergangenheit -> "überfällig".
+    // Nur eine Online-Frist, in der Vergangenheit -> sie gilt ersatzweise, "überfällig".
     const onlineDeadline = isoDate(-3);
     await setLogoDeadlines(page, DEADLINE_FLOW.project.name, { online: onlineDeadline });
-    row = (await missingLogoRows(page)).find((text) => text.includes(DEADLINE_FLOW.sponsor.name));
+    row = await sponsorRow();
+    expect(row).toContain('online');
     expect(row).toContain(displayDate(onlineDeadline));
     expect(row).toContain('überfällig');
 });
 
 test('Zuständige einer Zusage pflegen die Logos, sehen aber keine anderen Anhänge', async ({ page, browser }) => {
     await createRole(page, { name: ASSIGNEE_FLOW.role, permissions: ['can_create_own_sponsorships'] });
-    await createMember(page, ASSIGNEE_FLOW.member);
+    await createMemberWithForeignRole(page, ASSIGNEE_FLOW.member);
     await setMemberPassword(ASSIGNEE_FLOW.member.email, ASSIGNEE_FLOW.password);
 
     await createSponsor(page, ASSIGNEE_FLOW.sponsor);
@@ -214,7 +218,7 @@ test('Zuständige einer Zusage pflegen die Logos, sehen aber keine anderen Anhä
 test('Ohne Zuständigkeit: Lücke finden, direkt zuweisen, in der Liste wiederfinden', async ({ page }) => {
     const { member, outsider, sponsor } = RESPONSIBILITY_FLOW;
     await createRole(page, { name: RESPONSIBILITY_FLOW.role, permissions: ['can_create_own_sponsorships'] });
-    await createMember(page, member);
+    await createMemberWithForeignRole(page, member);
     await createMember(page, outsider);
     await createSponsor(page, sponsor);
     await createSponsorship(page, { amount: RESPONSIBILITY_FLOW.amount });
@@ -250,7 +254,7 @@ test('Gegenleistungen hakt das Team ab, das Material des Sponsors auch die zust�
     const [deliverable] = TICK_FLOW.package.deliverables;
 
     await createRole(page, { name: TICK_FLOW.role, permissions: ['can_create_own_sponsorships'] });
-    await createMember(page, member);
+    await createMemberWithForeignRole(page, member);
     await setMemberPassword(member.email, TICK_FLOW.password);
     await createPackage(page, TICK_FLOW.package);
     await createSponsor(page, sponsor);

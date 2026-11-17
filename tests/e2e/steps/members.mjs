@@ -1,3 +1,5 @@
+import { assignRole } from './authz.mjs';
+
 // Verifizierte Selektoren aus templates/users/manage.twig:
 //  - Anlegen-Modal: #addUserModal, Formular POST /users
 //  - Felder: first_name, last_name, email (required)
@@ -52,4 +54,17 @@ export async function createMember(page, member) {
 
     await modal.locator('button[name="submit_action"][value="save"]').click();
     await page.waitForURL('**/users');
+}
+
+/**
+ * Legt ein Mitglied mit der Grundrolle an und ordnet ihm dann `member.role` direkt in der
+ * DB zu. Für Rollen mit einem Recht, das der Admin selbst nicht hält - der Dialog bietet
+ * sie ihm nicht an (siehe assignRole in authz.mjs). Ohne `member.role` wie createMember.
+ */
+export async function createMemberWithForeignRole(page, member) {
+    const { role, ...withoutRole } = member;
+    await createMember(page, withoutRole);
+    if (role) {
+        assignRole(member.email, role);
+    }
 }

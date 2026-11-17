@@ -95,9 +95,14 @@ export const NEWSLETTER_LOCKED = {
 // Die Quelle "Veranstaltungsteilnehmer" löst seit Review-Lauf 22 die Zielgruppe des Termins auf
 // (EventAudienceService::eligibleUsersQuery), nicht die Anwesenheitsliste.
 
+// Datum relativ zum Lauftag, zwei Wochen voraus: Ein festes Datum rutschte mit der Zeit in die
+// Vergangenheit, und die Terminliste blendet Vergangenes standardmäßig aus - createEvent fand
+// den eben angelegten Termin dann nicht mehr. Die Regel gilt für bevorstehende Termine genauso.
+const inTwoWeeks = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
 export const CONCERT_EVENT = {
     title: 'E2E Herbstkonzert für den Nachbericht',
-    date: '2026-10-24',
+    date: inTwoWeeks,
     startTime: '19:00',
     endTime: '21:30',
     type: 'Auftritt',

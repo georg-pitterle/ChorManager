@@ -4,7 +4,7 @@ import {
     SOPRANO_KEEPER, SOPRANO_IN_PROJECT, SOPRANO_OUTSIDE_PROJECT, ALTO_IN_PROJECT, ALTO_KEEPER,
 } from '../data/voiceGroupLists.mjs';
 import { createRole } from '../steps/roles.mjs';
-import { createMember } from '../steps/members.mjs';
+import { createMemberWithForeignRole } from '../steps/members.mjs';
 import { createProject, addProjectMember } from '../steps/projects.mjs';
 import { setMemberPassword } from '../steps/authz.mjs';
 import { login } from '../steps/auth.mjs';
@@ -33,7 +33,7 @@ test('Stimmgruppen-Listen: anlegen, abhaken, notieren, nur für die eigene Stimm
     await createRole(page, KEEPER_ROLE);
     const members = [SOPRANO_KEEPER, SOPRANO_IN_PROJECT, SOPRANO_OUTSIDE_PROJECT, ALTO_IN_PROJECT, ALTO_KEEPER];
     for (const member of members) {
-        await createMember(page, member);
+        await createMemberWithForeignRole(page, member);
         setMemberPassword(member.email, LIST_PASSWORD);
     }
     await createProject(page, LIST_PROJECT);

@@ -55,6 +55,17 @@ const KNOWN_BENIGN_CONSOLE_ERRORS = [
         pageUrl: '/voice-group-lists',
         pattern: /Failed to load resource:.*status of 403/,
     },
+    {
+        // Derselbe Fall für Umfragen: /polls/create verlangt can_manage_polls (RoleMiddleware
+        // requiresPollManagement), und die Migration legt das Recht ohne Nachtrag für bestehende
+        // Rollen an (db/migrations/20261103120000_add_can_manage_polls_to_roles.php) - der
+        // Bootstrap-Admin hält es also nicht. Auf /polls steht "Neue Umfrage" nur mit dem Recht
+        // (templates/polls/index.twig, can_manage); der Crawler kommt nur über die
+        // Routen-Tabelle hin. Verifiziert: Die Seite antwortet dem Admin mit 403 "Zugriff
+        // verweigert: Sie haben keine Berechtigung, Umfragen zu verwalten."
+        pageUrl: '/polls/create',
+        pattern: /Failed to load resource:.*status of 403/,
+    },
 ];
 
 // Anders als die seitenscharfen Einträge oben ist diese Meldung auf JEDER Seite gutartig, weil
