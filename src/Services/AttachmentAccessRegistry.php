@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\Attachment;
 use App\Models\Sponsor;
 use App\Models\Sponsorship;
+use App\Models\Task;
 use App\Policies\NewsletterPolicy;
 use App\Policies\SponsoringPolicy;
 use App\Policies\TaskPolicy;
@@ -86,7 +87,7 @@ final class AttachmentAccessRegistry
 
         return match ($entityType) {
             'finance'     => $this->moduleEnabled('finance') && $this->mayReadFinances(),
-            'task'        => $this->moduleEnabled('tasks') && $this->taskPolicy->canManageTasks(),
+            'task'        => $this->moduleEnabled('tasks') && $this->maySeeTask($entityId),
             'sponsor'     => $this->moduleEnabled('sponsoring') && $this->maySeeSponsor($entityId),
             'sponsor_logo' => $this->moduleEnabled('sponsoring') && $this->maySeeSponsorLogo($entityId),
             'sponsorship' => $this->moduleEnabled('sponsoring') && $this->maySeeSponsorship($entityId),
@@ -114,6 +115,31 @@ final class AttachmentAccessRegistry
     {
         return $this->sessionFlag('can_read_finances')
             || $this->sessionFlag('can_manage_finances');
+    }
+
+    /**
+     * Anhänge einer Aufgabe sieht, wer die Aufgabe sehen darf - also die
+     * Aufgabenverwaltung und seit Antwort 1C aus Review-Lauf 78 zusätzlich die
+     * zuständige Person.
+     *
+     * Ohne diesen zweiten Weg wäre die geöffnete Aufgabenseite nur halb
+     * geöffnet: Sie listet die Dateien auf, und jeder Klick darauf endete an
+     * der Auslieferungsroute.
+     *
+     * Die Aufgabe wird erst nachgeschlagen, wenn das Recht fehlt. So kostet
+     * der Regelfall - die Verwaltung lädt einen Anhang - keine zusätzliche
+     * Abfrage, und ein Anhang mit verwaister `entity_id` bleibt für sie
+     * erreichbar wie bisher.
+     */
+    private function maySeeTask(int $taskId): bool
+    {
+        if ($this->taskPolicy->canManageTasks()) {
+            return true;
+        }
+
+        $task = Task::with('assignees')->find($taskId);
+
+        return $task !== null && $this->taskPolicy->canViewTask($task);
     }
 
     private function maySeeSponsor(int $sponsorId): bool

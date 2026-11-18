@@ -570,11 +570,20 @@ return function (App $app) {
                     }
                 )->add(new RoleMiddleware(gates: ['requiresTaskManagement']));
 
-                // Task detail routes require task management permission
+                // Die Aufgabenseite selbst hängt an keinem Rollen-Gate, weil die
+                // Entscheidung an der einzelnen Aufgabe hängt und ein Gate nur
+                // Rechte der Sitzung kennt: Lesen darf, wer Aufgaben verwaltet -
+                // und zusätzlich, wem genau diese Aufgabe zugewiesen ist
+                // (Antwort 1C aus Review-Lauf 78). Geprüft wird in
+                // TaskController::detail() über TaskPolicy::canViewTask();
+                // angemeldet sein muss man durch die AuthMiddleware der
+                // umschließenden Gruppe ohnehin.
+                $group->get('/tasks/{id:[0-9]+}', [TaskController::class, 'detail']);
+
+                // Alles Schreibende bleibt am Recht "Aufgaben verwalten".
                 $group->group(
                     '/tasks',
                     function (RouteCollectorProxy $taskGroup) {
-                        $taskGroup->get('/{id:[0-9]+}', [TaskController::class, 'detail']);
                         $taskGroup->post('/{id:[0-9]+}/update', [TaskController::class, 'update']);
                         $taskGroup->post('/{id:[0-9]+}/status', [TaskController::class, 'updateStatus']);
                         $taskGroup->post('/{id:[0-9]+}/delete', [TaskController::class, 'delete']);

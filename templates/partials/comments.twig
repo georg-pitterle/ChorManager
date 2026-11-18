@@ -1,3 +1,4 @@
+{% set _may_comment = can_write is defined ? can_write : true %}
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white pb-0 border-bottom-0">
         <h5 class="mb-0">
@@ -28,21 +29,29 @@
             {% endfor %}
         </div>
 
-        <form action="{{ submit_url }}" method="post">
-            <div class="mb-3">
-                <label for="commentContent" class="visually-hidden">Neuer Kommentar</label>
-                <textarea class="form-control"
-                          id="commentContent"
-                          name="content"
-                          rows="2"
-                          placeholder="Schreibe einen Kommentar..."
-                          required></textarea>
-            </div>
-            <div class="text-end">
-                <button type="submit" class="btn btn-primary btn-sm">
-                    Senden
-                </button>
-            </div>
-        </form>
+        {# Ohne can_write bleibt das Lesen übrig. Vorgabe ja, damit jeder
+           bestehende Aufrufer unverändert weiterläuft.
+
+           Bewusst `is defined` statt `|default(true)`: Der Filter springt in
+           Twig auch bei einem leeren Wert ein, und `false` ist leer - ein
+           ausdrückliches Nein wurde damit stillschweigend zum Ja. #}
+        {% if _may_comment %}
+            <form action="{{ submit_url }}" method="post">
+                <div class="mb-3">
+                    <label for="commentContent" class="visually-hidden">Neuer Kommentar</label>
+                    <textarea class="form-control"
+                              id="commentContent"
+                              name="content"
+                              rows="2"
+                              placeholder="Schreibe einen Kommentar..."
+                              required></textarea>
+                </div>
+                <div class="text-end">
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        Senden
+                    </button>
+                </div>
+            </form>
+        {% endif %}
     </div>
 </div>

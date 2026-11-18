@@ -72,6 +72,38 @@ final class CalendarFeedPastEventsFeatureTest extends TestCase
     }
 
     /**
+     * Die Rückschau hat eine Grenze - Antwort 2A aus Review-Lauf 78.
+     *
+     * Ohne sie trägt das Abo nach Jahren jeden Termin seit dem ersten Tag, und
+     * zwar bei jedem Abruf: Ein Kalenderprogramm holt die Datei mehrmals pro
+     * Stunde, je Mitglied. Zwei Jahre decken jedes Zurückblättern ab, das
+     * jemand tatsächlich macht.
+     */
+    public function testTheFeedReachesBackTwoYearsAndNoFurther(): void
+    {
+        $inside = $this->createEvent('Konzert vor 23 Monaten', -700);
+        $outside = $this->createEvent('Probe vor 25 Monaten', -760);
+
+        $ics = $this->service->buildEventCalendar($this->user, self::BASE_URL);
+
+        $this->assertStringContainsString('UID:event-' . $inside->id . '@', $ics);
+        $this->assertStringNotContainsString('UID:event-' . $outside->id . '@', $ics);
+    }
+
+    /**
+     * Die Grenze zählt nach vorn nicht - ein Termin in fünf Jahren gehört in
+     * das Abo, sonst fehlte die Jubiläumsplanung darin.
+     */
+    public function testTheFutureStaysUnbounded(): void
+    {
+        $farAhead = $this->createEvent('Jubiläum in fünf Jahren', 1825);
+
+        $ics = $this->service->buildEventCalendar($this->user, self::BASE_URL);
+
+        $this->assertStringContainsString('UID:event-' . $farAhead->id . '@', $ics);
+    }
+
+    /**
      * Sortiert bleibt nach Beginn, damit der Feed in der Reihenfolge steht, in
      * der die Termine stattgefunden haben beziehungsweise stattfinden werden.
      */

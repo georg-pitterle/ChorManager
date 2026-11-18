@@ -46,6 +46,11 @@ class CalendarFeedService
      */
     private const MAX_LINE_OCTETS = 75;
 
+    /**
+     * Wie weit das Termin-Abo zurückreicht. Zwei Jahre, siehe visibleEvents().
+     */
+    public const PAST_WINDOW_MONTHS = 24;
+
     private EventAudienceService $audienceService;
 
     /**
@@ -163,12 +168,21 @@ class CalendarFeedService
      */
     private function visibleEvents(int $userId): Collection
     {
-        // Bewusst ohne Schranke nach hinten: Ein Kalenderprogramm lebt von der
-        // Rückschau, und wer im Abo zurückblättert, will die Proben des letzten
-        // Halbjahres sehen. Vorher endete der Feed am heutigen Tag, davor stand
-        // im Kalender nichts.
+        // Rückschau ja, aber nicht grenzenlos: Ein Kalenderprogramm lebt davon,
+        // dass man zurückblättern kann - vorher endete der Feed am heutigen
+        // Tag, davor stand im Kalender nichts. Ganz ohne Schranke trägt das Abo
+        // nach Jahren jeden Termin seit dem ersten Tag, und zwar bei jedem
+        // Abruf: Die Datei wird mehrmals pro Stunde geholt, je Mitglied.
+        // PAST_WINDOW_MONTHS deckt jedes Zurückblättern ab, das jemand
+        // tatsächlich macht, und hält die Datei dauerhaft gleich groß
+        // (Antwort 2A aus Review-Lauf 78).
+        //
+        // Nach vorn bleibt es offen: Ein Jubiläum in fünf Jahren gehört in den
+        // Kalender, und anders als die Vergangenheit wächst die Zukunft nicht
+        // von selbst.
         return $this->audienceService
             ->visibleEventsQuery($userId)
+            ->where('starts_at', '>=', Carbon::now()->subMonths(self::PAST_WINDOW_MONTHS)->startOfDay())
             // Die Zielgruppe steht in der Beschreibung jedes Termins. Ohne das
             // Vorabladen stellt sie je Termin eine eigene Abfrage.
             ->with('audienceFilters.conditions')

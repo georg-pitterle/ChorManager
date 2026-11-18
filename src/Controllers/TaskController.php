@@ -423,6 +423,31 @@ class TaskController
         return $canManageTasks;
     }
 
+    /**
+     * Darf die anfragende Person diese eine Aufgabe lesen?
+     *
+     * Eigene Prüfung statt hasTaskAccess(), weil `GET /tasks/{id}` als einzige
+     * Aufgaben-Route kein Rollen-Gate mehr trägt: Zugewiesene kommen auch ohne
+     * das Recht herein (Antwort 1C aus Review-Lauf 78). Die Abweisung wird
+     * protokolliert wie dort - sie fällt erst hier, also sieht die Middleware
+     * sie nicht.
+     */
+    private function mayReadTask(Task $task): bool
+    {
+        if ($this->policy->canViewTask($task)) {
+            return true;
+        }
+
+        $this->logger->info('Access denied.', [
+            'event' => 'authz.denied',
+            'permission' => 'can_manage_tasks',
+            'task_id' => (int) $task->id,
+            'project_id' => (int) $task->project_id,
+        ]);
+
+        return false;
+    }
+
     public function index(Request $request, Response $response, array $args): Response
     {
         $projectId = (int) $args['project_id'];
@@ -457,7 +482,7 @@ class TaskController
         $task = Task::with(['project', 'assignees', 'createdBy', 'comments.user', 'attachments', 'activities.user'])
             ->findOrFail($taskId);
 
-        if (!$this->hasTaskAccess($task->project)) {
+        if (!$this->mayReadTask($task)) {
             $_SESSION['error'] = 'Zugriff verweigert.';
             return $response->withHeader('Location', '/dashboard')->withStatus(302);
         }
@@ -472,10 +497,15 @@ class TaskController
         ['success' => $success, 'error' => $error] = $this->takeFlash();
         $task->description = $this->htmlSanitizer->sanitizeTaskHtml((string) $task->description);
 
+        // Die Vorlage blendet jeden Schreibweg aus, den diese Person nicht
+        // gehen darf. Ausdrücklich mitgegeben statt in Twig aus `session`
+        // gelesen: Die Entscheidung gehört in die Schicht, die sie auch im
+        // Controller trifft, und ist so ohne Sitzung prüfbar.
         return $this->view->render($response, 'projects/task_detail.twig', [
             'task'    => $task,
             'project' => $task->project,
             'projectUsers' => $this->projectUsersInNameOrder($task->project),
+            'can_manage_tasks' => $this->policy->canManageTasks(),
             'success' => $success,
             'error'   => $error,
         ] + $this->taskValueMaps());

@@ -1,4 +1,11 @@
 {% import "macros/upload.twig" as upload %}
+{# Ohne can_write bleibt das Lesen übrig: Liste ja, Löschen und Hochladen nein.
+   Vorgabe ja, damit jeder bestehende Aufrufer unverändert weiterläuft.
+
+   Bewusst `is defined` statt `|default(true)`: Der Filter springt in Twig auch
+   bei einem leeren Wert ein, und `false` ist leer - ein ausdrückliches Nein
+   wurde damit stillschweigend zum Ja. #}
+{% set _may_write_attachments = can_write is defined ? can_write : true %}
 <div class="card border-0 shadow-sm mb-4">
     <div class="card-header bg-white pb-0 border-bottom-0">
         <h5 class="mb-0">
@@ -26,17 +33,19 @@
                                 attachment_mime: attachment.mime_type,
                                 attachment_size: attachment.file_size,
                             }, false) }}
-                            <form action="{{ delete_url }}/{{ attachment.id }}/delete"
-                                  method="post"
-                                  class="d-inline"
-                                  data-confirm="Möchten Sie diesen Anhang wirklich löschen?">
-                                <button type="submit"
-                                        class="btn btn-sm btn-link text-danger p-0"
-                                        title="Löschen"
-                                        aria-label="Löschen">
-                                    <i class="bi bi-trash"></i>
-                                </button>
-                            </form>
+                            {% if _may_write_attachments %}
+                                <form action="{{ delete_url }}/{{ attachment.id }}/delete"
+                                      method="post"
+                                      class="d-inline"
+                                      data-confirm="Möchten Sie diesen Anhang wirklich löschen?">
+                                    <button type="submit"
+                                            class="btn btn-sm btn-link text-danger p-0"
+                                            title="Löschen"
+                                            aria-label="Löschen">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            {% endif %}
                         </div>
                     </li>
                 {% endfor %}
@@ -45,6 +54,8 @@
             <p class="text-muted mb-3">Noch keine Anhänge vorhanden.</p>
         {% endif %}
 
-        {{ upload.dropzone(upload_url, {id: "attachments-upload"}) }}
+        {% if _may_write_attachments %}
+            {{ upload.dropzone(upload_url, {id: "attachments-upload"}) }}
+        {% endif %}
     </div>
 </div>

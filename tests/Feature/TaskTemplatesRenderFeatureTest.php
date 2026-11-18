@@ -236,10 +236,16 @@ final class TaskTemplatesRenderFeatureTest extends TestCase
         $task = Task::with(['project', 'assignees', 'createdBy', 'comments.user', 'attachments', 'activities.user'])
             ->findOrFail($this->tasks[0]->id);
 
+        // `can_manage_tasks` kommt seit Antwort 1C aus Review-Lauf 78 vom
+        // Controller und entscheidet, ob die Seite ihre Schreibwege zeigt.
+        // Hier steht es auf wahr, weil dieser Test genau die vollständige
+        // Ansicht prüft; die gekürzte hält
+        // tests/Feature/TaskDetailForAssigneeFeatureTest fest.
         $html = $this->buildTwig()->fetch('projects/task_detail.twig', [
             'task' => $task,
             'project' => $task->project,
             'projectUsers' => $this->project->users()->get(),
+            'can_manage_tasks' => true,
             'success' => null,
             'error' => null,
         ] + $this->valueMaps());

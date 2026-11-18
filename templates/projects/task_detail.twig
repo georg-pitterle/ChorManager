@@ -10,13 +10,24 @@
     Aufgabe: {{ task.name }} - {{ app_settings.app_name|default("Chor-Manager") }}
 {% endblock title %}
 
+{# Zugewiesene ohne das Recht "Aufgaben verwalten" lesen diese Seite nur
+   (Antwort 1C aus Review-Lauf 78). Jeder Schreibweg und jeder Link auf eine
+   Seite hinter dem Gate hängt deshalb an _may_write - angeboten wird nur, was
+   auch geht. #}
+{% set _may_write = can_manage_tasks|default(false) %}
+
 {% block page_header %}
     <section class="page-header">
         <div>
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-1">
                     <li class="breadcrumb-item"><a href="/projects">Projekte</a></li>
-                    <li class="breadcrumb-item"><a href="/projects/{{ project.id }}/tasks">{{ project.name }}</a></li>
+                    {% if _may_write %}
+                        <li class="breadcrumb-item"><a href="/projects/{{ project.id }}/tasks">{{ project.name }}</a></li>
+                    {% else %}
+                        {# Die Aufgabenliste des Projekts hängt am Recht; ohne es bleibt der Name Text. #}
+                        <li class="breadcrumb-item">{{ project.name }}</li>
+                    {% endif %}
                     <li class="breadcrumb-item active">{{ task.name }}</li>
                 </ol>
             </nav>
@@ -27,6 +38,7 @@
         </div>
         <div class="page-actions">
             {{ help.button("projects-planning", "Projektplanung (Aufgaben)") }}
+            {% if _may_write %}
             {# Häufigste Handlung zuerst: ein Tipp setzt den Status, ohne das Bearbeiten-Fenster #}
             {% if task.status == "done" %}
                 <form action="/tasks/{{ task.id }}/status" method="post">
@@ -51,6 +63,7 @@
                     data-bs-target="#editTaskModal">
                 <i class="bi bi-pencil"></i> Bearbeiten
             </button>
+            {% endif %}
         </div>
     </section>
 {% endblock page_header %}
@@ -163,6 +176,7 @@
             {{ include("partials/comments.twig", {
             comments: task.comments,
             submit_url: "/tasks/" ~ task.id ~ "/comments",
+            can_write: _may_write,
             }) }}
         </section>
 
@@ -173,6 +187,7 @@
                     attachments: task.attachments,
                     upload_url: "/tasks/" ~ task.id ~ "/attachments",
                     delete_url: "/tasks/" ~ task.id ~ "/attachments",
+                    can_write: _may_write,
                     }) }}
                 </div>
                 <div class="col-lg-4">
@@ -187,6 +202,7 @@
         </section>
     </div>
 
+    {% if _may_write %}
     {# Eigenes Formular, weil das Bearbeiten-Fenster selbst ein Formular ist; der Knopf dort verweist per form-Attribut hierher #}
     <form id="deleteTaskForm"
           action="/tasks/{{ task.id }}/delete"
@@ -305,6 +321,7 @@
             </form>
         </div>
     </div>
+    {% endif %}
 {% endblock content %}
 
 {% block styles %}
