@@ -102,6 +102,42 @@ final class CalendarFeedIcsEscapingFeatureTest extends TestCase
     }
 
     /**
+     * Steuerzeichen haben in einem TEXT-Wert nichts verloren (RFC 5545 §3.3.11
+     * lässt dort nur TAB und druckbare Zeichen zu). Sie kommen über das
+     * Formular herein, etwa beim Einfügen aus einem PDF, und ein strenges
+     * Kalenderprogramm verwirft daran nicht den einen Termin, sondern die
+     * ganze Datei. Für die Adresse in `URL` entfernt icsUri() sie längst; im
+     * Text liefen sie unverändert durch.
+     */
+    public function testControlCharactersAreStrippedFromTextValues(): void
+    {
+        $this->createEvent("Probe\x0Bmit Pause", "Saal\x07 West");
+
+        $ics = $this->unfold($this->service->buildEventCalendar($this->user, self::BASE_URL));
+
+        $this->assertStringContainsString('SUMMARY:Probemit Pause', $ics);
+        $this->assertStringContainsString('LOCATION:Saal West', $ics);
+        $this->assertSame(
+            0,
+            preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $ics),
+            'Im Kalender steht noch ein Steuerzeichen.'
+        );
+    }
+
+    /**
+     * Der Tabulator ist das eine Steuerzeichen, das RFC 5545 im Text zulässt -
+     * er darf deshalb nicht mit entfernt werden.
+     */
+    public function testATabInTheTitleIsKept(): void
+    {
+        $this->createEvent("Probe\tKurz", 'Saal');
+
+        $ics = $this->unfold($this->service->buildEventCalendar($this->user, self::BASE_URL));
+
+        $this->assertStringContainsString("SUMMARY:Probe\tKurz", $ics);
+    }
+
+    /**
      * Komma und Strichpunkt trennen in RFC 5545 mehrere Werte und müssen im
      * Text ihr Fluchtzeichen behalten.
      */

@@ -409,6 +409,21 @@ class CalendarFeedService
     }
 
     /**
+     * Steuerzeichen, die ein TEXT-Wert nicht tragen darf.
+     *
+     * RFC 5545 §3.3.11 lässt im Text nur TAB und druckbare Zeichen zu. Der
+     * Wagenrücklauf und der Zeilenvorschub stehen bewusst nicht in dieser
+     * Liste: Sie werden nicht entfernt, sondern zu `\n` ausgezeichnet.
+     *
+     * Bewusst ohne `/u`, wie bei icsUri(): Alle gesuchten Zeichen liegen unter
+     * \x80, die Folgebytes eines UTF-8-Zeichens darüber - byteweise trifft das
+     * Muster also genau dieselben Stellen. Mit `/u` gäbe preg_replace() bei
+     * einem ungültigen Byte null zurück und machte aus einem beschädigten
+     * Titel einen leeren.
+     */
+    private const FORBIDDEN_TEXT_CONTROLS = '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/';
+
+    /**
      * Auszeichnung eines TEXT-Werts nach RFC 5545 §3.3.11.
      *
      * Der Backslash ist selbst das Fluchtzeichen und wird deshalb zuerst
@@ -416,10 +431,20 @@ class CalendarFeedService
      * versehentlich mitverdoppeln. Jede Form des Zeilenumbruchs wird zu `\n`:
      * Ein roher Umbruch beendete die Inhaltszeile mitten im Wert, und alles
      * dahinter läse das Kalenderprogramm als eigene, unbekannte Eigenschaft.
+     *
+     * Alle übrigen Steuerzeichen fallen weg. Sie kommen über das Formular
+     * herein - ein aus einem PDF eingefügter Titel trägt schnell ein
+     * \x0B oder \x7F -, und ein strenges Kalenderprogramm verwirft daran nicht
+     * den einen Termin, sondern die ganze Datei. Für die Adresse in `URL` tut
+     * icsUri() dasselbe seit jeher; im Text liefen sie unverändert durch.
+     * Entfernt statt ersetzt, wie bei icsUri(): Ein Platzhalter stünde als
+     * Fremdkörper im Titel, den so niemand eingegeben hat.
      */
     private function escapeIcsText(string $text): string
     {
-        $escaped = str_replace('\\', '\\\\', $text);
+        $cleaned = (string) preg_replace(self::FORBIDDEN_TEXT_CONTROLS, '', $text);
+
+        $escaped = str_replace('\\', '\\\\', $cleaned);
         $escaped = str_replace([';', ','], ['\;', '\,'], $escaped);
 
         // Die Reihenfolge zählt: Der Wagenrücklauf mit Zeilenvorschub ergibt

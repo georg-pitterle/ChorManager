@@ -17,6 +17,22 @@ use Carbon\Carbon;
 class FinanceCsvExportService
 {
     public const DELIMITER = ';';
+
+    /**
+     * Kein Fluchtzeichen - geschrieben wird genau nach RFC 4180, wo allein das
+     * verdoppelte Anführungszeichen zählt.
+     *
+     * PHPs Vorgabe ist der Rückwärtsschrägstrich, und der ist hier dieselbe
+     * Eigenmächtigkeit wie auf der Lesesseite, die Lauf 71 aus
+     * `BankStatementImportService` entfernt hat - nur in die andere Richtung:
+     * Steht in einer Zelle ein Rückwärtsschrägstrich vor einem
+     * Anführungszeichen (`Spende \" Verein`), schreibt `fputcsv()` das
+     * Anführungszeichen unverdoppelt in die Datei. Ein Leser nach RFC 4180 -
+     * seit Lauf 71 auch der eigene Import - hält es für das Ende des Feldes
+     * und liest den Rest der Zelle als Nachspann.
+     */
+    private const ESCAPE = '';
+
     private const BOM = "\xEF\xBB\xBF";
 
     private const HEADER = [
@@ -43,10 +59,10 @@ class FinanceCsvExportService
             return self::BOM;
         }
 
-        fputcsv($handle, self::HEADER, self::DELIMITER, '"', '\\');
+        fputcsv($handle, self::HEADER, self::DELIMITER, '"', self::ESCAPE);
 
         foreach ($finances as $finance) {
-            fputcsv($handle, $this->row($finance), self::DELIMITER, '"', '\\');
+            fputcsv($handle, $this->row($finance), self::DELIMITER, '"', self::ESCAPE);
         }
 
         rewind($handle);
