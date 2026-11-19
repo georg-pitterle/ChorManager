@@ -172,7 +172,12 @@ class NewsletterTemplateController
         // Vorlage erst gespeichert und danach ein zweites Mal geöffnet werden.
         return $this->view->render($response, 'newsletters/templates_index.twig', [
             'projects' => Project::query()->chronological()->get(),
-            'templates' => NewsletterTemplate::query()->orderBy('name')->get(),
+            // Die Übersicht zeigt Name und Kontext; den Mailtext holt der
+            // Bearbeiten-Dialog nach - siehe NewsletterTemplate::LIST_COLUMNS.
+            'templates' => NewsletterTemplate::query()
+                ->select(NewsletterTemplate::LIST_COLUMNS)
+                ->orderBy('name')
+                ->get(),
         ] + $this->audienceView(NewsletterTemplatePersistence::NO_AUDIENCE) + [
             'success' => $success,
             'error' => $error,

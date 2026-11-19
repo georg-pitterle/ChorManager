@@ -107,8 +107,26 @@ class Sponsor extends Model
         return $this->hasMany(Sponsorship::class, 'sponsor_id');
     }
 
+    /**
+     * Die Kontakthistorie, der jüngste Kontakt zuerst. `id` bricht den
+     * Gleichstand.
+     *
+     * Die Sortierung steht hier und nicht beim Aufrufer - gleiche Begründung
+     * wie bei `HasEntityComments::comments()` und `Event::audienceFilters()`.
+     * Vorher kam die Beziehung ohne `ORDER BY` zurück, und
+     * `sponsoring/sponsors/detail.twig` sortierte an drei Stellen selbst nach.
+     *
+     * Der zweite Schlüssel wiegt hier schwerer als bei den Notizen:
+     * `contact_date` ist ein `date`, kein `datetime`. Zwei Kontakte am selben
+     * Tag sind der Normalfall - anrufen und danach die Unterlagen schicken -,
+     * und für sie entschied allein die Datenbank. Dieselbe Reihenfolge führt
+     * `SponsoringContactController::index()` für die eigenständige Kontaktliste;
+     * darüber wacht tests/Unit/Models/SponsoringContactRelationOrderingTest.
+     */
     public function contacts()
     {
-        return $this->hasMany(SponsoringContact::class, 'sponsor_id');
+        return $this->hasMany(SponsoringContact::class, 'sponsor_id')
+            ->orderBy('contact_date', 'desc')
+            ->orderBy('id', 'desc');
     }
 }

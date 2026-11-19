@@ -100,9 +100,17 @@ class Sponsorship extends Model
         return $this->hasMany(SponsorshipDeliverable::class, 'sponsorship_id')->orderBy('sort_order')->orderBy('id');
     }
 
+    /**
+     * Die Kontakte zu diesem Vorgang, der jüngste zuerst - dieselbe
+     * Reihenfolge wie bei `Sponsor::contacts()`, wo auch die Begründung steht.
+     * Beide stehen auf derselben Seite untereinander und dürfen nicht
+     * unterschiedlich herum sortiert sein.
+     */
     public function contacts()
     {
-        return $this->hasMany(SponsoringContact::class, 'sponsorship_id');
+        return $this->hasMany(SponsoringContact::class, 'sponsorship_id')
+            ->orderBy('contact_date', 'desc')
+            ->orderBy('id', 'desc');
     }
 
     /**

@@ -153,7 +153,13 @@ class NewsletterController
      */
     private function groupedTemplates(): array
     {
-        $templates = NewsletterTemplate::query()->with('project')->orderBy('name')->get();
+        // Das Auswahlfeld zeigt Name und Kontext; der Mailtext der Vorlage wird
+        // erst beim Laden nachgeholt - siehe NewsletterTemplate::LIST_COLUMNS.
+        $templates = NewsletterTemplate::query()
+            ->select(NewsletterTemplate::LIST_COLUMNS)
+            ->with('project')
+            ->orderBy('name')
+            ->get();
 
         $global = $templates->filter(static fn ($template): bool => $template->project_id === null)->values();
         $groups = [];
@@ -360,7 +366,10 @@ class NewsletterController
             $projectFilter = '';
         }
 
+        // Ohne die Spaltenliste zieht die Übersicht den ganzen Mailtext jeder
+        // Zeile mit - siehe Newsletter::LIST_COLUMNS.
         $query = Newsletter::query()
+            ->select(Newsletter::LIST_COLUMNS)
             ->where('status', $status)
             ->with(['createdBy', 'project']);
 

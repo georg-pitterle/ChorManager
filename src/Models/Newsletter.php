@@ -35,6 +35,41 @@ class Newsletter extends Model
         self::STATUS_SENT,
     ];
 
+    /**
+     * Spalten, die die Übersicht laden darf.
+     *
+     * `content_html` ist longtext und trägt den ganzen Mailtext. Die Übersicht
+     * zeigt ihn nicht an - sie listet Titel, Zustand, Empfängerzahl und Datum -,
+     * las ihn aber für jede Zeile mit, und `NewsletterController::index()` gibt
+     * alle Newsletter eines Zustands ohne Blätterwerk auf einmal aus. Bei einem
+     * Verein mit ein paar Jahren Rundbriefen liegt damit jeder je verschickte
+     * Mailtext gleichzeitig im Speicher, nur um verworfen zu werden.
+     *
+     * Dieselbe Grenze wie `MailQueue::LIST_COLUMNS`, dort aus demselben Grund
+     * für `body_html`, und derselbe Fehler, der das Repertoire ins
+     * Speicherlimit gefahren hat (`Concerns\HasEntityAttachments`): Ein Fatal
+     * Error im Speicherlimit geht an Monolog vorbei - leere 500-Seite, nichts
+     * im Log.
+     *
+     * `project_id` und `created_by` tragen die vorab geladenen Beziehungen,
+     * `sent_at` die Sortierung der verschickten Newsletter. Wer eine weitere
+     * Spalte in der Übersicht braucht, nimmt sie hier auf - nicht in einen
+     * eigenen `select()` an der Aufrufstelle, sonst fällt die Grenze wieder
+     * auseinander.
+     *
+     * @var list<string>
+     */
+    public const LIST_COLUMNS = [
+        'id',
+        'project_id',
+        'title',
+        'status',
+        'recipient_count',
+        'created_by',
+        'created_at',
+        'sent_at',
+    ];
+
     protected $table = 'newsletters';
     public $timestamps = false;
 
@@ -48,6 +83,21 @@ class Newsletter extends Model
         'locked_at',
         'created_by',
         'sent_at',
+    ];
+
+    /**
+     * Zweite Absicherung neben LIST_COLUMNS: Wird ein Newsletter doch einmal
+     * mit allen Spalten geladen und danach serialisiert, bleibt der Mailtext
+     * aus der Ausgabe. Gleiche Begründung wie bei `MailQueue::$body_html` - ein
+     * longtext in einer Logzeile sprengt jede Zeile im Container-Log.
+     *
+     * Auf `$newsletter->content_html` wirkt sich das nicht aus: Vorschau,
+     * Versand und das Übernehmen in eine Vorlage lesen die Eigenschaft direkt.
+     *
+     * @var list<string>
+     */
+    protected $hidden = [
+        'content_html',
     ];
 
     protected $casts = [
