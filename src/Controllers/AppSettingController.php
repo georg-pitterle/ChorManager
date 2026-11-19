@@ -110,7 +110,9 @@ class AppSettingController
 
     public function index(Request $request, Response $response): Response
     {
-        $settings = AppSetting::all()->pluck('setting_value', 'setting_key')->toArray();
+        // Das Formular zeigt Texte und den Dateinamen des Logos, nie dessen
+        // Inhalt - siehe AppSetting::textSettings().
+        $settings = AppSetting::textSettings();
 
         ['success' => $success, 'error' => $error] = $this->takeFlash();
 

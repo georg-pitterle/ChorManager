@@ -2652,7 +2652,7 @@ class DevSeedService
         $poll = Poll::query()->where('closes_at', '>', Carbon::now())->orderBy('closes_at')->first();
         if ($poll !== null) {
             $entries[] = [NotificationType::POLL_CREATED, 'Neue Umfrage: ' . $poll->title,
-                'Läuft bis ' . $poll->closes_at?->format('d.m.'), '/polls/' . $poll->id, 'poll', $poll->id];
+                'Läuft bis ' . $poll->closes_at->format('d.m.'), '/polls/' . $poll->id, 'poll', $poll->id];
         }
         if ($sponsor !== null) {
             $entries[] = [NotificationType::SPONSORING_FOLLOW_UP_DUE, 'Sponsoring-Erinnerung: ' . $sponsor->name,

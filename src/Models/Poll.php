@@ -107,9 +107,21 @@ class Poll extends Model
         return $this->belongsTo(User::class, 'created_by_user_id');
     }
 
+    /**
+     * Beendet ist eine Umfrage, deren Frist nicht mehr in der Zukunft liegt.
+     *
+     * Ohne Absicherung gegen eine leere Frist: `polls.closes_at` ist seit
+     * 20261103121000 `NOT NULL`, jede Umfrage hat also eine. Vorher stand hier
+     * ein `closes_at === null ||`, das leer als "beendet" las, während
+     * `PollLabels` es an drei Stellen als "jetzt" las - zwei Antworten auf
+     * denselben nie eintretenden Fall, und bei einer nullbaren Spalte stünde
+     * dieselbe Umfrage gleichzeitig als beendet und als heute endend da.
+     * Darauf, dass die Spalte gefüllt bleibt, wacht
+     * RequiredColumnsAreNotNullableFeatureTest.
+     */
     public function isClosed(?Carbon $now = null): bool
     {
-        return $this->closes_at === null || !$this->closes_at->greaterThan($now ?? Carbon::now());
+        return !$this->closes_at->greaterThan($now ?? Carbon::now());
     }
 
     /** Ob schon jemand abgestimmt hat - danach sind Antworten und Auswahlart gesperrt. */

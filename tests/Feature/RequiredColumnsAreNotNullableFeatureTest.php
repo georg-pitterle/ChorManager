@@ -34,6 +34,16 @@ use Tests\Unit\Bootstrap;
  * Die vier Spalten der Mail-Strecke und des Finanzjournals kamen mit
  * 20261019130000 dazu. Sie stehen in über Jahre gewachsenen Tabellen und waren
  * deshalb zuerst aussen vor, bis geprüft war, ob dort Nullwerte liegen.
+ *
+ * `polls.closes_at` kam mit Lauf 79 dazu, und zwar aus einem anderen Grund als
+ * die übrigen: Dort hängt kein Index daran, sondern Code. `Poll::isClosed()`
+ * und die drei Stellen in `PollLabels` behandelten die Frist bis dahin als
+ * leer möglich - und widersprachen sich dabei, weil `isClosed()` leer als
+ * "beendet" las und `PollLabels` als "jetzt". Die Spalte war schon seit
+ * 20261103121000 `NOT NULL`, die Abfragen liefen also nie. Seit sie weg sind,
+ * liest der Code die Frist ohne Absicherung; würde die Spalte nullbar, bräche
+ * er mit einem Fehler statt still zwei Antworten zu geben. Dieser Test ist die
+ * Zusicherung, auf die er sich stützt.
  */
 class RequiredColumnsAreNotNullableFeatureTest extends TestCase
 {
@@ -52,6 +62,7 @@ class RequiredColumnsAreNotNullableFeatureTest extends TestCase
             'mail_delivery_events' => ['source_channel'],
             'mail_queue' => ['mail_type', 'delivery_status'],
             'newsletter_recipient_sources' => ['source_type'],
+            'polls' => ['closes_at'],
         ];
 
         $cases = [];

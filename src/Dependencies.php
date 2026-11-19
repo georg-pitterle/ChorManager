@@ -1074,8 +1074,11 @@ return function (ContainerBuilder $containerBuilder) {
             $environment->addGlobal('current_path', $currentPath);
 
             // Add App Settings to Twig
+            // Über textSettings() und nicht über all()->pluck(): Diese Global
+            // entsteht bei jedem gerenderten Seitenaufruf, und all() holte das
+            // Logo mit - siehe AppSetting::textSettings().
             try {
-                $appSettings = \App\Models\AppSetting::all()->pluck('setting_value', 'setting_key')->toArray();
+                $appSettings = \App\Models\AppSetting::textSettings();
             } catch (\Exception $e) {
                 $appSettings = [];
             }

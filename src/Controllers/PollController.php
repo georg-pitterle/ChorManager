@@ -276,7 +276,7 @@ class PollController
             'options' => $poll->options()->pluck('label')->all(),
             'allows_multiple' => (bool) $poll->allows_multiple,
             'is_anonymous' => (bool) $poll->is_anonymous,
-            'closes_on' => $poll->closes_at?->format('Y-m-d') ?? '',
+            'closes_on' => $poll->closes_at->format('Y-m-d'),
             'notify_members' => false,
         ], null, $this->audience->conditionSets($poll));
     }

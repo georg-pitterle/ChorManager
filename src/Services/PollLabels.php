@@ -28,7 +28,7 @@ final class PollLabels
     /** Der Tag der Frist: "Fr, 13.11." */
     public function date(Poll $poll): string
     {
-        $closesAt = $poll->closes_at ?? Carbon::now();
+        $closesAt = $poll->closes_at;
 
         return $this->schedule->weekday($closesAt) . ', ' . $closesAt->format('d.m.');
     }
@@ -37,7 +37,7 @@ final class PollLabels
     public function remaining(Poll $poll): string
     {
         $today = Carbon::today();
-        $days = (int) $today->diffInDays(($poll->closes_at ?? Carbon::now())->copy()->startOfDay(), false);
+        $days = (int) $today->diffInDays($poll->closes_at->copy()->startOfDay(), false);
 
         return match (true) {
             $days <= 0 => 'endet heute',
@@ -58,7 +58,7 @@ final class PollLabels
 
         return [
             'poll' => $poll,
-            'closes_at' => $poll->closes_at?->getTimestamp() ?? 0,
+            'closes_at' => $poll->closes_at->getTimestamp(),
             'missing' => !$isClosed && $inAudience && !$hasVoted,
             'has_voted' => $hasVoted,
             'is_closed' => $isClosed,
