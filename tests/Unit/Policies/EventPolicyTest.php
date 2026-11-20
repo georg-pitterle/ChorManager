@@ -46,6 +46,10 @@ final class EventPolicyTest extends TestCase
      * Das Recht trägt über die eigene Zielgruppe hinaus - sonst könnte die
      * Terminverwaltung genau die Termine nicht pflegen, für die sie zuständig
      * ist. Die Zielgruppe wird dafür gar nicht erst befragt.
+     *
+     * Ausdrücklich so gewollt, nachgefragt und bestätigt als Antwort A aus
+     * Review-Lauf 80. Diese Prüfung hält die Antwort fest: Wird die Freigabe
+     * später einmal eingeengt, fällt sie hier auf und nicht erst im Betrieb.
      */
     public function testDieTerminverwaltungSiehtUndAendertAuchFremdeTermine(): void
     {

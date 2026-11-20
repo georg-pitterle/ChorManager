@@ -72,12 +72,13 @@ class EventPolicy
      * Recht hält, sieht laut canAccessEvent() jeden Termin, also fällt
      * `canEditEvent()` derzeit mit `canManageEvents()` zusammen.
      *
-     * Der Kommentar oben las sich zuvor so, als sperrte die Sichtbarkeit einen
-     * Verwalter von fremden Terminen aus. Das tut sie nicht, und sie soll es
-     * auch nicht: Dass die Terminverwaltung auch außerhalb der eigenen
-     * Zielgruppe pflegen kann, ist der ausdrückliche Grund für die Freigabe in
-     * canAccessEvent(). Wer die Stelle gelesen und daraus eine Einschränkung
-     * geschlossen hat, hätte sie an der falschen Stelle gesucht.
+     * Dass die Terminverwaltung auch Termine außerhalb der eigenen Zielgruppe
+     * ändert, ist eine Entscheidung und kein Versehen (Antwort A aus
+     * Review-Lauf 80): Sie sieht diese Termine ohnehin, und ohne das Ändern
+     * könnte sie genau die nicht pflegen, für die sie zuständig ist. Der
+     * Kommentar oben las sich zuvor nach einer Einschränkung, die es hier nie
+     * gab - die Frage ist damit beantwortet und braucht beim nächsten
+     * Durchgang nicht neu gestellt zu werden.
      *
      * Stehen bleibt die Verknüpfung trotzdem. Sie kostet nichts - bei gesetztem
      * Recht bricht canAccessEvent() vor der Zielgruppen-Abfrage ab -, und wird
