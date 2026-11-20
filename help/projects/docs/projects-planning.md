@@ -49,6 +49,8 @@ Auf der Detailseite kannst du:
 
 Aufgaben, die dir zugewiesen sind, ein Fälligkeitsdatum haben und noch nicht abgeschlossen sind, können in deinem abonnierten Kalender erscheinen. Ob und wie, stellst du selbst unter **Profil → Kalender** ein; die Hilfe zu den Terminen beschreibt die Einstellung genauer.
 
+Der Link im Kalendereintrag führt zur Seite der Aufgabe. Die darfst du öffnen, weil sie dir zugewiesen ist – auch ohne das Recht "Projektplanung (Aufgaben)". Ohne dieses Recht kannst du dort aber nur lesen: Status ändern, bearbeiten, kommentieren, Dateien hochladen und löschen bleiben dem Recht vorbehalten.
+
 ## Häufige Stolperfallen
 
 - **Nur Projektmitglieder auswählbar** – als Verantwortliche erscheinen ausschließlich Mitglieder des Projekts. Fehlt jemand, ordne die Person zuerst dem Projekt zu (siehe [Projektmitglieder zuweisen](projects-members)).

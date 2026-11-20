@@ -8,7 +8,7 @@ Das Sponsoring-Modul hilft dir, den Überblick über Sponsoren, Sponsoring-Paket
 - welche **Leistungen des Sponsors** noch ausstehen – Banner, unterschriebener Vertrag, Sachleistung
 - die **Logos** jedes Sponsors in allen Formaten, und von wem das Logo bis wann noch fehlt
 - ob das zugesagte Geld schon **bezahlt** ist
-- den Kontaktverlauf (Anrufe, E-Mails, Treffen, Briefe) je Anfrage
+- den Kontaktverlauf (Anrufe, E-Mails, Treffen, Briefe) je Anfrage, auch als eigene Liste aller Kontakte
 - fällige Erinnerungen, damit kein Sponsor "vergessen" wird
 - alle Verträge und Unterlagen an einem Ort
 
@@ -21,7 +21,9 @@ Es gibt zwei Rechte:
 | Recht | Was damit möglich ist |
 | --- | --- |
 | **Eigene Sponsoring-Anfragen erfassen** | Sehen, welche Firmen angefragt sind und wie es dort steht; neue Sponsoren und Anfragen anlegen, die selbst angelegten weiter bearbeiten und deren Leistungen des Sponsors abhaken. Anfragen lassen sich nur einem laufenden Projekt zuordnen (oder gar keinem). |
-| **Sponsoring verwalten** | Zusätzlich alle fremden Einträge sehen, bearbeiten und löschen, Sponsoren löschen, Pakete pflegen, Anfragen jedem Projekt zuordnen und Gegenleistungen abhaken. |
+| **Sponsoring verwalten** | Zusätzlich alle fremden Einträge sehen, bearbeiten und löschen, Sponsoren löschen, Pakete pflegen, Anfragen jedem Projekt zuordnen und Gegenleistungen abhaken. Mit diesem Recht ist außerdem jeder Mitgliedsname im Sponsoring ein Mail-Link (kleines Briefsymbol) mit vorbelegtem Betreff – so erreichst du die zuständige Person direkt. |
+
+Zahlungseingänge bestätigen darf zusätzlich, wer **"Finanzen lesen und schreiben"** hat – auch ohne eines der beiden Sponsoring-Rechte, siehe [Zahlungen bestätigen](#zahlungen-bestätigen).
 
 ### Was bei fremden Anfragen verborgen bleibt
 
@@ -60,7 +62,7 @@ geschrieben hat.
 
 Ist die Anfrage eine **Zusage**, darfst du außerdem die **Logos** dieses
 Sponsors hochladen, ansehen und löschen – du besorgst sie ja. Das gilt nur für die
-Logos, nicht für die übrigen Anhänge des Sponsors, und es endet, sobald der
+Logos, nicht für die übrigen Anhänge des Sponsors, und es endet, sobald die
 Anfrage abgesagt oder abgeschlossen ist.
 
 Damit kann jedes Mitglied selbst eine Firma anfragen und das dokumentieren, während das Sponsoring-Team koordiniert und prüft. Vor jeder Anfrage lohnt ein Blick in die Sponsorenliste: dort steht, wo schon jemand angefragt hat.
@@ -83,28 +85,58 @@ Nur wenn jemand grundsätzlich nicht mehr angefragt werden möchte, wird beim Sp
 
 Klicke in der Seitenleiste auf **Finanzen → Sponsoring**. Du landest auf der Übersicht. Unter der Überschrift steht die Lage in einem Satz – mit dem Recht "Sponsoring verwalten" samt zugesagter Summe, wie viel davon noch nicht bezahlt ist und wie viel angefragt ist.
 
-Darunter führt eine Leiste durch das ganze Modul: **Übersicht · Sponsoren · Pakete · Anhänge**. Sie steht an derselben Stelle auf allen Sponsoring-Seiten außer der Seite eines einzelnen Sponsors – dort führt der Knopf **Zur Liste** zurück.
+Darunter führt eine Leiste durch das ganze Modul: **Übersicht · Sponsoren · Kontakte · Pakete · Anhänge**. Sie steht an derselben Stelle auf allen Sponsoring-Seiten außer der Seite eines einzelnen Sponsors – dort führt der Knopf **Zur Liste** zurück.
+
+### Kurzanleitung "So geht's"
+
+Ganz oben steht eine aufklappbare Kurzanleitung in sieben Schritten – von „Erst nachsehen“ bis „Ablegen und abhaken“. Beim ersten Besuch ist sie offen. Klappst du sie zu, merkt sich das dein Browser, und sie bleibt zu. Unter den Schritten liegen die Erklärvideos: Das Video für Mitglieder sieht jeder, das Video zur Verwaltung nur, wer **"Sponsoring verwalten"** hat. Ein Video erscheint nur, wenn der Administrator es unter den Einstellungen eingetragen hat. Geladen wird es erst nach einem Klick auf **Video laden** – vorher fragt die Seite nichts bei YouTube an.
+
+![Kurzanleitung "So geht's" mit den Erklärvideos](images/sponsoring/23-dashboard-guide.png)
+
+### Die Arbeitslisten
+
+Darunter folgt die eigentliche Arbeitsliste. Im Bild ist die Kurzanleitung zugeklappt, damit alle Teile Platz haben.
 
 ![Sponsoring-Übersicht](images/sponsoring/01-dashboard.png)
 
 Die Übersicht ist eine Arbeitsliste in sieben Teilen:
 
 - **Ohne Zuständigkeit** (nur mit "Sponsoring verwalten"): offene Anfragen und Zusagen ohne aktive Person, Zusagen zuerst. Dort wählst du in der Zeile direkt eine Person und klickst **Zuweisen**; der Bearbeiten-Dialog ist dafür nicht nötig. Zur Auswahl stehen nur Personen mit einem Sponsoring-Recht. Ist die bisherige Person nicht mehr aktiv, steht das in der Zeile.
-- **Logo fehlt**: zugesagte Sponsoren, deren Logo für den Druck oder für online gebraucht wird und für die noch keine Logo-Datei vorliegt – mehr dazu unten unter „Logos und Fristen“.
+- **Logo fehlt**: zugesagte Sponsoren, deren Logo gebraucht wird und für die noch keine Logo-Datei vorliegt – mehr dazu unten unter „Logos und Fristen“.
 - **Erinnerungen**: Kontakte mit einem Erinnerungstermin in den nächsten 7 Tagen. Wie dringend, steht in Worten daneben – "seit 2 Tagen überfällig", "heute fällig", "in 3 Tagen"; Überfälliges kommt zuerst. Mit **Erledigt** hakst du eine Erinnerung ab. Ohne das Recht "Sponsoring verwalten" siehst du hier deine eigenen Erinnerungen und die der Anfragen, für die du zuständig bist – die darfst du auch abhaken, selbst wenn sie jemand anderer protokolliert hat. Die Zusammenfassung eines fremden Kontakts bleibt dabei verborgen. Daneben steht die zuständige Person.
 - **Offene Gegenleistungen**: Was der Verein zugesagten Sponsoren noch schuldet, je Anfrage – zuerst, was bald endet. Daneben steht die zuständige Person. Mit dem Recht "Sponsoring verwalten" hakt ein Klick eine Leistung als erbracht ab. Das ist die Liste für die Tage vor dem Konzert: welche Logos ins Programmheft gehören, wer Freikarten bekommt.
 - **Offene Leistungen des Sponsors**: was zugesagte Sponsoren noch liefern – Banner, Vertrag, Sachleistung. Ein Klick hakt eine Leistung als erhalten ab, sofern du das darfst. Auch hier steht die zuständige Person daneben.
-- **Zahlung offen** (nur mit "Sponsoring verwalten"): Zusagen, bei denen das Geld noch nicht eingegangen ist. Zusagen über 0 € – reine Sachleistungen – stehen hier nicht. Auch hier steht die zuständige Person daneben.
-- **Letzte Kontakte**: die fünf zuletzt protokollierten Gespräche. Ohne "Sponsoring verwalten" nur deine eigenen.
+- **Zahlung offen** (nur mit "Sponsoring verwalten"): Zusagen, bei denen das Geld noch nicht eingegangen ist. Zusagen über 0 € – reine Sachleistungen – stehen hier nicht. Auch hier steht die zuständige Person daneben. Je Zeile trägst du das Datum des Zahlungseingangs ein und klickst **Zahlung bestätigen**, siehe [Zahlungen bestätigen](#zahlungen-bestätigen).
+- **Letzte Kontakte**: die fünf zuletzt protokollierten Gespräche. Ohne "Sponsoring verwalten" nur deine eigenen. Über **Alle Kontakte** kommst du zur Seite [Kontakte](#die-seite-kontakte).
+
+![Der Bereich "Letzte Kontakte" mit dem Link "Alle Kontakte"](images/sponsoring/25-dashboard-recent-contacts.png)
 
 ![Bereich "Ohne Zuständigkeit" mit Auswahl und Knopf "Zuweisen"](images/sponsoring/18-dashboard-unassigned.png)
+
+## Die Seite "Kontakte"
+
+Klicke in der Leiste auf **Kontakte** oder auf der Übersicht bei "Letzte Kontakte" auf **Alle Kontakte**. Die Seite listet alle protokollierten Gespräche, die neuesten zuerst: Datum, Sponsor, Anfrage mit ihrem Status, Art, Zusammenfassung, wer protokolliert hat und die Erinnerung (mit "erledigt" oder "überfällig"). Über die Tabellenleiste suchst du und sortierst nach den Spalten.
+
+Wer was sieht, ist wie bei "Letzte Kontakte": Mit dem Recht **"Sponsoring verwalten"** siehst du alle Kontakte, sonst nur die, die du selbst protokolliert hast. Die Zusammenfassung fremder Gespräche bleibt verborgen („nicht sichtbar“). Kontakte, die zu **keiner Anfrage** gehören, tragen die Markierung **ohne Anfrage** – so findest du Gespräche, bei denen sich kein Status geändert hat. Neue Kontakte protokollierst und änderst du beim jeweiligen Sponsor; der Name des Sponsors führt dorthin.
+
+![Seite "Kontakte"](images/sponsoring/19-contacts.png)
+
+## Zahlungen bestätigen
+
+Ist das Geld einer Zusage auf dem Konto, trägst du in **Zahlung offen** das Datum des Eingangs ein (vorbelegt ist heute, ein Datum in der Zukunft lässt das Feld nicht zu) und klickst **Zahlung bestätigen**. Die Zusage verschwindet aus der Liste, an ihrer Karte steht danach „Bezahlt am …“. Bestätigen lässt sich nur eine **Zusage**.
+
+Bestätigen darf, wer **"Sponsoring verwalten"** oder **"Finanzen lesen und schreiben"** hat. Wer nur die eigene Anfrage ändern darf, trägt "Bezahlt am" im Dialog der Anfrage ein.
+
+**Sponsoring-Zahlungen:** Wer die Finanzen führt, aber weder **"Sponsoring verwalten"** noch **"Eigene Sponsoring-Anfragen erfassen"** hat, bekommt unter **Finanzen** den eigenen Menüpunkt **Sponsoring-Zahlungen** (nur bei aktivem Sponsoring-Modul). Die Seite zeigt genau die Liste "Zahlung offen" – Firma, Betrag, Projekt, zuständige Person – und nichts vom übrigen Sponsoring. Wer **"Sponsoring verwalten"** hat, findet dieselbe Liste auf der Übersicht.
+
+![Seite "Sponsoring-Zahlungen"](images/sponsoring/22-payments.png)
 
 ## Logos und Fristen
 
 Fürs Plakat muss ein Sponsorenlogo viel früher da sein als für Homepage und Social
 Media. Deshalb hat jedes Projekt zwei Logo-Fristen: **Druck** und **online**. Bei
-jeder Anfrage ist angekreuzt, wofür das Logo gebraucht wird; das Paket gibt es
-beim Anlegen vor.
+jeder Anfrage steht das Häkchen **"Logo gebraucht (Druck und online)"**; das Paket
+schlägt es vor, sobald du es wählst.
 
 Daraus entsteht auf der Übersicht die Liste **Logo fehlt**:
 
@@ -113,8 +145,8 @@ Daraus entsteht auf der Übersicht die Liste **Logo fehlt**:
   stehen hier nicht.
 - Jeder Sponsor erscheint einmal, mit der **frühesten Frist** seiner Anfragen
   und allen **Zuständigen**.
-- Braucht eine Anfrage das Logo für den Druck, gilt die Druck-Frist des
-  Projekts; ist keine eingetragen, die Online-Frist. Ohne Projekt oder ohne Datum
+- Gilt das Logo als gebraucht, nimmt die Liste die Druck-Frist des Projekts;
+  ist keine eingetragen, die Online-Frist. Ohne Projekt oder ohne Datum
   steht der Sponsor unter **ohne Frist** am Ende.
 - **überfällig** heißt: Die Frist ist vorbei. **bald** heißt: Sie endet in den
   nächsten 14 Tagen.

@@ -59,7 +59,7 @@ async function clickAndWaitForEvent(page, triggerLocator, eventTargetSelector, e
 async function main() {
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
-    const browser = await chromium.launch();
+    const browser = await chromium.launch({ env: { ...process.env, LANG: 'de_AT.UTF-8' } });
     const context = await browser.newContext({ viewport: VIEWPORT, ignoreHTTPSErrors: true, locale: 'de-AT' });
     await prepareSidebarForScreenshots(context);
     const page = await context.newPage();

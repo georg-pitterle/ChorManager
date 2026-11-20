@@ -114,8 +114,9 @@ async function waitForEditor(page) {
 async function main() {
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
-    const browser = await chromium.launch();
+    const browser = await chromium.launch({ env: { ...process.env, LANG: 'de_AT.UTF-8' } });
     const context = await browser.newContext({
+        locale: 'de-AT',
         viewport: VIEWPORT,
         isMobile: false,
         hasTouch: false,
@@ -242,7 +243,7 @@ async function main() {
             .locator('[data-newsletter-modal-url*="/edit"]').getAttribute('data-newsletter-modal-url');
         const draftPath = editUrl.replace('?modal=1', '');
 
-        const holderContext = await browser.newContext({ viewport: VIEWPORT, ignoreHTTPSErrors: true });
+        const holderContext = await browser.newContext({ viewport: VIEWPORT, ignoreHTTPSErrors: true, locale: 'de-AT' });
         const holderPage = await holderContext.newPage();
         try {
             await login(holderPage, LOCK_HOLDER_EMAIL);

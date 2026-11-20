@@ -111,8 +111,9 @@ async function findProjectWithTasks(page, projectIds) {
 async function main() {
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
-    const browser = await chromium.launch();
+    const browser = await chromium.launch({ env: { ...process.env, LANG: 'de_AT.UTF-8' } });
     const context = await browser.newContext({
+        locale: 'de-AT',
         viewport: VIEWPORT,
         isMobile: false,
         hasTouch: false,
@@ -194,6 +195,8 @@ async function main() {
             return kanban && !kanban.hasAttribute('hidden');
         });
         await page.locator('#kanban-board').waitFor({ state: 'visible' });
+        // Die Ansicht blendet per .fade-in ein; sonst landet sie halb durchsichtig im Bild.
+        await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished)));
         await shot(page, '06-tasks-kanban');
 
         // 7. Modal: Neue Aufgabe

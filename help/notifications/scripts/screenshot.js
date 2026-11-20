@@ -107,8 +107,9 @@ async function clickAndWaitForTabPane(page, triggerLocator, paneSelector) {
 async function main() {
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
-    const browser = await chromium.launch();
+    const browser = await chromium.launch({ env: { ...process.env, LANG: 'de_AT.UTF-8' } });
     const context = await browser.newContext({
+        locale: 'de-AT',
         viewport: VIEWPORT,
         isMobile: false,
         hasTouch: false,

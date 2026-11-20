@@ -1,6 +1,6 @@
 # Anmeldungen (Zu-/Absagen)
 
-Für Termine mit freigeschalteter Anmeldung können Mitglieder selbst mitteilen, ob sie teilnehmen. So sehen Chorleitung und Vorstand frühzeitig, mit wie vielen Teilnehmenden zu rechnen ist.
+Für Termine mit freigeschalteter Anmeldung können Mitglieder selbst mitteilen, ob sie teilnehmen. So sieht, wer die Termine plant, frühzeitig, mit wie vielen Teilnehmenden zu rechnen ist.
 
 > **Berechtigung:** Die eigene Anmeldung sehen und abgeben kann jedes eingeloggte Mitglied, für das der Termin gilt. Wer zusätzlich das Recht **"Termine verwalten"** oder eine Vertretungsfunktion (z. B. Stimmgruppenvertretung) hat, kann auch stellvertretend für andere Personen Anmeldungen eintragen.
 

@@ -74,6 +74,7 @@ async function openPoll(page, title, suffix = '') {
 
 async function withSession(browser, email, fn) {
     const context = await browser.newContext({
+        locale: 'de-AT',
         viewport: VIEWPORT,
         isMobile: false,
         hasTouch: false,
@@ -92,7 +93,7 @@ async function withSession(browser, email, fn) {
 
 async function main() {
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
-    const browser = await chromium.launch();
+    const browser = await chromium.launch({ env: { ...process.env, LANG: 'de_AT.UTF-8' } });
 
     try {
         // Verwaltung: Übersicht, Ergebnisse, Verwaltungsmenü, Formular

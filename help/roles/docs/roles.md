@@ -5,11 +5,19 @@
 > **Berechtigung:** Dieses Modul ist nur sichtbar, wenn deine Rolle das Recht **"Rollen verwalten"** hat.
 > Siehst du den Menüpunkt nicht, frag den Administrator unter **Administration → Rollen & Rechte**.
 
-## 1. Berechtigungsmatrix
+## 1. Rollenübersicht
 
-Unter **Administration → Rollen & Rechte** siehst du alle Rollen deiner Installation nebeneinander in einer Matrix: Jede Spalte ist eine Rolle, jede Zeile ein Recht. Ein grüner Haken zeigt, dass die Rolle dieses Recht besitzt, ein rotes Kreuz, dass sie es nicht hat. Zusätzlich zeigt die Matrix pro Rolle die Anzahl aktiver Mitglieder und bietet einen direkten Zugang zum Bearbeiten.
+Unter **Administration → Rollen & Rechte** stehen links alle Rollen deiner Installation, jeweils mit Hierarchie-Level, Zahl der aktiven Mitglieder und wie viele der Rechte sie hat (etwa „16/24 Rechte"). Auf dem Handy wählst du die Rolle stattdessen aus einer Auswahlliste.
 
-![Berechtigungsmatrix mit allen Rollen und Rechten](images/roles/01-permission-matrix.png)
+Rechts siehst du die Rechte der gewählten Rolle, nach Bereichen gruppiert. Ein grüner Haken heißt: Die Rolle hat dieses Recht, ein grauer Punkt: Sie hat es nicht. Neben jedem Recht steht, wie viele Rollen es insgesamt haben. Über **Bearbeiten** im Kopf der Rolle änderst du sie. Mit dem Feld **Recht suchen** blendest du alle Rechte aus, die nicht zum Suchbegriff passen.
+
+![Rollenübersicht: links die Rollen, rechts die Rechte der gewählten Rolle](images/roles/01-role-overview.png)
+
+### Wer hat ein bestimmtes Recht?
+
+Klickst du auf ein Recht, erscheinen darunter die Rollen, die es haben. Links steht dann **„Wer hat … ?"**, und jede dieser Rollen trägt einen Haken. Ein Klick auf einen Rollennamen wechselt zu dieser Rolle.
+
+![Klick auf "Budget verwalten" zeigt die Rollen mit diesem Recht](images/roles/02-permission-holders.png)
 
 ## 2. Neue Rolle anlegen
 
@@ -19,19 +27,19 @@ Das Hierarchie-Level vergibt **keine** Rechte. Seine Hauptaufgabe: Wer ein Mitgl
 
 Das höchste Level **100** hat zwei Besonderheiten: Wer es hält, darf jedes Recht vergeben, auch eines, das die eigene Rolle nicht trägt. Und er kann die Bearbeitungssperre eines Newsletter-Entwurfs aufheben, den jemand anderes offen gelassen hat (siehe [Newsletter schreiben und versenden](newsletter-compose)).
 
-![Formular zum Anlegen einer neuen Rolle](images/roles/02-new-role-modal.png)
+![Formular zum Anlegen einer neuen Rolle](images/roles/03-new-role-modal.png)
 
 ## 3. Rolle bearbeiten
 
-Über den Button **"Bearbeiten"** in der Matrix öffnest du dasselbe Formular für eine bestehende Rolle vorausgefüllt. Hier kannst du Name, Hierarchie-Level und alle Einzelrechte jederzeit anpassen – Änderungen wirken sich sofort auf alle Mitglieder mit dieser Rolle aus.
+Wähle links die Rolle und klicke rechts im Kopf auf **"Bearbeiten"**. Es öffnet sich dasselbe Formular, vorausgefüllt mit der bestehenden Rolle. Hier kannst du Name, Hierarchie-Level und alle Einzelrechte jederzeit anpassen – Änderungen wirken sich sofort auf alle Mitglieder mit dieser Rolle aus.
 
-![Formular zum Bearbeiten einer bestehenden Rolle](images/roles/03-edit-role-modal.png)
+![Formular zum Bearbeiten einer bestehenden Rolle](images/roles/04-edit-role-modal.png)
 
 ## 4. Rolle löschen
 
-Der Button **"Löschen"** erscheint nur bei Rollen, denen aktuell kein einziges Mitglied zugewiesen ist – archivierte Mitglieder zählen dabei mit, damit nach einer Wiederherstellung niemand ohne Rolle dasteht. Ist die Rolle noch vergeben, entziehe sie zuerst in der Mitgliederverwaltung. Auch beim Löschen gilt die Level-Grenze: Rollen oberhalb des eigenen Hierarchie-Levels lassen sich nicht entfernen.
+Der Button **"Löschen"** steht neben **"Bearbeiten"** im Kopf der Rolle. Er erscheint nur bei Rollen, denen aktuell kein einziges Mitglied zugewiesen ist – archivierte Mitglieder zählen dabei mit, damit nach einer Wiederherstellung niemand ohne Rolle dasteht. Ist die Rolle noch vergeben, entziehe sie zuerst in der Mitgliederverwaltung. Auch beim Löschen gilt die Level-Grenze: Rollen oberhalb des eigenen Hierarchie-Levels lassen sich nicht entfernen.
 
-![Sicherheitsabfrage vor dem Löschen einer Rolle](images/roles/04-delete-role-modal.png)
+![Sicherheitsabfrage vor dem Löschen einer Rolle](images/roles/05-delete-role-modal.png)
 
 ## Die einzelnen Rechte im Detail
 
@@ -73,7 +81,11 @@ Ist dieses Recht aktiv, darf die Rolle die Mitglieder der eigenen Stimmgruppe pf
 
 Sichtbar sind dabei nur Termine, zu deren Zielgruppe man selbst gehört oder in denen mindestens ein Mitglied der eigenen Stimmgruppe eingeladen ist – Termine ganz anderer Gruppen tauchen weder in der Anwesenheits- noch in der Anmeldeliste auf.
 
-Zwei Dinge bleiben bewusst ausgenommen: Die **E-Mail-Adresse** eines fremden Kontos lässt sich damit nicht ändern (das Feld wird nur lesend angezeigt), und die **Einladungs-E-Mail** lässt sich nicht auslösen. Beides zusammen ergäbe einen Weg, ein fremdes Konto zu übernehmen: Adresse umbiegen, Einladung darauf schicken, Passwort neu setzen. Wer das braucht, benötigt **„Mitglieder verwalten"** bzw. **„Mitglieder editieren erlauben"**. Dieselbe Grenze gilt schon für **„Projektmitglieder verwalten"**.
+Zwei Dinge bleiben bewusst ausgenommen: Die **E-Mail-Adresse** eines fremden Kontos lässt sich damit nicht ändern (das Feld wird nur lesend angezeigt), und die **Einladungs-E-Mail** lässt sich nicht auslösen. Beides zusammen ergäbe einen Weg, ein fremdes Konto zu übernehmen: Adresse umbiegen, Einladung darauf schicken, Passwort neu setzen. Wer das braucht, benötigt **„Mitgliederverwaltung erlauben"** bzw. **„Mitglieder editieren erlauben"**. Dieselbe Grenze gilt schon für **„Projektmitglieder verwalten"**.
+
+### Stimmgruppen-Listen führen
+
+Mit diesem Recht darf die Rolle für ihre eigene Stimmgruppe Listen mit eigenen Fragen führen, etwa „Mitgliedsbeitrag bezahlt" oder „Noten zurückgegeben". Der Menüpunkt **Stimmgruppen-Listen** erscheint nur mit diesem Recht. Die Mitglieder selbst sehen diese Listen nicht. Siehe [Stimmgruppen-Listen](voice-group-lists).
 
 ### Finanzen nur lesen
 
@@ -81,7 +93,9 @@ Mit diesem Recht darf die Rolle das Finanzmodul einsehen, Auswertungen ansehen u
 
 ### Finanzen lesen und schreiben
 
-Dieses Recht erweitert das reine Leserecht: Die Rolle darf Finanzeinträge und die zugehörigen Konfigurationen anlegen, bearbeiten und löschen. Es ist typischerweise der Kassierin, dem Kassier oder vergleichbaren Positionen vorbehalten, die die Finanzbuchhaltung des Chors führen.
+Dieses Recht erweitert das reine Leserecht und schließt es ein: Die Rolle darf Finanzeinträge und die zugehörigen Konfigurationen anlegen, bearbeiten und löschen. **„Finanzen nur lesen"** gilt damit automatisch mit, die Übersicht zeigt es auch so an. Das Recht ist für Personen gedacht, die die Finanzbuchhaltung des Chors führen.
+
+Ist das Sponsoring-Modul aktiv und hat die Rolle kein Sponsoring-Recht, erscheint zusätzlich der Menüpunkt **Sponsoring-Zahlungen** mit den Zusagen, bei denen das Geld noch nicht eingegangen ist.
 
 ### Budget verwalten
 
@@ -89,7 +103,11 @@ Ist dieses Recht aktiv, darf die Rolle den Budget-Bereich einsehen und bearbeite
 
 ### Sponsoring verwalten
 
-Mit diesem Recht darf die Rolle das Sponsoring-Modul sehen sowie Sponsoren, Vorgänge und Kontakthistorien verwalten. Es erscheint nur, wenn das Sponsoring-Modul für die Installation aktiviert ist, und richtet sich an Personen, die Sponsorenbeziehungen pflegen.
+Mit diesem Recht darf die Rolle das Sponsoring-Modul sehen sowie Sponsoren, Anfragen und Kontakte verwalten. Es schließt **„Eigene Sponsoring-Anfragen erfassen"** ein. Es erscheint nur, wenn das Sponsoring-Modul für die Installation aktiviert ist, und richtet sich an Personen, die Sponsorenbeziehungen pflegen.
+
+### Eigene Sponsoring-Anfragen erfassen
+
+Die schwächere Variante für Mitglieder, die selbst Firmen ansprechen: Die Rolle sieht das Sponsoring-Modul, erkennt, welche Firmen bereits angefragt sind und wie es dort steht, und darf eigene Anfragen anlegen und bearbeiten. Beträge, Vertragsdateien und Gesprächsnotizen fremder Anfragen bleiben verborgen, ebenso das Löschen von Sponsoren und die Paketverwaltung. Auf der Übersicht erscheinen nur die eigenen Erinnerungen und Kontakte. Auch dieses Recht erscheint nur bei aktivem Sponsoring-Modul. Siehe [Sponsoring](sponsoring).
 
 ### Repertoire verwalten
 
@@ -102,6 +120,14 @@ Ist dieses Recht aktiv, darf die Rolle den Notenarchiv-Bereich innerhalb des Rep
 ### Newsletter verwalten
 
 Mit diesem Recht darf die Rolle Newsletter erstellen, bearbeiten und verschicken. Es erscheint nur, wenn das Newsletter-Modul aktiviert ist, und eignet sich für Personen, die die Kommunikation nach außen bzw. an die Mitglieder verantworten.
+
+### Umfragen verwalten
+
+Mit diesem Recht darf die Rolle Umfragen anlegen, bearbeiten, beenden und löschen und sieht alle Umfragen, auch solche, zu deren Zielgruppe sie nicht gehört. Bei namentlichen Umfragen sieht sie jederzeit den Zwischenstand, bei anonymen erst nach dem Fristende. Abstimmen darf dagegen jedes Mitglied der Zielgruppe ohne besonderes Recht. Es erscheint nur, wenn das Umfragen-Modul aktiviert ist. Siehe [Umfragen verwalten](polls-manage).
+
+### Dateiverwaltung verwalten
+
+Mit diesem Recht darf die Rolle in der Dateiablage Teamordner anlegen, Kontingente festlegen und alle Freigaben ändern. Es erscheint nur, wenn das Datei-Modul aktiviert ist. Siehe [Dateien](files).
 
 ### Mailversand verwalten
 
@@ -119,9 +145,13 @@ Mit diesem Recht darf die Rolle grundlegende Stammdaten der Installation ansehen
 
 Dieses Recht erlaubt der Rolle, Datenbank-Backups zu erstellen, herunterzuladen, zu löschen und wiederherzustellen. Da eine Wiederherstellung den gesamten Datenbestand ersetzen kann, ist dieses Recht besonders sensibel und sollte nur technisch verantwortlichen Personen zugewiesen werden.
 
+### Speicherplatz-Verwaltung
+
+Mit diesem Recht sieht die Rolle unter **Administration → Speicherplatz** die Übersicht über den belegten Speicherplatz der Installation. Der Menüpunkt erscheint nur mit diesem Recht.
+
 ## Häufige Stolperfallen
 
 - **Level bestimmt Hierarchie, nicht Rechte** – ein hohes Hierarchie-Level allein schaltet nichts frei. Jedes Recht muss für jede Rolle einzeln aktiviert werden; das Level schützt nur höher eingestufte Mitglieder und Rollen vor Änderungen von unten.
-- **"Rollen verwalten" ist das mächtigste Recht** – wer es besitzt, kann sich über die eigene Rolle jedes andere Recht selbst geben. Sparsam vergeben und regelmäßig in der Matrix prüfen, welche Rollen es haben.
-- **Kein Recht schaltet ein anderes mit frei** – Mitgliederverwaltung öffnet keine Finanzen, Stammdaten öffnen keine Module. Fehlt einer Rolle etwas, muss genau dieses Recht angehakt werden.
-- **Modulabhängige Rechte** – Rechte wie Budget, Sponsoring, Notenarchiv, Newsletter oder Aufgaben erscheinen nur, wenn das jeweilige Modul in den App-Einstellungen aktiviert ist.
+- **"Rollen verwalten" ist das mächtigste Recht** – wer es besitzt, kann sich über die eigene Rolle jedes andere Recht selbst geben. Sparsam vergeben und regelmäßig in der Übersicht prüfen, welche Rollen es haben (Klick auf das Recht).
+- **Fast kein Recht schaltet ein anderes mit frei** – Mitgliederverwaltung öffnet keine Finanzen, Stammdaten öffnen keine Module. Fehlt einer Rolle etwas, muss genau dieses Recht angehakt werden. Die zwei Ausnahmen: **„Finanzen lesen und schreiben"** schließt **„Finanzen nur lesen"** ein, und **„Sponsoring verwalten"** schließt **„Eigene Sponsoring-Anfragen erfassen"** ein.
+- **Modulabhängige Rechte** – Rechte wie Budget, Sponsoring, Notenarchiv, Newsletter, Umfragen, Dateiverwaltung oder Aufgaben erscheinen nur, wenn das jeweilige Modul in den App-Einstellungen aktiviert ist.

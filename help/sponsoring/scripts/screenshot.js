@@ -42,12 +42,24 @@ async function shotCapped(page, name, maxHeight = 1400) {
     console.log(`gespeichert: ${path.relative(process.cwd(), filePath)} (${VIEWPORT.width}x${height})`);
 }
 
-/** Ein einzelner Abschnitt der Seite, ohne Kopf und Seitenleiste. */
+/**
+ * Ein einzelner Abschnitt der Seite, ohne Kopf und Seitenleiste. Der Ausschnitt
+ * kommt aus einer Ganzseitenaufnahme: Ein Element-Screenshot scrollt das Element
+ * unter die feste Kopfleiste, und sie verdeckt dann seinen oberen Rand.
+ */
 async function shotElement(locator, name) {
     const filePath = path.join(IMAGES_DIR, `${name}.png`);
-    await locator.scrollIntoViewIfNeeded();
-    await locator.screenshot({ path: filePath });
-    console.log(`gespeichert: ${path.relative(process.cwd(), filePath)}`);
+    const box = await locator.evaluate((el) => {
+        const rect = el.getBoundingClientRect();
+        return {
+            x: Math.floor(rect.left + window.scrollX),
+            y: Math.floor(rect.top + window.scrollY),
+            width: Math.ceil(rect.width),
+            height: Math.ceil(rect.height),
+        };
+    });
+    await locator.page().screenshot({ path: filePath, fullPage: true, clip: box });
+    console.log(`gespeichert: ${path.relative(process.cwd(), filePath)} (${box.width}x${box.height})`);
 }
 
 async function login(page) {
@@ -80,8 +92,9 @@ async function clickAndWaitForEvent(page, triggerLocator, eventTargetSelector, e
 async function main() {
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
-    const browser = await chromium.launch();
+    const browser = await chromium.launch({ env: { ...process.env, LANG: 'de_AT.UTF-8' } });
     const context = await browser.newContext({
+        locale: 'de-AT',
         viewport: VIEWPORT,
         isMobile: false,
         hasTouch: false,
@@ -89,15 +102,38 @@ async function main() {
         ignoreHTTPSErrors: true,
     });
     await prepareSidebarForScreenshots(context);
+    // Die Leiste "Als Web-App installieren" gehört nicht auf die Bilder.
+    await context.addInitScript(() => {
+        const style = document.createElement('style');
+        style.textContent = '[data-install-banner] { display: none !important; }';
+        document.addEventListener('DOMContentLoaded', () => document.head.appendChild(style));
+    });
     const page = await context.newPage();
 
     try {
         await login(page);
 
-        // 1. Sponsoring-Dashboard: Arbeitslisten
+        // 23. Sponsoring-Dashboard: Kurzanleitung "So geht's" (beim ersten Besuch offen)
         await page.goto(`${BASE_URL}/sponsoring`, { waitUntil: 'networkidle' });
         await page.locator('.sponsoring-board').waitFor({ state: 'visible' });
-        await shotCapped(page, '01-dashboard');
+        const guide = page.locator('details[data-sponsoring-guide]');
+        await guide.waitFor({ state: 'visible' });
+        if (!(await guide.evaluate((el) => el.open))) {
+            await guide.locator('summary').click();
+        }
+        await shotElement(guide, '23-dashboard-guide');
+
+        // 1. Sponsoring-Dashboard: Arbeitslisten. Die Anleitung ist zugeklappt, damit
+        //    die Abschnitte darunter ins Bild passen.
+        await guide.locator('summary').click();
+        await page.waitForFunction(() => !document.querySelector('details[data-sponsoring-guide]').open);
+        await shotCapped(page, '01-dashboard', 2130);
+
+        // 25. "Letzte Kontakte" mit dem Link "Alle Kontakte" (unter dem Ausschnitt der Übersicht)
+        await shotElement(
+            page.locator('section[aria-labelledby="sponsoring-contacts-title"]'),
+            '25-dashboard-recent-contacts'
+        );
 
         // 18. Dashboard: "Ohne Zuständigkeit" mit direkter Zuweisung
         await shotElement(
@@ -160,7 +196,7 @@ async function main() {
             'hidden.bs.modal'
         );
 
-        // 4. Sponsor-Detail: Steckbrief und erster Vorgang
+        // 4. Sponsor-Detail: Steckbrief und erste Anfrage
         //
         // Bewusst "Musikhaus Weber": Der Seed gibt ihm eine bezahlte Gold-Zusage
         // mit teils erbrachten Gegenleistungen und keine Generalabsage - bei einer
@@ -173,8 +209,8 @@ async function main() {
         await page.locator('.sponsor-profile').waitFor({ state: 'visible' });
         await shotCapped(page, '04-sponsor-detail', 1300);
 
-        // 5. Ein Vorgang als Karte - mit Gegenleistungen und Leistungen des Sponsors
-        await shotElement(page.locator('.agreement-card').first(), '05-sponsor-detail-agreement');
+        // 5. Eine Anfrage als Karte - mit Gegenleistungen und Leistungen des Sponsors
+        await shotElement(page.locator('.agreement-card').first(), '05-sponsor-detail-request');
 
         // 16. Logo-Dateien des Sponsors mit Ablegefläche
         await shotElement(
@@ -182,7 +218,7 @@ async function main() {
             '16-sponsor-logos'
         );
 
-        // 6. Modal: Neuer Vorgang - mit Paket, damit die vorgeschlagenen
+        // 6. Modal: Neue Anfrage - als Zusage mit Paket, damit die vorgeschlagenen
         //    Gegenleistungen zu sehen sind
         await clickAndWaitForEvent(
             page,
@@ -190,20 +226,28 @@ async function main() {
             '#newSponsorshipModal',
             'shown.bs.modal'
         );
+        // Das Paket ist erst bei "Zusage" wählbar: Status zuerst setzen.
+        await page.locator('#newSponsorshipModal [data-sponsorship-status]').selectOption('accepted');
         const packageSelect = page.locator('#newSponsorshipModal [data-sponsorship-package]');
         const goldValue = await packageSelect.locator('option', { hasText: 'Gold' }).first().getAttribute('value');
         await packageSelect.selectOption(goldValue);
         await page.locator('#newSponsorshipModal [data-sponsorship-benefits]').scrollIntoViewIfNeeded();
-        await shot(page, '06-new-agreement-modal', { fullPage: false });
+        await shot(page, '06-new-request-modal', { fullPage: false });
 
         // 17. Weiter unten: Leistungen des Sponsors und wofür das Logo gebraucht wird
-        await page.locator('#newSponsorshipModal [data-sponsorship-logo-online]').scrollIntoViewIfNeeded();
-        await shot(page, '17-new-agreement-deliverables', { fullPage: false });
+        await page.locator('#newSponsorshipModal [data-sponsorship-logo]').scrollIntoViewIfNeeded();
+        await shot(page, '17-new-request-deliverables', { fullPage: false });
         await clickAndWaitForEvent(
             page,
             page.locator('#newSponsorshipModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
             '#newSponsorshipModal',
             'hidden.bs.modal'
+        );
+
+        // 20. Vertrag und Belege: das Ablagefeld in der Karte einer Anfrage
+        await shotElement(
+            page.locator('.agreement-block', { has: page.locator('h4', { hasText: 'Vertrag und Belege' }) }).first(),
+            '20-request-files'
         );
 
         // 7. Kontakthistorie
@@ -212,7 +256,27 @@ async function main() {
             '07-sponsor-detail-contacts'
         );
 
-        // 8. Modal: Kontakt protokollieren
+        // 8. Modal: Kontakt protokollieren aus der Karte einer Anfrage - die Anfrage ist
+        //    vorgewählt, das Feld "Status der Anfrage" erscheint. Nichts wird abgesendet.
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await clickAndWaitForEvent(
+            page,
+            page.locator('.agreement-card [data-bs-target="#newContactModal"]').first(),
+            '#newContactModal',
+            'shown.bs.modal'
+        );
+        await page.locator('#newContactModal [data-contact-status-field]').waitFor({ state: 'visible' });
+        await page.locator('#sponsors-detail-contact-status').selectOption('reminded');
+        await page.locator('#sponsors-detail-summary-v2').fill('Bei Frau Weber nachgefragt, Antwort bis Monatsende.');
+        await shot(page, '08-new-contact-modal', { fullPage: false });
+        await clickAndWaitForEvent(
+            page,
+            page.locator('#newContactModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
+            '#newContactModal',
+            'hidden.bs.modal'
+        );
+
+        // 21. Modal: Kontakt ohne Anfrage - der Dialog warnt, ein Status ändert sich nicht
         await page.evaluate(() => window.scrollTo(0, 0));
         await clickAndWaitForEvent(
             page,
@@ -220,11 +284,32 @@ async function main() {
             '#newContactModal',
             'shown.bs.modal'
         );
-        await shot(page, '08-new-contact-modal', { fullPage: false });
+        await page.locator('#newContactModal [data-contact-no-request-hint]').waitFor({ state: 'visible' });
+        await page.locator('#sponsors-detail-summary-v2').fill('');
+        await shot(page, '21-contact-no-request', { fullPage: false });
         await clickAndWaitForEvent(
             page,
             page.locator('#newContactModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
             '#newContactModal',
+            'hidden.bs.modal'
+        );
+
+        // 24. Modal: Status ändern - das Paket ist bei "Angefragt" gesperrt. Nichts wird abgesendet.
+        await page.evaluate(() => window.scrollTo(0, 0));
+        const editRequestTrigger = page.locator('.agreement-card [data-bs-target^="#editSponsorshipModal"]').first();
+        const editRequestModal = '#' + await editRequestTrigger.getAttribute('data-bs-target').then((t) => t.slice(1));
+        await clickAndWaitForEvent(page, editRequestTrigger, editRequestModal, 'shown.bs.modal');
+        await page.locator(`${editRequestModal} [data-sponsorship-status]`).selectOption('requested');
+        await page.locator(`${editRequestModal} [data-sponsorship-package]`).waitFor({ state: 'visible' });
+        await page.waitForFunction(
+            (sel) => document.querySelector(`${sel} [data-sponsorship-package]`).disabled,
+            editRequestModal
+        );
+        await shot(page, '24-edit-request-modal', { fullPage: false });
+        await clickAndWaitForEvent(
+            page,
+            page.locator(`${editRequestModal} .btn-outline-secondary[data-bs-dismiss="modal"]`),
+            editRequestModal,
             'hidden.bs.modal'
         );
 
@@ -243,6 +328,16 @@ async function main() {
             '#editSponsorModal',
             'hidden.bs.modal'
         );
+
+        // 19. Seite "Kontakte"
+        await page.goto(`${BASE_URL}/sponsoring/contacts`, { waitUntil: 'networkidle' });
+        await page.locator('#sponsoringContactsTable').waitFor({ state: 'visible' });
+        await shotCapped(page, '19-contacts', 1600);
+
+        // 22. Seite "Sponsoring-Zahlungen" (seed.001 hat "Sponsoring verwalten" und sieht dieselbe Liste)
+        await page.goto(`${BASE_URL}/sponsoring/payments`, { waitUntil: 'networkidle' });
+        await page.locator('#sponsoring-payments-title').waitFor({ state: 'visible' });
+        await shotCapped(page, '22-payments', 1300);
 
         // 9. Paketverwaltung
         await page.goto(`${BASE_URL}/sponsoring/packages`, { waitUntil: 'networkidle' });

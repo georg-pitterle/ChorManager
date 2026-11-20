@@ -77,6 +77,7 @@ async function closeSearch(page) {
 
 async function desktop(browser) {
     const context = await browser.newContext({
+        locale: 'de-AT',
         viewport: VIEWPORT,
         isMobile: false,
         hasTouch: false,
@@ -122,6 +123,7 @@ async function desktop(browser) {
 
 async function mobile(browser) {
     const context = await browser.newContext({
+        locale: 'de-AT',
         viewport: MOBILE_VIEWPORT,
         isMobile: true,
         hasTouch: true,
@@ -145,7 +147,7 @@ async function mobile(browser) {
 async function main() {
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
-    const browser = await chromium.launch();
+    const browser = await chromium.launch({ env: { ...process.env, LANG: 'de_AT.UTF-8' } });
     try {
         await desktop(browser);
         await mobile(browser);

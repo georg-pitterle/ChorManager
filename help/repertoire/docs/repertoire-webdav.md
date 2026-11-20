@@ -35,7 +35,7 @@ Drei Dinge sind wichtig zu wissen:
 - **Er ist schreibgeschützt.** Du kannst lesen und kopieren, aber nichts hineinlegen,
   umbenennen oder löschen. Deine Anmerkungen und Fingersätze macht die Noten-App in ihrer
   eigenen Kopie — am Original im Chor-Manager ändert sich nichts.
-- **Er bleibt aktuell.** Lädt die Chorleitung eine neue Fassung hoch, taucht sie beim
+- **Er bleibt aktuell.** Lädt jemand eine neue Fassung hoch, taucht sie beim
   nächsten Öffnen von selbst auf. Du musst nichts nachladen.
 - **Er ist nicht öffentlich.** Ohne deine Zugangsdaten kommt niemand hinein, auch nicht
   mit der Adresse allein.

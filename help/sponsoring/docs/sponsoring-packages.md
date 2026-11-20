@@ -1,6 +1,6 @@
 # Sponsoring-Pakete verwalten
 
-Sponsoring-Pakete sind Vorlagen wie Bronze, Silber, Gold oder Hauptsponsor: Sie legen fest, ab welchem Betrag ein Sponsor welche **Gegenleistungen** bekommt, was er selbst liefert und wofür sein Logo gebraucht wird. Wählst du bei einer neuen Anfrage ein Paket, schlägt der Dialog all das samt Mindestbetrag vor. Diese Anleitung setzt voraus, dass du bereits im [Sponsoring-Modul](sponsoring) bist.
+Sponsoring-Pakete sind Vorlagen wie Bronze, Silber, Gold oder Hauptsponsor: Sie legen fest, ab welchem Betrag ein Sponsor welche **Gegenleistungen** bekommt, was er selbst liefert und wofür sein Logo gebraucht wird. Ein Paket lässt sich erst wählen, wenn die Anfrage eine **Zusage** (oder abgeschlossen) ist; dann schlägt der Dialog all das samt Mindestbetrag vor. Bei einem anderen Status ist die Paketauswahl gesperrt, und ein gewähltes Paket wird beim Speichern verworfen. Diese Anleitung setzt voraus, dass du bereits im [Sponsoring-Modul](sponsoring) bist.
 
 > **Berechtigung:** Ansehen kann die Pakete jeder mit Sponsoring-Zugang. Anlegen, ändern und löschen geht nur mit dem Recht **"Sponsoring verwalten"**.
 
@@ -21,7 +21,7 @@ Im Dialog trägst du ein:
 - **Name**, **Mindestbetrag**, **Farbe** und **Beschreibung**. Die Farbe bestimmt das Abzeichen, mit dem das Paket überall erscheint; zur Wahl stehen Gold, Grau, Hellblau, Vereinsfarbe, Grün, Rot und Dunkel.
 - die **Gegenleistungen** – eine pro Zeile, etwa "Logo im Programmheft" oder "2 Freikarten".
 - die **Leistungen des Sponsors** – was der Sponsor liefert, eine pro Zeile, etwa "Banner/Beachflag übergeben" oder "Vertrag unterschrieben zurück".
-- unter **Logo gebraucht für**, ob das Logo für den **Druck** oder **online** gebraucht wird. Die Fristen dazu stehen am Projekt, siehe [Sponsoring](sponsoring).
+- das Häkchen **Logo gebraucht (Druck und online)**: ob Sponsoren mit diesem Paket ein Logo liefern müssen. Die Fristen dazu stehen am Projekt, siehe [Sponsoring](sponsoring).
 
 ![Dialog "Paket bearbeiten"](images/sponsoring/12-edit-package-modal.png)
 

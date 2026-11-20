@@ -36,6 +36,11 @@ Filter **Einladung** gibt es nur mit dem Recht "Mitgliederverwaltung erlauben" u
 Archiv. Die Auswahl steht in der gewohnten Reihenfolge: Stimmen von Sopran bis Bass, Rollen
 von der einfachen Mitgliedschaft aufwärts.
 
+Der Filter **Projekt** bietet zuoberst **In keinem laufenden Projekt** an. Damit findest du
+alle, die gerade nirgends mitsingen – etwa um vor einer neuen Saison zu entscheiden, wer ins
+Archiv kommt. Die Option gibt es unter denselben Bedingungen wie die Spalte **Laufendes
+Projekt** (siehe unten). Im Archiv fehlt der Projekt-Filter ganz.
+
 ![Mitgliederübersicht mit Seitenkopf, Tabellenleiste und Filtern](images/members/01-list.png)
 
 Jede Zeile zeigt:

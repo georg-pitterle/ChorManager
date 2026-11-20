@@ -65,6 +65,7 @@ class HelpButtonFeatureTest extends TestCase
         'sponsoring/dashboard'          => 'sponsoring',
         'sponsoring/attachments/index'  => 'sponsoring',
         'sponsoring/contacts/index'     => 'sponsoring',
+        'sponsoring/payments'           => 'sponsoring',
         'sponsoring/packages/index'     => 'sponsoring-packages',
         'sponsoring/sponsors/index'     => 'sponsoring-sponsors',
         'sponsoring/sponsors/detail'    => 'sponsoring-sponsors',

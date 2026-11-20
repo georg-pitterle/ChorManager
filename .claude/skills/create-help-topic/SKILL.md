@@ -177,6 +177,15 @@ const IMAGES_DIR     = path.join(__dirname, '..', 'screenshots');
 const VIEWPORT       = { width: 1440, height: 900 };
 ```
 
+Browser immer deutsch starten, sonst zeigen Datumsfelder „mm/dd/yyyy“. Chromium nimmt das
+Format aus `LANG`, nicht aus `locale` oder `--lang`; `locale` braucht es trotzdem für
+`navigator.language`:
+
+```js
+const browser = await chromium.launch({ env: { ...process.env, LANG: 'de_AT.UTF-8' } });
+const context = await browser.newContext({ locale: 'de-AT', viewport: VIEWPORT, ignoreHTTPSErrors: true });
+```
+
 Die Hilfsfunktionen `clickAndWaitForEvent` und `clickAndWaitForTabPane` aus `help/sponsoring/scripts/screenshot.js` kopieren — sie kapseln das Bootstrap-Event-Warten und sind für alle Themen wiederverwendbar.
 
 ### Bootstrap-Wartemuster

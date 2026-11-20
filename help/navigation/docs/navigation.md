@@ -8,13 +8,14 @@ Nach der Anmeldung landest du auf der **Startseite**. Von dort aus erreichst du 
 
 Klickpfad: **Start** ganz oben in der Seitenleiste, oder ein Klick auf Logo und Chornamen in der Kopfzeile.
 
-Die Startseite zeigt, was als Nächstes ansteht und wo du etwas tun musst. Sie besteht aus bis zu vier Abschnitten. Ein Abschnitt, für den bei dir nichts vorliegt, fehlt ganz.
+Die Startseite zeigt, was als Nächstes ansteht und wo du etwas tun musst. Sie besteht aus bis zu fünf Abschnitten. Ein Abschnitt, für den bei dir nichts vorliegt, fehlt ganz.
 
-![Die Startseite mit Als Nächstes, Dein Bereich und Newsletter](images/navigation/01-dashboard.png)
+![Die Startseite mit Handlungsbedarf, Offenen Umfragen, Als Nächstes und Dein Bereich](images/navigation/01-dashboard.png)
 
 | Abschnitt | Was du siehst | Wer ihn sieht |
 | --- | --- | --- |
 | **Handlungsbedarf** | **"N Termine warten auf deine Antwort"** und **"N E-Mails nicht zugestellt"** | Die Terminzeile: alle, solange Termine mit offener Anmeldung auf deine Antwort warten, bei eingeschaltetem Anmelde-Modul. Die E-Mail-Zeile: Recht **"Mailversand verwalten"** |
+| **Offene Umfragen** | Umfragen, bei denen du noch abstimmen kannst (siehe Abschnitt 2) | alle, bei eingeschaltetem Umfragen-Modul, solange eine solche Umfrage offen ist |
 | **Als Nächstes** | Die nächsten drei Termine, die für dich gelten, mit Datum, Uhrzeit und Ort | alle |
 | **Dein Bereich** | Einstiege mit aktuellem Stand (siehe unten) | je nach Recht, ohne Recht fehlt der ganze Abschnitt |
 | **Newsletter** | Der neueste Newsletter, den du erhalten hast | alle, bei eingeschaltetem Newsletter-Modul – mit dem Recht **"Newsletter verwalten"** zeigt er stattdessen den neuesten versendeten Newsletter und die Zahl der Entwürfe |

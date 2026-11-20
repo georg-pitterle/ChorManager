@@ -36,9 +36,9 @@ Oben im Fenster siehst du unter **Geerbt**, welche Freigaben aus übergeordneten
 
 | Ordner | Freigabe |
 | --- | --- |
-| Noten & Übe-Material | Alle Mitglieder: Lesen – Rolle der Chorleitung: Bearbeiten |
+| Noten & Übe-Material | Alle Mitglieder: Lesen – Rolle, die die Noten pflegt: Bearbeiten |
 | Noten & Übe-Material / Sopran | Stimmgruppe Sopran: Hochladen |
-| Vorstand | Rolle des Vorstands: Verwalten |
+| Vereinsleitung | Rolle der Vereinsleitung: Verwalten |
 | Projekt Frühjahrskonzert | Mitglieder des Projekts: Hochladen |
 
 ## 4. Kontingent ändern

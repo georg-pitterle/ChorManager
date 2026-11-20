@@ -89,8 +89,9 @@ async function createExampleRole(page, name) {
 async function main() {
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
-    const browser = await chromium.launch();
+    const browser = await chromium.launch({ env: { ...process.env, LANG: 'de_AT.UTF-8' } });
     const context = await browser.newContext({
+        locale: 'de-AT',
         viewport: VIEWPORT,
         isMobile: false,
         hasTouch: false,
@@ -103,19 +104,29 @@ async function main() {
     try {
         await login(page);
 
-        // 1. Berechtigungsmatrix
+        // 1. Rollenübersicht
         await page.goto(`${BASE_URL}/roles`, { waitUntil: 'networkidle' });
         await page.locator('.role-overview-list').waitFor({ state: 'visible' });
-        await shot(page, '01-permission-matrix');
+        await shot(page, '01-role-overview');
 
-        // 2. Modal: Neue Rolle anlegen
+        // 2. Klick auf ein Recht zeigt, welche Rollen es haben
+        const budgetToggle = page
+            .locator('[data-role-detail]:visible [data-permission-key="can_manage_budget"] [data-permission-toggle]');
+        await budgetToggle.click();
+        await page
+            .locator('[data-role-detail]:visible [data-permission-key="can_manage_budget"] [data-permission-holders-slot]')
+            .waitFor({ state: 'visible' });
+        await shot(page, '02-permission-holders');
+        await budgetToggle.click();
+
+        // 3. Modal: Neue Rolle anlegen
         await clickAndWaitForEvent(
             page,
             page.locator('[data-bs-target="#addRoleModal"]'),
             '#addRoleModal',
             'shown.bs.modal'
         );
-        await shotModal(page, '02-new-role-modal');
+        await shotModal(page, '03-new-role-modal');
         await clickAndWaitForEvent(
             page,
             page.locator('#addRoleModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
@@ -123,14 +134,14 @@ async function main() {
             'hidden.bs.modal'
         );
 
-        // 3. Modal: Rolle bearbeiten (erste Zeile)
+        // 4. Modal: Rolle bearbeiten (erste Zeile)
         await clickAndWaitForEvent(
             page,
             page.locator('.edit-role-btn').first(),
             '#editRoleModal',
             'shown.bs.modal'
         );
-        await shotModal(page, '03-edit-role-modal');
+        await shotModal(page, '04-edit-role-modal');
         await clickAndWaitForEvent(
             page,
             page.locator('#editRoleModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
@@ -138,7 +149,7 @@ async function main() {
             'hidden.bs.modal'
         );
 
-        // 4. Modal: Rolle loeschen. Alle Seed-Rollen sind Mitgliedern zugewiesen und
+        // 5. Modal: Rolle löschen. Alle Seed-Rollen sind Mitgliedern zugewiesen und
         //    haben deshalb keinen Loeschen-Button - fuer den Screenshot legen wir eine
         //    unbesetzte Beispielrolle an und loeschen sie im selben Zug wieder.
         await createExampleRole(page, EXAMPLE_ROLE_NAME);
@@ -150,7 +161,7 @@ async function main() {
         const deleteTrigger = page.locator('[data-bs-target^="#deleteRoleModal"]:visible').last();
         const deleteModalId = await deleteTrigger.getAttribute('data-bs-target');
         await clickAndWaitForEvent(page, deleteTrigger, deleteModalId, 'shown.bs.modal');
-        await shotModal(page, '04-delete-role-modal');
+        await shotModal(page, '05-delete-role-modal');
 
         await Promise.all([
             page.waitForURL(`${BASE_URL}/roles`, { waitUntil: 'networkidle' }),

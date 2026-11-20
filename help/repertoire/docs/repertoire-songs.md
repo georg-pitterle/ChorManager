@@ -35,6 +35,14 @@ Der mittlere Abschnitt teilt sich in drei Spalten.
   trotzdem gespeichert. Das Augen-Symbol zeigt eine Vorschau, der Pfeil lädt herunter,
   der Papierkorb löscht. Größenobergrenzen: 2 MB je Bild (größere Fotos werden vor dem
   Hochladen verkleinert), 30 MB je Audiodatei, 10 MB für alle übrigen Dateien.
+
+  Mehrere Anhänge löschst du auf einmal: Hat das Lied **mehr als einen** Anhang, steht vor
+  jeder Datei ein Kästchen, und über der Liste erscheinen **Alle auswählen** und
+  **Ausgewählte löschen**. Der Knopf bleibt grau, bis mindestens ein Kästchen angehakt ist,
+  und zeigt dann die Anzahl, etwa „Ausgewählte löschen (3)“. Vor dem Löschen fragt der
+  Chor-Manager nach; das Löschen lässt sich nicht rückgängig machen. Bei nur einem Anhang gibt
+  es die Kästchen nicht — dort löschst du mit dem Papierkorb in der Zeile. Wie die übrige
+  Detailseite braucht auch das Löschen das Recht **"Repertoire verwalten"**.
 - **Links** — Verweise auf Material, das nicht im Chor-Manager liegt: Aufführungsvideos,
   MIDI-Referenzen, Übe-Tracks. Jeder Link hat Titel, URL und eine optionale Beschreibung.
 

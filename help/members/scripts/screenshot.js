@@ -126,8 +126,9 @@ async function main() {
         }
     }
 
-    const browser = await chromium.launch();
+    const browser = await chromium.launch({ env: { ...process.env, LANG: 'de_AT.UTF-8' } });
     const context = await browser.newContext({
+        locale: 'de-AT',
         viewport: VIEWPORT,
         isMobile: false,
         hasTouch: false,
@@ -236,6 +237,7 @@ async function main() {
 
         // 11. Telefon: Filter hinter dem Knopf "Filter"
         const phone = await browser.newContext({
+            locale: 'de-AT',
             viewport: { width: 390, height: 844 },
             isMobile: true,
             hasTouch: true,

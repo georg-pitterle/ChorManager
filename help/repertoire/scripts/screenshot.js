@@ -71,6 +71,21 @@ async function shotSection(page, name, selector) {
     console.log(`gespeichert: ${path.relative(process.cwd(), filePath)}`);
 }
 
+/**
+ * Ein einzelnes Element (z. B. ein Lied der Probenmaterial-Seite) als Bild.
+ * Die feste Leiste oben wird dafür ausgeblendet, damit sie nicht ins Bild ragt.
+ */
+async function shotElement(page, name, locator) {
+    await locator.scrollIntoViewIfNeeded();
+    const styleHandle = await page.addStyleTag({
+        content: '.app-topbar { display: none !important; }',
+    });
+    const filePath = path.join(IMAGES_DIR, `${name}.png`);
+    await locator.screenshot({ path: filePath });
+    await styleHandle.evaluate((node) => node.remove());
+    console.log(`gespeichert: ${path.relative(process.cwd(), filePath)}`);
+}
+
 async function login(page) {
     await page.goto(`${BASE_URL}/login`, { waitUntil: 'networkidle' });
     await page.locator('#emailInput').fill(LOGIN_EMAIL);
@@ -111,8 +126,9 @@ async function expandCollapse(page, triggerLocator, collapseSelector) {
 async function main() {
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
-    const browser = await chromium.launch();
+    const browser = await chromium.launch({ env: { ...process.env, LANG: 'de_AT.UTF-8' } });
     const context = await browser.newContext({
+        locale: 'de-AT',
         viewport: VIEWPORT,
         isMobile: false,
         hasTouch: false,
@@ -120,6 +136,12 @@ async function main() {
         ignoreHTTPSErrors: true,
     });
     await prepareSidebarForScreenshots(context);
+    // Die Leiste "Als Web-App installieren" gehört nicht auf die Bilder.
+    await context.addInitScript(() => {
+        const style = document.createElement('style');
+        style.textContent = '[data-install-banner] { display: none !important; }';
+        document.addEventListener('DOMContentLoaded', () => document.head.appendChild(style));
+    });
     const page = await context.newPage();
 
     try {
@@ -152,22 +174,29 @@ async function main() {
         // in einem längeren Bild mitten im Formular.
         await shotCapped(page, '03-create', VIEWPORT.height);
 
-        // Detailseite: das erste Lied nehmen, zu dem es auch Archivdaten gibt -
-        // sonst zeigt der Notenarchiv-Screenshot ein leeres Formular.
+        // Detailseite: ein Lied mit Archivdaten (sonst zeigt der Notenarchiv-Screenshot ein
+        // leeres Formular) und mindestens zwei Anhängen (sonst fehlt die Mehrfachauswahl).
+        // Bevorzugt eines, das beides erfüllt.
         await page.goto(`${BASE_URL}/song-library`, { waitUntil: 'networkidle' });
         const songHrefs = await page
             .locator('#songsTable a[href^="/song-library/"]')
             .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
 
-        let songHref = songHrefs[0];
+        let songHref = null;
+        let fallbackHref = null;
         for (const href of songHrefs) {
             await page.goto(`${BASE_URL}${href}`, { waitUntil: 'networkidle' });
-            const location = await page.locator('#sheetArchiveHeaderLocation').textContent();
-            if ((location || '').trim() !== 'kein Standort') {
+            const location = ((await page.locator('#sheetArchiveHeaderLocation').textContent()) || '').trim();
+            const attachments = await page.locator('.song-attachment-select').count();
+            if (attachments >= 2 && location !== 'kein Standort') {
                 songHref = href;
                 break;
             }
+            if (attachments >= 2 && fallbackHref === null) {
+                fallbackHref = href;
+            }
         }
+        songHref = songHref || fallbackHref || songHrefs[0];
 
         await page.goto(`${BASE_URL}${songHref}`, { waitUntil: 'networkidle' });
         await page.locator('#title').waitFor({ state: 'visible' });
@@ -198,6 +227,23 @@ async function main() {
             await expandCollapse(page, firstProject, collapseId);
         }
         await shotCapped(page, '08-downloads');
+
+        // 9. Aufgeklappter Abspieler: "Anhören" klappt ihn auf und startet ihn.
+        // Das Abspielen selbst wird unterbunden, damit das Bild ruhig bleibt.
+        const playToggle = page.locator('.downloads-project .accordion-collapse.show [data-player-toggle]').first();
+        if (await playToggle.count() > 0) {
+            await page.evaluate(() => {
+                HTMLMediaElement.prototype.play = () => Promise.resolve();
+            });
+            // Die Gruppe Übe-Audio ist bei vielen Dateien zugeklappt: erst öffnen.
+            await playToggle.evaluate((el) => { el.closest('details').open = true; });
+            await playToggle.scrollIntoViewIfNeeded();
+            await playToggle.click();
+            const panelId = await playToggle.getAttribute('aria-controls');
+            await page.waitForFunction((id) => !document.getElementById(id).hidden, panelId);
+            const song = playToggle.locator('xpath=ancestor::article[contains(@class,"downloads-song")]');
+            await shotElement(page, '09-downloads-player', song);
+        }
 
         console.log('Fertig: alle Repertoire-Screenshots erstellt.');
     } finally {

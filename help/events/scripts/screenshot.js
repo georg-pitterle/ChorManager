@@ -72,8 +72,9 @@ async function clickAndWaitForEvent(page, triggerLocator, eventTargetSelector, e
 async function main() {
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
-    const browser = await chromium.launch({ args: ['--ignore-certificate-errors'] });
+    const browser = await chromium.launch({ args: ['--ignore-certificate-errors'], env: { ...process.env, LANG: 'de_AT.UTF-8' } });
     const context = await browser.newContext({
+        locale: 'de-AT',
         viewport: VIEWPORT,
         isMobile: false,
         hasTouch: false,
@@ -96,7 +97,7 @@ async function main() {
         // FullCalendar 7 vergibt nur noch generierte Klassen (fc-classic-…). Gewartet wird
         // deshalb auf die eigene Toolbar-Klasse aus public/js/event-calendar.js und das Raster.
         await page.locator('#event-calendar .event-calendar-toolbar').waitFor({ state: 'visible' });
-        await page.locator('#event-calendar [role="grid"]').waitFor({ state: 'visible' });
+        await page.locator('#event-calendar [role="table"]').waitFor({ state: 'visible' });
         await shot(page, '02-calendar');
 
         // 2a. Terminplan: nächster Termin oben, darunter Monatsgruppen
