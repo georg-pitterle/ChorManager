@@ -16,8 +16,9 @@ use App\Services\EventAudienceService;
  * - Sehen: Zielgruppe oder Recht. Terminverwalter müssen auch Termine außerhalb
  *   ihrer eigenen Zielgruppe sehen, sonst könnten sie genau die Termine nicht
  *   pflegen, für die sie zuständig sind.
- * - Ändern: Recht **und** Sichtbarkeit. Das Recht allein genügt nicht, sonst
- *   änderte jemand einen Termin, den er nicht zu sehen bekommt.
+ * - Ändern: Recht und Sichtbarkeit. Beides zusammen, damit niemand einen
+ *   Termin ändert, den er nicht zu sehen bekommt - derzeit ist die zweite
+ *   Bedingung von der ersten aber schon erfüllt, siehe canEditEvent().
  *
  * Die drei Prüfungen standen als private Methoden im EventController. Mit dem
  * eigenen Serien-Controller (Antwort auf Review-Lauf 77, Frage 2b) brauchen sie
@@ -66,6 +67,23 @@ class EventPolicy
         return $this->audience->isUserEligible($event, $this->userId);
     }
 
+    /**
+     * Beide Bedingungen, obwohl die zweite heute an der ersten hängt: Wer das
+     * Recht hält, sieht laut canAccessEvent() jeden Termin, also fällt
+     * `canEditEvent()` derzeit mit `canManageEvents()` zusammen.
+     *
+     * Der Kommentar oben las sich zuvor so, als sperrte die Sichtbarkeit einen
+     * Verwalter von fremden Terminen aus. Das tut sie nicht, und sie soll es
+     * auch nicht: Dass die Terminverwaltung auch außerhalb der eigenen
+     * Zielgruppe pflegen kann, ist der ausdrückliche Grund für die Freigabe in
+     * canAccessEvent(). Wer die Stelle gelesen und daraus eine Einschränkung
+     * geschlossen hat, hätte sie an der falschen Stelle gesucht.
+     *
+     * Stehen bleibt die Verknüpfung trotzdem. Sie kostet nichts - bei gesetztem
+     * Recht bricht canAccessEvent() vor der Zielgruppen-Abfrage ab -, und wird
+     * die Sichtbarkeit je enger gefasst, folgt das Ändern ihr von selbst,
+     * statt die Lücke erst beim nächsten Durchgang zu zeigen.
+     */
     public function canEditEvent(Event $event): bool
     {
         return $this->canManage && $this->canAccessEvent($event);
