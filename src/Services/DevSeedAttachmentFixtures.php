@@ -249,4 +249,22 @@ final class DevSeedAttachmentFixtures
             default => self::wordDocument($caption),
         };
     }
+
+    /**
+     * Der Typ für den n-ten Anhang eines Lieds. Die Rotation läuft über Lied
+     * und Platz zusammen: Innerhalb einer Runde wechselt der Typ von Lied zu
+     * Lied, und jedes Lied durchläuft über vier Plätze alle vier Typen - also
+     * auch ein PDF für die Gruppe "Noten" auf dem Probenmaterial.
+     *
+     * Eine Rotation über die laufende Nummer aller Anhänge wäre bei einer
+     * Liedzahl, die durch 4 teilbar ist, für jedes Lied immer derselbe Typ.
+     *
+     * @param int $songIndex Position des Lieds, ab 0
+     * @param int $slot      Nummer des Anhangs am Lied, ab 1
+     * @return array{mime_type: string, extension: string, content: string}
+     */
+    public static function forSong(int $songIndex, int $slot, string $caption): array
+    {
+        return self::forSlot($songIndex + $slot, $caption);
+    }
 }

@@ -4444,24 +4444,26 @@ class DevSeedService
         $maxAttempts = ($targetCount * 5) + count($songs);
 
         while ($created < $targetCount && $attempt < $maxAttempts) {
-            $song = $songs[$attempt % count($songs)];
+            $songIndex = $attempt % count($songs);
+            $song = $songs[$songIndex];
             $slot = (int) floor($attempt / count($songs)) + 1;
 
             // Vier Typen reihum: PDF, Bild und Text sind im Vorschau-Modal
             // darstellbar, das Word-Dokument bewusst nicht. So ist in Dev
             // sofort beides zu sehen - mit Vorschau-Knopf und ohne.
-            // Die Rotation läuft über $attempt, nicht über $slot: $slot steigt
-            // erst, wenn jedes Lied einen Anhang hat, und erreicht bei vielen
-            // Liedern nie den vierten Zweig - dann fänden sich in den Testdaten
-            // ausschließlich darstellbare Anhänge.
+            // Die Rotation läuft über Lied und Platz zusammen (forSong()):
+            // Über die laufende Nummer allein bekam bei 8 Liedern jedes Lied
+            // in jeder Runde denselben Typ, und keines im laufenden Projekt
+            // hatte ein PDF für die Gruppe "Noten" auf dem Probenmaterial.
             //
             // Die vier Anhang-Stellen legen mit updateOrCreate an, nicht mit
             // firstOrCreate. Der Schlüssel ist der Dateiname, und der bleibt
             // gleich: eine bestehende Zeile aus einem früheren Lauf behielte
             // sonst für immer ihren alten Inhalt - also genau die Textdatei mit
             // PDF-Etikett, deretwegen die Vorschau in Dev leer blieb.
-            $fixture = DevSeedAttachmentFixtures::forSlot(
-                $attempt + 1,
+            $fixture = DevSeedAttachmentFixtures::forSong(
+                $songIndex,
+                $slot,
                 'Notenblatt Song ' . $song->id . ' (Version ' . $slot . ')'
             );
             $originalName = sprintf('notenblatt-%d-%02d.%s', $song->id, $slot, $fixture['extension']);

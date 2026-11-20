@@ -6,6 +6,7 @@ namespace Tests\Unit\Services;
 
 use App\Services\DevSeedAttachmentFixtures;
 use App\Util\AttachmentPreview;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -201,5 +202,58 @@ final class DevSeedAttachmentFixturesTest extends TestCase
             DevSeedAttachmentFixtures::forSlot(1, 'Probe')['mime_type'],
             DevSeedAttachmentFixtures::forSlot(5, 'Probe')['mime_type']
         );
+    }
+
+    /**
+     * Jedes Lied mit vier Anhängen bekommt alle vier Typen - auch ein PDF -,
+     * gleich wie viele Lieder es gibt. Vorher lief der Typ über die laufende
+     * Nummer aller Anhänge; bei 8 Liedern (ein Vielfaches von 4) bekam jedes
+     * Lied in jeder Runde denselben Typ, das Probenmaterial zeigte im
+     * laufenden Projekt nie die Gruppe "Noten".
+     *
+     * @return array<string, array{int}>
+     */
+    public static function songCounts(): array
+    {
+        return [
+            'drei Lieder' => [3],
+            'vier Lieder' => [4],
+            'acht Lieder wie im Seed' => [8],
+            'elf Lieder' => [11],
+            'zwölf Lieder' => [12],
+        ];
+    }
+
+    #[DataProvider('songCounts')]
+    public function testEverySongGetsAllFourTypesOverFourSlots(int $songCount): void
+    {
+        for ($songIndex = 0; $songIndex < $songCount; $songIndex++) {
+            $types = [];
+            for ($slot = 1; $slot <= 4; $slot++) {
+                $types[] = DevSeedAttachmentFixtures::forSong($songIndex, $slot, 'Probe')['mime_type'];
+            }
+            sort($types);
+
+            $this->assertSame([
+                'application/pdf',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'image/png',
+                'text/plain',
+            ], $types, 'Lied ' . $songIndex . ' von ' . $songCount);
+        }
+    }
+
+    /**
+     * Schon die erste Runde - ein Anhang je Lied - mischt die Typen, damit auch
+     * ein Seed mit wenigen Anhängen beide Zustände der Vorschau zeigt.
+     */
+    public function testFirstRoundAcrossFourSongsMixesAllTypes(): void
+    {
+        $types = [];
+        for ($songIndex = 0; $songIndex < 4; $songIndex++) {
+            $types[] = DevSeedAttachmentFixtures::forSong($songIndex, 1, 'Probe')['mime_type'];
+        }
+
+        $this->assertCount(4, array_unique($types));
     }
 }
