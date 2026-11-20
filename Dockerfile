@@ -1,12 +1,14 @@
 # Frontend-Abhängigkeiten einmal bauen, nicht je Architektur.
 #
-# Das Abbild entsteht für linux/amd64 und linux/arm64. Ohne diese Stufe liefe
-# `npm ci` im arm64-Zweig unter QEMU-Emulation - dort ist alles um ein
-# Vielfaches langsamer, und die Downloads brachen mit ECONNRESET ab, weil npms
-# voreingestellte Zeitgrenzen für emulierte Läufe zu knapp sind.
+# Das Abbild entsteht für linux/amd64 und linux/arm64. Der Deploy baut jede
+# Plattform auf einem eigenen, nativen Runner (.github/workflows/deploy.yml).
+# Ein Multi-Arch-Build auf einer Maschine - lokal etwa - emuliert den fremden
+# Zweig dagegen mit QEMU. Ohne diese Stufe liefe `npm ci` dort emuliert - um
+# ein Vielfaches langsamer, und die Downloads brachen mit ECONNRESET ab, weil
+# npms voreingestellte Zeitgrenzen für emulierte Läufe zu knapp sind.
 #
 # `--platform=$BUILDPLATFORM` heftet diese Stufe an die Maschine, die den Build
-# ausführt. Sie läuft damit genau einmal und nativ. Das ist zulässig, weil alle
+# ausführt. Sie läuft damit je Maschine einmal und nativ. Das ist zulässig, weil alle
 # Produktionspakete reine JS- und CSS-Dateien sind (Bootstrap, TinyMCE,
 # FullCalendar, Icons) - ihr Ergebnis ist auf beiden Architekturen dasselbe.
 # Käme je ein Paket mit kompilierten Bestandteilen dazu, müsste es an dieser

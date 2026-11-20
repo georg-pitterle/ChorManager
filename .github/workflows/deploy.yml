@@ -5,9 +5,25 @@ on:
     branches:
       - release  # Change to your main branch
 
+# Je Plattform ein eigener Runner statt QEMU: Auf einem amd64-Runner lief der
+# arm64-Build emuliert, und ohne Cache brauchte allein das Kompilieren der
+# PHP-Extensions 805 s statt 70 s (Run 44819866261, 20.11.2026). Jeder Job
+# pusht seine Images nur per Digest; erst "merge" setzt daraus die
+# Multi-Arch-Tags ":latest" zusammen. So steht nie ein halbes Manifest (nur
+# eine Plattform) unter ":latest".
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - platform: linux/amd64
+            arch: amd64
+            runner: ubuntu-24.04
+          - platform: linux/arm64
+            arch: arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     permissions:
       contents: read
       packages: write
@@ -32,41 +48,107 @@ jobs:
       id: set-images
       run: |
         OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
-        echo "app=ghcr.io/$OWNER/chormanager-app:latest" >> "$GITHUB_OUTPUT"
-        echo "web=ghcr.io/$OWNER/chormanager-web:latest" >> "$GITHUB_OUTPUT"
-        echo "webmail=ghcr.io/$OWNER/chormanager-webmail:latest" >> "$GITHUB_OUTPUT"
+        {
+          echo "app=ghcr.io/$OWNER/chormanager-app"
+          echo "web=ghcr.io/$OWNER/chormanager-web"
+          echo "webmail=ghcr.io/$OWNER/chormanager-webmail"
+        } >> "$GITHUB_OUTPUT"
 
     - name: Build and push app image
+      id: app
       uses: docker/build-push-action@v7
       with:
         context: .
         file: ./Dockerfile
-        push: true
-        tags: ${{ steps.set-images.outputs.app }}
-        platforms: linux/amd64,linux/arm64
-        cache-from: type=gha,scope=app
-        cache-to: type=gha,mode=max,scope=app
+        platforms: ${{ matrix.platform }}
+        outputs: type=image,name=${{ steps.set-images.outputs.app }},push-by-digest=true,name-canonical=true,push=true
+        cache-from: type=gha,scope=app-${{ matrix.arch }}
+        cache-to: type=gha,mode=max,scope=app-${{ matrix.arch }}
 
+    # Das Web-Image baut auf dem App-Image derselben Plattform auf. Es wird
+    # über den Digest von eben angesprochen, nicht über ":latest" - das zeigt
+    # zu diesem Zeitpunkt noch auf den vorigen Stand.
     - name: Build and push web image
+      id: web
       uses: docker/build-push-action@v7
       with:
         context: .
         file: ./Dockerfile.web
         build-args: |
-          APP_IMAGE=${{ steps.set-images.outputs.app }}
-        push: true
-        tags: ${{ steps.set-images.outputs.web }}
-        platforms: linux/amd64,linux/arm64
-        cache-from: type=gha,scope=web
-        cache-to: type=gha,mode=max,scope=web
+          APP_IMAGE=${{ steps.set-images.outputs.app }}@${{ steps.app.outputs.digest }}
+        platforms: ${{ matrix.platform }}
+        outputs: type=image,name=${{ steps.set-images.outputs.web }},push-by-digest=true,name-canonical=true,push=true
+        cache-from: type=gha,scope=web-${{ matrix.arch }}
+        cache-to: type=gha,mode=max,scope=web-${{ matrix.arch }}
 
     - name: Build and push webmail image
+      id: webmail
       uses: docker/build-push-action@v7
       with:
         context: ./dist/webmail
         file: ./dist/webmail/Dockerfile
-        push: true
-        tags: ${{ steps.set-images.outputs.webmail }}
-        platforms: linux/amd64,linux/arm64
-        cache-from: type=gha,scope=webmail
-        cache-to: type=gha,mode=max,scope=webmail
+        platforms: ${{ matrix.platform }}
+        outputs: type=image,name=${{ steps.set-images.outputs.webmail }},push-by-digest=true,name-canonical=true,push=true
+        cache-from: type=gha,scope=webmail-${{ matrix.arch }}
+        cache-to: type=gha,mode=max,scope=webmail-${{ matrix.arch }}
+
+    - name: Export digests
+      run: |
+        mkdir -p /tmp/digests
+        echo "${{ steps.app.outputs.digest }}" > "/tmp/digests/app-${{ matrix.arch }}"
+        echo "${{ steps.web.outputs.digest }}" > "/tmp/digests/web-${{ matrix.arch }}"
+        echo "${{ steps.webmail.outputs.digest }}" > "/tmp/digests/webmail-${{ matrix.arch }}"
+
+    - name: Upload digests
+      uses: actions/upload-artifact@v7
+      with:
+        name: digests-${{ matrix.arch }}
+        path: /tmp/digests/*
+        if-no-files-found: error
+        retention-days: 1
+
+  merge:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+    steps:
+    - name: Download digests
+      uses: actions/download-artifact@v8
+      with:
+        path: /tmp/digests
+        pattern: digests-*
+        merge-multiple: true
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+
+    - name: Log in to GitHub Container Registry
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Create multi-arch manifests
+      run: |
+        OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+        for image in app web webmail; do
+          name="ghcr.io/$OWNER/chormanager-$image"
+          sources=()
+          for arch in amd64 arm64; do
+            sources+=("$name@$(cat "/tmp/digests/$image-$arch")")
+          done
+          docker buildx imagetools create -t "$name:latest" "${sources[@]}"
+        done
+
+    - name: Inspect manifests
+      run: |
+        OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+        for image in app web webmail; do
+          docker buildx imagetools inspect "ghcr.io/$OWNER/chormanager-$image:latest"
+        done
