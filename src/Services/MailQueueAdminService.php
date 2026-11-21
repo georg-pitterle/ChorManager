@@ -95,7 +95,12 @@ class MailQueueAdminService
         }
 
         if (!empty($filters['search'])) {
-            $search = '%' . $filters['search'] . '%';
+            // Die Platzhalter von LIKE werden maskiert: Im Suchfeld sind "%" und
+            // "_" gesuchte Zeichen, keine Muster. Unmaskiert stand ein "_" für ein
+            // beliebiges Zeichen, und eine Suche nach einer Adresse mit Unterstrich
+            // brachte fremde Einträge mit. Dieselbe Maskierung wie in
+            // SongQuery::forIndex() und FileSearchService::search().
+            $search = '%' . addcslashes((string) $filters['search'], '%_\\') . '%';
             $query->where(function ($q) use ($search) {
                 $q->where('recipient_email', 'like', $search)
                     ->orWhere('subject', 'like', $search)

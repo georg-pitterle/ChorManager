@@ -81,4 +81,30 @@ final class SongQueryFeatureTest extends TestCase
 
         self::assertSame(['A' . $suffix, 'Z' . $suffix, 'B' . $suffix], $names);
     }
+
+    /**
+     * Ein Prozentzeichen oder Unterstrich im Suchfeld ist ein gesuchtes Zeichen,
+     * kein Platzhalter. Unmaskiert machte "%" aus der Suche ein "alles" und "_"
+     * traf jeden Titel mit mindestens einem Zeichen an der Stelle - die Trefferliste
+     * war dann breiter als das, was dasteht.
+     */
+    public function testSearchTreatsPercentAndUnderscoreAsLiteralCharacters(): void
+    {
+        $tag = bin2hex(random_bytes(4));
+        Song::create(['title' => 'Prozent 100% ' . $tag]);
+        Song::create(['title' => 'Ohne Zeichen 1000 ' . $tag]);
+        Song::create(['title' => 'Unterstrich a_b ' . $tag]);
+        Song::create(['title' => 'Unterstrich axb ' . $tag]);
+
+        $query = new SongQuery();
+
+        self::assertSame(
+            ['Prozent 100% ' . $tag],
+            $query->forIndex('100% ' . $tag, 0)->pluck('title')->all()
+        );
+        self::assertSame(
+            ['Unterstrich a_b ' . $tag],
+            $query->forIndex('a_b ' . $tag, 0)->pluck('title')->all()
+        );
+    }
 }

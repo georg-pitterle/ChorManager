@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Project;
 use App\Models\VoiceGroup;
 use App\Models\VoiceGroupList;
 use App\Queries\VoiceGroupListQuery;
@@ -19,6 +20,8 @@ use Tests\Unit\Bootstrap;
  */
 final class VoiceGroupListQueryFeatureTest extends TestCase
 {
+    use VoiceGroupListFixtures;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -63,5 +66,63 @@ final class VoiceGroupListQueryFeatureTest extends TestCase
         $byName = (new VoiceGroupListQuery())->voiceGroupsByName([(int) $group->id]);
 
         self::assertSame([$group->name], array_keys($byName));
+    }
+
+    /**
+     * Die Projektauswahl einer Liste steht in derselben Reihenfolge wie jede andere
+     * Projektliste - zuletzt gestartet oben, bei gleichem Datum nach Name. Geprüft
+     * wird gegen Project::scopeChronological() selbst: Schreibt die Abfrage die
+     * Reihenfolge ab, statt den Scope zu rufen, laufen die beiden auseinander, sobald
+     * eine Seite geändert wird.
+     */
+    public function testTheProjectChoiceFollowsTheSharedProjectOrder(): void
+    {
+        $group = $this->makeVoiceGroup();
+        $member = $this->makeMember($group);
+
+        $early = $this->makeProject([$member]);
+        $early->update(['name' => 'B-Projekt', 'start_date' => '2027-01-01']);
+        $late = $this->makeProject([$member]);
+        $late->update(['name' => 'A-Projekt', 'start_date' => '2027-09-01']);
+        $sameDay = $this->makeProject([$member]);
+        $sameDay->update(['name' => 'A-Projekt zuerst', 'start_date' => '2027-09-01']);
+
+        $ids = [(int) $early->id, (int) $late->id, (int) $sameDay->id];
+
+        $actual = (new VoiceGroupListQuery())->allowedProjects([(int) $group->id])
+            ->pluck('id')
+            ->map(static fn($id): int => (int) $id)
+            ->filter(static fn(int $id): bool => in_array($id, $ids, true))
+            ->values()
+            ->all();
+        $expected = Project::query()->whereIn('projects.id', $ids)->chronological()
+            ->pluck('id')
+            ->map(static fn($id): int => (int) $id)
+            ->all();
+
+        self::assertSame($expected, $actual);
+    }
+
+    /**
+     * Das bisherige Projekt einer Liste bleibt wählbar, auch wenn kein Mitglied der
+     * Stimmgruppe mehr darin mitwirkt - sonst verlöre eine Bearbeitung den Bezug.
+     */
+    public function testTheCurrentProjectStaysSelectableWithoutAnyMemberLeft(): void
+    {
+        $group = $this->makeVoiceGroup();
+        $this->makeMember($group);
+        $foreign = $this->makeProject();
+
+        $withoutIt = (new VoiceGroupListQuery())->allowedProjects([(int) $group->id])
+            ->pluck('id')
+            ->map(static fn($id): int => (int) $id)
+            ->all();
+        $withIt = (new VoiceGroupListQuery())->allowedProjects([(int) $group->id], (int) $foreign->id)
+            ->pluck('id')
+            ->map(static fn($id): int => (int) $id)
+            ->all();
+
+        self::assertNotContains((int) $foreign->id, $withoutIt);
+        self::assertContains((int) $foreign->id, $withIt);
     }
 }

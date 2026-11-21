@@ -88,4 +88,30 @@ final class MailQueueAdminServiceFeatureTest extends TestCase
             $outside->contains(static fn(MailQueue $item): bool => (int) $item->id === (int) $entry->id)
         );
     }
+
+    /**
+     * Die Suche der Queue-Übersicht nimmt die Eingabe wörtlich. "%" und "_" sind
+     * gesuchte Zeichen, keine Platzhalter von LIKE - unmaskiert traf ein "_" jedes
+     * beliebige Zeichen, und eine Suche nach einer Adresse mit Unterstrich lieferte
+     * fremde Einträge mit. Dieselbe Maskierung wie in SongQuery::forIndex() und
+     * FileSearchService::search().
+     */
+    public function testTheSearchTreatsPercentAndUnderscoreAsLiteralCharacters(): void
+    {
+        $tag = bin2hex(random_bytes(4));
+        $wanted = $this->createEntry();
+        $wanted->update(['subject' => 'Rabatt 50% ' . $tag]);
+        $other = $this->createEntry();
+        $other->update(['subject' => 'Rabatt 5012 ' . $tag]);
+
+        // Verglichen werden die Kennungen: `subject` steht nicht in
+        // MailQueue::LIST_COLUMNS, die Liste zeigt es nicht an.
+        $found = $this->service->listEntries(['search' => '50% ' . $tag])
+            ->pluck('id')
+            ->map(static fn($id): int => (int) $id)
+            ->all();
+
+        self::assertSame([(int) $wanted->id], $found);
+        self::assertSame(1, $this->service->countEntries(['search' => '50% ' . $tag]));
+    }
 }

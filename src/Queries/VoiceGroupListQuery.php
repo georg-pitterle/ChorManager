@@ -52,6 +52,14 @@ class VoiceGroupListQuery
      * denen mindestens ein Mitglied einer der Stimmgruppen mitwirkt - dazu das bisherige
      * Projekt der Liste, damit eine Bearbeitung es nicht verliert.
      *
+     * Die Reihenfolge kommt aus Project::scopeChronological() und stand hier zuvor
+     * abgeschrieben daneben - genau das, was der Scope verhindern soll: Wer ihn ändert,
+     * ändert jede Projektliste außer dieser, und die Auswahl der Liste läse sich dann
+     * anders geordnet als die Projektübersicht daneben. Dass beide Seiten dieselbe
+     * Reihenfolge liefern, hält
+     * VoiceGroupListQueryFeatureTest::testTheProjectChoiceFollowsTheSharedProjectOrder()
+     * fest.
+     *
      * @param list<int> $voiceGroupIds
      * @return Collection<int, Project>
      */
@@ -70,8 +78,7 @@ class VoiceGroupListQuery
                     ->whereIn('user_voice_groups.voice_group_id', $voiceGroupIds);
             })
             ->when($currentProjectId !== null, static fn($query) => $query->orWhere('projects.id', $currentProjectId))
-            ->orderByDesc('start_date')
-            ->orderBy('name')
+            ->chronological()
             ->get(['id', 'name', 'start_date']);
     }
 }

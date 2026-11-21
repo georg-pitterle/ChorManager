@@ -67,9 +67,6 @@ class SongLibraryController
         $songs = $this->songQuery->forIndex($search, $categoryId);
         $categories = $this->songQuery->categoriesInOrder();
 
-        // Keep old view data available until templates are migrated in later tasks.
-        $projects = $this->songQuery->projectsWithAssignedSongs();
-
         ['success' => $success, 'error' => $error] = $this->takeFlash();
 
         return $this->view->render($response, 'songs/manage.twig', [
@@ -77,7 +74,6 @@ class SongLibraryController
             'categories' => $categories,
             'search' => $search,
             'selected_category_id' => $categoryId,
-            'projects' => $projects,
             'success' => $success,
             'error' => $error,
             'active_nav' => 'song_library',
