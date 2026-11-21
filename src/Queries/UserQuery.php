@@ -51,10 +51,11 @@ class UserQuery
     }
 
     /**
-     * Used only to distinguish the audit-log reason for a failed login: does an
-     * inactive (deactivated) account exist for this address? Never used to
-     * authenticate - findByEmail() above stays the only login-relevant lookup,
-     * and its is_active=1 filter is untouched.
+     * Dient allein der Unterscheidung im Prüfprotokoll einer fehlgeschlagenen
+     * Anmeldung: Gibt es zu dieser Adresse ein deaktiviertes Konto? Zum Anmelden
+     * wird die Abfrage nie benutzt - findByEmail() darüber bleibt der einzige
+     * Lookup, an dem eine Anmeldung hängt, und dessen Filter `is_active = 1`
+     * bleibt unberührt.
      */
     public function existsInactiveByEmail(string $email): bool
     {

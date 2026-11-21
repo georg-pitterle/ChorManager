@@ -253,8 +253,9 @@ class ProjectQuery
     }
 
     /**
-     * Returns all users that are not yet assigned to the project, including archived (inactive) ones.
-     * Archived users can be assigned to a project and are reactivated on assignment.
+     * Alle Mitglieder, die dem Projekt noch nicht zugeordnet sind - archivierte
+     * (deaktivierte) eingeschlossen. Ein archiviertes Mitglied darf einem Projekt
+     * zugeordnet werden und wird mit der Zuordnung reaktiviert.
      */
     public function getUsersNotInProject(int $projectId): Collection
     {
@@ -262,10 +263,11 @@ class ProjectQuery
     }
 
     /**
-     * Like getUsersNotInProject(), but restricted to users that belong to at
-     * least one of the given voice groups. Used for the voice-group-scoped
-     * project assignment right, where the candidate list must not leak members
-     * of foreign voice groups. An empty voice group list yields no candidates.
+     * Wie getUsersNotInProject(), nur eingeschränkt auf Mitglieder, die
+     * mindestens einer der übergebenen Stimmgruppen angehören. Für das
+     * stimmgruppen-beschränkte Recht zum Zuordnen: Die Kandidatenliste darf dort
+     * keine Mitglieder fremder Stimmgruppen preisgeben. Eine leere Liste von
+     * Stimmgruppen ergibt keine Kandidaten.
      *
      * Archivierte Mitglieder der eigenen Stimmgruppe stehen hier bewusst mit in der
      * Auswahl: die Zuordnung reaktiviert sie (siehe ProjectPersistence::addProjectMember()),
@@ -312,8 +314,9 @@ class ProjectQuery
     }
 
     /**
-     * The voice group ids a single user belongs to. Used to authorize
-     * voice-group-scoped project member changes. A missing user yields [].
+     * Die Kennungen der Stimmgruppen, denen ein Mitglied angehört. Daran hängt
+     * die Rechteprüfung für stimmgruppen-beschränkte Änderungen an der
+     * Projektbesetzung. Ein unbekanntes Mitglied ergibt [].
      *
      * Geladen wird nur der Schlüssel: für eine Id-Liste werden die
      * Stimmgruppen-Modelle selbst nicht gebraucht.
@@ -363,7 +366,7 @@ class ProjectQuery
     }
 
     /**
-     * True when the given member exists at all.
+     * Wahr, wenn es das Mitglied überhaupt gibt.
      *
      * getUserVoiceGroupIds() liefert für ein unbekanntes Mitglied dasselbe leere
      * Array wie für eines ohne Stimmgruppe - die Existenz muss deshalb getrennt
@@ -375,7 +378,8 @@ class ProjectQuery
     }
 
     /**
-     * Returns project members grouped by voice group and sub-voice for the evaluation view.
+     * Die Projektbesetzung, nach Stimmgruppe und Teilstimme gruppiert, wie die
+     * Besetzungsansicht der Auswertungen sie anzeigt.
      *
      * Jedes Mitglied erscheint genau einmal: unter seiner ersten Stimmgruppe.
      *
@@ -401,7 +405,7 @@ class ProjectQuery
             $voiceGroup = $user->voiceGroups->first();
             if ($voiceGroup) {
                 $vgName = $voiceGroup->name;
-                // sub_voice_id is stored in the pivot table for user_voice_groups
+                // sub_voice_id steht in der Pivot-Tabelle user_voice_groups
                 $subVoiceId = $voiceGroup->pivot->sub_voice_id;
                 if ($subVoiceId) {
                     $subVoice = $user->subVoices->firstWhere('id', $subVoiceId);
@@ -430,7 +434,7 @@ class ProjectQuery
             ];
         }
 
-        // Sort voice groups into canonical SATB order, "ohne Stimmgruppe" last
+        // Stimmgruppen in die übliche SATB-Reihenfolge, "ohne Stimmgruppe" zuletzt
         $grouped = VoiceGroupOrder::sortNameKeyedMap($grouped, [self::NO_VOICE_GROUP_KEY]);
 
         // Teilstimmen in derselben Reihenfolge wie überall sonst, der Sammelschlüssel

@@ -172,18 +172,59 @@ class SponsoringQuery
      */
     public function attachmentNames(int $sponsorshipId): array
     {
-        return Attachment::where('entity_type', Sponsorship::ENTITY_TYPE)
-            ->where('entity_id', $sponsorshipId)
-            ->pluck('original_name')
-            ->all();
+        return $this->attachmentsQuery($sponsorshipId)->pluck('original_name')->all();
+    }
+
+    /**
+     * Ob dieser Name an der Vereinbarung schon vergeben ist - die Gegenprobe zum
+     * Umbenennen, so wie isAssignable() die Gegenprobe zu getAssignableUsers()
+     * ist.
+     *
+     * Verglichen wird ohne Rücksicht auf Groß- und Kleinschreibung, und zwar mit
+     * `mb_strtolower()` und nicht über die Kollation der Spalte: Das Hochladen
+     * zählt seine Namen mit genau dieser Funktion durch
+     * (SponsorshipFileName::build()), und zwei Seiten derselben Frage sollen
+     * nicht an zwei verschiedenen Begriffen von "gleich" hängen.
+     *
+     * `$exceptAttachmentId` lässt den Anhang aus, der gerade umbenannt wird: Sein
+     * eigener Name ist für ihn nicht vergeben, sonst wäre schon das Abschicken
+     * derselben Schreibweise ein Fehler.
+     */
+    public function isAttachmentNameTaken(int $sponsorshipId, string $name, int $exceptAttachmentId = 0): bool
+    {
+        $wanted = mb_strtolower($name);
+        $rows = $this->attachmentsQuery($sponsorshipId)->get(['id', 'original_name']);
+
+        foreach ($rows as $row) {
+            if ((int) $row->id === $exceptAttachmentId) {
+                continue;
+            }
+            if (mb_strtolower((string) $row->original_name) === $wanted) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /** Ein Anhang der Vereinbarung - nur Kennung und Name; null, wenn er woanders hängt. */
     public function findAttachment(int $sponsorshipId, int $attachmentId): ?Attachment
     {
-        return Attachment::where('entity_type', Sponsorship::ENTITY_TYPE)
-            ->where('entity_id', $sponsorshipId)
+        return $this->attachmentsQuery($sponsorshipId)
             ->whereKey($attachmentId)
             ->first(['id', 'original_name']);
+    }
+
+    /**
+     * Die Anhänge genau dieser Vereinbarung. Das Spaltenpaar stand dreimal
+     * wortgleich daneben; eine Stelle bedeutet, dass eine Änderung an der
+     * Verknüpfung nicht zwei davon vergisst.
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<Attachment>
+     */
+    private function attachmentsQuery(int $sponsorshipId)
+    {
+        return Attachment::where('entity_type', Sponsorship::ENTITY_TYPE)
+            ->where('entity_id', $sponsorshipId);
     }
 }

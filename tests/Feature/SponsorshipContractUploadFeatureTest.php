@@ -94,6 +94,88 @@ final class SponsorshipContractUploadFeatureTest extends TestCase
         $this->assertSame(['Vertrag unterschrieben.pdf'], $this->names());
     }
 
+    /**
+     * Das Hochladen zählt einen zweiten gleichen Namen durch ("..._2.pdf"), das
+     * Umbenennen prüfte dagegen nichts: Zwei Anhänge derselben Anfrage konnten
+     * gleich heißen, und die Liste am Sponsor zeigte zwei Zeilen mit identischem
+     * Namen. Beim Umbenennen wird nicht durchgezählt, sondern abgelehnt - den
+     * Namen hat jemand selbst eingegeben, und eine stille Änderung daran
+     * ("_2" angehängt) wäre eine Antwort auf eine Frage, die niemand gestellt hat.
+     */
+    public function testRenamingToATakenNameIsRefused(): void
+    {
+        $this->upload([$this->pdf('SCAN0126.pdf'), $this->pdf('SCAN0127.pdf')]);
+        $second = $this->attachments()->get()->last();
+
+        $response = $this->rename((int) $second->id, 'Vertragstest-AG_Herbstkonzert');
+
+        $this->assertRedirect($response, '/sponsoring/sponsors/' . $this->sponsor->id);
+        $this->assertSame(SponsorshipController::ATTACHMENT_NAME_TAKEN_ERROR, $_SESSION['error'] ?? null);
+        $this->assertSame(
+            ['Vertragstest-AG_Herbstkonzert.pdf', 'Vertragstest-AG_Herbstkonzert_2.pdf'],
+            $this->names()
+        );
+    }
+
+    /**
+     * Verglichen wird ohne Rücksicht auf Groß- und Kleinschreibung - genau wie
+     * beim Hochladen (SponsorshipFileName::build()). Sonst entstünden zwei
+     * Dateien, die sich nur darin unterscheiden.
+     */
+    public function testTheTakenNameIsComparedWithoutRegardToCase(): void
+    {
+        $this->upload([$this->pdf('SCAN0126.pdf'), $this->pdf('SCAN0127.pdf')]);
+        $second = $this->attachments()->get()->last();
+
+        $this->rename((int) $second->id, 'vertragstest-ag_HERBSTKONZERT');
+
+        $this->assertSame(SponsorshipController::ATTACHMENT_NAME_TAKEN_ERROR, $_SESSION['error'] ?? null);
+        $this->assertSame(
+            ['Vertragstest-AG_Herbstkonzert.pdf', 'Vertragstest-AG_Herbstkonzert_2.pdf'],
+            $this->names()
+        );
+    }
+
+    /**
+     * Der eigene Name ist nicht vergeben: Wer nur die Schreibweise ändert oder
+     * zweimal dasselbe abschickt, soll nicht abgewiesen werden.
+     */
+    public function testKeepingTheOwnNameIsNotATakenName(): void
+    {
+        $this->upload([$this->pdf('SCAN0126.pdf')]);
+        $attachment = $this->attachments()->firstOrFail();
+
+        $response = $this->rename((int) $attachment->id, 'Vertragstest-AG_Herbstkonzert');
+
+        $this->assertRedirect($response, '/sponsoring/sponsors/' . $this->sponsor->id);
+        $this->assertArrayNotHasKey('error', $_SESSION);
+        $this->assertSame(['Vertragstest-AG_Herbstkonzert.pdf'], $this->names());
+    }
+
+    /**
+     * Ein gleicher Name an einer *anderen* Anfrage steht nicht im Weg - geprüft
+     * wird je Anfrage, so wie attachmentNames() fragt.
+     */
+    public function testTheSameNameAtAnotherRequestDoesNotBlock(): void
+    {
+        // Die zweite Anfrage hat kein Projekt, ihr Anhang heißt deshalb nur nach
+        // dem Sponsor: "Vertragstest-AG.pdf".
+        $other = Sponsorship::create([
+            'sponsor_id' => $this->sponsor->id,
+            'amount' => '0.00',
+            'status' => SponsorshipStatus::REQUESTED,
+            'created_by_user_id' => $this->author->id,
+        ]);
+        $this->upload([$this->pdf('SCAN0126.pdf')], (int) $other->id);
+        $this->upload([$this->pdf('SCAN0127.pdf')]);
+        $attachment = $this->attachments()->firstOrFail();
+
+        $this->rename((int) $attachment->id, 'Vertragstest-AG');
+
+        $this->assertArrayNotHasKey('error', $_SESSION);
+        $this->assertSame(['Vertragstest-AG.pdf'], $this->names());
+    }
+
     public function testSomeoneElseMayNotRename(): void
     {
         $this->upload([$this->pdf('SCAN0126.pdf')]);
@@ -128,14 +210,17 @@ final class SponsorshipContractUploadFeatureTest extends TestCase
 
     /**
      * @param list<UploadedFile> $files
+     * @param int|null $sponsorshipId null = die Anfrage aus setUp()
      */
-    private function upload(array $files): ResponseInterface
+    private function upload(array $files, ?int $sponsorshipId = null): ResponseInterface
     {
+        $id = $sponsorshipId ?? (int) $this->request->id;
+
         return $this->controller()->uploadAttachment(
-            $this->makeRequest('POST', '/sponsoring/sponsorships/' . $this->request->id . '/attachments')
+            $this->makeRequest('POST', '/sponsoring/sponsorships/' . $id . '/attachments')
                 ->withUploadedFiles(['attachments' => $files]),
             $this->makeResponse(),
-            ['id' => (string) $this->request->id]
+            ['id' => (string) $id]
         );
     }
 

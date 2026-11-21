@@ -35,6 +35,7 @@ class SponsorshipController
     use AttachmentUploadJson;
 
     public const RENAME_ERROR = 'Bitte einen Dateinamen eingeben.';
+    public const ATTACHMENT_NAME_TAKEN_ERROR = 'Eine Datei mit diesem Namen hängt schon an dieser Anfrage.';
 
     public const AMOUNT_ERROR = 'Ungültiger Betrag. Bitte eine Zahl ab 0 eingeben.';
     public const STATUS_ERROR = 'Ungültiger Status für die Anfrage.';
@@ -672,6 +673,17 @@ class SponsorshipController
         );
         if ($name === null) {
             $_SESSION['error'] = self::RENAME_ERROR;
+            return $back;
+        }
+
+        // Das Hochladen zählt einen zweiten gleichen Namen durch ("..._2.pdf"),
+        // hier wird abgelehnt: Diesen Namen hat jemand selbst eingegeben, und ihn
+        // stillschweigend zu "_2" zu machen wäre eine Antwort auf eine Frage, die
+        // niemand gestellt hat. Ohne die Prüfung konnten zwei Anhänge derselben
+        // Anfrage gleich heißen - die Liste am Sponsor zeigte dann zwei Zeilen
+        // mit identischem Namen.
+        if ($this->sponsoringQuery->isAttachmentNameTaken((int) $sponsorship->id, $name, (int) $attachment->id)) {
+            $_SESSION['error'] = self::ATTACHMENT_NAME_TAKEN_ERROR;
             return $back;
         }
 
