@@ -130,10 +130,16 @@ class EntityAttachmentService
                 : UploadValidator::validateFileSize($size, $mimeType);
             if (!$validation['valid']) {
                 // Ohne Dateiname: der Name stammt vom Hochladenden und hat in
-                // einer Protokollzeile nichts verloren.
+                // einer Protokollzeile nichts verloren. Erkannter Typ, Größe und
+                // Bereich bleiben drin, sonst lässt sich ein Angriff nicht von
+                // einem fehlenden erlaubten Dateityp unterscheiden. Der Typ kann
+                // vom Browser stammen, darum gekürzt.
                 $this->logger->warning('File upload rejected.', [
                     'event' => 'security.upload.rejected',
                     'reason' => $validation['reason'],
+                    'mime_type' => mb_substr($mimeType, 0, 100),
+                    'size_bytes' => $size,
+                    'entity_type' => $entityType,
                 ]);
                 $error ??= $validation['error'];
                 continue;

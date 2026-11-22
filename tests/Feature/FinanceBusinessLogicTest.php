@@ -460,6 +460,43 @@ final class FinanceBusinessLogicTest extends TestCase
         unset($_SESSION['success'], $_SESSION['error']);
     }
 
+    public function testSaveLogsDetectedMimeTypeAndEntityForRejectedAttachment(): void
+    {
+        $handlerLog = new TestHandler();
+        $logger = new Logger('test');
+        $logger->pushHandler($handlerLog);
+        $controller = $this->makeController($logger);
+
+        $content = 'kein Beleg';
+        $uploadedFile = new UploadedFile(
+            (new StreamFactory())->createStream($content),
+            'beleg.exe',
+            'application/x-msdownload',
+            strlen($content),
+            UPLOAD_ERR_OK
+        );
+
+        $request = $this->makeRequest('POST', '/finances', $this->baseFinanceData())
+            ->withUploadedFiles(['attachments' => [$uploadedFile]]);
+
+        $controller->save($request, $this->makeResponse());
+
+        $match = array_values(array_filter(
+            $handlerLog->getRecords(),
+            static fn ($record): bool => ($record->context['event'] ?? null) === 'security.upload.rejected'
+        ));
+
+        // Ohne den erkannten Typ und den Bereich lässt sich aus der Zeile nicht
+        // ablesen, ob ein Angriff oder ein fehlender erlaubter Dateityp vorliegt.
+        $this->assertNotEmpty($match);
+        $this->assertSame('invalid_mime_type', $match[0]->context['reason']);
+        $this->assertSame('application/x-msdownload', $match[0]->context['mime_type']);
+        $this->assertSame('finance', $match[0]->context['entity_type']);
+        $this->assertSame(strlen($content), $match[0]->context['size_bytes']);
+
+        unset($_SESSION['success'], $_SESSION['error']);
+    }
+
     public function testSaveLogsUploadRejectedForOversizedAttachmentWithoutFilename(): void
     {
         $handlerLog = new TestHandler();
