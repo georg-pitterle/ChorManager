@@ -106,6 +106,47 @@ class UploadFileCountGuardFeatureTest extends TestCase
         $this->assertSame(UploadFileCountGuard::MAX_FILES, $record->context['max_files']);
     }
 
+    /**
+     * Ein Absender ohne Sitzung bekommt hier keine.
+     *
+     * `ensureStarted()` legte für jede abgewiesene Anfrage eine Sitzungsdatei an
+     * und schickte ein Set-Cookie - auch an einen Absender, der nie eine Sitzung
+     * hatte und die Meldung deshalb nie zu sehen bekommt. Und erreichbar ist
+     * dieser Weg: Die Middleware hängt bewusst außerhalb der CSRF-Prüfung, ein
+     * Formular fremder Herkunft kommt hier also an. Seit die Leerlaufgrenze bei
+     * acht Stunden liegt (SessionConfig::IDLE_LIFETIME_SECONDS), bliebe jede
+     * dieser Dateien acht Stunden liegen - dieselbe Entscheidung wie in der
+     * RequestContextMiddleware und der CsrfMiddleware.
+     *
+     * Für ein angemeldetes Mitglied ändert sich nichts: Es bringt das
+     * Sitzungs-Cookie mit, und der Test darüber prüft die Meldung weiter.
+     */
+    public function testAnonymousCallerGetsNoSession(): void
+    {
+        $this->discardSession();
+
+        try {
+            $middleware = new UploadFileCountMiddleware(new Logger('test'), true);
+            $request = $this->makeRequest('POST', 'https://chor.example/tasks/3/attachments');
+
+            $result = $middleware->process($request, $this->recordingHandler());
+
+            $status = session_status();
+            $sessionId = session_id();
+        } finally {
+            // Die übrigen Tests dieser Klasse - und jede Klasse, die nach ihr im
+            // selben Prozess läuft - erwarten eine laufende Sitzung.
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            $_SESSION = [];
+        }
+
+        $this->assertSame(302, $result->getStatusCode());
+        $this->assertSame(PHP_SESSION_NONE, $status, 'Die Abweisung darf keine Sitzungsdatei anlegen.');
+        $this->assertSame('', $sessionId);
+    }
+
     public function testUnusableRefererFallsBackToStartPage(): void
     {
         $middleware = new UploadFileCountMiddleware(new Logger('test'), true);
@@ -183,6 +224,31 @@ class UploadFileCountGuardFeatureTest extends TestCase
             UploadFileCountGuard::MAX_FILES,
             \App\Util\UploadValidator::clientLimits()['maxFiles']
         );
+    }
+
+    /**
+     * Beendet die Sitzung dieses Prozesses vollständig - Datei, Daten und
+     * Kennung - und nimmt das Sitzungs-Cookie der Anfrage weg. Erst danach sieht
+     * die Lage so aus wie bei einem Absender, der nie eine Sitzung hatte.
+     *
+     * Ohne das Zurücksetzen der Kennung bliebe sie im Prozess stehen, und
+     * `SessionConfig::ensureStartedForKnownSession()` zählte die Anfrage
+     * weiterhin zu einer Sitzung.
+     */
+    private function discardSession(): void
+    {
+        if (session_status() !== PHP_SESSION_ACTIVE && session_id() !== '') {
+            @session_start();
+        }
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            $_SESSION = [];
+            @session_destroy();
+        }
+
+        @session_id('');
+        $_SESSION = [];
+        unset($_COOKIE[(string) session_name()]);
     }
 
     private function recordingHandler(): RequestHandlerInterface

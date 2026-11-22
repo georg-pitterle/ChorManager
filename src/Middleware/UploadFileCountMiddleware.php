@@ -53,7 +53,20 @@ class UploadFileCountMiddleware implements MiddlewareInterface
             return $response->withHeader('Content-Type', 'application/json; charset=utf-8');
         }
 
-        if (SessionConfig::ensureStarted()) {
+        // Die Meldung geht nur in eine Sitzung, die es schon gibt.
+        //
+        // Hier stand `ensureStarted()`, und damit legte jede abgewiesene Anfrage
+        // eine Sitzungsdatei an und bekam ein Set-Cookie - auch eine ohne
+        // Sitzung, die die Meldung danach nie zu sehen bekommt. Erreichbar ist
+        // das von außen: Diese Middleware hängt bewusst außerhalb der
+        // CSRF-Prüfung, ein Formular fremder Herkunft kommt hier an. Seit die
+        // Leerlaufgrenze bei acht Stunden liegt, bliebe jede dieser Dateien acht
+        // Stunden liegen - dieselbe Überlegung wie in der
+        // RequestContextMiddleware und der CsrfMiddleware.
+        //
+        // Ein angemeldetes Mitglied ist unberührt: Es bringt das Sitzungs-Cookie
+        // mit, und nur dort kann die Meldung überhaupt ankommen.
+        if (SessionConfig::ensureStartedForKnownSession()) {
             $_SESSION['error'] = UploadFileCountGuard::message();
         }
 
