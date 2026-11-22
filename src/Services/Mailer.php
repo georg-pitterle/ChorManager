@@ -6,6 +6,7 @@ namespace App\Services;
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
+use App\Util\AppEnvironment;
 use App\Util\EnvHelper;
 use App\Util\MailInlineImages;
 use App\Util\MailPlainText;
@@ -138,7 +139,7 @@ class Mailer
             return false;
         }
 
-        if (EnvHelper::read('APP_ENV', 'development') !== 'production') {
+        if (!AppEnvironment::isProduction()) {
             return false;
         }
 

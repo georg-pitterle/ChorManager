@@ -6,7 +6,7 @@ namespace App\Middleware;
 
 use App\Services\Oidc\OidcEndpoints;
 use App\Util\ClientIpResolver;
-use App\Util\EnvHelper;
+use App\Util\AppEnvironment;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
@@ -66,7 +66,20 @@ class SecurityHeadersMiddleware implements MiddlewareInterface
                 'camera=(), microphone=(), geolocation=(), accelerometer=(), gyroscope=(), magnetometer=()'
             );
 
-        if ($this->isHttpsRequest($request) && EnvHelper::read('APP_ENV', 'development') === 'production') {
+        // Der Produktivbetrieb wird über AppEnvironment erfragt, nicht selbst aus
+        // APP_ENV abgelesen.
+        //
+        // Hier stand `EnvHelper::read('APP_ENV', 'development') === 'production'`.
+        // Das sind zwei Abweichungen von AppEnvironment in einer Zeile: dessen
+        // Vorgabe ist "production", und es vergleicht kleingeschrieben. Fehlte die
+        // Variable oder stand sie als "Production", hielt sich die Anwendung also
+        // für den Produktivbetrieb - Sitzungs-Cookie mit Secure, Fehlerdetails aus -
+        // und schickte gleichzeitig kein HSTS. Ausgerechnet die Kopfzeile, die den
+        // Zugang auf HTTPS festnagelt, fiel bei einer vergessenen Variablen als
+        // erste aus, und von außen sah die Installation aus wie eine, in der alles
+        // greift. Dieselbe Umstellung haben RememberLoginService, Mailer und
+        // AppUrlResolver bekommen (Nacharbeit zu Review-Lauf 82).
+        if ($this->isHttpsRequest($request) && AppEnvironment::isProduction()) {
             $response = $response->withHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 

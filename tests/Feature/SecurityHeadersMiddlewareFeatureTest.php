@@ -375,6 +375,65 @@ class SecurityHeadersMiddlewareFeatureTest extends TestCase
     }
 
     /**
+     * Eine fehlende Variable gilt als Produktivbetrieb.
+     *
+     * Hier stand `EnvHelper::read('APP_ENV', 'development') === 'production'`, und
+     * damit war eine vergessene Variable eine Entwicklungsinstallation - während
+     * `AppEnvironment` dieselbe Installation als Produktivbetrieb behandelte und
+     * das Sitzungs-Cookie mit Secure ausgab. HSTS fiel also genau dort aus, wo die
+     * Anwendung sich sonst schon schützte, und von außen sah es aus wie eine
+     * Installation, in der alles greift.
+     *
+     * Geleert wird die Variable in allen drei Quellen, die EnvHelper abfragt:
+     * `$_ENV`, `$_SERVER` und die Prozessumgebung. Ein `unset()` auf `$_ENV`
+     * allein ließe den Wert aus tests/bootstrap.php durch, und der Test wäre
+     * grün, ohne die Lage überhaupt hergestellt zu haben.
+     */
+    public function testMissingAppEnvCountsAsProductionAndSendsHsts(): void
+    {
+        $previousServerValue = $_SERVER['APP_ENV'] ?? null;
+
+        unset($_ENV['APP_ENV'], $_SERVER['APP_ENV']);
+        putenv('APP_ENV');
+
+        try {
+            $this->assertStringContainsString(
+                'max-age=31536000',
+                $this->hstsFor('https://localhost/dashboard')
+            );
+        } finally {
+            if ($previousServerValue === null) {
+                unset($_SERVER['APP_ENV']);
+            } else {
+                $_SERVER['APP_ENV'] = $previousServerValue;
+            }
+
+            // APP_ENV bleibt nicht leer zurück: daran hängt der abgesenkte
+            // bcrypt-Aufwand in App\Util\PasswordHasher, und ein Testlauf ohne
+            // diese Kennzeichnung hasht ab hier wieder mit vollem Aufwand.
+            $_ENV['APP_ENV'] = $_SERVER['APP_ENV'] = 'test';
+            putenv('APP_ENV=test');
+        }
+    }
+
+    /**
+     * Groß geschrieben ist dieselbe Umgebung.
+     *
+     * Der frühere Vergleich war buchstabengenau, `AppEnvironment` vergleicht
+     * kleingeschrieben. "Production" in der Konfiguration hieß damit: Secure-Flag
+     * ja, HSTS nein - ein Tippfehler mit nur einer Hälfte Wirkung.
+     */
+    public function testAppEnvIsComparedWithoutRegardToCase(): void
+    {
+        $_ENV['APP_ENV'] = 'Production';
+
+        $this->assertStringContainsString(
+            'max-age=31536000',
+            $this->hstsFor('https://localhost/dashboard')
+        );
+    }
+
+    /**
      * `X-Forwarded-Proto` zählt nur hinter einem vertrauten Proxy.
      *
      * Die Kopfzeile darf jeder Absender selbst setzen. Hinter einem TLS-beendenden

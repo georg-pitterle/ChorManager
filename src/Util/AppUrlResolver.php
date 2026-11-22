@@ -49,7 +49,7 @@ final class AppUrlResolver
      */
     public static function assertConfiguredForProduction(): void
     {
-        if (EnvHelper::read('APP_ENV', 'development') !== 'production') {
+        if (!AppEnvironment::isProduction()) {
             return;
         }
 

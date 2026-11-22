@@ -15,6 +15,8 @@ use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface as RequestHandler;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 class AuthMiddleware implements MiddlewareInterface
 {
@@ -22,6 +24,7 @@ class AuthMiddleware implements MiddlewareInterface
     private RememberLoginService $rememberLoginService;
     private SessionAuthService $sessionAuthService;
     private RememberLoginRestoreService $rememberLoginRestoreService;
+    private LoggerInterface $logger;
 
     /**
      * Der Wiederherstellungs-Dienst wird hier gebaut und nicht übergeben: Er
@@ -29,15 +32,24 @@ class AuthMiddleware implements MiddlewareInterface
      * bekommt. Ein vierter Parameter zwänge jede der zahlreichen Aufrufstellen
      * in den Tests zu einem Argument, das sie sich aus denselben drei
      * zusammensetzen müsste.
+     *
+     * Der Logger ist optional und fällt auf den NullLogger zurück - dieselbe
+     * Lösung wie in der CsrfMiddleware. Verdrahtet wird er nicht von Hand: Die
+     * Middleware hängt als Klassenname an der Routengruppe (Routes.php) und
+     * kommt aus dem Container, der den echten Logger an diesem Parameter
+     * einsetzt. Die acht Testklassen, die sie selbst bauen, brauchen deshalb
+     * kein weiteres Argument, und keine von ihnen protokolliert ins Leere.
      */
     public function __construct(
         UserQuery $userQuery,
         RememberLoginService $rememberLoginService,
-        SessionAuthService $sessionAuthService
+        SessionAuthService $sessionAuthService,
+        LoggerInterface $logger = new NullLogger()
     ) {
         $this->userQuery = $userQuery;
         $this->rememberLoginService = $rememberLoginService;
         $this->sessionAuthService = $sessionAuthService;
+        $this->logger = $logger;
         $this->rememberLoginRestoreService = new RememberLoginRestoreService(
             $rememberLoginService,
             $userQuery,
@@ -71,9 +83,7 @@ class AuthMiddleware implements MiddlewareInterface
         $authEpoch = (int) ($_SESSION['auth_epoch'] ?? 0);
 
         if ($sessionValidAfter > 0 && $authEpoch < $sessionValidAfter) {
-            $this->sessionAuthService->clearSession();
-
-            return LoginRedirect::respond($request);
+            return $this->endSession($request, 'revoked_globally');
         }
 
         $currentUser = $this->userQuery->findForSession((int) $_SESSION['user_id']);
@@ -84,9 +94,15 @@ class AuthMiddleware implements MiddlewareInterface
                 $this->rememberLoginService->clearRememberCookie();
             }
 
-            $this->sessionAuthService->clearSession();
-
-            return LoginRedirect::respond($request);
+            // Ein Grund für beide Fälle, und das ist keine Bequemlichkeit: Ein
+            // stillgelegtes Konto kommt hier gar nicht als Modell an, weil
+            // `findForSession()` auf `is_active = 1` filtert. Die Prüfung darüber
+            // bleibt als Netz für den Fall, dass der Filter dort einmal fällt -
+            // aber "gelöscht" und "stillgelegt" auseinanderzuhalten, gäbe diese
+            // Stelle nur vor. Ein Grund, der nie auftaucht, ist in der
+            // Log-Analyse schlimmer als keiner: Sie läse daraus, dass eine
+            // Stilllegung niemanden abmeldet.
+            return $this->endSession($request, 'user_unavailable');
         }
 
         // Die Grenze des Kontos: gesetzt, wenn ein Passwortwechsel alle anderen
@@ -94,9 +110,7 @@ class AuthMiddleware implements MiddlewareInterface
         // angemeldet wurde, muss sich neu anmelden.
         $accountValidAfter = (int) ($currentUser->sessions_valid_after ?? 0);
         if ($accountValidAfter > 0 && $authEpoch < $accountValidAfter) {
-            $this->sessionAuthService->clearSession();
-
-            return LoginRedirect::respond($request);
+            return $this->endSession($request, 'revoked_for_account');
         }
 
         // Der Rechte-Abzug der Sitzung wird bei jeder geschützten Anfrage neu
@@ -105,5 +119,42 @@ class AuthMiddleware implements MiddlewareInterface
         $this->sessionAuthService->setAuthenticatedUser($currentUser);
 
         return $handler->handle($request);
+    }
+
+    /**
+     * Einziger Ausgang für alle erzwungenen Abmeldungen: beendet die Sitzung,
+     * protokolliert sie genau einmal und schickt zur Anmeldung.
+     *
+     * Die drei Anlässe standen vorher als drei gleichlautende Zweige da -
+     * `clearSession()` und `LoginRedirect::respond()` -, und keiner schrieb eine
+     * Zeile. Protokolliert wurde nur das Setzen der Sperre
+     * (`auth.sessions.invalidated`, `auth.account_logins.revoked`), nie ihr
+     * Greifen. Für die tägliche Log-Analyse heißt das: "Ich werde dauernd
+     * abgemeldet" war nicht nachvollziehbar, weil die Abmeldung selbst nirgends
+     * auftaucht - und ob eine Sitzung an der globalen Sperre, an einem
+     * stillgelegten Konto oder an der Kontogrenze nach einem Passwortwechsel
+     * endete, unterscheidet nur dieser Grund.
+     *
+     * Eine Zeile je beendeter Sitzung, kein Rauschen: Nach `clearSession()` ist
+     * die Sitzung zerstört, die nächste Anfrage kommt ohne Benutzerkennung an und
+     * landet schon weiter oben bei der Weiterleitung.
+     *
+     * Benutzerkennung und IP kommen über den Request-Kontext und werden hier
+     * nicht wiederholt - dieselbe Aufteilung wie bei `authz.denied` in der
+     * RoleMiddleware.
+     *
+     * @param string $reason Einer von `revoked_globally`, `user_unavailable`,
+     *        `revoked_for_account`.
+     */
+    private function endSession(Request $request, string $reason): Response
+    {
+        $this->sessionAuthService->clearSession();
+
+        $this->logger->info('Session ended by the server.', [
+            'event' => 'auth.session.ended',
+            'reason' => $reason,
+        ]);
+
+        return LoginRedirect::respond($request);
     }
 }

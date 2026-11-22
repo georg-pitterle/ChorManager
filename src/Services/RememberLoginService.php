@@ -258,7 +258,7 @@ class RememberLoginService
 
     private function shouldUseSecureCookie(): bool
     {
-        if (\App\Util\EnvHelper::read('APP_ENV', 'development') === 'production') {
+        if (\App\Util\AppEnvironment::isProduction()) {
             return true;
         }
 

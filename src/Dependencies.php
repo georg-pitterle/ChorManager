@@ -131,6 +131,7 @@ use App\Services\MailBadgeViewService;
 use App\Services\Notifications\InAppNotificationStore;
 use App\Services\Notifications\NotificationBadgeViewService;
 use App\Services\MailCredentialCryptoService;
+use App\Middleware\AuthMiddleware;
 use App\Middleware\CsrfMiddleware;
 use App\Middleware\HtmlFormCsrfInjectorMiddleware;
 use App\Middleware\MailBadgeRefreshMiddleware;
@@ -610,6 +611,19 @@ return function (ContainerBuilder $containerBuilder) {
         // fehlgeschlagenen Token-Einbau käme dann nie im Log an.
         HtmlFormCsrfInjectorMiddleware::class => function (ContainerInterface $c) {
             return new HtmlFormCsrfInjectorMiddleware($c->get(LoggerInterface::class));
+        },
+        // Und noch einmal derselbe Grund: Ohne diese Zeile stand in der AuthMiddleware
+        // der NullLogger, und `auth.session.ended` - die einzige Spur einer erzwungenen
+        // Abmeldung - wäre nirgends angekommen. Dass die Reflexion einen Parameter mit
+        // Default überspringt, sieht man an der Middleware selbst nicht; geprüft wird es
+        // deshalb am gebauten Container (AuthMiddlewareSessionEndLoggingFeatureTest).
+        AuthMiddleware::class => function (ContainerInterface $c) {
+            return new AuthMiddleware(
+                $c->get(UserQuery::class),
+                $c->get(RememberLoginService::class),
+                $c->get(SessionAuthService::class),
+                $c->get(LoggerInterface::class)
+            );
         },
         // Der Logger ist optional mit NullLogger-Default (bestehende Tests bauen den
         // Controller mit nur $view), daher hier explizit verdrahten - sonst überspringt

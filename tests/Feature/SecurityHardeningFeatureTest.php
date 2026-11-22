@@ -184,4 +184,86 @@ class SecurityHardeningFeatureTest extends TestCase
         $this->assertStringContainsString('AppEnvironment::isDebugEnabled()', $middleware);
         $this->assertStringContainsString("EnvHelper::read('APP_ENV', 'production')", $environment);
     }
+
+    /**
+     * APP_ENV liest nur AppEnvironment.
+     *
+     * Vier Stellen lasen die Variable selbst, und alle vier anders als
+     * AppEnvironment: Vorgabe "development" statt "production" und ein
+     * buchstabengenauer Vergleich. Fehlte die Variable oder stand sie als
+     * "Production", galt dieselbe Installation an einer Stelle als
+     * Produktivbetrieb und an der anderen als Entwicklung - still abgeschaltet
+     * waren damit HSTS (SecurityHeadersMiddleware), das Secure-Flag am
+     * Angemeldet-bleiben-Cookie (RememberLoginService), die Weigerung,
+     * SMTP-Zugangsdaten im Klartext zu schicken (Mailer) und der Startabbruch
+     * ohne APP_URL (AppUrlResolver).
+     *
+     * Deshalb dieser Wächter und nicht vier Verhaltenstests: Die eine Regel, die
+     * zählt, ist "niemand liest selbst" - und nur sie fängt auch die fünfte
+     * Stelle, die es noch nicht gibt.
+     *
+     * Geprüft wird der Code ohne Kommentare: Erklärende Absätze dürfen die alte
+     * Schreibweise zitieren, ohne den Wächter rot zu machen.
+     */
+    public function testOnlyAppEnvironmentReadsTheAppEnvVariable(): void
+    {
+        // Jede Ausnahme mit ihrem Grund. Keine davon entscheidet über den
+        // Produktivbetrieb: PasswordHasher senkt im Testlauf den bcrypt-Aufwand,
+        // DevSeedService lässt die Seed-Daten nur in einer Entwicklungsumgebung zu.
+        $allowed = [
+            'src/Util/AppEnvironment.php' => 'die eine auswertende Stelle',
+            'src/Util/PasswordHasher.php' => 'fragt auf "test", nicht auf Produktivbetrieb',
+            'src/Services/DevSeedService.php' => 'Sperre gegen Seed-Daten außerhalb der Entwicklung',
+        ];
+
+        $root = dirname(__DIR__, 2);
+        $offenders = [];
+
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root . '/src'));
+        foreach ($files as $file) {
+            if (!$file->isFile() || $file->getExtension() !== 'php') {
+                continue;
+            }
+
+            $relativePath = str_replace($root . '/', '', $file->getPathname());
+            if (array_key_exists($relativePath, $allowed)) {
+                continue;
+            }
+
+            if ($this->readsAppEnv((string) file_get_contents($file->getPathname()))) {
+                $offenders[] = $relativePath;
+            }
+        }
+
+        sort($offenders);
+        $this->assertSame(
+            [],
+            $offenders,
+            'Diese Dateien lesen APP_ENV selbst statt über AppEnvironment::isProduction(): '
+            . implode(', ', $offenders)
+        );
+    }
+
+    /**
+     * Greift der Code auf die Variable APP_ENV zu?
+     *
+     * Gesucht wird die Zeichenkette als eigener Wert - so steht sie in
+     * `EnvHelper::read('APP_ENV', ...)`, in `getenv('APP_ENV')` und in
+     * `$_ENV['APP_ENV']` gleichermaßen. Eine Meldung, die "APP_ENV=production"
+     * nur erwähnt (Mailer), ist ein längerer Satz und zählt damit nicht mit.
+     */
+    private function readsAppEnv(string $source): bool
+    {
+        foreach (token_get_all($source) as $token) {
+            if (!is_array($token) || $token[0] !== T_CONSTANT_ENCAPSED_STRING) {
+                continue;
+            }
+
+            if (trim($token[1], '\'"') === 'APP_ENV') {
+                return true;
+            }
+        }
+
+        return false;
+    }
 }
