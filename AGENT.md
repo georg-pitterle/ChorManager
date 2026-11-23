@@ -46,11 +46,10 @@ You are a professional software engineer.
 ## Code and Style
 @instructions/php-style.md
 
-@instructions/twig-style.md
-
-@instructions/template-hygiene.md
-
-@instructions/data-access.md
+- Templates (`templates/**/*.twig`): `instructions/twig-style.md` und
+  `instructions/template-hygiene.md` – geladen über `templates/CLAUDE.md`.
+- Controller (`src/Controllers/**`): `instructions/data-access.md` – geladen über
+  `src/Controllers/CLAUDE.md`.
 
 ## Security Baseline
 @instructions/security-baseline.md
