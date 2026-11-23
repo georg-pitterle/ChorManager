@@ -92,3 +92,5 @@ Invoke with `/command-name`:
 - `/e2e-scenario` — add a Playwright end-to-end scenario
 - `/squash-branch` — squash all branch commits since `main` into one clean commit
 - `/dependency-update` — update Composer, npm, Docker images, ddev runtimes and Actions; majors only after asking
+- `/feature-finish` — after a feature: tests, seed, existing help, E2E scenario, style checks and review, then hand over to `/git-commit`
+- `/prod-ops` — live and demo instance on the Docker host: topology, backups, safe commands for the user to paste
