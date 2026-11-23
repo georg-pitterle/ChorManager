@@ -247,7 +247,9 @@ class EventFeatureTest extends TestCase
             'description' => 'Project for combined event filter test',
         ]);
         $eventType = \App\Models\EventType::create([
-            'name' => 'Probe',
+            // Eindeutiger Name: Seit 20261123130000 ist event_types.name eindeutig, und
+            // "Probe" steht schon aus 20260314130000 im Bestand.
+            'name' => 'Probe ' . bin2hex(random_bytes(4)),
             'color' => 'primary',
         ]);
 

@@ -165,7 +165,11 @@ class RegistrationViewFeatureTest extends TestCase
             $body
         );
         $this->assertStringContainsString($startsAt->format('H:i') . '–' . $fixture['event']->ends_at->format('H:i') . ' Uhr', $body);
-        $this->assertMatchesRegularExpression('/<span class="badge text-bg-[a-z]+">Probe<\/span>/', $body);
+        $this->assertMatchesRegularExpression(
+            '/<span class="badge text-bg-[a-z]+">'
+                . preg_quote((string) $fixture['eventType']->name, '/') . '<\/span>/',
+            $body
+        );
     }
 
     public function testIndexMarksUnansweredEventsAndCountsThemInTheSummary(): void
@@ -432,7 +436,13 @@ class RegistrationViewFeatureTest extends TestCase
 
         // Mit echter Terminart: Das Abzeichen im Terminplan nennt den Namen aus
         // `event_types`, seit `events.type` gefallen ist (20261112120000).
-        $eventType = EventType::create(['name' => 'Probe', 'color' => 'info', 'is_highlighted' => false]);
+        // Eindeutiger Name: Seit 20261123130000 ist event_types.name eindeutig, und
+        // "Probe" steht schon aus 20260314130000 im Bestand.
+        $eventType = EventType::create([
+            'name' => 'Probe ' . bin2hex(random_bytes(4)),
+            'color' => 'info',
+            'is_highlighted' => false,
+        ]);
 
         $event = Event::create([
             'title' => 'Projektprobe mit Anmeldung',
@@ -482,6 +492,7 @@ class RegistrationViewFeatureTest extends TestCase
         return [
             'project' => $project,
             'event' => $event,
+            'eventType' => $eventType,
             'yes' => $yes,
             'no' => $no,
             'maybe' => $maybe,

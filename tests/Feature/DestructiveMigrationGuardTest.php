@@ -13,6 +13,7 @@ use CreateFinanceAccounts;
 use CreateFinanceGroupsAndLink;
 use DropEventsProjectId;
 use DropTypeFromEvents;
+use KeepTasksWhenTheirCreatorIsDeleted;
 use MoveFileSharesToAudienceFilters;
 use MoveSponsorLogosToOwnAttachments;
 use RequireFileSizeOnAttachments;
@@ -38,6 +39,8 @@ require_once dirname(__DIR__, 2) . '/db/migrations/20261022130000_use_english_ta
 require_once dirname(__DIR__, 2) . '/db/migrations/20261029120000_require_known_song_resource_type.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20261101120000_require_file_size_on_attachments.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20261112120000_drop_type_from_events.php';
+require_once dirname(__DIR__, 2)
+    . '/db/migrations/20261123140000_keep_tasks_when_their_creator_is_deleted.php';
 
 /**
  * Einige Migrationen führen einen Schritt aus, der Daten unwiederbringlich
@@ -285,6 +288,7 @@ final class DestructiveMigrationGuardTest extends TestCase
                 id int(11) NOT NULL AUTO_INCREMENT,
                 status varchar(32) NOT NULL,
                 priority varchar(32) NOT NULL,
+                created_by int(11) DEFAULT NULL,
                 PRIMARY KEY (id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
             self::TASKS_TABLE
@@ -937,6 +941,42 @@ final class DestructiveMigrationGuardTest extends TestCase
             UseEnglishTaskStatusValues::UNMAPPED_TASKS_SQL,
             ['tasks' => self::TASKS_TABLE],
             'unmapped_rows'
+        ));
+    }
+
+    /**
+     * 20261123140000 macht `tasks.created_by` nullbar, damit eine Aufgabe die
+     * Löschung ihres Erstellers überlebt. Ihr `down()` verengt die Spalte wieder
+     * auf NOT NULL - die Prüfung davor findet genau die Aufgaben, die dann
+     * keinen Platz mehr hätten.
+     */
+    public function testCreatorlessTaskGuardFindsTheTaskWithoutACreator(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (status, priority, created_by) VALUES
+             ('open', 'low', 7), ('open', 'low', NULL), ('done', 'high', NULL)",
+            self::TASKS_TABLE
+        ));
+
+        $this->assertSame(2, $this->countFrom(
+            KeepTasksWhenTheirCreatorIsDeleted::CREATORLESS_TASKS_SQL,
+            ['tasks' => self::TASKS_TABLE],
+            'rows_left'
+        ));
+    }
+
+    public function testCreatorlessTaskGuardStaysQuietWhenEveryTaskHasACreator(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (status, priority, created_by) VALUES
+             ('open', 'low', 7), ('done', 'high', 9)",
+            self::TASKS_TABLE
+        ));
+
+        $this->assertSame(0, $this->countFrom(
+            KeepTasksWhenTheirCreatorIsDeleted::CREATORLESS_TASKS_SQL,
+            ['tasks' => self::TASKS_TABLE],
+            'rows_left'
         ));
     }
 

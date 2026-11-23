@@ -157,7 +157,14 @@ class EventTypeNameFollowsRenameFeatureTest extends TestCase
      */
     public function testDieAnwesenheitsseiteZeigtDenUmbenanntenNamen(): void
     {
-        $type = EventType::create(['name' => 'Probe', 'color' => 'info', 'is_highlighted' => false]);
+        // Eindeutiger Name: Seit 20261123130000 ist event_types.name eindeutig, und
+        // "Probe" steht schon aus 20260314130000 im Bestand.
+        $suffix = bin2hex(random_bytes(4));
+        $type = EventType::create([
+            'name' => 'Probe ' . $suffix,
+            'color' => 'info',
+            'is_highlighted' => false,
+        ]);
         $event = Event::create([
             'title' => 'Anwesenheit nach Umbenennung',
             'starts_at' => Carbon::now()->addDays(3)->setTime(19, 0),
@@ -168,13 +175,13 @@ class EventTypeNameFollowsRenameFeatureTest extends TestCase
         $this->openToEveryone($event);
 
         // Die Terminart wird umbenannt.
-        $type->update(['name' => 'Gesamtprobe']);
+        $type->update(['name' => 'Gesamtprobe ' . $suffix]);
 
         $body = $this->renderAttendancePage($event);
 
-        self::assertStringContainsString('Gesamtprobe', $body);
-        self::assertStringNotContainsString('(Probe)', $body);
-        self::assertStringNotContainsString('Typ: Probe', $body);
+        self::assertStringContainsString('Gesamtprobe ' . $suffix, $body);
+        self::assertStringNotContainsString('(Probe ' . $suffix . ')', $body);
+        self::assertStringNotContainsString('Typ: Probe ' . $suffix, $body);
     }
 
     private function renderAttendancePage(Event $event): string

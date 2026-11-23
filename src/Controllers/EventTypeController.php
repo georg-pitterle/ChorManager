@@ -31,6 +31,12 @@ class EventTypeController
 
     private const DEFAULT_COLOR = 'info';
 
+    /**
+     * SQLSTATE einer verletzten Zusicherung. Hier trifft es den eindeutigen
+     * Index auf `event_types.name` aus 20261123130000.
+     */
+    private const DUPLICATE_KEY = '23000';
+
     private Twig $view;
     private LoggerInterface $logger;
 
@@ -111,11 +117,21 @@ class EventTypeController
             ]);
             $_SESSION['success'] = 'Terminart erfolgreich angelegt.';
         } catch (\Exception $e) {
+            $createService = new ModalFormService('event_type_create');
+
+            // Der vergebene Name ist eine Eingabe, kein Fehler des Betriebs: Seit
+            // 20261123130000 weist ihn der eindeutige Index ab (SQLSTATE 23000),
+            // und die Maske sagt, was zu tun ist, statt "Fehler beim Anlegen".
+            if ((string) $e->getCode() === self::DUPLICATE_KEY) {
+                $createService->setError('Eine Terminart mit diesem Namen existiert bereits.', $formData);
+
+                return $response->withHeader('Location', '/event-types')->withStatus(302);
+            }
+
             $this->logger->error('Creating an event type failed.', [
                 'event' => 'event_type.create.failed',
                 'exception' => $e,
             ]);
-            $createService = new ModalFormService('event_type_create');
             $createService->setError('Fehler beim Anlegen der Terminart.', $formData);
         }
 
@@ -151,12 +167,22 @@ class EventTypeController
             ]);
             $_SESSION['success'] = 'Terminart erfolgreich aktualisiert.';
         } catch (\Exception $e) {
+            $editService = new ModalFormService('event_type_edit_' . $id);
+
+            if ((string) $e->getCode() === self::DUPLICATE_KEY) {
+                $editService->setError(
+                    'Eine andere Terminart mit diesem Namen existiert bereits.',
+                    $formData
+                );
+
+                return $response->withHeader('Location', '/event-types')->withStatus(302);
+            }
+
             $this->logger->error('Updating an event type failed.', [
                 'event' => 'event_type.update.failed',
                 'event_type_id' => $id,
                 'exception' => $e,
             ]);
-            $editService = new ModalFormService('event_type_edit_' . $id);
             $editService->setError('Fehler beim Aktualisieren der Terminart.', $formData);
         }
 
