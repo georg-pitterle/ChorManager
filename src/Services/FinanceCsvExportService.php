@@ -87,7 +87,7 @@ class FinanceCsvExportService
             $finance->invoice_date?->format('d.m.Y') ?? '',
             $finance->payment_date?->format('d.m.Y') ?? '',
             self::neutralizeFormula((string) $finance->description),
-            self::neutralizeFormula((string) ($finance->group_name ?? '')),
+            self::neutralizeFormula(implode('; ', $finance->groupNames())),
             $finance->type === Finance::TYPE_INCOME ? 'Eingang' : 'Ausgang',
             $this->money((string) $finance->amount, $finance->type === Finance::TYPE_EXPENSE),
             self::neutralizeFormula((string) ($finance->financeAccount->name ?? '')),

@@ -105,6 +105,9 @@ use RuntimeException;
  */
 class DevSeedService
 {
+    /** Anlass, der im laufenden Geschäftsjahr eine eigene Budget-Kategorie hat. */
+    private const SEED_TRIP_GROUP = 'Chorreise Wien';
+
     private const MODE_APPEND = 'append';
     private const MODE_RESET = 'reset-and-seed';
     private const DEFAULT_SEED_PASSWORD = 'seed';
@@ -210,6 +213,7 @@ class DevSeedService
                 'finances_imported' => 0,
                 'finance_attachments' => 0,
                 'finance_groups' => 0,
+                'finance_group_assignments' => 0,
                 'budget_categories' => 0,
                 'budget_items' => 0,
                 'password_resets' => 0,
@@ -2078,7 +2082,8 @@ class DevSeedService
             'Sonstiges',
         ];
 
-        // Canonical group entities, linked to each booking via finance_group_id.
+        // Kostenarten; jede Buchung trägt genau eine davon. Anlässe kommen unten
+        // als zweite Gruppe dazu.
         $groupIds = [];
         foreach ($groups as $groupName) {
             $group = FinanceGroup::firstOrCreate(['name' => $groupName]);
@@ -2189,8 +2194,6 @@ class DevSeedService
                 'invoice_date' => $invoiceDate->format('Y-m-d'),
                 'payment_date' => $paymentDate?->format('Y-m-d'),
                 'description' => $descriptionBase . ' - ' . $project->name,
-                'group_name' => $groupName,
-                'finance_group_id' => $groupIds[$groupName],
                 'type' => $isIncome ? 'income' : 'expense',
                 'amount' => $amount,
                 'payment_method' => $paymentMethod,
@@ -2199,6 +2202,19 @@ class DevSeedService
                     ? hash('sha256', 'seed-bank-statement-' . $runningNumber)
                     : null,
             ]);
+
+            // Mehrere Gruppen je Buchung: Reisekosten gehören zur Chorreise (im
+            // laufenden Jahr eine eigene Budget-Kategorie, "Reise" selbst ist nicht
+            // budgetiert), jede dritte übrige Buchung zusätzlich zu ihrem Projekt
+            // als Anlass. Kein Anlass ist budgetiert - keine Buchung zählt doppelt.
+            $assigned = [$groupIds[$groupName]];
+            if ($groupName === 'Reise') {
+                $assigned[] = $this->seedFinanceGroupId(self::SEED_TRIP_GROUP);
+            } elseif ($i % 3 === 0) {
+                $assigned[] = $this->seedFinanceGroupId($project->name);
+            }
+            $finance->groups()->sync($assigned);
+            $this->report['counts']['finance_group_assignments'] += count($assigned);
 
             $this->report['counts']['finances']++;
             if ($isOpenItem) {
@@ -2316,8 +2332,6 @@ class DevSeedService
                         $booking->running_number,
                         $booking->description
                     ),
-                    'group_name' => $booking->group_name,
-                    'finance_group_id' => $booking->finance_group_id,
                     'type' => $booking->type === Finance::TYPE_INCOME ? Finance::TYPE_EXPENSE : Finance::TYPE_INCOME,
                     'amount' => $booking->amount,
                     'payment_method' => $booking->payment_method,
@@ -2325,6 +2339,10 @@ class DevSeedService
                     'reversal_of_id' => $booking->id,
                 ]);
                 $runningNumber++;
+                // Die Gegenbuchung trägt dieselben Gruppen wie das Original.
+                $groupIdsOfBooking = $booking->groups()->pluck('finance_groups.id')->all();
+                $reversal->groups()->sync($groupIdsOfBooking);
+                $this->report['counts']['finance_group_assignments'] += count($groupIdsOfBooking);
 
                 $journal->recordReverse($reversal, $booking, $userIds[$index % count($userIds)]);
                 $this->report['counts']['finances']++;
@@ -2351,6 +2369,19 @@ class DevSeedService
         }
     }
 
+    /**
+     * Gruppe nach Namen holen oder anlegen und im Bericht mitzählen.
+     */
+    private function seedFinanceGroupId(string $name): int
+    {
+        $group = FinanceGroup::firstOrCreate(['name' => $name]);
+        if ($group->wasRecentlyCreated) {
+            $this->report['counts']['finance_groups']++;
+        }
+
+        return (int) $group->id;
+    }
+
     private function seedBudget(): void
     {
         // Use the active fiscal year (not the calendar year) so the seeded budget
@@ -2358,6 +2389,15 @@ class DevSeedService
         $fiscalYearStart = (new BudgetService())->defaultFiscalYearStart();
 
         $categories = [
+            [
+                // Ein Anlass als kurzlebige Kostenart: nur in diesem Jahr budgetiert.
+                'group_name' => self::SEED_TRIP_GROUP,
+                'type' => 'expense',
+                'items' => [
+                    ['description' => 'Bus Innsbruck–Wien und zurück', 'planned_amount' => 2400.00],
+                    ['description' => 'Unterkunft zwei Nächte', 'planned_amount' => 3800.00],
+                ],
+            ],
             [
                 'group_name' => 'Mitgliedsbeiträge',
                 'type' => 'income',

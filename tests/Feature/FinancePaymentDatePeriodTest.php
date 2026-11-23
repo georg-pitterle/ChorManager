@@ -73,8 +73,6 @@ final class FinancePaymentDatePeriodTest extends TestCase
             'invoice_date' => $invoiceDate,
             'payment_date' => $paymentDate,
             'description' => 'Buchung ' . $number,
-            'group_name' => null,
-            'finance_group_id' => null,
             'type' => 'income',
             'amount' => $amount,
             'payment_method' => 'bank_transfer',
@@ -158,13 +156,11 @@ final class FinancePaymentDatePeriodTest extends TestCase
             'invoice_date' => '2026-08-20',
             'payment_date' => '2026-09-10',
             'description' => 'Budgetprüfung',
-            'group_name' => $group->name,
-            'finance_group_id' => $group->id,
             'type' => 'income',
             'amount' => '200.00',
             'payment_method' => 'bank_transfer',
             'finance_account_id' => $this->fixtureAccountId(),
-        ]);
+        ])->groups()->attach($group->id);
 
         [$day, $month] = $service->getFiscalConfig();
         [$start2025, $end2025] = $service->datesForYear(2025, $day, $month);

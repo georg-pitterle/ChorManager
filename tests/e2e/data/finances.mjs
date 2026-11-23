@@ -87,6 +87,24 @@ export const ACCOUNTS = {
         openingBalanceValue: 800,
         sortOrder: 10,
     },
+    groups: {
+        name: 'Konto Gruppen',
+        type: 'bank',
+        iban: '',
+        openingBalance: '500,00',
+        openingBalanceValue: 500,
+        sortOrder: 11,
+    },
+};
+
+/**
+ * Gruppen für das Szenario "mehrere Gruppen je Buchung": eine Kostenart und zwei
+ * Anlässe. Keine davon ist budgetiert, die Budget-Regel greift also nicht.
+ */
+export const GROUPS = {
+    costType: 'Notenmaterial E2E',
+    occasion: 'Herbstkonzert E2E',
+    bulkOccasion: 'Chorreise Graz E2E',
 };
 
 /** Kontovorlage mit Stichtag zum Beginn des laufenden Geschäftsjahres. */

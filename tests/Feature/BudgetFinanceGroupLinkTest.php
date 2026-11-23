@@ -12,7 +12,6 @@ use App\Services\BudgetService;
 use Carbon\Carbon;
 use Dotenv\Dotenv;
 use Illuminate\Database\Capsule\Manager as Capsule;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -69,14 +68,6 @@ final class BudgetFinanceGroupLinkTest extends TestCase
         }
 
         parent::tearDown();
-    }
-
-    public function testFinanceGroupRelationsAreWired(): void
-    {
-        $this->assertInstanceOf(BelongsTo::class, (new Finance())->financeGroup());
-        $this->assertInstanceOf(BelongsTo::class, (new BudgetCategory())->financeGroup());
-        $this->assertContains('finance_group_id', (new BudgetCategory())->getFillable());
-        $this->assertContains('finance_group_id', (new Finance())->getFillable());
     }
 
     public function testComputeActualSumsByFinanceGroupId(): void
@@ -148,19 +139,20 @@ final class BudgetFinanceGroupLinkTest extends TestCase
     ): Finance {
         $runningNumber = ((int) Finance::max('running_number')) + 1;
 
-        return Finance::create([
+        $finance = Finance::create([
             'running_number' => $runningNumber,
             'invoice_date' => $invoiceDate,
-            // Ist-Werte zaehlen nach Zahldatum, daher hier gleich mitgesetzt.
+            // Ist-Werte zählen nach Zahldatum, daher hier gleich mitgesetzt.
             'payment_date' => $invoiceDate,
             'description' => 'TEST booking',
-            'finance_group_id' => $groupId,
-            'group_name' => null,
             'type' => $type,
             'amount' => $amount,
             'payment_method' => 'bank_transfer',
             'finance_account_id' => $this->fixtureAccountId(),
             'reversal_of_id' => $reversalOfId,
         ]);
+        $finance->groups()->attach($groupId);
+
+        return $finance;
     }
 }

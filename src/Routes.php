@@ -511,6 +511,7 @@ return function (App $app) {
                     '',
                     function ($financeWriteGroup) {
                         $financeWriteGroup->post('/finances/save', [FinanceController::class, 'save']);
+                        $financeWriteGroup->post('/finances/bulk-groups', [FinanceController::class, 'bulkGroups']);
                         // Kein Löschen: Korrekturen laufen über eine Stornobuchung,
                         // damit der ursprüngliche Inhalt nachvollziehbar bleibt.
                         $financeWriteGroup->post(

@@ -29,8 +29,7 @@ class FinanceJournalService
         'invoice_date',
         'payment_date',
         'description',
-        'group_name',
-        'finance_group_id',
+        'groups',
         'type',
         'amount',
         'payment_method',
@@ -45,6 +44,8 @@ class FinanceJournalService
         'invoice_date' => 'Rechnungsdatum',
         'payment_date' => 'Zahldatum',
         'description' => 'Beschreibung',
+        'groups' => 'Gruppen',
+        // Alteinträge aus der Zeit mit einer Gruppe je Buchung.
         'group_name' => 'Gruppe',
         'finance_group_id' => 'Gruppenzuordnung',
         'type' => 'Art',
@@ -332,10 +333,25 @@ class FinanceJournalService
     {
         $snapshot = [];
         foreach (self::TRACKED_FIELDS as $field) {
-            $snapshot[$field] = self::stringify($field, $finance->getAttribute($field));
+            $snapshot[$field] = $field === 'groups'
+                ? self::groupsValue($finance->groupNames())
+                : self::stringify($field, $finance->getAttribute($field));
         }
 
         return $snapshot;
+    }
+
+    /**
+     * Gruppen als ein Journalwert: alphabetische Namen, mit "; " getrennt.
+     * Ohne Gruppe `null`, damit die Anzeige "leer" schreibt.
+     *
+     * @param list<string> $names
+     */
+    public static function groupsValue(array $names): ?string
+    {
+        sort($names, SORT_NATURAL | SORT_FLAG_CASE);
+
+        return $names === [] ? null : implode('; ', $names);
     }
 
     private static function stringify(string $field, mixed $value): ?string

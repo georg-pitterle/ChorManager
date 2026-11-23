@@ -107,7 +107,7 @@ final class FinanceBusinessLogicTest extends TestCase
             'invoice_date' => '2025-10-01',
             'payment_date' => '',
             'description' => 'Test booking',
-            'group_name' => '',
+            'group_names' => [],
             'type' => 'income',
             'amount' => '100,00',
             'payment_method' => 'cash',
@@ -162,13 +162,13 @@ final class FinanceBusinessLogicTest extends TestCase
     public function testSaveTreatsGroupNameZeroAsValidValue(): void
     {
         $controller = $this->makeController();
-        $request = $this->makeRequest('POST', '/finances/save', $this->baseFinanceData(['group_name' => '0']));
+        $request = $this->makeRequest('POST', '/finances/save', $this->baseFinanceData(['group_names' => ['0']]));
 
         $controller->save($request, $this->makeResponse());
 
         $finance = Finance::orderByDesc('id')->first();
         $this->assertNotNull($finance);
-        $this->assertSame('0', $finance->group_name);
+        $this->assertSame(['0'], $finance->groupNames());
         unset($_SESSION['success'], $_SESSION['error']);
     }
 
@@ -548,13 +548,13 @@ final class FinanceBusinessLogicTest extends TestCase
 
         Finance::create([
             'running_number' => 9001, 'invoice_date' => '2025-10-05', 'payment_date' => '2025-10-05',
-            'description' => 'Einnahme A', 'group_name' => null, 'finance_group_id' => null,
+            'description' => 'Einnahme A',
             'type' => 'income', 'amount' => '300.00', 'payment_method' => 'cash',
             'finance_account_id' => $this->fixtureAccountId(),
         ]);
         Finance::create([
             'running_number' => 9002, 'invoice_date' => '2025-11-05', 'payment_date' => '2025-11-05',
-            'description' => 'Ausgabe B', 'group_name' => null, 'finance_group_id' => null,
+            'description' => 'Ausgabe B',
             'type' => 'expense', 'amount' => '120.00', 'payment_method' => 'bank_transfer',
             'finance_account_id' => $this->fixtureAccountId(),
         ]);

@@ -404,6 +404,12 @@
                                 </table>
                             </div>
                         </div>
+                        {% if groups_overlap %}
+                            <div class="card-footer text-muted small" data-groups-overlap>
+                                Eine Buchung mit mehreren Gruppen zählt in jeder dieser Gruppen.
+                                Die Summe der Gruppen kann deshalb vom Kassenergebnis abweichen.
+                            </div>
+                        {% endif %}
                     </div>
                 {% endif %}
 

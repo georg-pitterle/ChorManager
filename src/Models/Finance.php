@@ -63,8 +63,6 @@ class Finance extends Model
         'invoice_date',
         'payment_date',
         'description',
-        'group_name',
-        'finance_group_id',
         'type',
         'amount',
         'payment_method',
@@ -79,10 +77,29 @@ class Finance extends Model
         'amount' => 'decimal:2',
     ];
 
-    /** @return \Illuminate\Database\Eloquent\Relations\BelongsTo */
-    public function financeGroup()
+    /**
+     * Alle Gruppen der Buchung: Kostenart und beliebig viele Anlässe.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
+    public function groups()
     {
-        return $this->belongsTo(FinanceGroup::class, 'finance_group_id', 'id');
+        return $this->belongsToMany(FinanceGroup::class, 'finance_group_assignments', 'finance_id', 'finance_group_id');
+    }
+
+    /**
+     * Namen der Gruppen, alphabetisch und ohne Rücksicht auf Groß-/Kleinschreibung.
+     * Liste, Export und Journal zeigen sie in dieser Reihenfolge, damit dieselbe
+     * Zuordnung immer gleich aussieht.
+     *
+     * @return list<string>
+     */
+    public function groupNames(): array
+    {
+        $names = $this->groups->map(static fn(FinanceGroup $group): string => (string) $group->name)->all();
+        sort($names, SORT_NATURAL | SORT_FLAG_CASE);
+
+        return array_values($names);
     }
 
     /** @return \Illuminate\Database\Eloquent\Relations\BelongsTo */

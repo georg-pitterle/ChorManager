@@ -6,7 +6,9 @@ namespace Tests\Unit\Services;
 
 use App\Models\Finance;
 use App\Models\FinanceAccount;
+use App\Models\FinanceGroup;
 use App\Services\FinanceCsvExportService;
+use Illuminate\Database\Eloquent\Collection;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -85,8 +87,6 @@ final class FinanceCsvExportServiceTest extends TestCase
             'invoice_date' => '2026-02-08',
             'payment_date' => '2026-02-10',
             'description' => $description,
-            'group_name' => 'Konzert',
-            'finance_group_id' => null,
             'type' => Finance::TYPE_EXPENSE,
             'amount' => '12.00',
             'payment_method' => Finance::PAYMENT_METHOD_BANK_TRANSFER,
@@ -96,6 +96,9 @@ final class FinanceCsvExportServiceTest extends TestCase
         ], true);
         $finance->setRelation('financeAccount', $account);
         $finance->setRelation('reversalOf', null);
+        $group = new FinanceGroup();
+        $group->setRawAttributes(['id' => 1, 'name' => 'Konzert'], true);
+        $finance->setRelation('groups', new Collection([$group]));
 
         return $finance;
     }

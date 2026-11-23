@@ -14,9 +14,9 @@ class FinanceGroup extends Model
         'name',
     ];
 
-    /** @return \Illuminate\Database\Eloquent\Relations\HasMany */
+    /** @return \Illuminate\Database\Eloquent\Relations\BelongsToMany */
     public function finances()
     {
-        return $this->hasMany(Finance::class, 'finance_group_id', 'id');
+        return $this->belongsToMany(Finance::class, 'finance_group_assignments', 'finance_group_id', 'finance_id');
     }
 }

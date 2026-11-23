@@ -66,8 +66,6 @@ final class FinanceAccountBalanceTest extends TestCase
             'invoice_date' => $paymentDate ?? '2026-01-01',
             'payment_date' => $paymentDate,
             'description' => 'Bewegung ' . $number,
-            'group_name' => null,
-            'finance_group_id' => null,
             'type' => $type,
             'amount' => $amount,
             'payment_method' => $account->paymentMethod(),

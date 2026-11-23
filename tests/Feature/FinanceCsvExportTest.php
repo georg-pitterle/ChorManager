@@ -69,8 +69,6 @@ final class FinanceCsvExportTest extends TestCase
             'invoice_date' => $paymentDate,
             'payment_date' => $paymentDate,
             'description' => 'Buchung ' . $number,
-            'group_name' => 'Konzert',
-            'finance_group_id' => null,
             'type' => $type,
             'amount' => $amount,
             'payment_method' => 'bank_transfer',
@@ -139,8 +137,6 @@ final class FinanceCsvExportTest extends TestCase
             'invoice_date' => '2025-10-05',
             'payment_date' => null,
             'description' => 'Offener Posten',
-            'group_name' => null,
-            'finance_group_id' => null,
             'type' => 'expense',
             'amount' => '99.00',
             'payment_method' => 'bank_transfer',
@@ -158,8 +154,6 @@ final class FinanceCsvExportTest extends TestCase
             'invoice_date' => '2025-10-05',
             'payment_date' => '2025-10-05',
             'description' => 'Storno zu Nr. 6007: Buchung 6007',
-            'group_name' => null,
-            'finance_group_id' => null,
             'type' => 'income',
             'amount' => '50.00',
             'payment_method' => 'bank_transfer',
@@ -186,8 +180,6 @@ final class FinanceCsvExportTest extends TestCase
             'invoice_date' => '2025-10-05',
             'payment_date' => '2025-10-05',
             'description' => 'Miete; Strom; Wasser',
-            'group_name' => null,
-            'finance_group_id' => null,
             'type' => 'expense',
             'amount' => '10.00',
             'payment_method' => 'cash',
@@ -199,18 +191,17 @@ final class FinanceCsvExportTest extends TestCase
 
     public function testFormulaLikeTextIsNeutralizedForSpreadsheets(): void
     {
-        Finance::create([
+        $finance = Finance::create([
             'running_number' => 6010,
             'invoice_date' => '2025-10-06',
             'payment_date' => '2025-10-06',
             'description' => '=HYPERLINK("http://evil.example/x";"Klick")',
-            'group_name' => '+Sonderposten',
-            'finance_group_id' => null,
             'type' => 'expense',
             'amount' => '10.00',
             'payment_method' => 'bank_transfer',
             'finance_account_id' => $this->account->id,
         ]);
+        $finance->groups()->attach(\App\Models\FinanceGroup::firstOrCreate(['name' => '+Sonderposten'])->id);
 
         $csv = $this->export();
 

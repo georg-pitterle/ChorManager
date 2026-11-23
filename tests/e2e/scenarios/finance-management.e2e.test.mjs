@@ -7,6 +7,7 @@ import {
     AUDITOR_PASSWORD,
     AUDITOR_ROLE,
     DEFAULT_ACCOUNTS,
+    GROUPS,
     IMPORT_AMOUNTS,
     IMPORT_DESCRIPTIONS,
     OWN_IBAN,
@@ -14,6 +15,8 @@ import {
     bankStatementCsv,
 } from '../data/finances.mjs';
 import {
+    bookingGroups,
+    bulkChangeGroup,
     canReverse,
     cancelImport,
     confirmImport,
@@ -112,6 +115,68 @@ test('Buchungen: Einnahme und Ausgabe verändern den Kontostand', async ({ page 
     const first = await runningNumberOf(page, 'Kartenverkauf Adventkonzert');
     const second = await runningNumberOf(page, 'Verpflegung Helferteam');
     expect(second).toBeGreaterThan(first);
+});
+
+// 2a. Mehrere Gruppen je Buchung: Kostenart und Anlass im Dialog, dann per
+// Stapelbearbeitung einen weiteren Anlass hinzufügen und wieder entfernen.
+test('Gruppen: Buchung mit Kostenart und Anlass, Stapel fügt Anlass hinzu und entfernt ihn', async ({ page }) => {
+    const account = accountFor(fiscal, 'groups');
+    await createAccount(page, account);
+
+    // Escape in der Gruppenauswahl schließt nur deren Vorschläge, nicht den Dialog -
+    // sonst wären alle Eingaben der Buchung weg.
+    await page.goto('/finances');
+    await page.click('.page-actions [data-bs-target="#financeModal"]');
+    const modal = page.locator('#financeModal');
+    await modal.waitFor({ state: 'visible' });
+    await page.locator('#group_select-ts-control').click();
+    await page.locator('#group_select-ts-control').fill('Anlass');
+    await expect(page.locator('#group_select-ts-dropdown')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#group_select-ts-dropdown')).toBeHidden();
+    await expect(modal).toBeVisible();
+
+    await createBooking(page, {
+        invoiceDate: fiscalDay(fiscal, 8),
+        paymentDate: fiscalDay(fiscal, 8),
+        description: 'Chorpartituren Herbstprogramm',
+        type: 'expense',
+        accountName: account.name,
+        amount: '64,00',
+        groups: [GROUPS.costType, GROUPS.occasion],
+    });
+    await createBooking(page, {
+        invoiceDate: fiscalDay(fiscal, 9),
+        paymentDate: fiscalDay(fiscal, 9),
+        description: 'Busanzahlung Konzertreise',
+        type: 'expense',
+        accountName: account.name,
+        amount: '150,00',
+    });
+
+    await page.goto('/finances');
+    const scores = await runningNumberOf(page, 'Chorpartituren Herbstprogramm');
+    const bus = await runningNumberOf(page, 'Busanzahlung Konzertreise');
+    expect(await bookingGroups(page, scores)).toEqual([GROUPS.occasion, GROUPS.costType]);
+
+    // Hinzufügen lässt die übrigen Gruppen stehen.
+    const added = await bulkChangeGroup(page, { runningNumbers: [scores, bus], group: GROUPS.bulkOccasion, mode: 'add' });
+    expect(added).toBe('2 Buchungen geändert.');
+    expect(await bookingGroups(page, scores)).toEqual([GROUPS.bulkOccasion, GROUPS.occasion, GROUPS.costType]);
+    expect(await bookingGroups(page, bus)).toEqual([GROUPS.bulkOccasion]);
+
+    // Entfernen trifft nur die gewählte Gruppe.
+    const removed = await bulkChangeGroup(page, { runningNumbers: [scores, bus], group: GROUPS.bulkOccasion, mode: 'remove' });
+    expect(removed).toBe('2 Buchungen geändert.');
+    expect(await bookingGroups(page, scores)).toEqual([GROUPS.occasion, GROUPS.costType]);
+    expect(await bookingGroups(page, bus)).toEqual([]);
+
+    // Eine Suche ohne Treffer nimmt den Haken von ausgeblendeten Zeilen.
+    await page.goto('/finances');
+    await page.locator(`tr[data-sort-running_number="${scores}"] input[data-finance-select]`).check();
+    await expect(page.locator('#financeSelectionBar')).toBeVisible();
+    await page.locator('[data-table-id="finances.index"] input[type="search"]').fill('kein Treffer für diese Suche');
+    await expect(page.locator('#financeSelectionBar')).toBeHidden();
 });
 
 // 3. Zufluss-Abfluss-Prinzip: Rechnung ohne Zahldatum ist ein offener Posten.

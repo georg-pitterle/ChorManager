@@ -56,6 +56,16 @@
                     Buchungsdatum übernommen - bitte vor dem Import prüfen.
                 </div>
             {% endif %}
+            {% if row_messages|length > 0 %}
+                <div class="alert alert-danger py-2 small" role="alert">
+                    <i class="bi bi-exclamation-triangle me-1"></i>
+                    {% set _conflict_count = row_messages|length %}
+                    {% set _conflict_rows = _conflict_count == 1 ? "Eine Zeile trägt" : _conflict_count ~ " Zeilen tragen" %}
+                    Nichts wurde importiert: {{ _conflict_rows }}
+                    zwei Gruppen, die im selben Geschäftsjahr im Budget stehen. Bitte bei den markierten Zeilen eine
+                    davon entfernen und erneut importieren.
+                </div>
+            {% endif %}
             {% if error_count > 0 %}
                 <div class="alert alert-danger py-2 small">
                     <i class="bi bi-x-octagon me-1"></i>
@@ -114,13 +124,19 @@
                                         <th>Beschreibung</th>
                                         <th>Art</th>
                                         <th class="text-end finance-amount-column">Betrag</th>
-                                        <th>Gruppe</th>
+                                        <th>Gruppen</th>
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    {% set _known_lower = groups|map(g => g|lower) %}
                                     {% for row in rows %}
                                         {% set _locked = not row.importable %}
-                                        {% set _row_class = _locked ? "table-secondary text-muted" : "" %}
+                                        {% set _conflict = row_messages[row.index]|default(null) %}
+                                        {% set _row_class = _conflict ? "table-danger" : "" %}
+                                        {% set _row_class = _locked ? "table-secondary text-muted" : _row_class %}
+                                        {% set _checked = selected_indexes is null or row.index in selected_indexes %}
+                                        {% set _row_groups = posted_groups[row.index]|default([]) %}
+                                        {% set _row_groups_lower = _row_groups|map(g => g|lower) %}
                                         <tr class="{{ _row_class }}">
                                             <td data-label="Übernehmen">
                                                 <input type="checkbox"
@@ -128,7 +144,7 @@
                                                        name="selected[]"
                                                        value="{{ row.index }}"
                                                        aria-label="Zeile {{ row.index + 1 }} übernehmen"
-                                                       {{ _locked ? "disabled" : "checked" }}>
+                                                       {{ _locked ? "disabled" : (_checked ? "checked" : "") }}>
                                             </td>
                                             <td data-label="Buchungsdatum">
                                                 {{ row.invoice_date ? row.invoice_date|date("d.m.Y") : "-" }}
@@ -144,6 +160,11 @@
                                             </td>
                                             <td data-label="Beschreibung">
                                                 {{ row.description }}
+                                                {% if _conflict %}
+                                                    <div class="small text-danger" data-import-conflict>
+                                                        <i class="bi bi-exclamation-triangle me-1"></i>{{ _conflict }}
+                                                    </div>
+                                                {% endif %}
                                                 {% if row.error %}
                                                     <div class="small text-danger">
                                                         <i class="bi bi-x-octagon me-1"></i>{{ row.error }}
@@ -170,14 +191,23 @@
                                             <td data-label="Betrag" class="text-end finance-amount-column">
                                                 {{ row.amount ? row.amount|number_format(2, ",", ".") ~ " €" : "-" }}
                                             </td>
-                                            <td data-label="Gruppe">
-                                                <select name="group[{{ row.index }}]"
+                                            <td data-label="Gruppen" class="finance-import-groups">
+                                                <select name="group_names[{{ row.index }}][]"
                                                         class="form-select form-select-sm"
-                                                        aria-label="Gruppe für Zeile {{ row.index + 1 }}"
+                                                        multiple
+                                                        data-tom-select
+                                                        data-tom-select-create
+                                                        data-placeholder="keine"
+                                                        aria-label="Gruppen für Zeile {{ row.index + 1 }}"
                                                         {{ _locked ? "disabled" : "" }}>
-                                                    <option value="">-- keine --</option>
                                                     {% for group in groups %}
-                                                        <option value="{{ group }}">{{ group }}</option>
+                                                        <option value="{{ group }}"
+                                                                {% if group|lower in _row_groups_lower %}selected{% endif %}>
+                                                            {{ group }}
+                                                        </option>
+                                                    {% endfor %}
+                                                    {% for group in _row_groups|filter(g => g|lower not in _known_lower) %}
+                                                        <option value="{{ group }}" selected>{{ group }}</option>
                                                     {% endfor %}
                                                 </select>
                                             </td>
@@ -203,6 +233,12 @@
     </div>
 {% endblock content %}
 
+{% block styles %}
+    <link rel="stylesheet" href="/vendor/tom-select/css/tom-select.bootstrap5.min.css">
+{% endblock styles %}
+
 {% block scripts %}
+    <script src="/vendor/tom-select/js/tom-select.complete.min.js"></script>
+    <script src="/js/tom-select-init.js"></script>
     <script src="/js/finance-import.js"></script>
 {% endblock scripts %}

@@ -1566,6 +1566,93 @@ thead th {
     width: 1%;
 }
 
+/* Auswahlspalte der Stapelbearbeitung: so schmal wie das Kästchen. */
+.finances-table .finance-select-column,
+.finances-table .finance-select-cell {
+    width: 1%;
+    padding-right: 0.25rem;
+}
+
+.finances-table .finance-select-column .form-check-input,
+.finances-table .finance-select-cell .form-check-input {
+    width: 1.15rem;
+    height: 1.15rem;
+    margin: 0;
+    cursor: pointer;
+}
+
+/* Auswahlleiste der Kasse: dieselbe Form wie in der Mitgliederliste, läuft
+   oben mit, solange etwas ausgewählt ist. */
+.finance-selection-bar {
+    position: sticky;
+    top: var(--app-topbar-height, 3.75rem);
+    z-index: 6;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem 1rem;
+    margin-bottom: 1rem;
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--theme-border);
+    border-radius: var(--bs-border-radius);
+    background: color-mix(in srgb, var(--theme-primary) 10%, var(--theme-surface, #fff));
+}
+
+.finance-selection-bar__summary {
+    font-weight: 600;
+}
+
+.finance-selection-bar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.finance-selection-bar__group {
+    width: 17rem;
+}
+
+.finance-selection-bar__group .ts-control {
+    flex-wrap: nowrap;
+    min-height: calc(1.5em + 0.5rem + 2px);
+    padding-top: 0.25rem;
+    padding-bottom: 0.25rem;
+}
+
+/* Eine Gruppe, eine Zeile: das Suchfeld rückt neben die gewählte Gruppe
+   statt darunter. */
+.finance-selection-bar__group .ts-control > input {
+    flex: 1 1 3rem;
+    min-width: 3rem;
+}
+
+.finance-selection-bar__hint {
+    flex: 1 1 100%;
+    text-align: right;
+}
+
+@media (max-width: 575.98px) {
+    .finance-selection-bar__summary,
+    .finance-selection-bar__actions {
+        flex: 1 1 100%;
+    }
+
+    .finance-selection-bar__group {
+        flex: 1 1 100%;
+        width: auto;
+    }
+
+    .finance-selection-bar__actions .btn {
+        flex: 1 1 0;
+    }
+
+    .finance-selection-bar__hint {
+        text-align: left;
+    }
+}
+
 /* Beträge in langen Spalten: gleich breite Ziffern, damit die Kommastellen
    untereinander stehen. */
 .finances-table .finance-amount-cell,

@@ -84,7 +84,7 @@ final class FinanceRevisionFeatureTest extends TestCase
             'invoice_date' => '2026-03-01',
             'payment_date' => '2026-03-05',
             'description' => 'Notenkauf',
-            'group_name' => '',
+            'group_names' => [],
             'type' => 'expense',
             'amount' => '120,00',
             'finance_account_id' => (string) $this->account->id,

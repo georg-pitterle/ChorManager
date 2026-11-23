@@ -49,9 +49,28 @@ Mit **"Kategorie hinzufügen"** (oben rechts) erstellst du eine neue
 Budgetkategorie. Du wählst das **Haushaltsjahr**, den **Typ** (Einnahme oder
 Ausgabe) und die **Gruppe**. Über die Gruppe wird das Budget mit den Buchungen
 dieser Gruppe im Kassabuch verknüpft – daraus entsteht der Ist-Wert. Fehlt die
-passende Gruppe, legst du sie direkt über "+ Neue Gruppe eingeben…" an.
+passende Gruppe, legst du sie direkt über "+ Neue Gruppe eingeben…" an; der Name darf
+kein Semikolon enthalten.
+
+Eine Gruppe kann im selben Haushaltsjahr sowohl bei den Einnahmen als auch bei den
+Ausgaben eine Kategorie haben – eine zweite Art derselben Gruppe lässt sich immer anlegen.
 
 ![Formular für eine neue Budgetkategorie](images/finance/08-budget-new-category-modal.png)
+
+### Kategorie abgewiesen: Buchungen würden doppelt zählen
+
+Eine Buchung im Kassabuch kann [mehrere Gruppen](finance)
+tragen, aber pro Geschäftsjahr nur **eine** Gruppe, die im Budget steht. Deshalb lässt
+sich eine Kategorie weder **anlegen** noch auf eine **andere Gruppe umhängen**, wenn
+Buchungen des Jahres diese Gruppe zusammen mit einer anderen dort budgetierten Gruppe
+tragen – sie würden im Ist zweier Kategorien zählen. Die Meldung nennt das Geschäftsjahr
+und die laufenden Nummern der betroffenen Buchungen.
+
+So räumst du auf: Öffne im Kassabuch die Stapelbearbeitung, wähle die genannten
+Buchungen (z. B. per Suche nach der Nummer) und entferne mit **"Entfernen"** eine der
+beiden Gruppen – siehe [Finanzen](finance), Abschnitt "Mehrere Buchungen auf einmal Gruppen zuordnen".
+Danach klappt das Anlegen der Kategorie. Stornierte Buchungen (und ihre Stornobuchungen)
+blockieren nicht, weil sie im Ist ohnehin nicht zählen.
 
 ## Häufige Stolperfallen
 

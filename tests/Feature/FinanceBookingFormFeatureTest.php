@@ -114,14 +114,14 @@ final class FinanceBookingFormFeatureTest extends TestCase
         return (string) $response->getBody();
     }
 
-    /** @param array<string, string> $overrides */
+    /** @param array<string, string|list<string>> $overrides */
     private function postBooking(array $overrides = []): void
     {
         $body = array_merge([
             'invoice_date' => '2025-10-01',
             'payment_date' => '2025-10-01',
             'description' => 'Belegstapel Chorfest',
-            'group_name' => 'Konzert',
+            'group_names' => ['Konzert'],
             'type' => 'income',
             'finance_account_id' => (string) $this->account->id,
             'amount' => '12,50',
@@ -138,8 +138,6 @@ final class FinanceBookingFormFeatureTest extends TestCase
             'invoice_date' => $paymentDate ?? '2025-10-03',
             'payment_date' => $paymentDate,
             'description' => 'Buchung ' . $number,
-            'group_name' => 'Konzert',
-            'finance_group_id' => null,
             'type' => $type,
             'amount' => $amount,
             'payment_method' => 'bank_transfer',
@@ -174,6 +172,75 @@ final class FinanceBookingFormFeatureTest extends TestCase
         // Die Meldung steht im Dialog, nicht ein zweites Mal oben auf der Seite.
         $this->assertSame(1, substr_count($html, 'Ungültiger Betrag'));
         $this->assertStringContainsString('Ungültiger Betrag', $dialog);
+    }
+
+    public function testPostedGroupNamesAreAllStored(): void
+    {
+        $this->postBooking(['group_names' => ['Konzert', 'Herbstkonzert 2026', '']]);
+
+        $this->assertSame(['Herbstkonzert 2026', 'Konzert'], Finance::sole()->groupNames());
+    }
+
+    /**
+     * Zwei Gruppen, die im Geschäftsjahr beide im Budget stehen, weist der
+     * Dialog ab - mit der Meldung im Dialog und beiden Gruppen noch gewählt,
+     * damit die Kassierin nur eine davon herausnehmen muss.
+     */
+    public function testAConflictReopensTheDialogWithTheMessageAndTheEnteredGroups(): void
+    {
+        foreach (['Konzert', 'Reise'] as $name) {
+            $group = \App\Models\FinanceGroup::firstOrCreate(['name' => $name]);
+            \App\Models\BudgetCategory::create([
+                'fiscal_year_start' => 2025,
+                'finance_group_id' => $group->id,
+                'type' => 'income',
+            ]);
+        }
+
+        $this->postBooking(['group_names' => ['Konzert', 'Reise']]);
+
+        $this->assertSame(0, Finance::count());
+        $dialog = $this->bookingDialog($this->renderIndex());
+        $this->assertStringContainsString('data-open-on-load="1"', $dialog);
+        $this->assertStringContainsString('beide im Budget', $dialog);
+        $this->assertStringContainsString('<option value="Konzert" selected', $dialog);
+        $this->assertStringContainsString('<option value="Reise" selected', $dialog);
+    }
+
+    public function testARejectedDialogMatchesGroupsRegardlessOfCase(): void
+    {
+        \App\Models\FinanceGroup::firstOrCreate(['name' => 'Konzert']);
+
+        $this->postBooking(['group_names' => ['konzert'], 'amount' => 'kaputt']);
+
+        $dialog = $this->bookingDialog($this->renderIndex());
+        $this->assertStringContainsString('<option value="Konzert" selected', $dialog);
+        $this->assertStringNotContainsString('value="konzert"', $dialog);
+    }
+
+    public function testTheDialogKeepsAGroupThatDoesNotExistYet(): void
+    {
+        $this->postBooking(['group_names' => ['Ganz neue Gruppe'], 'amount' => 'kaputt']);
+
+        $dialog = $this->bookingDialog($this->renderIndex());
+        $this->assertStringContainsString('<option value="Ganz neue Gruppe" selected', $dialog);
+    }
+
+    public function testWritersSeeTheBulkSelectionAndReadersDoNot(): void
+    {
+        $this->booking(9101, '2025-10-02', 'income', '5.00');
+        $this->booking(9102, null, 'expense', '7.00');
+
+        $html = $this->renderIndex();
+        $this->assertSame(2, substr_count($html, 'data-finance-select-all'));
+        $this->assertSame(2, preg_match_all('/data-finance-select\s/', $html));
+        $this->assertStringContainsString('action="/finances/bulk-groups"', $html);
+        $this->assertStringContainsString('name="year" value="2025"', $html);
+
+        $_SESSION['can_manage_finances'] = false;
+        $readerHtml = $this->renderIndex();
+        $this->assertStringNotContainsString('data-finance-select', $readerHtml);
+        $this->assertStringNotContainsString('/finances/bulk-groups', $readerHtml);
     }
 
     public function testAFailedEditKeepsTheBookingItIsAbout(): void

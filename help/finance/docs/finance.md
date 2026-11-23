@@ -24,8 +24,9 @@ zählen nicht mit. Über **"Mit Bargeld und Kontoauszug abstimmen"** kommst du z
 ausführlichen Kassabericht in der Auswertung.
 
 Darunter listet das Kassabuch alle Buchungen des gewählten Geschäftsjahres mit
-laufender Nummer, Rechnungs- und Zahldatum, Beschreibung, Gruppe, Betrag und Konto
-(Barkassa oder Bankkonto). Ob eine Buchung Einnahme oder Ausgabe ist, zeigt der
+laufender Nummer, Rechnungs- und Zahldatum, Beschreibung, Gruppen, Betrag und Konto
+(Barkassa oder Bankkonto). Eine Buchung kann mehrere Gruppen tragen, die als kleine
+Schilder in der Spalte **Gruppe** stehen. Ob eine Buchung Einnahme oder Ausgabe ist, zeigt der
 Betrag: Einnahmen stehen grün mit **+**, Ausgaben rot mit **−**. Hat eine Buchung
 Belege, steht neben der Beschreibung eine Büroklammer mit ihrer Anzahl.
 
@@ -34,6 +35,9 @@ Tabellenleiste kannst du filtern und sortieren. Unter der Liste steht die **Summ
 der Treffer**: Einnahmen, Ausgaben und Saldo genau der Buchungen, die Suche und
 Filter übrig lassen. Suchst du etwa nach einer Gruppe, siehst du sofort, was sie
 eingebracht oder gekostet hat.
+
+Mit dem Recht **"Finanzen lesen und schreiben"** steht vor jeder Zeile außerdem ein
+Kästchen für die Stapelbearbeitung der Gruppen (Abschnitt "Mehrere Buchungen auf einmal Gruppen zuordnen" weiter unten).
 
 Selten gebrauchte Funktionen – Konten, Änderungsjournal, CSV-Export und, mit
 Schreibrecht, Kontoauszug-Import und Einstellungen – findest du oben rechts im
@@ -68,12 +72,14 @@ Beleg liest:
 5. **Rechnungsdatum** und **Zahldatum**: Beide sind mit dem heutigen Datum
    vorbelegt. Ist die Rechnung noch nicht bezahlt, hake **"Noch nicht bezahlt
    (offener Posten)"** an – dann landet die Buchung bei den offenen Posten.
-6. Optional eine **Gruppe** (oder über "+ Neue Gruppe eingeben…" eine neue) und
-   **Belege** als Bild oder PDF.
+6. Optional **Gruppen** und **Belege** als Bild oder PDF. Das Feld **Gruppen** ist eine
+   Mehrfachauswahl: Wähle eine oder mehrere vorhandene Gruppen aus der Liste. Eine neue
+   Gruppe tippst du einfach ein und bestätigst den Eintrag **"Neu: …"** mit Enter.
+   Gruppennamen dürfen kein Semikolon enthalten.
 
 Hast du einen ganzen Stapel Belege vor dir, nimm **"Speichern und nächste"**:
 Die Buchung wird gespeichert und das Formular öffnet sich gleich wieder. Art,
-Konto, Daten und Gruppe bleiben stehen, nur Betrag und Beschreibung trägst du
+Konto, Daten und Gruppen bleiben stehen, nur Betrag und Beschreibung trägst du
 neu ein.
 
 Stimmt etwas nicht – etwa ein Tippfehler im Betrag –, öffnet sich das Formular
@@ -88,7 +94,57 @@ herunterladen musst – und ein Pfeil-Symbol für den **Download**. Bei Dateien,
 die sich im Browser nicht anzeigen lassen (etwa Word- oder Excel-Dokumente),
 entfällt die Vorschau und es bleibt der Download.
 
-![Formular für eine neue Buchung](images/finance/02-new-entry-modal.png)
+![Formular für eine neue Buchung mit zwei gewählten Gruppen](images/finance/02-new-entry-modal.png)
+
+#### Mehrere Gruppen je Buchung
+
+Eine Buchung kann mehrere Gruppen haben – etwa eine **Kostenart** (z. B. Notenmaterial)
+und einen **Anlass** (z. B. Herbstkonzert). So lässt sich später sowohl fragen, was das
+Notenmaterial insgesamt gekostet hat, als auch, was das Herbstkonzert gekostet hat.
+
+Eine Regel gilt dabei: **Pro Geschäftsjahr darf eine Buchung nur eine Gruppe tragen, die
+in diesem Geschäftsjahr eine Budget-Kategorie hat** – gleichgültig, ob die Kategorie für
+Einnahmen oder Ausgaben angelegt ist. Sonst würde die Buchung im [Budget](finance-budget)
+doppelt zählen. Das Geschäftsjahr ergibt sich aus dem Zahldatum, bei offenen Posten aus
+dem Rechnungsdatum. Versuchst du, zwei solche Gruppen zu vergeben, weist der Dialog die
+Buchung mit einer Meldung ab, die beide Gruppen und das Geschäftsjahr nennt; nimm dann
+eine der beiden Gruppen heraus. Stornobuchungen sind von der Prüfung ausgenommen.
+
+### Mehrere Buchungen auf einmal Gruppen zuordnen
+
+Sollen viele Buchungen dieselbe Gruppe bekommen – oder verlieren –, musst du nicht jede
+einzeln öffnen. Die Stapelbearbeitung steht in der Liste **Buchungen** und im Abschnitt
+**Offene Posten** zur Verfügung, aber nur mit dem Recht **"Finanzen lesen und schreiben"**;
+wer nur lesen darf, sieht weder Kästchen noch Leiste.
+
+1. Hake die gewünschten Buchungen an. Das Kästchen im Tabellenkopf wählt **alle Zeilen
+   aus, die Suche und Filter gerade übrig lassen** – auch die auf anderen Seiten der
+   Tabelle, nicht nur die gerade sichtbaren. So wählst du mit einer Suche nach
+   "Notenmaterial" und einem Klick auf das Kopf-Kästchen alle passenden Buchungen.
+2. Sobald mindestens eine Buchung angehakt ist, erscheint oben eine mitlaufende Leiste.
+   Sie zeigt die **Anzahl** der ausgewählten Buchungen und den Knopf
+   **"Auswahl aufheben"**.
+3. Wähle in der Leiste im Feld **Gruppe** eine vorhandene Gruppe oder tippe eine neue ein.
+   Ohne Gruppe verweigert die Leiste das Absenden mit dem Hinweis "Bitte zuerst eine
+   Gruppe wählen."
+4. Mit **"Hinzufügen"** bekommen alle ausgewählten Buchungen die Gruppe, mit **"Entfernen"**
+   verlieren sie sie. Die übrigen Gruppen der Buchung bleiben unberührt.
+
+![Stapelbearbeitung: angehakte Buchungen und die Leiste oben](images/finance/16-bulk-selection.png)
+
+Ändert sich die Suche, verlieren Zeilen, die nicht mehr zu den Treffern gehören, ihren
+Haken – eine Änderung trifft also nie Buchungen, die gerade niemand sieht.
+
+Die Meldung nach dem Absenden nennt, wie viele Buchungen geändert wurden und wie viele
+schon so waren (die Gruppe also schon hatten bzw. gar nicht trugen). **Übersprungen** werden – jeweils mit den
+laufenden Nummern in der Meldung:
+
+- Buchungen im **abgeschlossenen Zeitraum**,
+- **stornierte** Buchungen und Stornobuchungen (das Paar soll dieselben Gruppen behalten),
+- Buchungen, die mit dem Hinzufügen eine **zweite Budget-Gruppe** desselben
+  Geschäftsjahres bekämen.
+
+Jede geänderte Buchung bekommt einen Eintrag im Änderungsjournal.
 
 ### Konten (Zahlungskreise)
 
@@ -187,7 +243,9 @@ Der Ablauf hat zwei Schritte:
    verbucht.
 2. **Vorschau prüfen und übernehmen.** Die Vorschau zeigt jede erkannte Zeile
    mit Buchungsdatum, Zahldatum, Beschreibung, Ein-/Ausgang und Betrag. Du
-   kannst einzelne Zeilen abwählen und jeder Zeile eine **Gruppe** zuordnen.
+   kannst einzelne Zeilen abwählen und jeder Zeile über die Mehrfachauswahl
+   **Gruppen** eine oder mehrere Gruppen zuordnen; neue Gruppen tippst du wie im
+   Buchungsformular einfach ein.
    Erst **"… Zeilen übernehmen"** legt die Buchungen an – mit fortlaufender
    Nummer wie bei manuell erfassten Buchungen. Über **"Abbrechen"** verwirfst du
    den Import vollständig.
@@ -195,6 +253,12 @@ Der Ablauf hat zwei Schritte:
 ![Fenster zum Auswählen der CSV-Datei](images/finance/12-import-modal.png)
 
 ![Vorschau des eingelesenen Kontoauszugs](images/finance/13-import-preview.png)
+
+Trägt eine Zeile zwei Gruppen, die im Geschäftsjahr der Buchung beide im Budget stehen
+(siehe "Mehrere Gruppen je Buchung" in Abschnitt 1), wird **nichts**
+importiert – auch nicht die einwandfreien Zeilen. Die Vorschau kommt mit allen deinen
+Eingaben zurück, markiert die betroffenen Zeilen rot und nennt den Grund. Entferne bei
+diesen Zeilen eine der beiden Gruppen und übernimm den Import erneut.
 
 So werden die Spalten der Datei übernommen:
 
@@ -236,6 +300,13 @@ Der Endbestand des einen Jahres ist automatisch der Anfangsbestand des nächsten
 
 ![Finanzauswertung mit Kennzahlen und Salden](images/finance/04-report.png)
 
+Hat eine Buchung mehrere Gruppen, zählt sie in **jeder** dieser Gruppen voll. Darauf
+weist ein Hinweis unter **Saldo nach Gruppe** hin: Die Summe der Gruppen kann deshalb vom
+Kassenergebnis abweichen. Der Hinweis erscheint nur, wenn es im Geschäftsjahr mindestens
+eine solche Buchung gibt.
+
+![Saldo nach Gruppe mit Hinweis auf Buchungen mit mehreren Gruppen](images/finance/17-report-group-overlap.png)
+
 ## 4. Kassabuch als CSV exportieren
 
 Der Eintrag **Mehr → Als CSV exportieren** im Kassabuch lädt alle Buchungen des gewählten
@@ -246,7 +317,9 @@ genügt das Recht **"Finanzen nur lesen"**.
 Die Datei ist semikolongetrennt und UTF-8-kodiert, öffnet sich also per
 Doppelklick direkt in Excel. Enthalten sind laufende Nummer, Rechnungs- und
 Zahldatum, Beschreibung, Gruppe, Art, Betrag, Konto, Zahlungsart, der Bezug
-einer Stornobuchung und die Anzahl der Anhänge.
+einer Stornobuchung und die Anzahl der Anhänge. Hat eine Buchung mehrere Gruppen,
+stehen sie alle in der Spalte **Gruppe**, alphabetisch sortiert und mit **"; "**
+getrennt (z. B. `Herbstkonzert; Notenmaterial`).
 
 Ausgaben tragen im Betrag ein Minus, Einnahmen kein Vorzeichen – damit lässt
 sich die Spalte in der Tabellenkalkulation direkt aufsummieren und ergibt den
@@ -288,6 +361,10 @@ Möchtest du ein anderes Geschäftsjahr ausdrucken, stelle zuerst das
 
 ## Häufige Stolperfallen
 
+- **Buchung lässt sich nicht speichern: "… beide im Budget".** Die Buchung trägt zwei
+  Gruppen, die im selben Geschäftsjahr eine Budget-Kategorie haben. Nimm eine davon heraus.
+- **Stapelbearbeitung überspringt Buchungen.** Die Meldung nennt die laufenden Nummern und
+  den Grund: abgeschlossener Zeitraum, storniert oder zweite Budget-Gruppe.
 - **Anhänge sind nicht im PDF.** Belege bleiben im Kassabuch gespeichert und
   werden dort geöffnet; das Geschäftsjahr-PDF enthält bewusst nur die
   Bewegungen und Kennzahlen.

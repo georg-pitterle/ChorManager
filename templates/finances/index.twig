@@ -66,7 +66,7 @@
         invoice_date: item.invoice_date|date("Y-m-d"),
         payment_date: item.payment_date ? item.payment_date|date("Y-m-d") : null,
         description: item.description,
-        group_name: item.group_name,
+        group_names: item.groupNames(),
         type: item.type,
         payment_method: item.payment_method,
         finance_account_id: item.finance_account_id,
@@ -247,6 +247,50 @@
             </section>
         {% endif %}
 
+        {% if can_write_finances %}
+            {# Stapelbearbeitung der Gruppen: erscheint erst mit der Auswahl
+               (finance-bulk-groups.js) und läuft beim Scrollen oben mit. Eine
+               Gruppe, zwei Wege - hinzufügen oder entfernen. #}
+            <form class="finance-selection-bar d-none"
+                  id="financeSelectionBar"
+                  action="/finances/bulk-groups"
+                  method="post"
+                  data-finance-bulk
+                  aria-live="polite">
+                <input type="hidden" name="year" value="{{ selected_year }}">
+                <p class="finance-selection-bar__summary mb-0">
+                    <span data-finance-bulk-count>0 Buchungen ausgewählt</span>
+                    <button type="button" class="btn btn-sm btn-link p-0 ms-2" data-finance-bulk-clear>
+                        Auswahl aufheben
+                    </button>
+                </p>
+                <div class="finance-selection-bar__actions">
+                    <label class="visually-hidden" for="financeBulkGroup">Gruppe</label>
+                    <div class="finance-selection-bar__group">
+                        <select id="financeBulkGroup"
+                                name="group_name"
+                                data-tom-select
+                                data-tom-select-create
+                                data-placeholder="Gruppe wählen oder neu eingeben">
+                            <option value=""></option>
+                            {% for g in groups %}
+                                <option value="{{ g }}">{{ g }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" name="mode" value="add" class="btn btn-sm btn-primary">
+                        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Hinzufügen
+                    </button>
+                    <button type="submit" name="mode" value="remove" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-dash-lg me-1" aria-hidden="true"></i>Entfernen
+                    </button>
+                </div>
+                <p class="finance-selection-bar__hint small text-danger mb-0 d-none" data-finance-bulk-hint>
+                    Bitte zuerst eine Gruppe wählen.
+                </p>
+            </form>
+        {% endif %}
+
         <section class="dashboard-section dashboard-section--context"
                  aria-labelledby="finances-list-title">
             <div class="dashboard-section-head">
@@ -274,6 +318,15 @@
                                     {# Kopfzeilen bewusst kurz: sie bestimmen die Spaltenbreite. Die
                                        Langform steht in data-sort-label (Sortier-Panel), im title und
                                        als data-label in der Kartenansicht. #}
+                                    {% if can_write_finances %}
+                                        <th class="finance-select-column">
+                                            <input type="checkbox"
+                                                   class="form-check-input"
+                                                   data-finance-select-all
+                                                   aria-label="Alle sichtbaren Buchungen auswählen"
+                                                   title="Alle sichtbaren auswählen">
+                                        </th>
+                                    {% endif %}
                                     <th data-sort-key="running_number"
                                         data-sort-type="number"
                                         data-sort-label="Lfd. Nr.">Nr.</th>
@@ -306,10 +359,19 @@
                                         data-sort-invoice_date="{{ item.invoice_date|date("Y-m-d") }}"
                                         data-sort-payment_date="{{ item.payment_date|date("Y-m-d") }}"
                                         data-sort-description="{{ item.description|lower }}"
-                                        data-sort-group_name="{{ item.group_name|default("")|lower }}"
+                                        data-sort-group_name="{{ item.groupNames()|join(", ")|lower }}"
                                         data-sort-amount="{{ _income ? item.amount : -item.amount }}"
                                         data-sort-account="{{ _account_name|lower }}"
                                         data-finance-amount="{{ _income ? item.amount : -item.amount }}">
+                                        {% if can_write_finances %}
+                                            <td data-label="Auswahl" class="finance-select-cell">
+                                                <input type="checkbox"
+                                                       class="form-check-input"
+                                                       data-finance-select
+                                                       value="{{ item.id }}"
+                                                       aria-label="Buchung {{ item.running_number }} auswählen">
+                                            </td>
+                                        {% endif %}
                                         <td data-label="Lfd. Nr." class="finance-number-cell">
                                             {{ item.running_number }}
                                             {% if item.is_reversal %}
@@ -326,12 +388,12 @@
                                                 {{ cashbook.attachment_menu(item) }}
                                             </div>
                                         </td>
-                                        <td data-label="Gruppe" {% if not item.group_name %}data-card-empty{% endif %}>
-                                            {% if item.group_name %}
-                                                <span class="badge text-bg-light rounded-pill border">{{ item.group_name }}</span>
+                                        <td data-label="Gruppe" {% if item.groupNames() is empty %}data-card-empty{% endif %}>
+                                            {% for group_name in item.groupNames() %}
+                                                <span class="badge text-bg-light rounded-pill border">{{ group_name }}</span>
                                             {% else %}
                                                 <span class="text-muted small">—</span>
-                                            {% endif %}
+                                            {% endfor %}
                                         </td>
                                         <td data-label="Betrag"
                                             class="finance-amount-cell text-end {{ _income ? "text-success" : "text-danger" }}">
@@ -394,7 +456,7 @@
                                     </tr>
                                 {% else %}
                                     <tr>
-                                        <td colspan="{{ can_write_finances ? 8 : 7 }}" class="finance-empty-cell">
+                                        <td colspan="{{ can_write_finances ? 9 : 7 }}" class="finance-empty-cell">
                                             <p class="mb-2">Noch keine Buchungen in diesem Geschäftsjahr.</p>
                                             {% if can_write_finances %}
                                                 <button type="button"
@@ -452,6 +514,15 @@
                             <table class="table table-hover table-striped mb-0 table-responsive-cards finances-table">
                                 <thead class="table-dark">
                                     <tr>
+                                        {% if can_write_finances %}
+                                            <th class="finance-select-column">
+                                                <input type="checkbox"
+                                                       class="form-check-input"
+                                                       data-finance-select-all
+                                                       aria-label="Alle sichtbaren Buchungen auswählen"
+                                                       title="Alle sichtbaren auswählen">
+                                            </th>
+                                        {% endif %}
                                         <th data-sort-key="running_number"
                                             data-sort-type="number"
                                             data-sort-label="Lfd. Nr.">Nr.</th>
@@ -477,8 +548,17 @@
                                         <tr data-sort-running_number="{{ item.running_number }}"
                                             data-sort-invoice_date="{{ item.invoice_date|date("Y-m-d") }}"
                                             data-sort-description="{{ item.description|lower }}"
-                                            data-sort-group_name="{{ item.group_name|default("")|lower }}"
+                                            data-sort-group_name="{{ item.groupNames()|join(", ")|lower }}"
                                             data-sort-amount="{{ _income ? item.amount : -item.amount }}">
+                                            {% if can_write_finances %}
+                                                <td data-label="Auswahl" class="finance-select-cell">
+                                                    <input type="checkbox"
+                                                           class="form-check-input"
+                                                           data-finance-select
+                                                           value="{{ item.id }}"
+                                                           aria-label="Buchung {{ item.running_number }} auswählen">
+                                                </td>
+                                            {% endif %}
                                             <td data-label="Lfd. Nr." class="finance-number-cell">{{ item.running_number }}</td>
                                             <td data-label="Rechnungsdatum" class="finance-date-cell">{{ item.invoice_date|date("d.m.Y") }}</td>
                                             <td data-label="Beschreibung" class="finance-description-cell">
@@ -487,12 +567,12 @@
                                                     {{ cashbook.attachment_menu(item) }}
                                                 </div>
                                             </td>
-                                            <td data-label="Gruppe" {% if not item.group_name %}data-card-empty{% endif %}>
-                                                {% if item.group_name %}
-                                                    <span class="badge text-bg-light rounded-pill border">{{ item.group_name }}</span>
+                                            <td data-label="Gruppe" {% if item.groupNames() is empty %}data-card-empty{% endif %}>
+                                                {% for group_name in item.groupNames() %}
+                                                    <span class="badge text-bg-light rounded-pill border">{{ group_name }}</span>
                                                 {% else %}
                                                     <span class="text-muted small">—</span>
-                                                {% endif %}
+                                                {% endfor %}
                                             </td>
                                             <td data-label="Betrag"
                                                 class="finance-amount-cell text-end {{ _income ? "text-success" : "text-danger" }}">
@@ -526,8 +606,10 @@
     {% if can_write_finances %}
         {% set _editing = _form.id|default("") != "" %}
         {% set _type = _form.type|default("expense") %}
-        {% set _group = _form.group_name|default("") %}
-        {% set _group_known = _group == "" or _group in groups %}
+        {% set _groups = _form.group_names|default([]) %}
+        {# Groß-/Kleinschreibung zählt nicht, wie bei finance_groups.name in der Datenbank. #}
+        {% set _groups_lower = _groups|map(g => g|lower) %}
+        {% set _known_lower = groups|map(g => g|lower) %}
         <div class="modal fade"
              id="financeModal"
              tabindex="-1"
@@ -672,24 +754,25 @@
 
                         <div class="mb-3">
                             <label for="group_select" class="form-label">
-                                Gruppe <span class="text-muted small">(optional)</span>
+                                Gruppen <span class="text-muted small">(optional)</span>
                             </label>
-                            <select class="form-select" id="group_select">
-                                <option value="">— Keine Gruppe —</option>
+                            <select class="form-select"
+                                    id="group_select"
+                                    name="group_names[]"
+                                    multiple
+                                    data-tom-select
+                                    data-tom-select-create
+                                    data-placeholder="Kostenart, Anlass … wählen oder neu eingeben">
                                 {% for g in groups %}
-                                    <option value="{{ g }}"{% if g == _group %} selected{% endif %}>{{ g }}</option>
+                                    <option value="{{ g }}"{% if g|lower in _groups_lower %} selected{% endif %}>{{ g }}</option>
                                 {% endfor %}
-                                <option value="__new__"{% if not _group_known %} selected{% endif %}>+ Neue Gruppe eingeben…</option>
+                                {% for g in _groups|filter(g => g|lower not in _known_lower) %}
+                                    <option value="{{ g }}" selected>{{ g }}</option>
+                                {% endfor %}
                             </select>
-                            <input type="text"
-                                   class="form-control mt-2 {{ _group_known ? "d-none" : "" }}"
-                                   id="group_name"
-                                   name="group_name"
-                                   value="{{ _group }}"
-                                   placeholder="Name der neuen Gruppe"
-                                   autocomplete="off"
-                                   aria-label="Name der neuen Gruppe"
-                                   {% if not _group_known %}required{% endif %}>
+                            <div class="form-text">
+                                Pro Geschäftsjahr darf nur eine Gruppe dabei sein, die im Budget steht.
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -830,6 +913,13 @@
 
 {% endblock content %}
 
+{% block styles %}
+    <link rel="stylesheet" href="/vendor/tom-select/css/tom-select.bootstrap5.min.css">
+{% endblock styles %}
+
 {% block scripts %}
+    <script src="/vendor/tom-select/js/tom-select.complete.min.js"></script>
+    <script src="/js/tom-select-init.js"></script>
     <script src="/js/finances.js"></script>
+    <script src="/js/finance-bulk-groups.js"></script>
 {% endblock scripts %}

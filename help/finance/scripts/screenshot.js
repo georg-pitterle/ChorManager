@@ -46,7 +46,12 @@ async function shotCapped(page, name, maxHeight = 1500) {
     const fullHeight = await page.evaluate(() => Math.ceil(document.documentElement.scrollHeight));
     const height = Math.min(fullHeight, maxHeight);
     const filePath = path.join(IMAGES_DIR, `${name}.png`);
-    await page.screenshot({ path: filePath, clip: { x: 0, y: 0, width: VIEWPORT.width, height } });
+    // clip wirkt ohne fullPage nur innerhalb des Sichtfensters; erst fullPage rendert die ganze Seite.
+    await page.screenshot({
+        path: filePath,
+        fullPage: true,
+        clip: { x: 0, y: 0, width: VIEWPORT.width, height },
+    });
     console.log(`gespeichert: ${path.relative(process.cwd(), filePath)} (${VIEWPORT.width}x${height})`);
 }
 
@@ -93,6 +98,36 @@ async function clickAndWaitForEvent(page, triggerLocator, eventTargetSelector, e
     await eventPromise;
 }
 
+// Tom-Select: Text eintippen, auf den Eintrag "Neu: ..." warten, mit Enter bestätigen.
+// Danach den Fokus lösen, sonst schließt Escape später das Modal statt das Dropdown.
+async function typeNewGroup(page, selectId, text) {
+    // Mit vorhandenen Einträgen versteckt Tom-Select das Eingabefeld außerhalb des Bildes;
+    // deshalb per API fokussieren und über die Tastatur tippen.
+    await page.locator(`#${selectId}`).evaluate((el) => el.tomselect.focus());
+    await page.keyboard.type(text, { delay: 30 });
+    await page.locator('.ts-dropdown .create').filter({ hasText: text }).first().waitFor({ state: 'visible' });
+    await page.keyboard.press('Enter');
+    await page.locator(`#${selectId}`).evaluate((el) => {
+        if (el.tomselect) {
+            el.tomselect.close();
+        }
+        if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+        }
+    });
+}
+
+// Vorhandene Gruppe über die Tom-Select-Schnittstelle wählen (bevorzugt `preferred`).
+async function pickExistingGroup(page, selector, preferred) {
+    return page.locator(selector).evaluate((el, pref) => {
+        const names = Array.from(el.options).map((o) => o.value).filter((v) => v !== '');
+        const name = names.includes(pref) ? pref : names[0];
+        el.tomselect.addItem(name);
+        el.tomselect.close();
+        return name;
+    }, preferred);
+}
+
 async function main() {
     fs.mkdirSync(IMAGES_DIR, { recursive: true });
 
@@ -125,7 +160,17 @@ async function main() {
             '#financeModal',
             'shown.bs.modal'
         );
+        // Zwei Gruppen sichtbar machen: eine vorhandene Kostenart und ein neu getippter
+        // Anlass. Es wird nichts gespeichert, der Dialog wird gleich wieder abgebrochen.
+        // Höheres Fenster, damit das Formular samt Gruppenfeld komplett ins Bild passt.
+        await page.setViewportSize({ width: VIEWPORT.width, height: 1250 });
+        await page.locator('#amount').fill('48,00');
+        await page.locator('#description').fill('Notenmappen für das Herbstkonzert');
+        const existingGroup = await pickExistingGroup(page, '#group_select', 'Notenmaterial');
+        console.log(`vorhandene Gruppe gewählt: ${existingGroup}`);
+        await typeNewGroup(page, 'group_select', 'Herbstkonzert-Probe');
         await shotModal(page, '02-new-entry-modal');
+        await page.setViewportSize(VIEWPORT);
         await clickAndWaitForEvent(
             page,
             page.locator('#financeModal .btn-outline-secondary[data-bs-dismiss="modal"]'),
@@ -155,6 +200,12 @@ async function main() {
         await page.goto(`${BASE_URL}/finances/report`, { waitUntil: 'networkidle' });
         await page.locator('.finances-report').waitFor({ state: 'visible' });
         await shotCapped(page, '04-report', 1700);
+
+        // 17. "Saldo nach Gruppe" samt Hinweis, dass Buchungen mit mehreren Gruppen
+        //     in jeder Gruppe zählen (Fußzeile der Karte, weit unten auf der Seite).
+        const overlapCard = page.locator('[data-groups-overlap]').locator('xpath=ancestor::*[contains(@class,"card")][1]');
+        await overlapCard.waitFor({ state: 'visible' });
+        await shotSection(page, '17-report-group-overlap', overlapCard, 900);
 
         // === Budget ===
 
@@ -247,6 +298,13 @@ async function main() {
             page.locator('#financeImportModal button[type="submit"]').click(),
         ]);
         await page.locator('.finance-import-table').waitFor({ state: 'visible' });
+        // Erste Zeile mit zwei Gruppen, damit die Mehrfachauswahl erkennbar ist.
+        const firstRowGroups = page.locator('.finance-import-table select[name^="group_names["]').first();
+        await firstRowGroups.evaluate((el) => {
+            const names = Array.from(el.options).map((o) => o.value).filter((v) => v !== '');
+            names.slice(0, 2).forEach((n) => el.tomselect.addItem(n));
+            el.tomselect.close();
+        });
         await shotCapped(page, '13-import-preview', 1100);
 
         await Promise.all([
@@ -266,6 +324,22 @@ async function main() {
         await page.goto(`${BASE_URL}/finances/journal`, { waitUntil: 'networkidle' });
         await page.locator('.finances-table').waitFor({ state: 'visible' });
         await shotCapped(page, '15-journal', 1100);
+
+        // === Stapelbearbeitung ===
+
+        // 16. Ein paar Zeilen angehakt, Gruppe in der Leiste gewählt - nicht abgesendet.
+        await page.goto(`${BASE_URL}/finances`, { waitUntil: 'networkidle' });
+        const boxes = page.locator('#financesTable input[data-finance-select]');
+        for (let i = 0; i < 3; i++) {
+            await boxes.nth(i).check();
+        }
+        await page.locator('#financeSelectionBar').waitFor({ state: 'visible' });
+        await pickExistingGroup(page, '#financeBulkGroup', 'Herbstkonzert');
+        // Die Leiste klebt oben; so weit scrollen, dass Leiste und Zeilen zugleich im Bild sind.
+        await page.locator('#financesTable').evaluate((el) => {
+            window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 220, behavior: 'instant' });
+        });
+        await shotModal(page, '16-bulk-selection');
 
         console.log('Fertig: alle Finanz-Screenshots erstellt.');
     } finally {

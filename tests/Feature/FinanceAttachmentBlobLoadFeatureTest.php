@@ -203,8 +203,6 @@ final class FinanceAttachmentBlobLoadFeatureTest extends TestCase
             'invoice_date' => '2025-10-05',
             'payment_date' => '2025-10-05',
             'description' => 'Notenpult',
-            'group_name' => 'Anschaffung',
-            'finance_group_id' => null,
             'type' => 'expense',
             'amount' => '120.00',
             'payment_method' => 'bank_transfer',

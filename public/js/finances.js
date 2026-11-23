@@ -78,27 +78,26 @@ function setSaveNextVisible(visible) {
     if (button) button.classList.toggle('d-none', !visible);
 }
 
-function handleGroupSelect(sel) {
-    const txt = document.getElementById('group_name');
-    if (sel.value === '__new__') {
-        txt.classList.remove('d-none');
-        txt.required = true;
-        txt.value = '';
-        txt.focus();
-    } else {
-        txt.classList.add('d-none');
-        txt.required = false;
-        txt.value = sel.value;
+// Gruppen des Dialogs setzen. Mit Tom Select über dessen API, damit auch
+// Gruppen erscheinen, die es (noch) nicht als Option gibt; ohne Tom Select
+// direkt an den Optionen der Mehrfachauswahl.
+function setDialogGroups(names) {
+    const sel = document.getElementById('group_select');
+    if (!sel) return;
+    const wanted = names || [];
+    if (sel.tomselect) {
+        wanted.forEach(function (name) {
+            sel.tomselect.addOption({ value: name, text: name });
+        });
+        sel.tomselect.setValue(wanted, true);
+        return;
     }
+    Array.from(sel.options).forEach(function (option) {
+        option.selected = wanted.includes(option.value);
+    });
 }
 
 function bindFinanceUiHandlers() {
-    const groupSelect = document.getElementById('group_select');
-    if (groupSelect) {
-        groupSelect.addEventListener('change', function () {
-            handleGroupSelect(groupSelect);
-        });
-    }
 
     document.querySelectorAll('[data-action="reset-finance-modal"]').forEach(button => {
         button.addEventListener('click', function () {
@@ -262,15 +261,7 @@ function resetFinanceModal() {
     const desc = document.getElementById('description');
     if (desc) desc.value = '';
 
-    const sel = document.getElementById('group_select');
-    if (sel) sel.value = '';
-
-    const txt = document.getElementById('group_name');
-    if (txt) {
-        txt.classList.add('d-none');
-        txt.required = false;
-        txt.value = '';
-    }
+    setDialogGroups([]);
 
     setBookingType('expense');
 
@@ -311,21 +302,7 @@ function editFinance(item) {
     setPaymentOpen(paymentDate === '');
     document.getElementById('description').value = item.description;
 
-    const sel = document.getElementById('group_select');
-    const txt = document.getElementById('group_name');
-    const gVal = item.group_name || '';
-    const opt = Array.from(sel.options).find(o => o.value === gVal && o.value !== '__new__');
-    if (gVal && !opt) {
-        sel.value = '__new__';
-        txt.classList.remove('d-none');
-        txt.required = true;
-        txt.value = gVal;
-    } else {
-        sel.value = gVal;
-        txt.classList.add('d-none');
-        txt.required = false;
-        txt.value = gVal;
-    }
+    setDialogGroups(item.group_names);
 
     setBookingType(item.type);
     const accountSelect = document.getElementById('finance_account_id');

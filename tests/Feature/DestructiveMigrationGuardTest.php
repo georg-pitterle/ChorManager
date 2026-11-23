@@ -8,6 +8,7 @@ use AddChannelToUserNotificationSettings;
 use AddNewsletterRecipientSources;
 use AllowLockEntriesInFinanceJournal;
 use AllowMultipleTaskAssignees;
+use CreateFinanceGroupAssignments;
 use AllowNewslettersWithoutProject;
 use CreateFinanceAccounts;
 use CreateFinanceGroupsAndLink;
@@ -29,6 +30,8 @@ require_once dirname(__DIR__, 2) . '/db/migrations/20261002090100_move_file_shar
 require_once dirname(__DIR__, 2) . '/db/migrations/20260621120000_create_finance_groups_and_link.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260815140000_create_finance_accounts.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260830120000_allow_multiple_task_assignees.php';
+require_once dirname(__DIR__, 2) . '/db/migrations/20261122120000_create_finance_group_assignments.php';
+require_once dirname(__DIR__, 2) . '/db/migrations/20261122130000_drop_group_columns_from_finances.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260722130000_drop_events_project_id.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260811190000_allow_newsletters_without_project.php';
 require_once dirname(__DIR__, 2) . '/db/migrations/20260826120000_allow_lock_entries_in_finance_journal.php';
@@ -71,6 +74,7 @@ final class DestructiveMigrationGuardTest extends TestCase
     private const REVISIONS_TABLE = 'test_guard_finance_revisions';
     private const SETTINGS_TABLE = 'test_guard_user_notification_settings';
     private const ASSIGNEES_TABLE = 'test_guard_task_assignees';
+    private const GROUP_ASSIGNMENTS_TABLE = 'test_guard_finance_group_assignments';
     private const GROUPS_TABLE = 'test_guard_finance_groups';
     private const FINANCES_TABLE = 'test_guard_finances';
     private const ACCOUNTS_TABLE = 'test_guard_finance_accounts';
@@ -92,6 +96,7 @@ final class DestructiveMigrationGuardTest extends TestCase
         self::REVISIONS_TABLE,
         self::SETTINGS_TABLE,
         self::ASSIGNEES_TABLE,
+        self::GROUP_ASSIGNMENTS_TABLE,
         self::GROUPS_TABLE,
         self::FINANCES_TABLE,
         self::ACCOUNTS_TABLE,
@@ -228,9 +233,19 @@ final class DestructiveMigrationGuardTest extends TestCase
             'CREATE TABLE %s (
                 id int(11) NOT NULL AUTO_INCREMENT,
                 group_name varchar(255) DEFAULT NULL,
+                finance_group_id int(11) DEFAULT NULL,
                 PRIMARY KEY (id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
             self::FINANCES_TABLE
+        ));
+
+        Capsule::connection()->statement(sprintf(
+            'CREATE TABLE %s (
+                finance_id int(11) NOT NULL,
+                finance_group_id int(11) NOT NULL,
+                PRIMARY KEY (finance_id, finance_group_id)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci',
+            self::GROUP_ASSIGNMENTS_TABLE
         ));
 
         Capsule::connection()->statement(sprintf(
@@ -644,6 +659,105 @@ final class DestructiveMigrationGuardTest extends TestCase
         $this->assertSame(0, $this->countFrom(
             AllowMultipleTaskAssignees::SURPLUS_ASSIGNEES_SQL,
             ['task_assignees' => self::ASSIGNEES_TABLE],
+            'dropped'
+        ));
+    }
+
+    /**
+     * Der Rückbau von 20261122120000 lässt nur die Gruppe stehen, die noch in
+     * `finances.finance_group_id` steht. Jede weitere Zuordnung einer Buchung
+     * wäre mit dem DROP TABLE weg.
+     */
+    public function testFinanceGroupAssignmentGuardFindsOnlyTheSurplusAssignments(): void
+    {
+        // Buchung 1 hat Gruppe 3 in der Spalte und zusätzlich 5 und 7 - zwei
+        // fallen weg. Buchung 2 hat nur ihre Spaltengruppe.
+        Capsule::connection()->insert(sprintf(
+            'INSERT INTO %s (id, finance_group_id) VALUES (1, 3), (2, 4)',
+            self::FINANCES_TABLE
+        ));
+        Capsule::connection()->insert(sprintf(
+            'INSERT INTO %s (finance_id, finance_group_id) VALUES (1, 3), (1, 5), (1, 7), (2, 4)',
+            self::GROUP_ASSIGNMENTS_TABLE
+        ));
+
+        $this->assertSame(2, $this->countFrom(
+            CreateFinanceGroupAssignments::SURPLUS_ASSIGNMENTS_SQL,
+            ['finance_group_assignments' => self::GROUP_ASSIGNMENTS_TABLE, 'finances' => self::FINANCES_TABLE],
+            'dropped'
+        ));
+    }
+
+    /**
+     * 20261122130000 entfernt `finances.group_name` und `finance_group_id`. Vorher
+     * muss jede Gruppe, die dort stand, eine Zuordnung haben - über die ID oder,
+     * wo sie fehlt, über den Namen.
+     */
+    public function testUnmigratedGroupGuardFindsTheBookingWithoutAssignment(): void
+    {
+        Capsule::connection()->insert(sprintf("INSERT INTO %s (id, name) VALUES (3, 'Konzert'), (4, 'Reise')", self::GROUPS_TABLE));
+        // 1: per ID zugeordnet, 2: per Namen zugeordnet, 3: ID ohne Zuordnung,
+        // 4: Name ohne Zuordnung, 5: ohne Gruppe, 6: Name ohne passende Gruppe,
+        // 7: leerer Name (benennt keine Gruppe).
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (id, group_name, finance_group_id) VALUES
+                (1, 'Konzert', 3), (2, 'Reise', NULL), (3, 'Konzert', 3), (4, 'reise', NULL), (5, NULL, NULL),
+                (6, 'Verwaist', NULL), (7, '', NULL)",
+            self::FINANCES_TABLE
+        ));
+        Capsule::connection()->insert(sprintf(
+            'INSERT INTO %s (finance_id, finance_group_id) VALUES (1, 3), (2, 4)',
+            self::GROUP_ASSIGNMENTS_TABLE
+        ));
+
+        $this->assertSame(3, $this->countFrom(
+            \DropGroupColumnsFromFinances::UNMIGRATED_GROUPS_SQL,
+            [
+                'finance_group_assignments' => self::GROUP_ASSIGNMENTS_TABLE,
+                'finance_groups' => self::GROUPS_TABLE,
+                'finances' => self::FINANCES_TABLE,
+            ],
+            'unmigrated'
+        ));
+    }
+
+    public function testUnmigratedGroupGuardStaysQuietWhenEveryGroupIsAssigned(): void
+    {
+        Capsule::connection()->insert(sprintf("INSERT INTO %s (id, name) VALUES (3, 'Konzert')", self::GROUPS_TABLE));
+        Capsule::connection()->insert(sprintf(
+            "INSERT INTO %s (id, group_name, finance_group_id) VALUES (1, 'Konzert', 3), (2, NULL, NULL)",
+            self::FINANCES_TABLE
+        ));
+        Capsule::connection()->insert(sprintf(
+            'INSERT INTO %s (finance_id, finance_group_id) VALUES (1, 3)',
+            self::GROUP_ASSIGNMENTS_TABLE
+        ));
+
+        $this->assertSame(0, $this->countFrom(
+            \DropGroupColumnsFromFinances::UNMIGRATED_GROUPS_SQL,
+            [
+                'finance_group_assignments' => self::GROUP_ASSIGNMENTS_TABLE,
+                'finance_groups' => self::GROUPS_TABLE,
+                'finances' => self::FINANCES_TABLE,
+            ],
+            'unmigrated'
+        ));
+    }
+
+    public function testFinanceGroupAssignmentGuardStaysQuietWhenEveryAssignmentFitsTheColumn(): void
+    {
+        Capsule::connection()->insert(sprintf(
+            'INSERT INTO %s (id, finance_group_id) VALUES (1, 3), (2, NULL)',
+            self::FINANCES_TABLE
+        ));
+        Capsule::connection()->insert(sprintf(
+            'INSERT INTO %s (finance_id, finance_group_id) VALUES (1, 3)',
+            self::GROUP_ASSIGNMENTS_TABLE
+        ));
+
+        $this->assertSame(0, $this->countFrom(
+            CreateFinanceGroupAssignments::SURPLUS_ASSIGNMENTS_SQL,
+            ['finance_group_assignments' => self::GROUP_ASSIGNMENTS_TABLE, 'finances' => self::FINANCES_TABLE],
             'dropped'
         ));
     }

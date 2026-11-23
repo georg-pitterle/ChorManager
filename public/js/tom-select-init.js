@@ -10,11 +10,37 @@
       if (el.tomselect) {
         return;
       }
+      var allowCreate = el.hasAttribute("data-tom-select-create");
       new TomSelect(el, {
         plugins: ["remove_button"],
         maxOptions: null,
         hideSelected: true,
         placeholder: el.getAttribute("data-placeholder") || "",
+        // Neue Einträge nur, wo das Feld es ausdrücklich erlaubt (Gruppen der Kasse).
+        create: allowCreate,
+        // Gruppen der Kasse werden in Journal und Export mit "; " getrennt.
+        createFilter: allowCreate
+          ? function (input) {
+              return input.indexOf(";") === -1;
+            }
+          : null,
+        createOnBlur: allowCreate,
+        // "Neu: …" steht oben, damit Enter nach dem Tippen nicht still eine
+        // ähnlich klingende vorhandene Gruppe übernimmt.
+        addPrecedence: allowCreate,
+        // Der Platzhalter ("keine") verschwindet, sobald eine Gruppe gewählt ist.
+        hidePlaceholder: allowCreate,
+        render: allowCreate
+          ? {
+              option_create: function (data, escape) {
+                return '<div class="create">Neu: <strong>' + escape(data.input) + "</strong></div>";
+              },
+              // Neben "Neu: …" wäre "Keine Treffer" nur Rauschen.
+              no_results: function () {
+                return null;
+              },
+            }
+          : {},
       });
     });
   }

@@ -19,6 +19,7 @@ use App\Services\EntityAttachmentService;
 use App\Services\FinanceAccountService;
 use App\Services\FinanceBookingService;
 use App\Services\FinanceCsvExportService;
+use App\Services\FinanceGroupConflictException;
 use App\Services\FinanceJournalService;
 use App\Services\BudgetService;
 use App\Services\FinanceReportPdfService;
@@ -49,7 +50,7 @@ class FinanceController
     /** Felder, die ein abgewiesener Buchungsdialog zurückbekommt. */
     private const BOOKING_FORM_FIELDS = [
         'id', 'invoice_date', 'payment_date', 'payment_open', 'description',
-        'group_name', 'type', 'finance_account_id', 'amount',
+        'type', 'finance_account_id', 'amount',
     ];
 
     /**
@@ -57,7 +58,7 @@ class FinanceController
      * bleiben. Beschreibung und Betrag gehören zum gerade gespeicherten Beleg.
      */
     private const BOOKING_STICKY_FIELDS = [
-        'invoice_date', 'payment_date', 'payment_open', 'group_name', 'type', 'finance_account_id',
+        'invoice_date', 'payment_date', 'payment_open', 'type', 'finance_account_id',
     ];
 
     private Twig $view;
@@ -196,13 +197,14 @@ class FinanceController
             'attachments' => $attachmentMetadata,
             'financeAccount',
             'reversedBy',
+            'groups',
         ])
             ->whereBetween('payment_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
             ->orderBy('payment_date', 'desc')
             ->orderBy('running_number', 'desc')
             ->get();
 
-        $openItems = Finance::with(['attachments' => $attachmentMetadata, 'financeAccount'])
+        $openItems = Finance::with(['attachments' => $attachmentMetadata, 'financeAccount', 'groups'])
             ->whereNull('payment_date')
             ->orderBy('invoice_date', 'asc')
             ->get();
@@ -231,7 +233,7 @@ class FinanceController
             // Die bearbeitete Buchung samt Belegen: Der wieder geöffnete Dialog soll
             // dieselbe Belegliste zeigen wie beim ersten Öffnen.
             'booking_form_item' => $bookingFormId > 0
-                ? Finance::with(['attachments' => $attachmentMetadata])->find($bookingFormId)
+                ? Finance::with(['attachments' => $attachmentMetadata, 'groups'])->find($bookingFormId)
                 : null,
             'fiscal_start' => $startDate->format('d.m.Y'),
             'fiscal_end' => $endDate->format('d.m.Y'),
@@ -260,6 +262,7 @@ class FinanceController
         foreach (self::BOOKING_FORM_FIELDS as $field) {
             $form[$field] = InputValidator::asString($data[$field] ?? null);
         }
+        $form['group_names'] = self::postedGroupNames($data['group_names'] ?? null);
 
         // Die Meldung steht zusätzlich wie bisher in $_SESSION['error']; das Template
         // zeigt sie aber nur im Dialog, wenn sie dieselbe ist.
@@ -288,7 +291,26 @@ class FinanceController
         foreach (self::BOOKING_STICKY_FIELDS as $field) {
             $sticky[$field] = InputValidator::asString($data[$field] ?? null);
         }
+        $sticky['group_names'] = self::postedGroupNames($data['group_names'] ?? null);
         $bookingForm->remember($sticky);
+    }
+
+    /**
+     * Gruppen aus einer Mehrfachauswahl: nur Zeichenketten, getrimmt, ohne Leere.
+     *
+     * @return list<string>
+     */
+    private static function postedGroupNames(mixed $value): array
+    {
+        $names = [];
+        foreach (is_array($value) ? $value : [] as $name) {
+            $trimmed = trim(InputValidator::asString($name));
+            if ($trimmed !== '') {
+                $names[] = $trimmed;
+            }
+        }
+
+        return array_values(array_unique($names));
     }
 
     private function hasUploadedReceipts(Request $request): bool
@@ -388,18 +410,11 @@ class FinanceController
         $finance = null;
         $committed = false;
         try {
-            $groupNameRaw = trim(InputValidator::asString($data['group_name'] ?? null));
-            $groupName = $groupNameRaw !== '' ? $groupNameRaw : null;
+            $groupNames = self::postedGroupNames($data['group_names'] ?? null);
             $recordData = [
                 'invoice_date' => $invoiceDate,
                 'payment_date' => $paymentDate,
                 'description' => $description,
-                'group_name' => $groupName,
-                // Keep the canonical finance_group_id in sync so budget actuals stay
-                // linked even when the displayed group label changes.
-                'finance_group_id' => $groupName !== null
-                    ? FinanceGroup::firstOrCreate(['name' => $groupName])->id
-                    : null,
                 'type' => $type,
                 'amount' => $amount,
                 'finance_account_id' => $account->id,
@@ -409,7 +424,12 @@ class FinanceController
             ];
 
             // null heißt: Der Zeitraum ist gesperrt, nichts wurde geschrieben.
-            $finance = $this->bookings->save($id ? (int) $id : null, $recordData, $this->currentUserId());
+            $finance = $this->bookings->save(
+                $id ? (int) $id : null,
+                $recordData,
+                $groupNames,
+                $this->currentUserId()
+            );
             $committed = $finance !== null;
             if ($finance === null) {
                 return $this->rejectBooking($request, $response, $this->lockMessage(), $data);
@@ -434,6 +454,10 @@ class FinanceController
             if ($uploadResult['error'] !== null) {
                 $_SESSION['error'] = $uploadResult['error'];
             }
+        } catch (FinanceGroupConflictException $e) {
+            // Zwei Budget-Gruppen im selben Geschäftsjahr: nichts ist verbucht,
+            // der Dialog kommt mit Meldung und Eingaben zurück.
+            return $this->rejectBooking($request, $response, $e->getMessage(), $data);
         } catch (\Exception $e) {
             $this->logger->error('Finance booking save failed.', [
                 'event' => 'finance.save.failed',
@@ -524,14 +548,39 @@ class FinanceController
             'filename' => $filename,
             'created_at' => time(),
             'rows' => $rows,
+            'detected_iban' => $parsed['own_iban'] ?? null,
         ];
 
-        return $this->view->render($response, 'finances/import.twig', [
+        return $this->renderImportPreview($response, $filename, $rows, [
+            'suggested_account_id' => $suggestedAccount?->id,
+            'detected_iban' => $parsed['own_iban'] ?? null,
+        ]);
+    }
+
+    /**
+     * Vorschau des Kontoauszugs. Beim ersten Anzeigen sind alle importierbaren
+     * Zeilen angehakt; nach einem abgewiesenen Import kommen Auswahl, Gruppen und
+     * Meldungen je Zeile aus `$state`.
+     *
+     * @param array<int, array<string, mixed>> $rows
+     * @param array<string, mixed> $state
+     */
+    private function renderImportPreview(
+        Response $response,
+        string $filename,
+        array $rows,
+        array $state,
+        int $status = 200
+    ): Response {
+        return $this->view->render($response->withStatus($status), 'finances/import.twig', [
             'filename' => $filename,
             'rows' => $rows,
             'accounts' => $this->accountService->activeAccounts(),
-            'suggested_account_id' => $suggestedAccount?->id,
-            'detected_iban' => $parsed['own_iban'] ?? null,
+            'suggested_account_id' => $state['suggested_account_id'] ?? null,
+            'detected_iban' => $state['detected_iban'] ?? null,
+            'selected_indexes' => $state['selected_indexes'] ?? null,
+            'posted_groups' => $state['posted_groups'] ?? [],
+            'row_messages' => $state['row_messages'] ?? [],
             'groups' => FinanceGroup::orderBy('name')->pluck('name'),
             'importable_count' => count(array_filter($rows, static fn(array $r): bool => $r['importable'])),
             'duplicate_count' => count(array_filter($rows, static fn(array $r): bool => $r['duplicate'])),
@@ -567,7 +616,10 @@ class FinanceController
         // UNIQUE-Index darauf brächte die Transaktion zu Fall - mitsamt allen
         // einwandfreien Zeilen daneben, statt die Dublette still zu übergehen.
         $selected = array_values(array_unique(array_map('intval', (array) ($data['selected'] ?? []))));
-        $postedGroups = (array) ($data['group'] ?? []);
+        $postedGroups = [];
+        foreach ((array) ($data['group_names'] ?? []) as $index => $names) {
+            $postedGroups[(int) $index] = self::postedGroupNames($names);
+        }
 
         $account = $this->resolveAccount($data);
         if ($account === null) {
@@ -602,8 +654,7 @@ class FinanceController
                 continue;
             }
 
-            $groupName = trim(InputValidator::asString($postedGroups[$index] ?? null));
-            $row['group_name'] = $groupName !== '' ? $groupName : null;
+            $row['group_names'] = $postedGroups[$index] ?? [];
             $queued[] = $row;
         }
 
@@ -612,6 +663,16 @@ class FinanceController
             if ($queued !== []) {
                 $imported = $this->bookings->importRows($queued, $account, $this->currentUserId());
             }
+        } catch (FinanceGroupConflictException $e) {
+            // Nichts ist importiert, der Auszug bleibt in der Sitzung: Die Vorschau
+            // kommt mit allen Eingaben zurück und markiert die betroffenen Zeilen.
+            return $this->renderImportPreview($response, (string) ($payload['filename'] ?? ''), $rows, [
+                'suggested_account_id' => (int) $account->id,
+                'detected_iban' => $payload['detected_iban'] ?? null,
+                'selected_indexes' => $selected,
+                'posted_groups' => $postedGroups,
+                'row_messages' => $e->rowMessages,
+            ], 422);
         } catch (\Exception $e) {
             $this->logger->error('Bank statement import failed.', [
                 'event' => 'finance.import.failed',
@@ -631,6 +692,64 @@ class FinanceController
         $_SESSION['success'] = sprintf('%d Buchungen importiert, %d übersprungen.', $imported, $skipped);
 
         return $response->withHeader('Location', '/finances')->withStatus(302);
+    }
+
+    /**
+     * Stapelbearbeitung: eine Gruppe zu den markierten Buchungen hinzufügen oder
+     * von ihnen entfernen. Zurück geht es in das Geschäftsjahr, aus dem die
+     * Auswahl kam.
+     */
+    public function bulkGroups(Request $request, Response $response): Response
+    {
+        $data = (array) $request->getParsedBody();
+        $year = (int) ($data['year'] ?? 0);
+        $location = $year > 0 ? '/finances?year=' . $year : '/finances';
+        $redirect = $response->withHeader('Location', $location)->withStatus(302);
+
+        $mode = InputValidator::asString($data['mode'] ?? null);
+        $groupName = trim(InputValidator::asString($data['group_name'] ?? null));
+        $ids = array_values(array_filter(
+            array_map('intval', is_array($data['finance_ids'] ?? null) ? $data['finance_ids'] : []),
+            static fn(int $id): bool => $id > 0
+        ));
+
+        if (!in_array($mode, [FinanceBookingService::BULK_ADD, FinanceBookingService::BULK_REMOVE], true)) {
+            $_SESSION['error'] = 'Unbekannte Aktion.';
+            return $redirect;
+        }
+        if ($groupName === '') {
+            $_SESSION['error'] = 'Bitte eine Gruppe angeben.';
+            return $redirect;
+        }
+        if ($ids === []) {
+            $_SESSION['error'] = 'Bitte mindestens eine Buchung auswählen.';
+            return $redirect;
+        }
+
+        try {
+            $result = $this->bookings->bulkChangeGroup($ids, $groupName, $mode, $this->currentUserId());
+        } catch (FinanceGroupConflictException $e) {
+            $_SESSION['error'] = $e->getMessage();
+            return $redirect;
+        } catch (\Exception $e) {
+            $this->logger->error('Finance bulk group change failed.', [
+                'event' => 'finance.bulk_groups.failed',
+                'exception' => $e,
+            ]);
+            $_SESSION['error'] = 'Die Gruppen konnten nicht geändert werden. Es wurde nichts gespeichert.';
+            return $redirect;
+        }
+
+        $this->logger->info('Finance bulk group change completed.', [
+            'event' => 'finance.bulk_groups.completed',
+            'mode' => $mode,
+            'changed' => $result->changed,
+            'skipped' => count($result->skippedLocked) + count($result->skippedReversal)
+                + count($result->skippedBudgetConflict),
+        ]);
+        $_SESSION['success'] = $result->message();
+
+        return $redirect;
     }
 
     public function importCancel(Request $request, Response $response): Response
@@ -814,7 +933,7 @@ class FinanceController
 
         // Die Anhang-Spalte des Exports trägt eine Zahl, keinen Namen: withCount()
         // zählt in der Datenbank, statt jeden Beleg samt BLOB zu laden.
-        $finances = Finance::with(['financeAccount', 'reversalOf'])
+        $finances = Finance::with(['financeAccount', 'reversalOf', 'groups'])
             ->withCount('attachments')
             ->whereBetween('payment_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
             ->orderBy('payment_date', 'asc')
@@ -849,7 +968,7 @@ class FinanceController
 
         // Ohne Anhänge: Weder der Bericht noch das PDF nennen einen Beleg, das
         // Vorabladen holte allein den BLOB jedes Belegs des Geschäftsjahres.
-        $finances = Finance::with(['financeAccount'])
+        $finances = Finance::with(['financeAccount', 'groups'])
             ->whereBetween('payment_date', [$startDate->format('Y-m-d'), $endDate->format('Y-m-d')])
             ->orderBy('payment_date', 'asc')
             ->get();
@@ -884,16 +1003,21 @@ class FinanceController
         $bankExpense = (float) $finances->where('type', Finance::TYPE_EXPENSE)
             ->where('payment_method', Finance::PAYMENT_METHOD_BANK_TRANSFER)->sum('amount');
 
+        // Eine Buchung zählt in jeder ihrer Gruppen voll. Die Gruppensummen
+        // überschneiden sich dann und ergeben zusammen mehr als das Ergebnis -
+        // der Bericht sagt das dazu, sobald es vorkommt.
         $groupTotals = [];
+        $groupsOverlap = false;
         foreach ($finances as $f) {
-            $key = $f->group_name ?? '(Keine Gruppe)';
-            if (!isset($groupTotals[$key])) {
-                $groupTotals[$key] = ['income' => 0.0, 'expense' => 0.0];
-            }
-            if ($f->type === Finance::TYPE_INCOME) {
-                $groupTotals[$key]['income'] += (float) $f->amount;
-            } else {
-                $groupTotals[$key]['expense'] += (float) $f->amount;
+            $names = $f->groupNames();
+            $groupsOverlap = $groupsOverlap || count($names) > 1;
+            foreach ($names === [] ? ['(Keine Gruppe)'] : $names as $key) {
+                $groupTotals[$key] ??= ['income' => 0.0, 'expense' => 0.0];
+                if ($f->type === Finance::TYPE_INCOME) {
+                    $groupTotals[$key]['income'] += (float) $f->amount;
+                } else {
+                    $groupTotals[$key]['expense'] += (float) $f->amount;
+                }
             }
         }
         ksort($groupTotals);
@@ -911,6 +1035,7 @@ class FinanceController
             'bank_expense' => $bankExpense,
             'group_totals' => $groupTotals,
             'has_groups' => count($groupTotals) > 0,
+            'groups_overlap' => $groupsOverlap,
             'account_statement' => $this->accountService->statement($startDate, $endDate),
             'fiscal_start' => $startDate->format('d.m.Y'),
             'fiscal_end' => $endDate->format('d.m.Y'),

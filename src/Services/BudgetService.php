@@ -103,7 +103,7 @@ class BudgetService
 
     /**
      * Aggregates actual (Ist) amounts from the finances table for a given finance group
-     * and type within a fiscal year date range. Matching is by finance_group_id (FK) so
+     * and type within a fiscal year date range. Matching is by group assignment (FK) so
      * the link survives label changes. Wie im Kassabuch zählt der Tag der Zahlung;
      * offene Posten ohne Zahldatum sind noch kein Ist.
      *
@@ -114,7 +114,7 @@ class BudgetService
      */
     public function computeActual(int $financeGroupId, string $type, Carbon $from, Carbon $to): string
     {
-        $sum = Finance::where('finance_group_id', $financeGroupId)
+        $sum = Finance::whereHas('groups', static fn($query) => $query->whereKey($financeGroupId))
             ->where('type', $type)
             ->whereBetween('payment_date', [$from->format('Y-m-d'), $to->format('Y-m-d')])
             ->whereNull('reversal_of_id')
@@ -135,7 +135,7 @@ class BudgetService
      */
     public function computeReversed(int $financeGroupId, string $type, Carbon $from, Carbon $to): string
     {
-        $sum = Finance::where('finance_group_id', $financeGroupId)
+        $sum = Finance::whereHas('groups', static fn($query) => $query->whereKey($financeGroupId))
             ->where('type', $type)
             ->whereBetween('payment_date', [$from->format('Y-m-d'), $to->format('Y-m-d')])
             ->where(static function ($query): void {

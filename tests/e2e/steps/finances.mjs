@@ -1,11 +1,14 @@
+import { expect } from '@playwright/test';
+
 // Bausteine für die Finanzverwaltung.
 //
 // Verifizierte Selektoren:
 //  - templates/finances/index.twig
 //      Buchungs-Modal #financeModal, Formular POST /finances/save
 //      Felder: invoice_date, payment_date (mit heute vorbelegt), payment_open
-//      (Checkbox "Noch nicht bezahlt"), description, group_name (Textfeld, per
-//      #group_select auf "__new__" sichtbar), type (Umschalter: label[for=type_income]
+//      (Checkbox "Noch nicht bezahlt"), description, group_names[] (Mehrfachauswahl
+//      #group_select mit Tom Select, Eingabe #group_select-ts-control, neue Gruppen
+//      per Enter), type (Umschalter: label[for=type_income]
 //      bzw. label[for=type_expense]), finance_account_id, amount
 //      Menü "Mehr" in der Kopfzeile: [data-finance-more-menu]; darin Import und
 //      Einstellungen
@@ -13,14 +16,19 @@
 //      Felder fiscal_year_start + closed_until
 //      Import-Modal #financeImportModal, Formular POST /finances/import/preview,
 //      Datei-Feld name="statement"
-//      Buchungszeilen: tr[data-sort-running_number], Zellen mit data-label
+//      Buchungszeilen: tr[data-sort-running_number], Zellen mit data-label,
+//      Gruppen als Badges in td[data-label="Gruppe"]
+//      Stapelbearbeitung: Haken input[data-finance-select] je Zeile, Leiste
+//      #financeSelectionBar (POST /finances/bulk-groups), Gruppenfeld
+//      #financeBulkGroup (Tom Select, Eingabe #financeBulkGroup-ts-control),
+//      Knöpfe button[name="mode"][value="add"|"remove"]
 //      Storno: form[action$="/reverse"] im Aktionen-Dropdown der Zeile
 //  - templates/finances/accounts.twig
 //      Konto-Modal #financeAccountModal, Formular POST /finances/accounts/save
 //      Felder: name, type, iban, opening_balance, opening_date, sort_order, is_active
 //  - templates/finances/import.twig
 //      Vorschau-Formular POST /finances/import/confirm, Kontoauswahl
-//      finance_account_id, Zeilenauswahl selected[], Gruppe group[<index>]
+//      finance_account_id, Zeilenauswahl selected[], Gruppen group_names[<index>][]
 //  - templates/finances/report.twig
 //      Kassabericht je Konto in der ersten Tabelle unter "Kassabericht je Konto"
 //  - templates/roles/index.twig
@@ -143,7 +151,8 @@ export async function openFromMoreMenu(page, modalSelector) {
 
 /**
  * Buchung über das Kassabuch-Modal erfassen.
- * booking: { invoiceDate, paymentDate?, description, type, accountName, amount, group? }
+ * booking: { invoiceDate, paymentDate?, description, type, accountName, amount, group?, groups? }
+ * `group` ist eine einzelne Gruppe, `groups` eine Liste; beide dürfen neu sein.
  * Ohne paymentDate entsteht ein offener Posten.
  */
 export async function createBooking(page, booking) {
@@ -172,14 +181,55 @@ export async function createBooking(page, booking) {
     await accountSelect.selectOption(accountValue);
     await modal.locator('input[name="amount"]').fill(booking.amount);
 
-    if (booking.group) {
-        // Das Textfeld wird erst sichtbar, wenn im Select "+ Neue Gruppe eingeben…"
-        // gewählt ist (handleGroupSelect in public/js/finances.js).
-        await modal.locator('#group_select').selectOption('__new__');
-        await modal.locator('#group_name').fill(booking.group);
+    const groups = booking.groups ?? (booking.group ? [booking.group] : []);
+    for (const group of groups) {
+        await chooseTomSelectEntry(page, '#group_select', group);
     }
 
     await submitAndWait(page, modal.locator('[data-finance-save]'));
+}
+
+/**
+ * Eintrag in einem Tom-Select-Feld wählen oder neu anlegen: tippen, warten, bis
+ * die Trefferliste den Text zeigt, dann Enter. Ohne das Warten nimmt Enter die
+ * noch alte Trefferliste - und damit womöglich eine andere Gruppe.
+ */
+export async function chooseTomSelectEntry(page, selectSelector, text) {
+    const input = page.locator(`${selectSelector}-ts-control`);
+    await input.click();
+    await input.fill(text);
+    const dropdown = page.locator(`${selectSelector}-ts-dropdown`);
+    await expect(dropdown.locator('.option.active, .create.active').first()).toContainText(text, { timeout: 5_000 });
+    await input.press('Enter');
+    // Fokus weg statt Escape: Escape schlösse im Buchungsdialog das ganze Modal.
+    await input.evaluate((element) => element.blur());
+}
+
+/** Gruppen einer Buchung, wie sie die Liste als Badges zeigt (alphabetisch). */
+export async function bookingGroups(page, runningNumber) {
+    await page.goto('/finances');
+    const row = bookingRow(page, runningNumber);
+    await row.waitFor({ state: 'visible' });
+
+    return (await row.locator('td[data-label="Gruppe"] .badge').allInnerTexts()).map((text) => text.trim());
+}
+
+/**
+ * Stapelbearbeitung: die Buchungen anhaken, Gruppe wählen, hinzufügen oder
+ * entfernen. Liefert die Erfolgsmeldung zurück.
+ */
+export async function bulkChangeGroup(page, { runningNumbers, group, mode }) {
+    await page.goto('/finances');
+    for (const runningNumber of runningNumbers) {
+        await bookingRow(page, runningNumber).locator('input[data-finance-select]').check();
+    }
+    const bar = page.locator('#financeSelectionBar');
+    await expect(bar).toBeVisible();
+
+    await chooseTomSelectEntry(page, '#financeBulkGroup', group);
+    await submitAndWait(page, bar.locator(`button[name="mode"][value="${mode}"]`));
+
+    return (await page.locator('.alert-success').first().innerText()).trim();
 }
 
 /** Zeile der Buchungsliste anhand ihrer laufenden Nummer. */

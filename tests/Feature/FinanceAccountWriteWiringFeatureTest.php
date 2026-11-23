@@ -260,8 +260,6 @@ final class FinanceAccountWriteWiringFeatureTest extends TestCase
             'invoice_date' => $paymentDate,
             'payment_date' => $paymentDate,
             'description' => 'Wiring-Test',
-            'group_name' => null,
-            'finance_group_id' => null,
             'type' => $type,
             'amount' => $amount,
             'payment_method' => Finance::PAYMENT_METHOD_BANK_TRANSFER,

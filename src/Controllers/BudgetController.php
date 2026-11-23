@@ -8,7 +8,9 @@ use App\Controllers\Concerns\FlashMessages;
 use App\Models\BudgetCategory;
 use App\Models\BudgetItem;
 use App\Models\FinanceGroup;
+use App\Services\BudgetCategoryConflictException;
 use App\Services\BudgetService;
+use App\Services\BudgetWriteService;
 use App\Util\AmountNormalizer;
 use App\Util\InputValidator;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -23,12 +25,18 @@ class BudgetController
     private Twig $view;
     private BudgetService $budgetService;
     private LoggerInterface $logger;
+    private BudgetWriteService $budgetWriter;
 
-    public function __construct(Twig $view, BudgetService $budgetService, LoggerInterface $logger)
-    {
+    public function __construct(
+        Twig $view,
+        BudgetService $budgetService,
+        LoggerInterface $logger,
+        BudgetWriteService $budgetWriter
+    ) {
         $this->view = $view;
         $this->budgetService = $budgetService;
         $this->logger = $logger;
+        $this->budgetWriter = $budgetWriter;
     }
 
     public function index(Request $request, Response $response): Response
@@ -62,7 +70,7 @@ class BudgetController
         $data = (array) $request->getParsedBody();
         $fiscalYear = (int) ($data['fiscal_year_start'] ?? 0);
         $type = InputValidator::asString($data['type'] ?? null);
-        $financeGroupId = $this->resolveFinanceGroupId($data);
+        $financeGroupId = $this->budgetWriter->resolveFinanceGroupId($data);
 
         if (
             $fiscalYear < 1900 || $fiscalYear > 2200
@@ -74,22 +82,13 @@ class BudgetController
             return $response->withHeader('Location', '/budget?year=' . $fiscalYear)->withStatus(302);
         }
 
-        $exists = BudgetCategory::where('fiscal_year_start', $fiscalYear)
-            ->where('finance_group_id', $financeGroupId)
-            ->where('type', $type)
-            ->exists();
-
-        if ($exists) {
-            $_SESSION['error'] = 'Diese Kategorie existiert bereits für das gewählte Haushaltsjahr.';
+        try {
+            $this->budgetWriter->createCategory($fiscalYear, $financeGroupId, $type);
+        } catch (\DomainException | BudgetCategoryConflictException $e) {
+            $_SESSION['error'] = $e->getMessage();
 
             return $response->withHeader('Location', '/budget?year=' . $fiscalYear)->withStatus(302);
         }
-
-        BudgetCategory::create([
-            'fiscal_year_start' => $fiscalYear,
-            'finance_group_id' => $financeGroupId,
-            'type' => $type,
-        ]);
 
         $this->logger->info('Budget category created.', [
             'event' => 'budget.category.created',
@@ -115,26 +114,20 @@ class BudgetController
             return $response->withHeader('Location', '/budget')->withStatus(302);
         }
 
-        $financeGroupId = $this->resolveFinanceGroupId($data);
+        $financeGroupId = $this->budgetWriter->resolveFinanceGroupId($data);
         if ($financeGroupId === null) {
             $_SESSION['error'] = 'Bitte eine Gruppe wählen oder anlegen.';
 
             return $response->withHeader('Location', '/budget?year=' . $category->fiscal_year_start)->withStatus(302);
         }
 
-        $duplicate = BudgetCategory::where('fiscal_year_start', $category->fiscal_year_start)
-            ->where('finance_group_id', $financeGroupId)
-            ->where('type', $category->type)
-            ->where('id', '!=', $id)
-            ->exists();
-
-        if ($duplicate) {
-            $_SESSION['error'] = 'Eine Kategorie mit dieser Gruppe existiert bereits.';
+        try {
+            $this->budgetWriter->changeCategoryGroup($category, $financeGroupId);
+        } catch (\DomainException | BudgetCategoryConflictException $e) {
+            $_SESSION['error'] = $e->getMessage();
 
             return $response->withHeader('Location', '/budget?year=' . $category->fiscal_year_start)->withStatus(302);
         }
-
-        $category->update(['finance_group_id' => $financeGroupId]);
 
         $this->logger->info('Budget category updated.', [
             'event' => 'budget.category.updated',
@@ -267,26 +260,6 @@ class BudgetController
         $_SESSION['success'] = 'Posten gelöscht.';
 
         return $response->withHeader('Location', '/budget?year=' . $year)->withStatus(302);
-    }
-
-    /**
-     * Resolves the finance group id from request data. A non-empty "new_group_name"
-     * creates (or reuses) a group; otherwise a selected "finance_group_id" is validated.
-     * Returns null if neither yields a valid group.
-     */
-    private function resolveFinanceGroupId(array $data): ?int
-    {
-        $newName = trim(InputValidator::asString($data['new_group_name'] ?? null));
-        if ($newName !== '') {
-            return (int) FinanceGroup::firstOrCreate(['name' => $newName])->id;
-        }
-
-        $selectedId = (int) ($data['finance_group_id'] ?? 0);
-        if ($selectedId > 0 && FinanceGroup::whereKey($selectedId)->exists()) {
-            return $selectedId;
-        }
-
-        return null;
     }
 
     /**

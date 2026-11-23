@@ -42,7 +42,7 @@ final class FinanceReportPdfControllerTest extends TestCase
     {
         Finance::create([
             'running_number' => 8001, 'invoice_date' => '2025-10-05', 'payment_date' => '2025-10-05',
-            'description' => 'Prüf-Einnahme', 'group_name' => null, 'finance_group_id' => null,
+            'description' => 'Prüf-Einnahme',
             'type' => 'income', 'amount' => '250.00', 'payment_method' => 'cash',
             'finance_account_id' => $this->fixtureAccountId(),
         ]);

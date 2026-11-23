@@ -405,17 +405,19 @@ final class ServiceLayerReviewDecisionsFeatureTest extends TestCase
         string $paymentDate,
         ?int $reversalOfId = null
     ): Finance {
-        return Finance::create([
+        $finance = Finance::create([
             'running_number' => random_int(100000, 999999),
             'invoice_date' => $paymentDate,
             'payment_date' => $paymentDate,
             'description' => 'Review-Buchung',
-            'finance_group_id' => (int) $group->id,
             'type' => $type,
             'amount' => $amount,
             'payment_method' => 'cash',
             'finance_account_id' => (int) $account->id,
             'reversal_of_id' => $reversalOfId,
         ]);
+        $finance->groups()->attach((int) $group->id);
+
+        return $finance;
     }
 }

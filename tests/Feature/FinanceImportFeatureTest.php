@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Controllers\FinanceController;
+use App\Models\BudgetCategory;
 use App\Models\Finance;
 use App\Models\FinanceAccount;
 use App\Models\FinanceGroup;
 use App\Models\FinanceRevision;
+use App\Services\BudgetService;
+use App\Services\FinanceGroupBudgetRule;
 use App\Services\FinanceJournalService;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Eloquent\Builder;
@@ -124,13 +127,13 @@ final class FinanceImportFeatureTest extends TestCase
 
     /**
      * @param list<int> $indexes
-     * @param array<int, string> $groups
+     * @param array<int, list<string>> $groups
      */
     private function confirm(array $indexes, array $groups = [], ?int $accountId = null): ResponseInterface
     {
         $body = [
             'selected' => array_map('strval', $indexes),
-            'group' => $groups,
+            'group_names' => $groups,
         ];
         if ($accountId !== null) {
             $body['finance_account_id'] = (string) $accountId;
@@ -191,7 +194,7 @@ final class FinanceImportFeatureTest extends TestCase
         $this->preview();
         $rows = $_SESSION['finance_import']['rows'];
 
-        $response = $this->confirm([0, 1], [0 => self::TEST_GROUP]);
+        $response = $this->confirm([0, 1], [0 => [self::TEST_GROUP]]);
 
         $this->assertRedirect($response, '/finances');
         $this->assertStringContainsString('2 Buchungen importiert', (string) $_SESSION['success']);
@@ -207,15 +210,12 @@ final class FinanceImportFeatureTest extends TestCase
         $this->assertSame('bank_transfer', $first->payment_method);
         $this->assertSame($rows[0]['import_hash'], $first->import_hash);
 
-        // Gruppenname und kanonische ID müssen gemeinsam gesetzt sein, sonst
-        // fehlen die Buchungen später in den Budget-Ist-Werten.
+        // Ohne Zuordnung fehlen die Buchungen später in den Budget-Ist-Werten.
         $group = FinanceGroup::where('name', self::TEST_GROUP)->first();
         $this->assertNotNull($group);
-        $this->assertSame(self::TEST_GROUP, $first->group_name);
-        $this->assertSame($group->id, $first->finance_group_id);
+        $this->assertSame([(int) $group->id], $first->groups->pluck('id')->map('intval')->all());
 
-        $this->assertNull($imported[1]->group_name);
-        $this->assertNull($imported[1]->finance_group_id);
+        $this->assertSame([], $imported[1]->groupNames());
         $this->assertSame($first->running_number + 1, $imported[1]->running_number);
     }
 
@@ -230,6 +230,56 @@ final class FinanceImportFeatureTest extends TestCase
      * zweite Zeile auf - aber als Ausnahme mitten in der Transaktion, und damit
      * fiel der ganze Import aus, auch die zwanzig einwandfreien Zeilen daneben.
      */
+    public function testEachImportRowStoresAllChosenGroups(): void
+    {
+        $this->preview();
+
+        $this->confirm([0], [0 => [self::TEST_GROUP, 'Anlass ' . self::TEST_GROUP]]);
+
+        $this->assertSame(
+            ['Anlass ' . self::TEST_GROUP, self::TEST_GROUP],
+            $this->imported()->sole()->groupNames()
+        );
+    }
+
+    /**
+     * Eine Zeile mit zwei Budget-Gruppen weist den ganzen Auszug ab. Die Vorschau
+     * kommt mit allen Eingaben zurück - Auswahl, Gruppen, Konto - und markiert
+     * die Zeile, statt die Kassierin von vorn beginnen zu lassen.
+     */
+    public function testAConflictingRowRerendersThePreviewWithTheChoicesAndMarksTheRow(): void
+    {
+        $this->preview();
+        $rows = $_SESSION['finance_import']['rows'];
+        $year = (new FinanceGroupBudgetRule(new BudgetService()))
+            ->fiscalYearOf($rows[1]['payment_date'], (string) $rows[1]['invoice_date']);
+        foreach (['Budget A ' . self::TEST_GROUP, 'Budget B ' . self::TEST_GROUP] as $name) {
+            BudgetCategory::create([
+                'fiscal_year_start' => $year,
+                'finance_group_id' => FinanceGroup::firstOrCreate(['name' => $name])->id,
+                'type' => 'expense',
+            ]);
+        }
+        $this->renderCalls = [];
+
+        $response = $this->confirm(
+            [0, 1],
+            [0 => [self::TEST_GROUP], 1 => ['Budget A ' . self::TEST_GROUP, 'Budget B ' . self::TEST_GROUP]],
+            (int) $this->defaultAccount->id
+        );
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame(0, $this->imported()->count());
+        $this->assertArrayHasKey('finance_import', $_SESSION);
+        [$template, $data] = $this->renderCalls[0];
+        $this->assertSame('finances/import.twig', $template);
+        $this->assertSame([0, 1], $data['selected_indexes']);
+        $this->assertSame([self::TEST_GROUP], $data['posted_groups'][0]);
+        $this->assertSame([1], array_keys($data['row_messages']));
+        $this->assertStringContainsString('beide im Budget', $data['row_messages'][1]);
+        $this->assertSame((int) $this->defaultAccount->id, $data['suggested_account_id']);
+    }
+
     public function testConfirmImportsARowSelectedTwiceOnlyOnce(): void
     {
         $this->preview();
