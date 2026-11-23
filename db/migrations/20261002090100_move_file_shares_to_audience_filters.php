@@ -35,7 +35,7 @@ final class MoveFileSharesToAudienceFilters extends AbstractMigration
      * Filter, auf die keine der beiden Freigabetabellen zeigt.
      *
      * Das `down()` endet mit `DELETE FROM audience_filters` ohne WHERE. Das ist
-     * heute richtig, aber nicht von sich aus: `audience_filters` trägt sieben
+     * heute richtig, aber nicht von sich aus: `audience_filters` trägt sechs
      * Besitzerspalten, und dass am Ende nur noch die Freigabe-Filter dieser
      * Migration übrig sind, liegt allein daran, dass jede andere Besitzerspalte
      * im `down()` ihrer eigenen Migration vorher geräumt oder bewacht wird -
@@ -48,7 +48,7 @@ final class MoveFileSharesToAudienceFilters extends AbstractMigration
      * DELETE still weg. Die Abfrage steht deshalb am Anfang des `down()`,
      * solange `audience_filter_id` an den Freigaben noch existiert.
      *
-     * Heute schlägt sie nicht an. Sie ist die Zusicherung für die achte
+     * Heute schlägt sie nicht an. Sie ist die Zusicherung für die siebte
      * Besitzerspalte, deren `down()` das Räumen vergisst.
      */
     public const FOREIGN_FILTERS_SQL =
