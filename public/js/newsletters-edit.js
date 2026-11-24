@@ -22,6 +22,24 @@ function errorPreviewDocument(responseText) {
     return `<!DOCTYPE html><html lang="de"><body>${paragraph.outerHTML}</body></html>`;
 }
 
+/**
+ * Meldung für einen Speichervorgang, der ohne neue Antwort des Servers endet. "unchanged": seit
+ * dem letzten Sichern hat sich nichts geändert - meist hat das Speichern im Hintergrund den Stand
+ * schon gesichert. "failed": Netzwerkfehler, Fehlerstatus oder keine lesbare Antwort. Ein Klick
+ * bekommt immer eine Antwort, sonst wirkt der Knopf tot; das Speichern im Hintergrund bleibt still.
+ */
+function saveFeedback(outcome, isManual) {
+    if (!isManual) {
+        return null;
+    }
+
+    if (outcome === "failed") {
+        return { type: "danger", message: "Fehler beim Speichern" };
+    }
+
+    return { type: "success", message: "Newsletter gespeichert" };
+}
+
 function initNewsletterEdit() {
     const editForm = document.getElementById("edit-newsletter-form");
     const sendForm = document.getElementById("send-form");
@@ -247,6 +265,15 @@ function initNewsletterEdit() {
 
         const currentSnapshot = createSnapshot();
         if (lastSavedSnapshot !== null && currentSnapshot === lastSavedSnapshot) {
+            if (showSuccessMessage && isModalView && typeof window.newsletterModalCloseAndRefresh === "function") {
+                window.newsletterModalCloseAndRefresh();
+                return;
+            }
+
+            const feedback = saveFeedback("unchanged", showSuccessMessage);
+            if (feedback) {
+                showEditAlert(feedback.type, feedback.message);
+            }
             return;
         }
 
@@ -270,6 +297,7 @@ function initNewsletterEdit() {
             formData.set("_csrf", csrfToken);
         }
 
+        let data;
         try {
             const response = await fetch(newsletterUpdateUrl, {
                 method: "POST",
@@ -281,36 +309,40 @@ function initNewsletterEdit() {
             });
 
             if (!response.ok) {
-                if (showSuccessMessage) {
-                    showEditAlert("danger", "Fehler beim Speichern");
-                }
+                throw new Error(`Speichern fehlgeschlagen: HTTP ${response.status}`);
+            }
+
+            data = await response.json();
+        } catch (_error) {
+            const feedback = saveFeedback("failed", showSuccessMessage);
+            if (feedback) {
+                showEditAlert(feedback.type, feedback.message);
+            }
+            return;
+        } finally {
+            saveInProgress = false;
+        }
+
+        lastSavedSnapshot = currentSnapshot;
+
+        const warnings = Array.isArray(data.warnings) ? data.warnings : [];
+        const warningSignature = warnings.length > 0 ? warnings.join("|") : null;
+        const isNewWarning = warningSignature !== null && warningSignature !== lastWarningSignature;
+        lastWarningSignature = warningSignature;
+
+        if (showSuccessMessage) {
+            if (isModalView && typeof window.newsletterModalCloseAndRefresh === "function") {
+                window.newsletterModalCloseAndRefresh();
                 return;
             }
 
-            const data = await response.json();
-            lastSavedSnapshot = currentSnapshot;
-
-            const warnings = Array.isArray(data.warnings) ? data.warnings : [];
-            const warningSignature = warnings.length > 0 ? warnings.join("|") : null;
-            const isNewWarning = warningSignature !== null && warningSignature !== lastWarningSignature;
-            lastWarningSignature = warningSignature;
-
-            if (showSuccessMessage) {
-                if (isModalView && typeof window.newsletterModalCloseAndRefresh === "function") {
-                    window.newsletterModalCloseAndRefresh();
-                    return;
-                }
-
-                if (warnings.length > 0) {
-                    showEditAlert("warning", "Newsletter gespeichert. " + warnings.join(" "));
-                } else {
-                    showEditAlert("success", "Newsletter gespeichert");
-                }
-            } else if (isNewWarning) {
-                showEditAlert("warning", warnings.join(" "));
+            if (warnings.length > 0) {
+                showEditAlert("warning", "Newsletter gespeichert. " + warnings.join(" "));
+            } else {
+                showEditAlert("success", "Newsletter gespeichert");
             }
-        } finally {
-            saveInProgress = false;
+        } else if (isNewWarning) {
+            showEditAlert("warning", warnings.join(" "));
         }
     }
 
@@ -615,7 +647,9 @@ function initNewsletterEdit() {
     runInitialSync();
 }
 
-if (document.readyState === "loading") {
+if (typeof module !== "undefined" && module.exports) {
+    module.exports = { saveFeedback: saveFeedback };
+} else if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initNewsletterEdit);
 } else {
     initNewsletterEdit();
