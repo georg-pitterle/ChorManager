@@ -133,6 +133,36 @@ class RegistrationSaveFeatureTest extends TestCase
         $this->assertSame('yes', $row->status);
     }
 
+    /**
+     * Eine JSON-Antwort darf keine Flash-Meldung in der Sitzung zurücklassen.
+     *
+     * Das Skript der Seite zeigt den Erfolg selbst an und lädt nichts neu; eine
+     * liegengebliebene Meldung erschiene erst beim nächsten Seitenaufruf - also
+     * irgendwo, wo niemand gerade eine Anmeldung gespeichert hat. Der Rückzug
+     * (withdrawOwnRegistration) macht es schon richtig.
+     */
+    public function testAjaxSaveLeavesNoFlashMessageBehind(): void
+    {
+        $request = $this->makeRequest(
+            'POST',
+            '/registrations/' . $this->event->id,
+            ['status' => 'yes'],
+            [],
+            ['X-Requested-With' => 'XMLHttpRequest', 'Accept' => 'application/json']
+        );
+        $response = $this->controller()->save($request, $this->makeResponse(), [
+            'event_id' => (string) $this->event->id,
+        ]);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertArrayNotHasKey(
+            'success',
+            $_SESSION,
+            'eine AJAX-Antwort darf keine Erfolgsmeldung in der Sitzung hinterlassen'
+        );
+        $this->assertArrayNotHasKey('error', $_SESSION);
+    }
+
     public function testAjaxSaveClosedDeadlineReturnsJsonError(): void
     {
         $this->event->update(['registration_deadline' => Carbon::now()->subHour()]);

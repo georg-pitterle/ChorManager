@@ -291,7 +291,6 @@ class RegistrationController
                 ['event_id' => (int) $event->id, 'user_id' => $userId],
                 ['status' => $status, 'note' => $note !== '' ? $note : null, 'updated_by' => $userId]
             );
-            $_SESSION['success'] = 'Anmeldung gespeichert.';
         } catch (\Exception $e) {
             $this->logger->error('Saving event registration failed.', [
                 'event' => 'registration.save_failed',
@@ -309,6 +308,12 @@ class RegistrationController
                 ->withStatus(302);
         }
 
+        // Die Flash-Meldung erst hier, und nur für den Formularweg: Das Skript der
+        // Seite zeigt den Erfolg selbst an und lädt nichts neu. Eine Meldung in der
+        // Sitzung bliebe deshalb liegen und erschiene irgendwann beim nächsten
+        // Seitenaufruf - dort, wo niemand gerade eine Anmeldung gespeichert hat.
+        // Der Rückzug (withdrawOwnRegistration) nimmt sie aus demselben Grund
+        // wieder heraus; dieselbe Reihenfolge wie in ProfileController::updateMailbox().
         if ($expectsJson) {
             return $this->jsonResponse($response, [
                 'success' => true,
@@ -316,6 +321,8 @@ class RegistrationController
                 'counts' => $this->countsPayload($event),
             ]);
         }
+
+        $_SESSION['success'] = 'Anmeldung gespeichert.';
 
         return $response
             ->withHeader('Location', '/registrations/' . $event->id)
