@@ -2350,14 +2350,12 @@ class DevSeedService
             }
         }
 
-        // Das vorletzte Kalenderjahr gilt als geprüft und abgeschlossen. Damit in
-        // Dev auch der Journaleintrag zum Buchungsabschluss sichtbar ist - der
-        // einzige, der an keiner einzelnen Buchung hängt -, wird der Stichtag in
-        // zwei Schritten gesetzt: erst das Vorvorjahr, dann das Vorjahr.
-        $steps = [
-            sprintf('%d-12-31', (int) date('Y') - 3),
-            sprintf('%d-12-31', (int) date('Y') - 2),
-        ];
+        // Damit in Dev auch der Journaleintrag zum Buchungsabschluss sichtbar ist -
+        // der einzige, der an keiner einzelnen Buchung hängt -, wird der Stichtag in
+        // zwei Schritten gesetzt (siehe financeClosingDates()).
+        $budget = new BudgetService();
+        [$fiscalDay, $fiscalMonth] = $budget->getFiscalConfig();
+        $steps = self::financeClosingDates($budget->defaultFiscalYearStart(), $fiscalDay, $fiscalMonth);
 
         foreach ($steps as $stepIndex => $closedUntil) {
             $previousClosedUntil = $journal->closedUntil()?->format('Y-m-d');
@@ -2367,6 +2365,26 @@ class DevSeedService
                 $this->report['counts']['finance_revisions']++;
             }
         }
+    }
+
+    /**
+     * Stichtage für den Buchungsabschluss im Seed, in der Reihenfolge, in der sie
+     * gesetzt werden. Abgeschlossen wird immer ein ganzes Geschäftsjahr: zuerst das
+     * Ende des drittletzten, dann das des vorletzten. Das zuletzt beendete Jahr
+     * bleibt offen, weil es realistisch noch geprüft wird.
+     *
+     * @return list<string> Daten im Format Y-m-d
+     */
+    public static function financeClosingDates(int $currentFiscalStartYear, int $fiscalDay, int $fiscalMonth): array
+    {
+        $budget = new BudgetService();
+        $dates = [];
+        foreach ([3, 2] as $yearsBack) {
+            [, $end] = $budget->datesForYear($currentFiscalStartYear - $yearsBack, $fiscalDay, $fiscalMonth);
+            $dates[] = $end->format('Y-m-d');
+        }
+
+        return $dates;
     }
 
     /**
