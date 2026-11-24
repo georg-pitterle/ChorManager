@@ -235,6 +235,39 @@ final class BackupServiceTest extends TestCase
     }
 
     /**
+     * Die Wiederherstellung greift in denselben Datei-Pool: Sie spielt die
+     * gesicherten Dateien zurück, während ein gleichzeitig laufendes Backup
+     * dieselben Pfade in sein Manifest schreibt. Das Backup sicherte dann einen
+     * halb eingespielten Stand, und bemerkt würde das erst beim nächsten Restore.
+     * Darum gilt hier dieselbe Sperre wie für Erstellen und Löschen.
+     */
+    public function testRestoreIsTurnedAwayWhileAnotherRunHoldsTheLock(): void
+    {
+        $lock = new BackupLock($this->backupDir);
+        $metadata = $this->makeService(lock: $lock)->create(BackupService::TYPE_MANUAL, null);
+        $foreign = $this->holdLockFromOutside();
+
+        try {
+            $this->expectException(BackupLockedException::class);
+            $this->makeService(lock: $lock)->restore((string) $metadata['id']);
+        } finally {
+            flock($foreign, LOCK_UN);
+            fclose($foreign);
+            $this->assertSame(0, $this->dumpRunner->restoreCallCount, 'Der Restore darf gar nicht erst anlaufen.');
+        }
+    }
+
+    public function testRestoreRunsWhenTheLockIsFree(): void
+    {
+        $lock = new BackupLock($this->backupDir);
+        $metadata = $this->makeService(lock: $lock)->create(BackupService::TYPE_MANUAL, null);
+
+        $this->makeService(lock: $lock)->restore((string) $metadata['id']);
+
+        $this->assertSame(1, $this->dumpRunner->restoreCallCount);
+    }
+
+    /**
      * create() löscht beim Rotieren selbst, und `flock()` hängt an der geöffneten
      * Datei, nicht am Prozess: Ohne Mitzählen stünde die Erstellung sich hier selbst
      * im Weg und jedes Auto-Backup an der Obergrenze wäre gescheitert.

@@ -1,17 +1,42 @@
+{#
+    Ein Termin oder eine ganze Serie.
+
+    `events` trägt immer eine Liste - beim Einzeltermin mit genau einem Eintrag.
+    Eine Serienänderung ergibt so eine Mail statt vierzig.
+
+    Bei der Serie nennen die Vorher/Nachher-Zeilen nur die Tageszeit: Die
+    Änderung überträgt die Uhrzeit auf jeden Folgetermin, jeder behält aber
+    seinen eigenen Tag. Welche Tage das sind, steht deshalb als eigene Liste
+    darunter (siehe EventController::describeSeriesChanges()).
+#}
 {% extends "emails/_notification_layout.twig" %}
 {% import "emails/_components.twig" as ui %}
 
-{% block mail_title %}Termin geändert: {{ event.title }}{% endblock %}
+{% set _is_series = events|length > 1 %}
 
-{% block preheader %}{{ event.title }} findet jetzt anders statt.{% endblock %}
+{% block mail_title %}
+    {% if _is_series %}Termine geändert: {{ series_title }}{% else %}Termin geändert: {{ event.title }}{% endif %}
+{% endblock %}
+
+{% block preheader %}
+    {% if _is_series %}
+        {{ events|length }} Termine finden jetzt anders statt.
+    {% else %}
+        {{ event.title }} findet jetzt anders statt.
+    {% endif %}
+{% endblock %}
 
 {% block eyebrow %}Änderung{% endblock %}
 
-{% block heading %}Ein Termin hat sich geändert{% endblock %}
+{% block heading %}{{ _is_series ? "Termine haben sich geändert" : "Ein Termin hat sich geändert" }}{% endblock %}
 
 {% block content %}
     <p class="cm-text" style="margin:0 0 24px 0; color:#1f2937">
-        bei diesem Termin haben sich Zeit oder Ort geändert:
+        {% if _is_series %}
+            bei diesen {{ events|length }} Terminen der Serie haben sich Zeit oder Ort geändert:
+        {% else %}
+            bei diesem Termin haben sich Zeit oder Ort geändert:
+        {% endif %}
     </p>
 
     <table role="presentation"
@@ -27,18 +52,34 @@
         <tr>
             <td style="padding:18px 20px">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
-                    {{ ui.detail_row("Termin", event.title, true) }}
+                    {% if _is_series %}
+                        {{ ui.detail_row("Serie", series_title, true) }}
+                    {% else %}
+                        {{ ui.detail_row("Termin", event.title, true) }}
+                    {% endif %}
                     {# Vorher und Nachher stehen nebeneinander - nur so sieht man, was sich bewegt hat. #}
                     {% for change in changes %}
                         {{ ui.detail_row(change.label ~ " bisher", change.before, false) }}
                         {{ ui.detail_row(change.label ~ " neu", change.after, false) }}
                     {% endfor %}
+                    {% if _is_series %}
+                        {% for event_in_series in events|slice(0, 12) %}
+                            {{ ui.detail_row(
+                                event_in_series.starts_at|date("d.m.Y"),
+                                event_in_series.starts_at|date("H:i") ~ " Uhr",
+                                false
+                            ) }}
+                        {% endfor %}
+                        {% if events|length > 12 %}
+                            {{ ui.detail_row("Weitere", (events|length - 12) ~ " Termine im Kalender", false) }}
+                        {% endif %}
+                    {% endif %}
                 </table>
             </td>
         </tr>
     </table>
 
-    {{ ui.action_button(link, "Termin ansehen", brand_color, 200) }}
+    {{ ui.action_button(link, _is_series ? "Termine ansehen" : "Termin ansehen", brand_color, 200) }}
 
     {{ ui.fallback_url(link) }}
 {% endblock %}

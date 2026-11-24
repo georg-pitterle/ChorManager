@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\AccessDenial;
 use App\Controllers\Concerns\FlashMessages;
 use App\Models\Event;
 use App\Models\EventRegistration;
@@ -25,6 +26,7 @@ use Slim\Views\Twig;
 
 class RegistrationController
 {
+    use AccessDenial;
     use FlashMessages;
 
     /** Formularwert, mit dem eine Antwort - eigene oder vertretene - wieder auf "offen" gesetzt wird. */
@@ -385,12 +387,11 @@ class RegistrationController
     }
 
     /**
-     * Abweisung mit sichtbarer Begründung: Ein 403 mit Location-Header führt zu einer
-     * leeren Seite, weil Browser nur 3xx-Weiterleitungen folgen - die Flash-Meldung
-     * bekam dabei nie eine Seite, auf der sie erscheinen konnte.
+     * Abweisung mit sichtbarer Begründung; die Form steht im Concern AccessDenial.
      *
      * Rechte-Abweisungen hinterlassen zusätzlich einen Protokolleintrag; fachliche
-     * Sperren wie ein abgelaufener Anmeldeschluss sind kein Autorisierungsvorfall.
+     * Sperren wie ein abgelaufener Anmeldeschluss sind kein Autorisierungsvorfall
+     * und gehen deshalb über forbidden().
      */
     private function denyRegistrationAccess(
         Response $response,
@@ -398,17 +399,11 @@ class RegistrationController
         ?string $reason = null,
         ?int $eventId = null
     ): Response {
-        if ($reason !== null) {
-            $this->logger->info('Access denied.', [
-                'event' => 'authz.denied',
-                'reason' => $reason,
-                'event_id' => $eventId,
-            ]);
+        if ($reason === null) {
+            return $this->forbidden($response, $message);
         }
 
-        return $this->view->render($response->withStatus(403), 'errors/403.twig', [
-            'error' => $message,
-        ]);
+        return $this->denyAccess($response, $message, ['reason' => $reason, 'event_id' => $eventId]);
     }
 
     /**

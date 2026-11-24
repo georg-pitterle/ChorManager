@@ -5,12 +5,15 @@ declare(strict_types=1);
 namespace App\Services;
 
 /**
- * Die Sperre, die sich alle Backup-Vorgänge teilen: Erstellen, Löschen und das
- * Übernehmen eines Pakets.
+ * Die Sperre, die sich alle Backup-Vorgänge teilen: Erstellen, Löschen,
+ * Wiederherstellen und das Übernehmen eines Pakets.
  *
  * Nötig ist sie wegen des gemeinsamen Datei-Pools. Jeder Vorgang legt Dateien
  * hinein oder räumt sie weg, und das Manifest, das sie festhält, entsteht immer
- * erst danach. Bricht ein Vorgang ab, räumt er seine Pool-Dateien auf - und trifft
+ * erst danach. Die Wiederherstellung stand lange außen vor (nachgetragen mit
+ * Antwort B1 aus Review-Lauf 84): Sie spielt die gesicherten Dateien zurück,
+ * und ein gleichzeitig laufendes Backup sicherte dann einen halb eingespielten
+ * Stand - bemerkt erst beim nächsten Restore. Bricht ein Vorgang ab, räumt er seine Pool-Dateien auf - und trifft
  * damit genau die Dateien, die ein gleichzeitig laufender gerade in sein eigenes
  * Manifest schreibt. Übrig bliebe ein Backup, dem Dateien fehlen, und bemerkt
  * würde das erst beim Restore. Die Einschränkung auf das eigene Manifest in

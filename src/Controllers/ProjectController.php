@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\AccessDenial;
 use App\Controllers\Concerns\FlashMessages;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -25,6 +26,7 @@ use App\Util\ProjectDateInput;
 
 class ProjectController
 {
+    use AccessDenial;
     use FlashMessages;
 
     private const INVALID_DATE_MESSAGE = 'Beginn und Ende müssen ein Datum sein (JJJJ-MM-TT) oder leer bleiben.';
@@ -69,14 +71,9 @@ class ProjectController
      */
     private function denyProjectAccess(Response $response, int $projectId, string $message): Response
     {
-        $this->logger->info('Access denied.', [
-            'event' => 'authz.denied',
+        return $this->denyAccess($response, $message, [
             'permission' => 'can_manage_project_members',
             'project_id' => $projectId,
-        ]);
-
-        return $this->view->render($response->withStatus(403), 'errors/403.twig', [
-            'error' => $message,
         ]);
     }
 

@@ -182,6 +182,104 @@ final class NotificationEventTriggersFeatureTest extends TestCase
         $this->assertSame(0, $this->queuedCount());
     }
 
+    /**
+     * Eine Serienänderung meldet sich - und zwar einmal.
+     *
+     * Das Häkchen "Mitglieder benachrichtigen" steht im Bearbeiten-Formular
+     * unabhängig davon, ob die Änderung auf die Serie wirkt. Der Serien-Zweig hat
+     * es lange nicht gelesen: Wer die Uhrzeit aller restlichen Montagsproben
+     * verschob, verschob sie stumm, obwohl das gesetzte Häkchen das Gegenteil
+     * versprach.
+     */
+    public function testAMovedSeriesNotifiesItsAudienceOnce(): void
+    {
+        $anchor = $this->createSeriesViaController();
+        $this->clearQueue();
+
+        $this->updateSeries($anchor, ['start_time' => '20:30', 'end_time' => '22:00']);
+
+        $this->assertSame(1, $this->queuedCount(), 'Eine Serienänderung ist eine Mail, nicht eine je Termin.');
+        $queued = $this->firstQueued();
+        $this->assertSame(NotificationType::EVENT_CHANGED, $queued->payload_json['notification_type']);
+
+        // Die Mail selbst, nicht nur die Warteschlangenzeile: Der Serien-Zweig der
+        // Vorlage wird hier mit einem echten Versand gerendert.
+        $body = (string) $queued->body_html;
+        $this->assertStringContainsString('Termine haben sich geändert', $body);
+        $this->assertStringContainsString('Beginn neu', $body);
+        $this->assertStringContainsString('20:30 Uhr', $body);
+    }
+
+    /**
+     * In der Glocke steht die Tageszeit ohne Datum: Die Serienänderung überträgt
+     * die Uhrzeit auf jeden Folgetermin, jeder behält aber seinen eigenen Tag. Das
+     * Datum des bearbeiteten Termins wäre für die übrigen falsch.
+     */
+    public function testAMovedSeriesRingsTheBellWithCountAndTimeOfDay(): void
+    {
+        $anchor = $this->createSeriesViaController();
+        $count = Event::where('series_id', $anchor->series_id)->count();
+
+        $this->updateSeries($anchor, ['start_time' => '20:30', 'end_time' => '22:00']);
+
+        $entry = $this->bell(NotificationType::EVENT_CHANGED);
+        $this->assertSame('Termine geändert: ' . $anchor->title, $entry->title);
+        $body = (string) $entry->body;
+        $this->assertStringContainsString($count . ' Termine ab ', $body);
+        $this->assertStringContainsString('Beginn: 20:30 Uhr', $body);
+        // Der Beginn der Serie darf dastehen ("6 Termine ab ..."), die geänderte
+        // Uhrzeit aber kein Datum tragen: Sie gilt für jeden Tag der Serie.
+        $this->assertStringNotContainsString(
+            'Beginn: ' . Carbon::parse($anchor->starts_at)->format('d.m.Y'),
+            $body,
+            'Das Datum des bearbeiteten Termins gilt nicht für die übrigen.'
+        );
+    }
+
+    /**
+     * Gemeldet wird nur, was der Serien-Schreibweg tatsächlich überträgt. Ist die
+     * Feldgruppe "Uhrzeit" abgewählt, bleibt jeder Termin bei seiner Zeit - dann
+     * hat sich für die Zielgruppe nichts geändert.
+     */
+    public function testASeriesChangeOutsideTheChosenFieldGroupsStaysQuiet(): void
+    {
+        $anchor = $this->createSeriesViaController();
+        $this->clearQueue();
+
+        $this->updateSeries(
+            $anchor,
+            ['start_time' => '20:30', 'end_time' => '22:00'],
+            ['title', 'location', 'registration', 'attendance', 'audience']
+        );
+
+        $this->assertSame(0, $this->queuedCount());
+    }
+
+    public function testARenamedSeriesStaysQuiet(): void
+    {
+        $anchor = $this->createSeriesViaController();
+        $this->clearQueue();
+
+        $this->updateSeries($anchor, ['title' => 'Montagsprobe (korrigiert)']);
+
+        $this->assertSame(0, $this->queuedCount());
+    }
+
+    public function testASilencedSeriesChangeSendsNothing(): void
+    {
+        $anchor = $this->createSeriesViaController();
+        $this->clearQueue();
+
+        $this->updateSeries($anchor, [
+            'start_time' => '20:30',
+            'end_time' => '22:00',
+            'notify_members_present' => '1',
+            // 'notify_members' fehlt - das leere Kästchen des Browsers.
+        ]);
+
+        $this->assertSame(0, $this->queuedCount());
+    }
+
     public function testADeletedEventNotifiesTheAudienceItStillHad(): void
     {
         $event = $this->createEventViaController();
@@ -439,6 +537,55 @@ final class NotificationEventTriggersFeatureTest extends TestCase
         }
 
         return $event->fresh();
+    }
+
+    /**
+     * Legt eine Wochenserie über den Controller an und liefert ihren ersten Termin.
+     *
+     * @return Event der bearbeitete Termin ("Anker" der Serienänderung)
+     */
+    private function createSeriesViaController(): Event
+    {
+        $firstDay = Carbon::now()->addWeek()->next(Carbon::MONDAY);
+        $before = Event::max('id') ?? 0;
+
+        $this->controller->create(
+            $this->makeRequest('POST', '/events', $this->body([
+                'starts_at' => $firstDay->format('Y-m-d'),
+                'repeat' => '1',
+                'frequency' => 'weekly',
+                'recurrence_interval' => '1',
+                'weekdays' => ['1'],
+                'series_end_date' => $firstDay->copy()->addWeeks(5)->format('Y-m-d'),
+            ])),
+            $this->makeResponse()
+        );
+
+        $anchor = Event::where('id', '>', $before)->orderBy('starts_at', 'asc')->first();
+        $this->assertNotNull($anchor, 'Die Serie muss angelegt worden sein.');
+        $this->assertNotNull($anchor->series_id, 'Der Termin muss zu einer Serie gehören.');
+        $this->assertGreaterThan(
+            3,
+            Event::where('series_id', $anchor->series_id)->count(),
+            'Die Serie muss mehrere Termine haben, sonst prüft der Test nichts.'
+        );
+
+        return $anchor->fresh();
+    }
+
+    /**
+     * Ändert die Serie ab dem übergebenen Termin. Das Datum bleibt, wie es ist -
+     * eine Serienänderung lässt nur die Uhrzeit wandern.
+     *
+     * @param array<string, mixed> $overrides
+     * @param list<string>|null $seriesFields
+     */
+    private function updateSeries(Event $anchor, array $overrides, ?array $seriesFields = null): void
+    {
+        $this->updateEvent($anchor, array_merge([
+            'update_series' => '1',
+            'series_fields' => $seriesFields ?? \App\Util\EventSeriesInput::FIELD_GROUPS,
+        ], $overrides));
     }
 
     /**

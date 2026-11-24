@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\AccessDenial;
 use App\Controllers\Concerns\FlashMessages;
 use Carbon\Carbon;
 use Exception;
@@ -45,6 +46,7 @@ use Psr\Log\LoggerInterface;
 
 class EventController
 {
+    use AccessDenial;
     use FlashMessages;
 
     /**
@@ -173,17 +175,92 @@ class EventController
             ];
         }
 
-        $oldLocation = trim((string) $event->location);
-        $location = trim((string) $newLocation);
-        if ($oldLocation !== $location) {
-            $changes[] = [
-                'label' => 'Ort',
-                'before' => $oldLocation === '' ? 'ohne Ortsangabe' : $oldLocation,
-                'after' => $location === '' ? 'ohne Ortsangabe' : $location,
-            ];
+        $locationChange = self::describeLocationChange($event->location, $newLocation);
+        if ($locationChange !== null) {
+            $changes[] = $locationChange;
         }
 
         return $changes;
+    }
+
+    /**
+     * Was sich bei einer Serienänderung an Zeit und Ort ändert.
+     *
+     * Zwei Unterschiede zum Einzeltermin. Erstens steht hier nur die Tageszeit,
+     * kein Datum: Die Serienänderung überträgt die Uhrzeit auf jeden Folgetermin,
+     * jeder behält aber seinen eigenen Tag - das Datum des bearbeiteten Termins
+     * wäre für die übrigen neununddreißig falsch. Zweitens zählt nur, was die
+     * gewählten Feldgruppen überhaupt übertragen: Eine Uhrzeit, die
+     * EventWriteService::updateSeries() ausspart, hat sich für die Zielgruppe
+     * nicht geändert, und eine Mail darüber wäre eine Behauptung.
+     *
+     * Verglichen wird mit dem bearbeiteten Termin - er ist der, den die Person
+     * vor sich hatte. Die übrigen der Serie können abweichende Zeiten tragen;
+     * genau dafür gibt es die Feldgruppen.
+     *
+     * @param list<string> $seriesFields
+     * @return list<array{label: string, before: string, after: string}>
+     */
+    private function describeSeriesChanges(
+        Event $event,
+        array $seriesFields,
+        string $newStartsAt,
+        string $newEndsAt,
+        ?string $newLocation
+    ): array {
+        $changes = [];
+
+        $timeOfDay = static fn (?string $value): string => $value === null || $value === ''
+            ? '-'
+            : Carbon::parse($value)->format('H:i') . ' Uhr';
+
+        if (in_array('time', $seriesFields, true)) {
+            $moments = [
+                ['Beginn', $event->starts_at?->format('H:i'), Carbon::parse($newStartsAt)->format('H:i')],
+                ['Ende', $event->ends_at?->format('H:i'), Carbon::parse($newEndsAt)->format('H:i')],
+            ];
+            foreach ($moments as [$label, $before, $after]) {
+                if ($before !== $after) {
+                    $changes[] = [
+                        'label' => $label,
+                        'before' => $timeOfDay($before),
+                        'after' => $timeOfDay($after),
+                    ];
+                }
+            }
+        }
+
+        $locationChange = in_array('location', $seriesFields, true)
+            ? self::describeLocationChange($event->location, $newLocation)
+            : null;
+        if ($locationChange !== null) {
+            $changes[] = $locationChange;
+        }
+
+        return $changes;
+    }
+
+    /**
+     * Der Ortswechsel als Vorher/Nachher-Paar, oder null, wenn der Ort derselbe
+     * geblieben ist. Einzeltermin und Serie melden ihn gleich - ein Saal hat
+     * keine Tageszeit, an der sich die beiden Wege unterscheiden könnten.
+     *
+     * @return array{label: string, before: string, after: string}|null
+     */
+    private static function describeLocationChange(?string $oldLocation, ?string $newLocation): ?array
+    {
+        $before = trim((string) $oldLocation);
+        $after = trim((string) $newLocation);
+
+        if ($before === $after) {
+            return null;
+        }
+
+        return [
+            'label' => 'Ort',
+            'before' => $before === '' ? 'ohne Ortsangabe' : $before,
+            'after' => $after === '' ? 'ohne Ortsangabe' : $after,
+        ];
     }
 
     /**
@@ -1334,6 +1411,16 @@ class EventController
                     );
                 }
 
+                // Der Vergleich braucht die alten Werte, also vor dem Speichern -
+                // wie beim Einzeltermin.
+                $changes = $this->describeSeriesChanges(
+                    $event,
+                    $seriesFields,
+                    $startsAt,
+                    $endsAt,
+                    $updateData['location'] ?? null
+                );
+
                 $this->eventWriter->updateSeries(
                     $eventsToUpdate,
                     $seriesFields,
@@ -1343,6 +1430,29 @@ class EventController
                     $registrationDeadline,
                     $audienceSets
                 );
+
+                if ($changes !== [] && $this->shouldNotifyMembers($data)) {
+                    // Eine Mail für die ganze Serie, nicht eine je Termin - dieselbe
+                    // Regel wie beim Anlegen. Die Zielgruppen-Zeilen werden nachgeladen,
+                    // weil der Schreibweg sie gerade neu gesetzt haben kann; ohne das
+                    // ginge die Mail an die Zielgruppe von vorher und fragte sie
+                    // außerdem je Termin einzeln ab.
+                    $eventsToUpdate->load('audienceFilters.conditions');
+                    $updatedEvents = $eventsToUpdate->all();
+
+                    $this->notifyAudience(
+                        $request,
+                        NotificationType::EVENT_CHANGED,
+                        $updatedEvents,
+                        'Termine geändert: ' . $title,
+                        'emails/notification_event_changed.twig',
+                        $this->describeWhen($updatedEvents) . ' · ' . implode(' · ', array_map(
+                            static fn (array $change): string => $change['label'] . ': ' . $change['after'],
+                            $changes
+                        )),
+                        ['changes' => $changes, 'series_title' => $title]
+                    );
+                }
 
                 $_SESSION['success'] = 'Event-Serie (' . count($eventsToUpdate) . ' Termine) erfolgreich aktualisiert.';
             } else {
@@ -1515,26 +1625,13 @@ class EventController
         return $this->policy->canManageEvents();
     }
 
-    /**
-     * Abweisung mit sichtbarer Begründung: Ein 403 mit Location-Header führt zu einer
-     * leeren Seite, weil Browser nur 3xx-Weiterleitungen folgen - und ein 403 ganz
-     * ohne Körper ebenfalls. Die Flash-Meldung bekam dabei nie eine Seite, auf der
-     * sie erscheinen konnte.
-     */
+    /** Abweisung mit sichtbarer Begründung; die Form steht im Concern AccessDenial. */
     private function denyEventAccess(
         Response $response,
         string $message,
         string $reason,
         ?int $eventId = null
     ): Response {
-        $this->logger->info('Access denied.', [
-            'event' => 'authz.denied',
-            'reason' => $reason,
-            'event_id' => $eventId,
-        ]);
-
-        return $this->view->render($response->withStatus(403), 'errors/403.twig', [
-            'error' => $message,
-        ]);
+        return $this->denyAccess($response, $message, ['reason' => $reason, 'event_id' => $eventId]);
     }
 }

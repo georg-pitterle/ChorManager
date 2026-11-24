@@ -91,9 +91,20 @@ final class NotificationTemplatesRenderFeatureTest extends TestCase
             ]],
             'event_changed' => ['emails/notification_event_changed.twig', [
                 'event' => $event,
+                'events' => [$event],
                 'changes' => [
                     ['label' => 'Beginn', 'before' => '20.09.2026 19:00 Uhr', 'after' => '20.09.2026 20:00 Uhr'],
                     ['label' => 'Ort', 'before' => 'Pfarrsaal Zentrum', 'after' => 'Aula der Musikschule'],
+                ],
+            ]],
+            // Die Serie nennt nur die Tageszeit - jeder Termin behält seinen Tag.
+            'event_changed_series' => ['emails/notification_event_changed.twig', [
+                'event' => $event,
+                'events' => array_fill(0, 20, $event),
+                'series_title' => 'Wöchentliche Probe',
+                'changes' => [
+                    ['label' => 'Beginn', 'before' => '19:00 Uhr', 'after' => '20:00 Uhr'],
+                    ['label' => 'Ende', 'before' => '21:00 Uhr', 'after' => '22:00 Uhr'],
                 ],
             ]],
             'event_cancelled_single' => ['emails/notification_event_cancelled.twig', ['events' => [$event]]],

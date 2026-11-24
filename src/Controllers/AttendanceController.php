@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\AccessDenial;
 use App\Controllers\Concerns\FlashMessages;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
@@ -22,6 +23,7 @@ use Carbon\Carbon;
 
 class AttendanceController
 {
+    use AccessDenial;
     use FlashMessages;
 
     private const SELECTED_EVENT_SESSION_KEY = 'attendance_selected_event_id';
@@ -364,25 +366,14 @@ class AttendanceController
         return [$rowsToWrite, $userIdsToClear];
     }
 
-    /**
-     * Abweisung mit sichtbarer Begründung: ein 403 mit Location-Header führt zu
-     * einer leeren Seite, weil Browser nur 3xx-Weiterleitungen folgen.
-     */
+    /** Abweisung mit sichtbarer Begründung; die Form steht im Concern AccessDenial. */
     private function denyAttendanceAccess(
         Response $response,
         string $message,
         string $reason,
         int $eventId
     ): Response {
-        $this->logger->info('Access denied.', [
-            'event' => 'authz.denied',
-            'reason' => $reason,
-            'event_id' => $eventId,
-        ]);
-
-        return $this->view->render($response->withStatus(403), 'errors/403.twig', [
-            'error' => $message,
-        ]);
+        return $this->denyAccess($response, $message, ['reason' => $reason, 'event_id' => $eventId]);
     }
 
     private function resolveSelectedEventId(?int $routeEventId, ?int $queryEventId, $events): ?int

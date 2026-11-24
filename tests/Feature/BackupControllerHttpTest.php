@@ -60,8 +60,12 @@ final class BackupControllerHttpTest extends TestCase
 
     protected function tearDown(): void
     {
-        foreach (glob($this->backupDir . '/*') ?: [] as $file) {
-            unlink($file);
+        // scandir statt glob, wie in BackupServiceTest: Die Sperrdatei
+        // .backup.lock beginnt mit einem Punkt, und glob() übergeht sie - rmdir()
+        // stand danach vor einem nicht leeren Verzeichnis.
+        foreach (array_diff(scandir($this->backupDir) ?: [], ['.', '..']) as $entry) {
+            $path = $this->backupDir . '/' . $entry;
+            is_dir($path) ? rmdir($path) : unlink($path);
         }
         if (is_dir($this->backupDir)) {
             rmdir($this->backupDir);
@@ -107,6 +111,55 @@ final class BackupControllerHttpTest extends TestCase
 
         $this->assertRedirect($response, '/login');
         $this->assertArrayNotHasKey('user_id', $_SESSION);
+    }
+
+    /**
+     * Fällt die Wiederherstellung in einen laufenden Backup-Vorgang, sagt die
+     * Seite dasselbe wie beim Erstellen und Löschen: gleich noch einmal
+     * versuchen. "Wiederherstellung fehlgeschlagen" wäre die falsche Auskunft -
+     * es ist nichts fehlgeschlagen, es war nur besetzt.
+     */
+    public function testRestoreDuringAnotherBackupRunSaysItIsBusy(): void
+    {
+        $lock = new BackupLock($this->backupDir);
+        $service = new BackupService(
+            new FakeDumpRunner(),
+            new NullLogger(),
+            $this->backupDir,
+            5,
+            5,
+            true,
+            'chormanager_test',
+            'test-version',
+            lock: $lock
+        );
+        $controller = new BackupController(
+            $this->createStub(Twig::class),
+            $service,
+            new BackupPackageService($service, $this->backupDir, null, new NullLogger(), $lock),
+            new NullLogger()
+        );
+        $metadata = $service->create(BackupService::TYPE_MANUAL, 1);
+        $_SESSION['user_id'] = 1;
+
+        $foreign = fopen($this->backupDir . '/' . BackupLock::LOCK_FILE, 'c');
+        $this->assertIsResource($foreign);
+        $this->assertTrue(flock($foreign, LOCK_EX | LOCK_NB));
+
+        try {
+            $response = $controller->restore(
+                $this->makeRequest('POST', '/backups/' . $metadata['id'] . '/restore'),
+                $this->makeResponse(),
+                ['id' => $metadata['id']]
+            );
+        } finally {
+            flock($foreign, LOCK_UN);
+            fclose($foreign);
+        }
+
+        $this->assertRedirect($response, '/backups');
+        $this->assertStringContainsString('läuft gerade schon', $_SESSION['error']);
+        $this->assertSame(1, $_SESSION['user_id'], 'Ohne Wiederherstellung bleibt die Sitzung angemeldet.');
     }
 
     public function testRestoreWithFailedMigrationNamesTheMigrationInTheFlash(): void

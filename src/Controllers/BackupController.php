@@ -85,6 +85,15 @@ class BackupController
 
         try {
             $this->backupService->restore($id);
+        } catch (BackupLockedException) {
+            // Wie beim Erstellen und Löschen kein Protokolleintrag: Das ist kein
+            // Fehler, sondern zwei Vorgänge zur selben Zeit - etwa der nächtliche
+            // Lauf und dieser Klick. Ohne diesen Zweig las sich das als
+            // "Wiederherstellung fehlgeschlagen", und das Protokoll trug einen
+            // Fehler, wo nichts kaputt war.
+            $_SESSION['error'] = self::BUSY_MESSAGE;
+
+            return $response->withHeader('Location', '/backups')->withStatus(302);
         } catch (BackupMigrationFailedException $exception) {
             $this->logger->error('Backup restored, but the migration failed.', [
                 'event' => 'backup.restore.migration_failed',

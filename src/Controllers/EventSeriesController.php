@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controllers;
 
+use App\Controllers\Concerns\AccessDenial;
 use App\Models\Event;
 use App\Policies\EventPolicy;
 use App\Services\EntityCleanupService;
@@ -33,6 +34,8 @@ use Slim\Views\Twig;
  */
 class EventSeriesController
 {
+    use AccessDenial;
+
     public function __construct(
         private readonly Twig $view,
         private readonly EventPolicy $policy,
@@ -131,22 +134,9 @@ class EventSeriesController
         return $response->withHeader('Location', '/events')->withStatus(302);
     }
 
-    /**
-     * Abweisung mit sichtbarer Begründung: Ein 403 mit Location-Header führt zu einer
-     * leeren Seite, weil Browser nur 3xx-Weiterleitungen folgen - und ein 403 ganz
-     * ohne Körper ebenfalls. Die Flash-Meldung bekam dabei nie eine Seite, auf der
-     * sie erscheinen konnte.
-     */
+    /** Abweisung mit sichtbarer Begründung; die Form steht im Concern AccessDenial. */
     private function deny(Response $response, string $message, string $reason, int $eventId): Response
     {
-        $this->logger->info('Access denied.', [
-            'event' => 'authz.denied',
-            'reason' => $reason,
-            'event_id' => $eventId,
-        ]);
-
-        return $this->view->render($response->withStatus(403), 'errors/403.twig', [
-            'error' => $message,
-        ]);
+        return $this->denyAccess($response, $message, ['reason' => $reason, 'event_id' => $eventId]);
     }
 }

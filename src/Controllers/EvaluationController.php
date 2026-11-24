@@ -7,6 +7,7 @@ namespace App\Controllers;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 use Slim\Views\Twig;
+use App\Controllers\Concerns\AccessDenial;
 use App\Models\Attendance;
 use App\Models\Event;
 use App\Models\EventRegistration;
@@ -26,6 +27,8 @@ use Psr\Log\NullLogger;
 
 class EvaluationController
 {
+    use AccessDenial;
+
     private Twig $view;
     private ProjectQuery $projectQuery;
     private EvaluationQuery $evaluationQuery;
@@ -56,21 +59,14 @@ class EvaluationController
         $this->logger = $logger ?? new NullLogger();
     }
 
-    /**
-     * Abweisung mit sichtbarer Begründung: Ein 403 ohne Körper liefert eine leere
-     * Seite, auf der niemand erkennt, woran es lag.
-     */
+    /** Abweisung mit sichtbarer Begründung; die Form steht im Concern AccessDenial. */
     private function denyProjectAccess(Response $response, int $projectId): Response
     {
-        $this->logger->info('Access denied.', [
-            'event' => 'authz.denied',
-            'reason' => 'evaluation.project_forbidden',
-            'project_id' => $projectId,
-        ]);
-
-        return $this->view->render($response->withStatus(403), 'errors/403.twig', [
-            'error' => 'Du hast keinen Zugriff auf die Auswertungen dieses Projekts.',
-        ]);
+        return $this->denyAccess(
+            $response,
+            'Du hast keinen Zugriff auf die Auswertungen dieses Projekts.',
+            ['reason' => 'evaluation.project_forbidden', 'project_id' => $projectId]
+        );
     }
 
     /**

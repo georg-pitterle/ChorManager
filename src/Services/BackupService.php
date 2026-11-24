@@ -328,7 +328,17 @@ class BackupService
         ];
     }
 
+    /**
+     * @throws BackupLockedException wenn ein anderer Backup-Vorgang läuft
+     */
     public function restore(string $id): void
+    {
+        $this->withLock(function () use ($id): void {
+            $this->restoreUnderLock($id);
+        });
+    }
+
+    private function restoreUnderLock(string $id): void
     {
         $this->assertValidId($id);
 
