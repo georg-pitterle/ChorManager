@@ -20,6 +20,7 @@ use App\Services\FinanceAccountService;
 use App\Services\FinanceBookingService;
 use App\Services\FinanceCsvExportService;
 use App\Services\FinanceGroupConflictException;
+use App\Services\FinancePeriodLockedException;
 use App\Services\FinanceJournalService;
 use App\Services\BudgetService;
 use App\Services\FinanceReportPdfService;
@@ -663,9 +664,13 @@ class FinanceController
             if ($queued !== []) {
                 $imported = $this->bookings->importRows($queued, $account, $this->currentUserId());
             }
-        } catch (FinanceGroupConflictException $e) {
-            // Nichts ist importiert, der Auszug bleibt in der Sitzung: Die Vorschau
-            // kommt mit allen Eingaben zurück und markiert die betroffenen Zeilen.
+        } catch (FinanceGroupConflictException | FinancePeriodLockedException $e) {
+            // Beide Abweisungen nennen je Zeile ihren Grund und werden gleich
+            // behandelt: Nichts ist importiert, der Auszug bleibt in der Sitzung,
+            // und die Vorschau kommt mit allen Eingaben zurück und markiert die
+            // betroffenen Zeilen. Ohne diesen Zweig fiele der abgeschlossene
+            // Zeitraum in den allgemeinen Fehlerweg darunter - der verwirft den
+            // Auszug und damit die ganze Arbeit der Kassierin.
             return $this->renderImportPreview($response, (string) ($payload['filename'] ?? ''), $rows, [
                 'suggested_account_id' => (int) $account->id,
                 'detected_iban' => $payload['detected_iban'] ?? null,

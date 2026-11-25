@@ -11,8 +11,10 @@ use App\Models\FinanceAccount;
 use App\Models\FinanceGroup;
 use App\Models\FinanceRevision;
 use App\Services\BudgetService;
+use App\Services\FinanceBookingService;
 use App\Services\FinanceGroupBudgetRule;
 use App\Services\FinanceJournalService;
+use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Eloquent\Builder;
 use PHPUnit\Framework\TestCase;
@@ -29,6 +31,8 @@ final class FinanceImportFeatureTest extends TestCase
     private const TEST_GROUP = 'Import-Testgruppe';
 
     private FinanceController $controller;
+    /** Derselbe Twig-Doppelgänger auch für einen zweiten Controller im Test. */
+    private Twig $view;
     private string $tempDir;
     /** @var array<int, array{0: string, 1: array<string, mixed>}> */
     private array $renderCalls = [];
@@ -68,6 +72,7 @@ final class FinanceImportFeatureTest extends TestCase
             }
         );
 
+        $this->view = $twig;
         $this->controller = $this->financeController(['view' => $twig]);
 
         $_SESSION = [];
@@ -358,6 +363,50 @@ final class FinanceImportFeatureTest extends TestCase
 
         $this->assertSame(0, $this->imported()->count());
         $this->assertStringContainsString('0 Buchungen importiert', (string) $_SESSION['success']);
+    }
+
+    /**
+     * Wird der Buchungsabschluss zwischen der Prüfung in der Vorschau und dem
+     * Schreiben verschoben, weist der Dienst den Auszug ab - und die Vorschau
+     * kommt mit allen Eingaben zurück und markiert die Zeile. Ohne den eigenen
+     * Zweig im Controller landete die Abweisung im allgemeinen Fehlerweg, der
+     * den Auszug aus der Sitzung wirft und die Arbeit der Kassierin mitnimmt.
+     *
+     * Das Rennen wird über einen eigenen Buchungsdienst nachgestellt: Sein
+     * Journal meldet den Zahltag der dritten Zeile als gesperrt, das Journal des
+     * Controllers - und damit flagKnownRows() - kennt keinen Stichtag.
+     */
+    public function testAPeriodClosedWhileWritingKeepsTheStatementAndMarksTheRow(): void
+    {
+        $this->preview();
+        $this->renderCalls = [];
+        $lockingJournal = new class extends FinanceJournalService {
+            public function isLocked(?string $paymentDate): bool
+            {
+                return $paymentDate === '2026-07-27';
+            }
+
+            public function closedUntil(): ?Carbon
+            {
+                return Carbon::parse('2026-07-31');
+            }
+        };
+        $this->controller = $this->financeController([
+            'view' => $this->view,
+            'bookings' => new FinanceBookingService($lockingJournal),
+        ]);
+
+        $response = $this->confirm([0, 1, 2, 3]);
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame(0, $this->imported()->count());
+        $this->assertArrayHasKey('finance_import', $_SESSION);
+        [$template, $data] = $this->renderCalls[0];
+        $this->assertSame('finances/import.twig', $template);
+        $this->assertSame([2], array_keys($data['row_messages']));
+        $this->assertStringContainsString('27.07.2026', $data['row_messages'][2]);
+        $this->assertStringContainsString('31.07.2026', $data['row_messages'][2]);
+        $this->assertSame([0, 1, 2, 3], $data['selected_indexes']);
     }
 
     public function testPreviewMarksBookingsInAClosedPeriodAsNotImportable(): void

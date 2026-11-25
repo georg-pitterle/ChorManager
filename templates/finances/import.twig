@@ -59,11 +59,11 @@
             {% if row_messages|length > 0 %}
                 <div class="alert alert-danger py-2 small" role="alert">
                     <i class="bi bi-exclamation-triangle me-1"></i>
-                    {% set _conflict_count = row_messages|length %}
-                    {% set _conflict_rows = _conflict_count == 1 ? "Eine Zeile trägt" : _conflict_count ~ " Zeilen tragen" %}
-                    Nichts wurde importiert: {{ _conflict_rows }}
-                    zwei Gruppen, die im selben Geschäftsjahr im Budget stehen. Bitte bei den markierten Zeilen eine
-                    davon entfernen und erneut importieren.
+                    {% set _rejected = row_messages|length %}
+                    {% set _rejected_rows = _rejected ~ " Zeilen sind beanstandet" %}
+                    {% set _rejected_rows = _rejected == 1 ? "eine Zeile ist beanstandet" : _rejected_rows %}
+                    Nichts wurde importiert, {{ _rejected_rows }}. Der Grund steht bei der jeweiligen Zeile;
+                    bitte dort beheben und erneut importieren.
                 </div>
             {% endif %}
             {% if error_count > 0 %}

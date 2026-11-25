@@ -8,6 +8,7 @@ use App\Models\Finance;
 use App\Models\FinanceAccount;
 use App\Models\FinanceGroup;
 use App\Models\Setting;
+use Carbon\Carbon;
 use Illuminate\Database\Capsule\Manager as Capsule;
 
 /**
@@ -137,6 +138,8 @@ class FinanceBookingService
     /**
      * Legt die geprüften Zeilen eines Kontoauszugs als Buchungen an.
      *
+     * @throws FinancePeriodLockedException wenn eine Zeile in einen abgeschlossenen Zeitraum fällt
+     * @throws FinanceGroupConflictException wenn eine Zeile unzulässige Gruppen trägt
      * @param list<array<string, mixed>> $rows geprüfte Zeilen samt group_names und import_hash
      * @return int Zahl der angelegten Buchungen
      */
@@ -145,6 +148,8 @@ class FinanceBookingService
         $imported = 0;
 
         Capsule::connection()->transaction(function () use ($rows, $account, $actorId, &$imported): void {
+            $this->assertPeriodOpenForRows($rows);
+
             // Erst alle Zeilen prüfen, dann schreiben: Eine kollidierende Zeile
             // weist den ganzen Auszug ab, und die Transaktion nimmt auch die
             // dabei neu angelegten Gruppen zurück. Still übersprungen fiele eine
@@ -406,6 +411,60 @@ class FinanceBookingService
         return $this->budgetRule->fiscalYearOf(
             is_string($paymentDate) ? $paymentDate : null,
             (string) $record['invoice_date']
+        );
+    }
+
+    /**
+     * Weist den ganzen Auszug ab, wenn eine Zeile in einen abgeschlossenen
+     * Zeitraum fällt.
+     *
+     * Die Prüfung gehört hierher und nicht nur in den Aufrufer: § 131 BAO lässt
+     * in einem abgeschlossenen Zeitraum keine neue Buchung mehr zu, und save(),
+     * reverse() und bulkChangeGroup() halten die Sperre ebenfalls je in ihrer
+     * eigenen Transaktion. Der Import tat es nicht - sein Wächter saß allein in
+     * FinanceController::flagKnownRows(). Zwischen jener Prüfung und dem
+     * Schreiben hier kann der Abschluss-Stichtag verschoben worden sein, und ein
+     * zweiter Aufrufer des Dienstes kannte die Regel gar nicht.
+     *
+     * Geprüft wird vor dem Auflösen der Gruppen: Ein Auszug, der ohnehin nicht
+     * durchgeht, soll keine Gruppe hinterlassen. Die Transaktion nähme sie zwar
+     * zurück, die Arbeit wäre aber umsonst.
+     *
+     * @throws FinancePeriodLockedException
+     * @param list<array<string, mixed>> $rows
+     */
+    private function assertPeriodOpenForRows(array $rows): void
+    {
+        $messages = [];
+        foreach ($rows as $position => $row) {
+            $paymentDate = $row['payment_date'] ?? null;
+            if (!is_string($paymentDate) || !$this->journal->isLocked($paymentDate)) {
+                continue;
+            }
+
+            $messages[(int) ($row['index'] ?? $position)] = $this->lockedPeriodMessage($paymentDate);
+        }
+
+        if ($messages !== []) {
+            throw new FinancePeriodLockedException((string) reset($messages), $messages);
+        }
+    }
+
+    /**
+     * Meldung für eine Zeile im abgeschlossenen Zeitraum. Der Stichtag steht mit
+     * darin, damit die Kassierin sieht, bis wann zu ist.
+     *
+     * Das Datum ist hier lesbar: isLocked() hat es schon erfolgreich gedeutet,
+     * sonst wäre die Zeile nicht als gesperrt zurückgekommen.
+     */
+    private function lockedPeriodMessage(string $paymentDate): string
+    {
+        $closedUntil = $this->journal->closedUntil();
+
+        return sprintf(
+            'Der Zahltag %s liegt im abgeschlossenen Zeitraum bis %s. Dort darf keine Buchung mehr entstehen.',
+            Carbon::parse($paymentDate)->format('d.m.Y'),
+            $closedUntil?->format('d.m.Y') ?? '-'
         );
     }
 
