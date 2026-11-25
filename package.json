@@ -17,7 +17,7 @@
     "pdfjs-dist": "6.5.438",
     "sortablejs": "^1.15.7",
     "temporal-polyfill": "1.0.8",
-    "tinymce": "8.10.2",
+    "tinymce": "8.11.0",
     "tinymce-i18n": "26.11.2",
     "tom-select": "^2.7.0"
   },
