@@ -24,8 +24,9 @@ use Tests\Unit\Bootstrap;
  * vorbeigeht; deshalb stand auch nichts im Log.
  *
  * Seitdem wählt die Beziehung selbst die Metadaten-Spalten. Wer den Inhalt
- * braucht, holt ihn gezielt über eine eigene Abfrage (`findWithContent()`,
- * `WebdavTreeService::loadFile()`, `NewsletterAttachmentService::attachedFiles()`).
+ * braucht, holt ihn gezielt über eine eigene Abfrage
+ * (`AttachmentController::loadContent()`, `WebdavTreeService::loadFile()`,
+ * `NewsletterAttachmentService::attachedFiles()`).
  */
 final class AttachmentRelationBlobLoadFeatureTest extends TestCase
 {

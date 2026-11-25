@@ -75,11 +75,6 @@ class WebdavAccessService
         return WebdavAccessToken::where('user_id', $userId)->exists();
     }
 
-    public function revokeTokenForUser(int $userId): void
-    {
-        WebdavAccessToken::where('user_id', $userId)->delete();
-    }
-
     /**
      * Prüft die Zugangsdaten eines Basic-Auth-Kopfes.
      *

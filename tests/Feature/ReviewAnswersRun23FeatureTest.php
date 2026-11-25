@@ -100,16 +100,6 @@ final class ReviewAnswersRun23FeatureTest extends TestCase
             {
                 return $this->result + ['provider_name' => 'smtp', 'provider_message_id' => 'id-1'];
             }
-
-            public function sendHtmlMail(
-                string $to,
-                string $subject,
-                string $htmlBody,
-                array $attachments = []
-            ): bool
-            {
-                return (bool) $this->result['success'];
-            }
         };
     }
 

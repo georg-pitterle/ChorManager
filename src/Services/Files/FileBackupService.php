@@ -223,11 +223,6 @@ final class FileBackupService implements FileBackupInterface
         return $written;
     }
 
-    public function hasManifest(string $backupDir, string $backupId): bool
-    {
-        return is_file($this->manifestPath($backupDir, $backupId));
-    }
-
     /**
      * @param array<string, array{storage_driver: string, storage_path: string, size: int, sha256: string}> $entries
      * @return array{entries: array<string, array{storage_driver: string, storage_path: string, size: int,

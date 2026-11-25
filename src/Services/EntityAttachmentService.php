@@ -242,18 +242,6 @@ class EntityAttachmentService
     }
 
     /**
-     * Anhang samt Inhalt, aber nur wenn er zur angefragten Entität gehört.
-     * Der Zugehörigkeitstest steckt in der Abfrage, nicht in einem Vergleich
-     * danach - ein fremder Anhang wird deshalb nie gelesen.
-     */
-    public function findWithContent(string $entityType, int $entityId, int $attachmentId): ?Attachment
-    {
-        return Attachment::where('entity_type', $entityType)
-            ->where('entity_id', $entityId)
-            ->find($attachmentId);
-    }
-
-    /**
      * Löscht einen einzelnen Anhang der Entität. Gibt false zurück, wenn es ihn
      * dort nicht gibt (falsche Entität oder bereits gelöscht).
      */

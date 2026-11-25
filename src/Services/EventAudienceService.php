@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Models\Event;
 use App\Services\Audience\AudienceOwnerService;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use App\Models\User;
 
 /**
@@ -70,14 +69,6 @@ class EventAudienceService extends AudienceOwnerService
     public function eligibleUsersQuery(Event $event): Builder
     {
         return $this->membersQueryForSets($event->audienceConditionSets());
-    }
-
-    /**
-     * @return Collection<int, User>
-     */
-    public function resolveEligibleUsers(Event $event): Collection
-    {
-        return $this->eligibleUsersQuery($event)->get();
     }
 
     /**

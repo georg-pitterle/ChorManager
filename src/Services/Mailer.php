@@ -328,16 +328,6 @@ class Mailer
         return $this->mail->getSentMIMEMessage();
     }
 
-    /**
-     * @param array<int, array{content: string, name: string, mime: string}> $attachments
-     */
-    public function sendHtmlMail(string $to, string $subject, string $htmlBody, array $attachments = []): bool
-    {
-        $result = $this->sendHtmlMailDetailed($to, $subject, $htmlBody, $attachments);
-
-        return (bool) ($result['success'] ?? false);
-    }
-
     public function getLastError(): ?string
     {
         return $this->lastError;

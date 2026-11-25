@@ -94,12 +94,4 @@ class ModalFormService
             $_SESSION[$this->scope . '_open_modal']
         );
     }
-
-    /**
-     * Gibt den Scope zurück (für Template-Identifikation)
-     */
-    public function getScope(): string
-    {
-        return $this->scope;
-    }
 }

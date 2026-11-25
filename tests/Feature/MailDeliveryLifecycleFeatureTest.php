@@ -614,16 +614,6 @@ final class MailDeliveryLifecycleFeatureTest extends TestCase
                 return $this->result;
             }
 
-            public function sendHtmlMail(
-                string $to,
-                string $subject,
-                string $htmlBody,
-                array $attachments = []
-            ): bool
-            {
-                return (bool) $this->result['success'];
-            }
-
             public function getLastError(): ?string
             {
                 return null;
