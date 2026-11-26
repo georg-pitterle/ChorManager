@@ -67,6 +67,14 @@ class EventController
 
     private const VIEW_COOKIE_MAX_AGE = 365 * 86400;
 
+    /**
+     * Meldung für einen Anmeldeschluss nach dem Terminbeginn.
+     *
+     * Anlegen und Ändern formulieren sie nicht je selbst: Sie steht für
+     * dieselbe Regel, und zwei Fassungen desselben Satzes laufen auseinander.
+     */
+    private const DEADLINE_AFTER_START_ERROR = 'Der Anmeldeschluss darf nicht nach dem Terminbeginn liegen.';
+
     private Twig $view;
     private NameFormatterService $nameFormatter;
     private LoggerInterface $logger;
@@ -238,6 +246,38 @@ class EventController
         }
 
         return $changes;
+    }
+
+    /**
+     * Liegt der eingegebene Anmeldeschluss nach dem Terminbeginn?
+     *
+     * `Event::isRegistrationOpen()` schließt die Anmeldung in jedem Fall mit
+     * dem Terminbeginn - ein späterer Schluss gilt also nicht, wurde aber
+     * gespeichert und in Terminplan und Startseite als "Anmeldung bis ..."
+     * angezeigt. Wer ihn eintrug, sah damit eine Frist in der Zukunft und kam
+     * trotzdem nicht mehr an die Antwortknöpfe, ohne dass irgendwo stand warum.
+     *
+     * Die Entscheidung aus Review-Lauf 86 lautet: Der Terminbeginn gewinnt wie
+     * bisher, und die Eingabe wird abgewiesen. Der naheliegende Weg, den Schluss
+     * stattdessen stillschweigend auf den Beginn zu kürzen, wurde verworfen - er
+     * speichert etwas anderes als das Eingetragene, und genau diese Sorte
+     * lautloser Korrektur war der Grund für die Verwirrung.
+     *
+     * Gleich zum Beginn bleibt erlaubt: Das ist die Vorgabe, die ein leeres Feld
+     * ohnehin bedeutet ("optional, sonst Terminbeginn").
+     *
+     * Für eine Serie reicht dieselbe Prüfung am bearbeiteten Termin:
+     * EventWriteService rechnet den Schluss in einen Vorlauf zum jeweiligen
+     * Beginn um, und ein Vorlauf, der hier nicht in die Zukunft zeigt, zeigt es
+     * bei keinem Termin der Serie.
+     *
+     * @param string|null $deadline Anmeldeschluss als `Y-m-d H:i:s`, oder null,
+     *                              wenn keiner gilt - auch ohne freigeschaltete
+     *                              Anmeldung ist das Feld wirkungslos.
+     */
+    private static function deadlineIsAfterStart(?string $deadline, Carbon $start): bool
+    {
+        return $deadline !== null && Carbon::parse($deadline)->greaterThan($start);
     }
 
     /**
@@ -1071,6 +1111,11 @@ class EventController
             $createService->setError('Endzeit muss nach der Startzeit liegen.', $formData);
             return $response->withHeader('Location', '/events')->withStatus(302);
         }
+        if (self::deadlineIsAfterStart($registrationDeadline, $parsedStart)) {
+            $createService = new ModalFormService('event_create');
+            $createService->setError(self::DEADLINE_AFTER_START_ERROR, $formData);
+            return $response->withHeader('Location', '/events')->withStatus(302);
+        }
         $startsAt = $parsedStart->format('Y-m-d H:i:s');
         $endsAt   = $parsedEnd->format('Y-m-d H:i:s');
 
@@ -1358,6 +1403,11 @@ class EventController
         if (!$parsedEnd->greaterThan($parsedStart)) {
             $editService = new ModalFormService('event_edit');
             $editService->setError('Endzeit muss nach der Startzeit liegen.', $formData);
+            return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
+        }
+        if (self::deadlineIsAfterStart($registrationDeadline, $parsedStart)) {
+            $editService = new ModalFormService('event_edit');
+            $editService->setError(self::DEADLINE_AFTER_START_ERROR, $formData);
             return $response->withHeader('Location', '/events/' . $id . '/edit')->withStatus(302);
         }
         $startsAt = $parsedStart->format('Y-m-d H:i:s');

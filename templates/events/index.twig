@@ -373,7 +373,11 @@
                                        class="form-control"
                                        id="registration-deadline"
                                        name="registration_deadline"
-                                       value="{{ create_form.form.registration_deadline|default('') }}">
+                                       value="{{ create_form.form.registration_deadline|default('') }}"
+                                       aria-describedby="registration-deadline-help">
+                                <div id="registration-deadline-help" class="form-text">
+                                    Nicht nach dem Terminbeginn - ab dem Beginn ist die Anmeldung geschlossen.
+                                </div>
                             </div>
                         {% endif %}
 
