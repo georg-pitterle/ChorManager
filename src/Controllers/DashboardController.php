@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers;
 
 use App\Models\Event;
+use App\Models\EventRegistration;
 use App\Models\Newsletter;
 use App\Models\NewsletterArchive;
 use App\Models\Project;
@@ -194,6 +195,7 @@ class DashboardController
             'todays_event' => $todaysEvent,
             'member_count' => $memberCount,
             'open_polls' => $openPolls,
+            'answer_labels' => EventRegistration::STATUS_LABELS,
         ];
 
         return $this->view->render($response, 'dashboard/index.twig', $data);

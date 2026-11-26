@@ -28,7 +28,6 @@
 {% endblock page_header %}
 
 {% block content %}
-    {% set answer_labels = {yes: "Zusage", maybe: "Vielleicht", no: "Absage"} %}
     {% set own_status = own_registration ? own_registration.status : null %}
 
     {{ include("registrations/partials/flash.twig") }}

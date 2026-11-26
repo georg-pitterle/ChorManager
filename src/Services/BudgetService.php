@@ -161,7 +161,7 @@ class BudgetService
             ->where('fiscal_year_start', $fiscalYearStart)
             ->orderBy('type')
             ->get()
-            ->sortBy(fn ($category) => $category->financeGroup->name ?? '')
+            ->sortBy(fn (BudgetCategory $category): string => (string) $category->group_name)
             ->values();
 
         $result = [

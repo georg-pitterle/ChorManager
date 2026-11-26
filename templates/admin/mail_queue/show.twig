@@ -27,23 +27,6 @@
 {% endblock page_header %}
 
 {% block content %}
-    {% set status_labels = {
-        queued: "In Warteschlange",
-        sending: "Wird gesendet",
-        sent: "Versendet",
-        skipped: "Übersprungen",
-        failed: "Fehlgeschlagen",
-        dead: "Endgültig fehlgeschlagen",
-    } %}
-    {% set status_badges = {
-        queued: "bg-secondary",
-        sending: "bg-primary",
-        sent: "bg-success",
-        skipped: "bg-info text-dark",
-        failed: "bg-warning text-dark",
-        dead: "bg-danger",
-    } %}
-
     <div class="dashboard-shell">
         <section class="dashboard-section dashboard-section--context"
                  aria-labelledby="mail-queue-details-title">

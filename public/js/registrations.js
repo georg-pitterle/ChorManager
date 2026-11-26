@@ -2,7 +2,6 @@
   "use strict";
 
   var STATUS_COLORS = { yes: "success", maybe: "warning", no: "danger" };
-  var STATUS_LABELS = { yes: "Zusage", maybe: "Vielleicht", no: "Absage" };
   var FALLBACK_ERROR = "Nicht gespeichert – bitte Verbindung prüfen und erneut tippen.";
 
   function csrfToken() {
@@ -35,6 +34,15 @@
       }
       reset.hidden = !ownStatus;
     }
+  }
+
+  // Die Beschriftung steht am Knopf (data-answer-label), nicht in einer zweiten
+  // Zuordnung hier: Maßgeblich ist EventRegistration::STATUS_LABELS, das die
+  // Vorlage an den Knopf schreibt.
+  function answerLabel(form, status) {
+    var button = form.querySelector('button[data-status="' + status + '"]');
+    var label = button ? button.getAttribute("data-answer-label") : null;
+    return label || status;
   }
 
   function setStatusText(form, text, isError) {
@@ -178,7 +186,7 @@
       applyOwnStatus(form, ownStatus);
       setStatusText(
         form,
-        ownStatus ? "Gespeichert – deine Antwort: " + STATUS_LABELS[ownStatus] : "Antwort zurückgenommen",
+        ownStatus ? "Gespeichert – deine Antwort: " + answerLabel(form, ownStatus) : "Antwort zurückgenommen",
         false
       );
       if (card) {
@@ -192,6 +200,16 @@
     } finally {
       setBusy(form, false);
     }
+  }
+
+  // Wie bei install-banner.js: Die reine Funktion ist auch in Node ansprechbar,
+  // der DOM-Teil darunter läuft nur im Browser.
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = { answerLabel: answerLabel };
+  }
+
+  if (typeof document === "undefined") {
+    return;
   }
 
   document.addEventListener("DOMContentLoaded", function () {

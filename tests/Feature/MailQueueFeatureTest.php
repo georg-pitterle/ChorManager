@@ -27,11 +27,11 @@ class MailQueueFeatureTest extends TestCase
         $this->assertIsString($showTemplate);
 
         $this->assertStringContainsString('Mailversand-Verwaltung', $indexTemplate);
-        $this->assertStringContainsString('In Warteschlange', $indexTemplate);
-        $this->assertStringContainsString('Wird gesendet', $indexTemplate);
-        $this->assertStringContainsString('Versendet', $indexTemplate);
-        $this->assertStringContainsString('Fehlgeschlagen', $indexTemplate);
-        $this->assertStringContainsString('Endgültig fehlgeschlagen', $indexTemplate);
+        // Die sechs Zustandsnamen standen bis hierher als Zeichenketten in dieser
+        // Vorlage - und wortgleich ein zweites Mal daneben. Sie kommen jetzt aus
+        // `MailQueue::STATUS_LABELS`; dass jeder Zustand dort einen deutschen Namen
+        // hat, hält Tests\Unit\Models\StatusLabelsLiveAtTheModelTest fest, und
+        // dass beide Seiten ihn auch anzeigen, MailQueuePagesRenderFeatureTest.
         $this->assertStringContainsString('Empfänger', $indexTemplate);
         $this->assertStringContainsString('Nächster Versuch', $indexTemplate);
         $this->assertStringContainsString('Keine Einträge gefunden.', $indexTemplate);

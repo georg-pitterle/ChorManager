@@ -18,7 +18,6 @@
 {% endblock page_header %}
 
 {% block content %}
-    {% set answer_labels = {yes: "Zusage", maybe: "Vielleicht", no: "Absage"} %}
     {% set _pending = registration_summary ? registration_summary.pending : 0 %}
     {% set _dead = dead_mail_count is not null and dead_mail_count > 0 %}
     {% set _first_event = upcoming_events|first %}

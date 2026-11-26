@@ -39,11 +39,6 @@ final class SponsorPackageColor
         return isset(self::LABELS[$color]) ? $color : self::DEFAULT;
     }
 
-    public static function label(?string $color): string
-    {
-        return self::LABELS[$color ?? ''] ?? self::LABELS[self::DEFAULT];
-    }
-
     public static function badgeClass(?string $color): string
     {
         return 'text-bg-' . (isset(self::LABELS[$color ?? '']) ? $color : self::DEFAULT);

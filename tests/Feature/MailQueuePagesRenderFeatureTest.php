@@ -124,6 +124,35 @@ final class MailQueuePagesRenderFeatureTest extends TestCase
         $this->assertStringContainsString('Probenplan', (string) $response->getBody());
     }
 
+    /**
+     * Beide Seiten zeigen den Zustand als deutsches Abzeichen.
+     *
+     * Die Zuordnung dafür stand wortgleich in beiden Vorlagen und liegt jetzt
+     * als `MailQueue::STATUS_LABELS` am Modell, von wo der Controller sie
+     * durchreicht. Ohne diese Zusicherung wäre ein vergessenes
+     * `status_labels` in einer der beiden Rendermethoden still geblieben: Twig
+     * schreibt für eine unbekannte Zuordnung keinen Fehler, sondern den
+     * `default`-Zweig - hier den rohen englischen Schlüssel.
+     */
+    public function testBeideSeitenZeigenDenZustandAlsDeutschesAbzeichen(): void
+    {
+        $entry = $this->createEntry(MailQueue::STATUS_SKIPPED, MailQueue::MAIL_TYPE_NEWSLETTER, '<p>Probenplan</p>');
+        $pattern = '/<span class="badge '
+            . preg_quote(MailQueue::STATUS_BADGE_CLASSES[MailQueue::STATUS_SKIPPED], '/')
+            . '">\s*'
+            . preg_quote(MailQueue::STATUS_LABELS[MailQueue::STATUS_SKIPPED], '/')
+            . '/u';
+
+        $listResponse = $this->controller('/admin/mail-queue')
+            ->index($this->makeRequest('GET', '/admin/mail-queue'), $this->makeResponse());
+        $this->assertMatchesRegularExpression($pattern, (string) $listResponse->getBody());
+
+        $path = '/admin/mail-queue/' . $entry->id;
+        $detailResponse = $this->controller($path)
+            ->show($this->makeRequest('GET', $path), $this->makeResponse(), ['id' => (string) $entry->id]);
+        $this->assertMatchesRegularExpression($pattern, (string) $detailResponse->getBody());
+    }
+
     private function controller(string $currentPath): MailQueueController
     {
         return new MailQueueController($this->createAppTwig($currentPath), new MailQueueAdminService());

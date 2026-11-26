@@ -58,11 +58,6 @@ class SponsorPackage extends Model
         return SponsorPackageColor::badgeClass($this->color);
     }
 
-    public function getColorLabelAttribute(): string
-    {
-        return SponsorPackageColor::label($this->color);
-    }
-
     public function sponsorships()
     {
         return $this->hasMany(Sponsorship::class, 'package_id');

@@ -14,52 +14,36 @@
 {% endblock page_header %}
 
 {% block content %}
-    {% set status_labels = {
-        queued: "In Warteschlange",
-        sending: "Wird gesendet",
-        sent: "Versendet",
-        skipped: "Übersprungen",
-        failed: "Fehlgeschlagen",
-        dead: "Endgültig fehlgeschlagen",
-    } %}
-    {% set status_badges = {
-        queued: "bg-secondary",
-        sending: "bg-primary",
-        sent: "bg-success",
-        skipped: "bg-info text-dark",
-        failed: "bg-warning text-dark",
-        dead: "bg-danger",
-    } %}
     {% set has_entries = entries|length > 0 %}
 
     <div class="mail-queue-overview-grid mb-4">
         <article class="surface-card mail-queue-stat-card">
-            <span class="mail-queue-stat-card__label">In Warteschlange</span>
+            <span class="mail-queue-stat-card__label">{{ status_labels.queued }}</span>
             <strong class="mail-queue-stat-card__value">{{ stats.queued }}</strong>
             <span class="mail-queue-stat-card__meta">Bereit für den nächsten Versandlauf</span>
         </article>
         <article class="surface-card mail-queue-stat-card">
-            <span class="mail-queue-stat-card__label">Wird gesendet</span>
+            <span class="mail-queue-stat-card__label">{{ status_labels.sending }}</span>
             <strong class="mail-queue-stat-card__value">{{ stats.sending }}</strong>
             <span class="mail-queue-stat-card__meta">Aktuell in Bearbeitung</span>
         </article>
         <article class="surface-card mail-queue-stat-card">
-            <span class="mail-queue-stat-card__label">Versendet</span>
+            <span class="mail-queue-stat-card__label">{{ status_labels.sent }}</span>
             <strong class="mail-queue-stat-card__value">{{ stats.sent }}</strong>
             <span class="mail-queue-stat-card__meta">Vom Provider akzeptierte Mails</span>
         </article>
         <article class="surface-card mail-queue-stat-card">
-            <span class="mail-queue-stat-card__label">Übersprungen</span>
+            <span class="mail-queue-stat-card__label">{{ status_labels.skipped }}</span>
             <strong class="mail-queue-stat-card__value">{{ stats.skipped }}</strong>
             <span class="mail-queue-stat-card__meta">Absichtlich nicht versendete Mails</span>
         </article>
         <article class="surface-card mail-queue-stat-card">
-            <span class="mail-queue-stat-card__label">Fehlgeschlagen</span>
+            <span class="mail-queue-stat-card__label">{{ status_labels.failed }}</span>
             <strong class="mail-queue-stat-card__value">{{ stats.failed }}</strong>
             <span class="mail-queue-stat-card__meta">Warten auf erneuten Versuch</span>
         </article>
         <article class="surface-card mail-queue-stat-card mail-queue-stat-card--critical">
-            <span class="mail-queue-stat-card__label">Endgültig fehlgeschlagen</span>
+            <span class="mail-queue-stat-card__label">{{ status_labels.dead }}</span>
             <strong class="mail-queue-stat-card__value">{{ stats.dead }}</strong>
             <span class="mail-queue-stat-card__meta">Benötigen manuelle Prüfung</span>
         </article>

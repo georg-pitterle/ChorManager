@@ -19,7 +19,6 @@
 {% endblock page_header %}
 
 {% block content %}
-    {% set answer_labels = {yes: "Zusage", maybe: "Vielleicht", no: "Absage"} %}
     {% set final_labels = {yes: "Du hast zugesagt", maybe: "Du hast mit Vielleicht geantwortet", no: "Du hast abgesagt"} %}
 
     {{ include("registrations/partials/flash.twig") }}

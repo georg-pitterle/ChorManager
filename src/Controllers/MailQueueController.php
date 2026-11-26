@@ -63,6 +63,8 @@ class MailQueueController
                 'page_count' => $pageCount,
                 'per_page' => $perPage,
                 'type_labels' => MailQueue::MAIL_TYPE_LABELS,
+                'status_labels' => MailQueue::STATUS_LABELS,
+                'status_badges' => MailQueue::STATUS_BADGE_CLASSES,
             ]
         );
     }
@@ -92,6 +94,8 @@ class MailQueueController
             [
                 'entry' => $entry,
                 'type_labels' => MailQueue::MAIL_TYPE_LABELS,
+                'status_labels' => MailQueue::STATUS_LABELS,
+                'status_badges' => MailQueue::STATUS_BADGE_CLASSES,
                 'body_html' => $bodyIsSecret ? null : $entry->body_html,
                 'body_is_secret' => $bodyIsSecret,
             ]

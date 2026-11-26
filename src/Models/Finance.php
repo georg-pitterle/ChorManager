@@ -99,7 +99,7 @@ class Finance extends Model
         $names = $this->groups->map(static fn(FinanceGroup $group): string => (string) $group->name)->all();
         sort($names, SORT_NATURAL | SORT_FLAG_CASE);
 
-        return array_values($names);
+        return $names;
     }
 
     /** @return \Illuminate\Database\Eloquent\Relations\BelongsTo */

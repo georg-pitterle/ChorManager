@@ -38,6 +38,44 @@ class MailQueue extends Model
     ];
 
     /**
+     * Beschriftung je Zustand für die Oberfläche.
+     *
+     * Steht hier und nicht in den Vorlagen - gleiche Begründung wie bei
+     * MAIL_TYPE_LABELS: Die Zuordnung stand in `admin/mail_queue/index.twig`
+     * und `admin/mail_queue/show.twig` wortgleich zweimal da, direkt neben der
+     * Zuordnung der Mailarten, die aus genau diesem Grund schon hier steht.
+     *
+     * @var array<string, string>
+     */
+    public const STATUS_LABELS = [
+        self::STATUS_QUEUED => 'In Warteschlange',
+        self::STATUS_SENDING => 'Wird gesendet',
+        self::STATUS_SENT => 'Versendet',
+        self::STATUS_SKIPPED => 'Übersprungen',
+        self::STATUS_FAILED => 'Fehlgeschlagen',
+        self::STATUS_DEAD => 'Endgültig fehlgeschlagen',
+    ];
+
+    /**
+     * Abzeichen-Klasse je Zustand, aus denselben zwei Vorlagen wie die Labels.
+     *
+     * Die Klassen stehen unverändert so da, wie die Vorlagen sie hatten -
+     * `bg-*` mit eigener Schriftfarbe, nicht `text-bg-*` wie bei
+     * `Task::STATUS_BADGE_CLASSES`. Das Zusammenlegen soll die Oberfläche nicht
+     * nebenbei umfärben; wer das vereinheitlichen will, tut es sichtbar.
+     *
+     * @var array<string, string>
+     */
+    public const STATUS_BADGE_CLASSES = [
+        self::STATUS_QUEUED => 'bg-secondary',
+        self::STATUS_SENDING => 'bg-primary',
+        self::STATUS_SENT => 'bg-success',
+        self::STATUS_SKIPPED => 'bg-info text-dark',
+        self::STATUS_FAILED => 'bg-warning text-dark',
+        self::STATUS_DEAD => 'bg-danger',
+    ];
+
+    /**
      * Was der Versanddienstleister über die Zustellung zurückmeldet - eine
      * andere Frage als `status`, der nur sagt, ob wir die Mail losgeschickt
      * haben. `accepted` heißt angenommen, nicht angekommen; erst `delivered`,

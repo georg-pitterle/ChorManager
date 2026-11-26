@@ -13,6 +13,26 @@ class EventRegistration extends Model
     public const STATUS_MAYBE = 'maybe';
     public const STATUSES = [self::STATUS_YES, self::STATUS_NO, self::STATUS_MAYBE];
 
+    /**
+     * Beschriftung je Antwort für die Oberfläche.
+     *
+     * Steht hier und nicht in den Vorlagen - gleiche Begründung wie bei
+     * `MailQueue::MAIL_TYPE_LABELS` und `Task::STATUS_LABELS`: Die Zuordnung
+     * stand wortgleich viermal da, als `answer_labels` in
+     * `registrations/index.twig`, `registrations/detail.twig` und
+     * `dashboard/index.twig` und ein viertes Mal als `STATUS_LABELS` in
+     * `public/js/registrations.js`, das die Zeile nach einer gespeicherten
+     * Antwort neu schreibt. Das JavaScript liest den Text jetzt am Knopf ab
+     * (`data-answer-label`) und kennt die Antworten nicht mehr.
+     *
+     * @var array<string, string>
+     */
+    public const STATUS_LABELS = [
+        self::STATUS_YES => 'Zusage',
+        self::STATUS_MAYBE => 'Vielleicht',
+        self::STATUS_NO => 'Absage',
+    ];
+
     protected $table = 'event_registrations';
 
     protected $fillable = [

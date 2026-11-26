@@ -6,6 +6,7 @@
         name="status"
         value="{{ status }}"
         data-status="{{ status }}"
+        data-answer-label="{{ answer_labels[status] }}"
         aria-pressed="{{ _active ? "true" : "false" }}"
         class="btn {{ _active ? "btn-" ~ color : "btn-outline-" ~ color }}">
     <i class="bi bi-{{ icon }}" aria-hidden="true"></i> {{ answer_labels[status] }}

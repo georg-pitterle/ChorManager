@@ -106,6 +106,7 @@ class RegistrationController
 
         return $this->view->render($response, 'registrations/index.twig', [
             'rows' => $rows,
+            'answer_labels' => EventRegistration::STATUS_LABELS,
             'months' => (new EventScheduleFormatter())->groupByMonth($rows),
             'unanswered_count' => $unansweredCount,
             'success' => $success,
@@ -215,6 +216,7 @@ class RegistrationController
 
         return $this->view->render($response, 'registrations/detail.twig', [
             'event' => $event,
+            'answer_labels' => EventRegistration::STATUS_LABELS,
             'schedule' => $this->scheduleLabels($event, Carbon::now()),
             'voice_groups' => $voiceGroups,
             'own_registration' => $ownRegistration,
