@@ -178,6 +178,29 @@ class UserEditPolicy
     }
 
     /**
+     * Ist die Adresse gesperrt, weil die Stufe des Ziels nicht darunter liegt -
+     * und nicht, weil das Recht fehlt?
+     *
+     * Die Frage stellt das Formular, nicht die Berechtigung: Es zeigt unter dem
+     * gesperrten Feld, woran es liegt. canEditEmail() verneint aus zwei Gründen,
+     * und der Hinweistext nannte für beide das Recht "Mitglieder editieren
+     * erlauben". Bei einem Gleichrangigen hält die Person dieses Recht - sie las
+     * dort also, ihr fehle genau das, was sie hat, und hätte es vergeblich
+     * gesucht.
+     *
+     * Antwortet nur, solange das Recht da ist; fehlt es, bleibt der Hinweis auf
+     * das Recht der richtige, auch bei gleicher Stufe. Im Formular ist der
+     * gemeldete Fall immer die gleiche Stufe, weil ein ranghöheres Ziel die
+     * Profilfelder gar nicht erst zeigt (canEditProfile()). Die Prüfung steht
+     * trotzdem auf `>=`, damit die Antwort auch für sich genommen stimmt.
+     */
+    public function emailLockedByRank(User $target): bool
+    {
+        return $this->canEditUsers
+            && $this->highestLevelOf($target) >= $this->actorLevel;
+    }
+
+    /**
      * True when the session may archive the member - or bring an archived one back.
      *
      * Die einzige Stufe, die den archivierten Zustand des Ziels nicht prüft:

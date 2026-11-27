@@ -692,6 +692,10 @@ class UserController
             // Adresse und Einladung hängen an der Mitgliederverwaltung, nicht am
             // Bearbeiten-Recht: siehe UserEditPolicy::canEditEmail().
             'can_edit_email' => $this->userEditPolicy->canEditEmail($targetUser),
+            // Woran die gesperrte Adresse liegt: an der Stufe des Ziels oder am
+            // fehlenden Recht. Der Hinweis unter dem Feld nannte zuvor immer das
+            // Recht - bei einem Gleichrangigen also genau das, was die Person hält.
+            'email_locked_by_rank' => $this->userEditPolicy->emailLockedByRank($targetUser),
             'can_invite' => (bool) $canManageUsers,
             // Dieselbe Antwort, die update() vor dem Schreiben einholt. Zuvor stand
             // hier `can_edit_users`, und zwar auf `true` gesetzt für jede Sitzung ohne

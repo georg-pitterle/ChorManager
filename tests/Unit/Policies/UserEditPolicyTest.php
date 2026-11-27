@@ -82,6 +82,38 @@ final class UserEditPolicyTest extends TestCase
         $this->assertTrue($this->policy($session)->canEditEmail($this->makeUser(7, [], 1, [])));
     }
 
+    /**
+     * Warum die Adresse gesperrt ist, hat zwei Gründe, und das Formular nennt
+     * den falschen, wenn es sie nicht unterscheidet: Bei einem Gleichrangigen
+     * ist das Recht da und die Stufe sperrt, nicht umgekehrt.
+     */
+    public function testTheLockedEmailNamesTheRankWhenTheRightIsHeld(): void
+    {
+        $session = ['can_edit_users' => true, 'role_level' => 50];
+
+        $this->assertTrue(
+            $this->policy($session)->emailLockedByRank($this->makeUser(7, [], 1, [50]))
+        );
+    }
+
+    public function testTheLockedEmailDoesNotBlameTheRankWithoutTheRight(): void
+    {
+        $session = ['can_edit_users' => false, 'can_manage_own_voice_group' => true, 'role_level' => 50];
+
+        $this->assertFalse(
+            $this->policy($session)->emailLockedByRank($this->makeUser(7, [], 1, [50]))
+        );
+    }
+
+    public function testTheLockedEmailBlamesNothingWhenItIsNotLocked(): void
+    {
+        $session = ['can_edit_users' => true, 'role_level' => 50];
+
+        $this->assertFalse(
+            $this->policy($session)->emailLockedByRank($this->makeUser(7, [], 1, [49]))
+        );
+    }
+
     public function testGlobalEditPermissionAllowsEditing(): void
     {
         $session = ['can_edit_users' => true, 'can_manage_users' => true];

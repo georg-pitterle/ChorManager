@@ -61,7 +61,11 @@
                        id="partials-user-edit-form-email">
                 {% if not can_edit_email %}
                     <div class="form-text">
-                        Die E-Mail-Adresse ändert nur, wer das Recht „Mitglieder editieren erlauben“ hat.
+                        {% if email_locked_by_rank|default(false) %}
+                            Die E-Mail-Adresse ändert nur, wer in der Rollenhierarchie über dem Mitglied steht.
+                        {% else %}
+                            Die E-Mail-Adresse ändert nur, wer das Recht „Mitglieder editieren erlauben“ hat.
+                        {% endif %}
                     </div>
                 {% endif %}
             </div>

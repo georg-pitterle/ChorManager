@@ -152,6 +152,50 @@ final class UserEditProjectFieldScopeFeatureTest extends TestCase
         return (string) $response->getBody();
     }
 
+    /**
+     * Die gesperrte Adresse nennt den Grund, der wirklich gilt.
+     *
+     * Bei einem Gleichrangigen ist das Recht "Mitglieder editieren erlauben"
+     * vorhanden - gesperrt hat die Rollenhierarchie (UserEditPolicy::
+     * canEditEmail()). Der eine Satz, der dort zuvor für beide Fälle stand, nannte
+     * genau das Recht, das die Person hält, und schickte sie damit auf die Suche
+     * nach einem Recht, das ihr nichts geholfen hätte.
+     */
+    public function testTheLockedEmailBlamesTheRankForAPeer(): void
+    {
+        $_SESSION = [
+            'user_id' => 999104,
+            'can_manage_users' => true,
+            'can_edit_users' => true,
+            'can_manage_project_members' => false,
+            'can_manage_own_voice_group' => false,
+            // Dieselbe Stufe wie die Rolle des Ziels (10).
+            'role_level' => 10,
+            'voice_group_ids' => [],
+        ];
+
+        $html = $this->renderEditForm();
+
+        self::assertStringContainsString('name="email"', $html);
+        self::assertStringContainsString('readonly', $html);
+        self::assertStringContainsString('in der Rollenhierarchie über dem Mitglied steht', $html);
+        self::assertStringNotContainsString('Mitglieder editieren erlauben', $html);
+    }
+
+    /**
+     * Fehlt das Recht wirklich, bleibt der alte Satz der richtige.
+     */
+    public function testTheLockedEmailNamesTheRightWhenItIsMissing(): void
+    {
+        $_SESSION = $this->voiceGroupManagerSession();
+
+        $html = $this->renderEditForm();
+
+        self::assertStringContainsString('name="email"', $html);
+        self::assertStringContainsString('Mitglieder editieren erlauben', $html);
+        self::assertStringNotContainsString('in der Rollenhierarchie über dem Mitglied steht', $html);
+    }
+
     public function testVoiceGroupManagerIsNotOfferedTheProjectAssignment(): void
     {
         $_SESSION = $this->voiceGroupManagerSession();
