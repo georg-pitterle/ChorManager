@@ -45,7 +45,7 @@ final class UserListLayoutFeatureTest extends TestCase
         $twig = $this->template('users/manage.twig');
 
         $this->assertStringContainsString(
-            '{% set show_projects = (can_manage_project_members or can_edit_users) and not show_archived and _running_total > 0 %}',
+            '{% set show_projects = (can_manage_project_members or _any_editable) and not show_archived and _running_total > 0 %}',
             $twig
         );
         $this->assertStringContainsString(
@@ -356,7 +356,7 @@ final class UserListLayoutFeatureTest extends TestCase
         $this->assertStringContainsString('<span class="badge text-bg-warning">nicht dabei</span>', $twig);
         // Ohne laufendes Projekt sagt die Spalte nichts und entfällt.
         $this->assertStringContainsString(
-            '{% set show_projects = (can_manage_project_members or can_edit_users) and not show_archived and _running_total > 0 %}',
+            '{% set show_projects = (can_manage_project_members or _any_editable) and not show_archived and _running_total > 0 %}',
             $twig
         );
     }

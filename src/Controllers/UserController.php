@@ -88,7 +88,6 @@ class UserController
         // Gleicher Zugriff wie in UserEditPolicy::sessionVoiceGroupIds(): eine alte
         // Sitzung ohne den Schlüssel darf nicht in die Abfrage durchschlagen.
         $myVgs = (array) ($_SESSION['voice_group_ids'] ?? []);
-        $canEditGlobal = $_SESSION['can_edit_users'] ?? false;
 
         $params = $request->getQueryParams();
         $showArchived = isset($params['archived']) && $params['archived'] === '1';
@@ -125,11 +124,9 @@ class UserController
             $user->voice_group_pivots = $pivots;
         }
 
-        $canEditUsers = $canEditGlobal;
         if (!$canManageUsers) {
             $roles = $roles->filter(fn($r) => $r->hierarchy_level < $userLevel);
             $voiceGroups = $voiceGroups->filter(fn($vg) => in_array($vg->id, $myVgs));
-            $canEditUsers = true;
         }
 
         $canManageProjectMembers = $_SESSION['can_manage_project_members'] ?? false;
@@ -177,7 +174,12 @@ class UserController
             'voice_groups' => $voiceGroups,
             'sub_voices' => $subVoices,
             'projects' => $projects,
-            'can_edit_users' => $canEditUsers,
+            // Kein globales `can_edit_users` mehr: Ob eine Zeile bearbeitbar ist,
+            // steht in `can_edit_member` und kommt aus derselben Policy, die
+            // editForm() und update() vor dem Schreiben befragen. Das Flag hier
+            // war weder das eine noch das andere - für jede Sitzung ohne
+            // can_manage_users stand es hart auf `true`, und die Vorlage hing die
+            // Knöpfe jeder Zeile daran.
             'can_manage_project_members' => $canManageProjectMembers,
             // Die Freigabe des Projektfelds im Anlegen-Dialog kommt aus derselben
             // Policy wie die Schreibprüfung in create(). Die Vorlage setzte sie

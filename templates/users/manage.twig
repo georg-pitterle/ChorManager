@@ -83,7 +83,8 @@
     {# laufenden Projekten heraus. Die Spalte und ihr Dialog entfallen dort. #}
     {% set _today = "now"|date("Y-m-d") %}
     {% set _running_total = projects|filter(p => not p.end_date or p.end_date|date("Y-m-d") >= _today)|length %}
-    {% set show_projects = (can_manage_project_members or can_edit_users) and not show_archived and _running_total > 0 %}
+    {% set _any_editable = can_edit_member is not empty %}
+    {% set show_projects = (can_manage_project_members or _any_editable) and not show_archived and _running_total > 0 %}
     {% set column_count = 3 + (show_archived ? 0 : 1) + (show_projects ? 1 : 0) + 1 %}
 
     <section aria-label="Mitgliederliste">
@@ -181,6 +182,13 @@
                                 {% set _is_self = user.id == session.user_id %}
                                 {% set _role_ok = can_archive_member[user.id]|default(false) %}
                                 {% set _may_archive = _role_ok and not _is_self %}
+                                {# Dieselbe Antwort, die editForm() und update() einholen #}
+                                {# (UserEditPolicy::canEdit()). Zuvor hing der Knopf am rohen #}
+                                {# Bearbeiten-Flag der Sitzung: der Vorstand bekam ihn auch für #}
+                                {# den Admin, wo der Klick mit 403 endet, und die Chorleitung #}
+                                {# bekam ihn für niemanden, obwohl sie die Projektzuordnung #}
+                                {# über genau dieses Formular pflegt. #}
+                                {% set _may_edit = can_edit_member[user.id]|default(false) %}
                                 {% set _pending = session.can_manage_users and not show_archived and user.invitationPending() %}
                                 {% set _invitation_tokens = (user.invitation_sent_at ? "sent" : "not_sent") ~ (_pending ? "|pending" : "") %}
                                 <tr data-role="{{ role_filter_ids }}"
@@ -241,6 +249,8 @@
                                         {% set _archive_block_reason = "" %}
                                         {% if _is_self %}
                                             {% set _archive_block_reason = "Dein eigenes Konto kannst du nicht archivieren." %}
+                                        {% elseif not _may_edit %}
+                                            {% set _archive_block_reason = "Für dieses Mitglied hast du keine Berechtigung." %}
                                         {% elseif not _role_ok %}
                                             {% set _archive_block_reason = "Erst alle Rollen bis auf die einfache Mitgliedschaft abnehmen." %}
                                         {% endif %}
@@ -254,67 +264,58 @@
                                                     <button type="submit" class="btn btn-sm btn-outline-secondary">Wiederherstellen</button>
                                                 </form>
                                             </div>
+                                        {% elseif not _may_edit %}
+                                            {# Archivieren folgt dem Bearbeiten: canDeactivate() verlangt #}
+                                            {# canArchive(), und das ist in der aktiven Liste genau #}
+                                            {# canEditProfile(). Hier konnte deshalb nur noch ein gesperrter #}
+                                            {# Knopf stehen - jetzt steht da der Grund. #}
+                                            <span class="d-block small text-muted user-archive-hint">{{ _archive_block_reason }}</span>
                                         {% else %}
                                             <div class="btn-group"
                                                  role="group"
                                                  aria-label="Aktionen für {{ user|person_name }}">
-                                                {% if can_edit_users %}
-                                                    <button type="button"
-                                                            class="btn btn-sm btn-outline-secondary js-edit-user"
-                                                            data-user-id="{{ user.id }}">
-                                                        Bearbeiten
-                                                    </button>
-                                                    <button type="button"
-                                                            class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
-                                                            data-bs-toggle="dropdown"
-                                                            aria-expanded="false"
-                                                            data-bs-boundary="viewport">
-                                                        <span class="visually-hidden">Weitere Aktionen</span>
-                                                    </button>
-                                                    <ul class="dropdown-menu dropdown-menu-end">
-                                                        {% if session.can_manage_users and not _is_self %}
-                                                            <li>
-                                                                <button type="button"
-                                                                        class="dropdown-item js-invite-btn"
-                                                                        data-invite-url="/users/{{ user.id }}/invite"
-                                                                        data-invite-confirm="{{ user.invitation_sent_at ? "Einladung erneut an " ~ user|person_name ~ " senden? Der Link vom " ~ user.invitation_sent_at|date("d.m.Y") ~ " verliert seine Gültigkeit." }}">
-                                                                    {{ user.invitation_sent_at ? "Einladung erneut senden" : "Einladung senden" }}
-                                                                </button>
-                                                            </li>
-                                                        {% endif %}
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary js-edit-user"
+                                                        data-user-id="{{ user.id }}">
+                                                    Bearbeiten
+                                                </button>
+                                                <button type="button"
+                                                        class="btn btn-sm btn-outline-secondary dropdown-toggle dropdown-toggle-split"
+                                                        data-bs-toggle="dropdown"
+                                                        aria-expanded="false"
+                                                        data-bs-boundary="viewport">
+                                                    <span class="visually-hidden">Weitere Aktionen</span>
+                                                </button>
+                                                <ul class="dropdown-menu dropdown-menu-end">
+                                                    {% if session.can_manage_users and not _is_self %}
                                                         <li>
-                                                            <form action="/users/deactivate/{{ user.id }}"
-                                                                  method="post"
-                                                                  data-confirm="{{ user|person_name }} archivieren? Die Person kann sich danach nicht mehr anmelden. Im Archiv lässt sie sich jederzeit wiederherstellen.">
-                                                                <button type="submit"
-                                                                        class="dropdown-item{{ _may_archive ? " text-danger" }}"
-                                                                        {% if not _may_archive %}disabled{% endif %}>
-                                                                    Archivieren
-                                                                </button>
-                                                            </form>
+                                                            <button type="button"
+                                                                    class="dropdown-item js-invite-btn"
+                                                                    data-invite-url="/users/{{ user.id }}/invite"
+                                                                    data-invite-confirm="{{ user.invitation_sent_at ? "Einladung erneut an " ~ user|person_name ~ " senden? Der Link vom " ~ user.invitation_sent_at|date("d.m.Y") ~ " verliert seine Gültigkeit." }}">
+                                                                {{ user.invitation_sent_at ? "Einladung erneut senden" : "Einladung senden" }}
+                                                            </button>
                                                         </li>
-                                                        {% if not _may_archive %}
-                                                            <li><span class="dropdown-item-text user-archive-hint">{{ _archive_block_reason }}</span></li>
-                                                            {% if not _is_self %}
-                                                                <li><button type="button" class="dropdown-item js-edit-user" data-user-id="{{ user.id }}">Rollen bearbeiten …</button></li>
-                                                            {% endif %}
+                                                    {% endif %}
+                                                    <li>
+                                                        <form action="/users/deactivate/{{ user.id }}"
+                                                              method="post"
+                                                              data-confirm="{{ user|person_name }} archivieren? Die Person kann sich danach nicht mehr anmelden. Im Archiv lässt sie sich jederzeit wiederherstellen.">
+                                                            <button type="submit"
+                                                                    class="dropdown-item{{ _may_archive ? " text-danger" }}"
+                                                                    {% if not _may_archive %}disabled{% endif %}>
+                                                                Archivieren
+                                                            </button>
+                                                        </form>
+                                                    </li>
+                                                    {% if not _may_archive %}
+                                                        <li><span class="dropdown-item-text user-archive-hint">{{ _archive_block_reason }}</span></li>
+                                                        {% if not _is_self %}
+                                                            <li><button type="button" class="dropdown-item js-edit-user" data-user-id="{{ user.id }}">Rollen bearbeiten …</button></li>
                                                         {% endif %}
-                                                    </ul>
-                                                {% else %}
-                                                    <form action="/users/deactivate/{{ user.id }}"
-                                                          method="post"
-                                                          data-confirm="{{ user|person_name }} archivieren? Die Person kann sich danach nicht mehr anmelden. Im Archiv lässt sie sich jederzeit wiederherstellen.">
-                                                        <button type="submit"
-                                                                class="btn btn-sm btn-outline-danger"
-                                                                {% if not _may_archive %}disabled{% endif %}>
-                                                            Archivieren
-                                                        </button>
-                                                    </form>
-                                                {% endif %}
+                                                    {% endif %}
+                                                </ul>
                                             </div>
-                                            {% if not can_edit_users and not _may_archive %}
-                                                <span class="d-block small text-muted user-archive-hint">{{ _archive_block_reason }}</span>
-                                            {% endif %}
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -504,7 +505,7 @@
         </div>
     </div>
 
-    {% if can_edit_users and not show_archived %}
+    {% if _any_editable and not show_archived %}
         {# Single reusable edit modal. Its form is fetched lazily from #}
         {# /users/{id}/edit-form (see users.js) so the /users response no longer #}
         {# carries one full edit form per member. #}
