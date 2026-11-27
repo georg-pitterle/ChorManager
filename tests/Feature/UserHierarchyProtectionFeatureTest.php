@@ -111,7 +111,11 @@ class UserHierarchyProtectionFeatureTest extends TestCase
         $_SESSION['user_id'] = 10;
         $_SESSION['can_manage_users'] = true;
         $_SESSION['can_edit_users'] = true;
-        $_SESSION['can_manage_project_members'] = true;
+        // Ohne das Projektmitglieder-Recht bleibt für ein ranghöheres Mitglied
+        // nichts übrig, was diese Sitzung schreiben dürfte. Mit dem Recht wäre
+        // die Projektzuordnung erlaubt - siehe
+        // testUpdateWritesOnlyProjectsForAnOutrankingMember().
+        $_SESSION['can_manage_project_members'] = false;
         $_SESSION['role_level'] = 80;
         $_SESSION['voice_group_ids'] = [];
 
@@ -200,6 +204,59 @@ class UserHierarchyProtectionFeatureTest extends TestCase
 
         $this->assertRedirect($result, '/users');
         $this->assertSame('Mitglied erfolgreich aktualisiert.', $_SESSION['success'] ?? null);
+    }
+
+    /**
+     * Die Projektzuordnung eines ranghöheren Mitglieds geht durch, alles andere
+     * am selben Formular nicht.
+     *
+     * Antwort A aus Review-Lauf 87: Die Besetzungsseite eines Projekts hat die
+     * Rollenhierarchie nie geprüft, das Mitglieder-Formular dagegen schon -
+     * dieselbe Zuordnung war auf einem Weg erlaubt und auf dem anderen gesperrt.
+     * Jetzt gilt überall die Regel der Besetzungsseite. Was das Konto schützt,
+     * bleibt: Name, Rollen, Stimmgruppen und Adresse werden hier trotz
+     * mitgesendeter Werte nicht geschrieben.
+     */
+    public function testUpdateWritesOnlyProjectsForAnOutrankingMember(): void
+    {
+        $_SESSION['user_id'] = 10;
+        $_SESSION['can_manage_users'] = true;
+        $_SESSION['can_edit_users'] = true;
+        $_SESSION['can_manage_project_members'] = true;
+        $_SESSION['role_level'] = 80;
+        $_SESSION['voice_group_ids'] = [];
+
+        $target = $this->makeTarget([100]);
+
+        $userQuery = $this->createStub(UserQuery::class);
+        $userQuery->method('findIncludingArchived')->willReturn($target);
+
+        $userPersistence = $this->createMock(UserPersistence::class);
+        $userPersistence->expects($this->never())->method('saveWithAssignments');
+
+        $projectPersistence = $this->createMock(ProjectPersistence::class);
+        $projectPersistence->expects($this->once())
+            ->method('setUserProjects')
+            ->with($this->targetUserId, [4242]);
+
+        $controller = $this->makeController($userQuery, $userPersistence, $projectPersistence);
+
+        $request = $this->makeRequest('POST', '/users/' . $this->targetUserId, [
+            'first_name' => 'Umbenannt',
+            'last_name' => 'Versuch',
+            'email' => 'hijack' . $this->suffix . '@example.test',
+            'password' => '',
+            'roles' => [$this->roleIdByLevel[10]],
+            'voice_groups' => [],
+            'sub_voices' => [],
+            'projects' => [4242],
+        ]);
+
+        $result = $controller->update($request, $this->makeResponse(), ['id' => (string) $this->targetUserId]);
+
+        $this->assertRedirect($result, '/users');
+        $this->assertSame('Projektzuordnung erfolgreich aktualisiert.', $_SESSION['success'] ?? null);
+        $this->assertArrayNotHasKey('error', $_SESSION);
     }
 
     public function testUpdateAllowsEditingSameRankedMember(): void

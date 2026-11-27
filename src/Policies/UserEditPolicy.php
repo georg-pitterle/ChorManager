@@ -28,11 +28,21 @@ use App\Models\User;
  *    Projektmitglieder-Verwalter ist genau der ausgeschlossen, und für den
  *    Stimmgruppen-Verwalter darf nichts anderes gelten.
  *
- * Über allen Wegen steht die Rollenhierarchie: ein Mitglied, dessen höchste
- * Rolle über dem eigenen Level liegt, bleibt unantastbar. UserController::update()
- * und ::deactivate() weisen solche Ziele ohnehin ab - ohne dieselbe Regel hier
- * hätte die Mitgliederliste einen Bearbeiten-Link angeboten, der beim Klick
+ * Über den Wegen, die das Konto selbst betreffen, steht die Rollenhierarchie: ein
+ * Mitglied, dessen höchste Rolle über dem eigenen Level liegt, behält Name,
+ * Rollen, Stimmgruppen, Adresse und Archiv-Zustand für sich.
+ * UserController::deactivate() weist solche Ziele ohnehin ab - ohne dieselbe
+ * Regel hier hätte die Mitgliederliste einen Knopf angeboten, der beim Klick
  * zwangsläufig in einer 403-Meldung endet.
+ *
+ * Die Projektzuordnung ist davon ausgenommen (Antwort A aus Review-Lauf 87). Sie
+ * ist eine Besetzungsliste und keine Kontoverwaltung: sie vergibt kein Recht und
+ * eröffnet keinen Übernahmepfad auf das Zielkonto. Die Besetzungsseite eines
+ * Projekts hat die Hierarchie deshalb nie geprüft - mit ihr könnte die
+ * Chorleitung den Vorstand in kein Projekt aufnehmen, siehe ProjectMemberPolicy.
+ * Hier galt sie trotzdem, und dieselbe Zuordnung war damit über /projects erlaubt
+ * und über /users gesperrt. Zwei Antworten auf eine Frage; jetzt gilt überall die
+ * der Besetzungsseite.
  */
 class UserEditPolicy
 {
@@ -87,9 +97,16 @@ class UserEditPolicy
      * True when the session may write the member's project assignment - the only
      * field a pure project member manager gets to change on this form.
      *
-     * Die Basisprüfungen gelten hier genauso wie auf den anderen Stufen.
+     * Vom archivierten Ziel abgesehen gelten die Basisprüfungen hier nicht: Die
+     * Rollenhierarchie sperrt die Zuordnung nicht, siehe den Klassenkommentar
+     * oben. Der Archiv-Riegel bleibt, und zwar aus einem eigenen Grund -
+     * ProjectPersistence::addProjectMember() holt ein archiviertes Konto beim
+     * Zuordnen zurück, und dieser Weg gehört in die Mitgliederverwaltung und
+     * nicht in ein Formular, das sich für ein archiviertes Mitglied gar nicht
+     * öffnet.
+     *
      * UserController::update() hat diese Stufe zuvor selbst aus der Session
-     * zusammengesetzt und dabei die Basisprüfungen übersprungen: das Formular
+     * zusammengesetzt und dabei auch den Archiv-Riegel übersprungen: das Formular
      * eines archivierten Mitglieds ließ sich zwar nicht mehr öffnen, ein direkt
      * abgesetzter POST auf /users/{id} schrieb die Projektzuordnung aber
      * weiterhin.
@@ -112,7 +129,7 @@ class UserEditPolicy
      */
     public function canEditProjects(User $target): bool
     {
-        return $this->passesBaseGuards($target)
+        return (int) ($target->is_active ?? 0) === 1
             && $this->canManageProjectMembers;
     }
 

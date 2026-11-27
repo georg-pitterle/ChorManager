@@ -379,19 +379,19 @@ class UserController
 
         $targetVgIds = $targetUser->voiceGroups->pluck('id')->toArray();
 
-        // Nobody may modify a member who outranks them in the role hierarchy - not even global
-        // user managers. This prevents lower-ranked admins from hijacking higher-ranked accounts
-        // (e.g. resetting an Obmann's password or e-mail from a lower administrative role).
-        if ($this->outranksActor($targetUser)) {
-            $_SESSION['error'] = 'Du hast keine Berechtigung, dieses Mitglied zu bearbeiten.';
-            return $response->withHeader('Location', '/users')->withStatus(302);
-        }
-
         // Die Policy entscheidet über jede Stufe, damit Mitgliederliste, Formular
         // und Speichern nicht auseinanderlaufen: canEdit() öffnet das Formular,
         // canEditProfile() erlaubt das Schreiben der Mitgliedsdaten,
-        // canEditProjects() das der Projektzuordnung. Die Basisprüfungen der Policy
-        // - archiviertes Ziel, höher gereihtes Ziel - gelten damit auf jeder Stufe.
+        // canEditProjects() das der Projektzuordnung.
+        //
+        // Die Rollenhierarchie stand hier zuvor als eigene Abweisung davor, und
+        // zwar für das ganze Formular. Sie ist weg, weil sie zwei Dinge auf
+        // einmal tat: Die Mitgliedsdaten schützt canEditProfile() selbst - ab
+        // hier ist kein Weg mehr erreichbar, der an ihm vorbeiführt -, und für
+        // die Projektzuordnung soll sie laut Antwort A aus Review-Lauf 87 gar
+        // nicht mehr gelten. Als Sammelabweisung hätte sie die erlaubte
+        // Zuordnung mitgesperrt, und die Begründung dafür stünde an einer
+        // Stelle, die von der Policy nichts weiß.
         $canEditProjects = $this->userEditPolicy->canEditProjects($targetUser);
         $canEditProfile = $this->userEditPolicy->canEditProfile($targetUser);
         $canEditEmail = $this->userEditPolicy->canEditEmail($targetUser);

@@ -180,7 +180,19 @@ final class UserEditPolicyTest extends TestCase
         $this->assertFalse($this->policy($session)->canEditProfile($this->makeUser(7, [1])));
     }
 
-    public function testProjectMemberManagerCannotOpenFormForHigherRankedMember(): void
+    /**
+     * Auch für ein ranghöheres Mitglied, und das ist eine Entscheidung (Antwort A
+     * aus Review-Lauf 87): Die Projektzuordnung ist eine Besetzungsliste und
+     * keine Kontoverwaltung. Die Besetzungsseite eines Projekts hat die
+     * Hierarchie nie geprüft - sonst könnte die Chorleitung den Vorstand in kein
+     * Projekt aufnehmen (siehe ProjectMemberPolicy) -, das Mitglieder-Formular
+     * dagegen schon. Dieselbe Zuordnung war damit auf einem Weg erlaubt und auf
+     * dem anderen gesperrt. Jetzt gilt überall die Regel der Besetzungsseite.
+     *
+     * Geöffnet wird das Formular deshalb; geschrieben wird darin aber nur die
+     * Zuordnung, siehe die beiden folgenden Prüfungen.
+     */
+    public function testProjectMemberManagerMayOpenTheFormForAHigherRankedMember(): void
     {
         $session = [
             'can_edit_users' => false,
@@ -189,7 +201,29 @@ final class UserEditPolicyTest extends TestCase
             'voice_group_ids' => [],
         ];
 
-        $this->assertFalse($this->policy($session)->canEdit($this->makeUser(7, [1], 1, [80])));
+        $this->assertTrue($this->policy($session)->canEdit($this->makeUser(7, [1], 1, [80])));
+    }
+
+    /**
+     * Die Hierarchie bleibt dort, wo sie das Konto schützt: Name, Rollen und
+     * Stimmgruppen eines ranghöheren Mitglieds bleiben unantastbar, auch mit dem
+     * übergreifenden Bearbeiten-Recht.
+     */
+    public function testHigherRankedMemberKeepsProfileProtectionDespiteProjectAccess(): void
+    {
+        $session = [
+            'can_edit_users' => true,
+            'can_manage_users' => true,
+            'can_manage_project_members' => true,
+            'role_level' => 50,
+            'voice_group_ids' => [],
+        ];
+
+        $target = $this->makeUser(7, [1], 1, [80]);
+
+        $this->assertFalse($this->policy($session)->canEditProfile($target));
+        $this->assertFalse($this->policy($session)->canEditEmail($target));
+        $this->assertFalse($this->policy($session)->canArchive($target));
     }
 
     public function testGlobalEditPermissionAllowsProfileEditing(): void
@@ -274,7 +308,12 @@ final class UserEditPolicyTest extends TestCase
         $this->assertFalse($this->policy($session)->canEditProjects($this->makeUser(7, [1], 0)));
     }
 
-    public function testProjectMemberManagerMayNotEditProjectsOfHigherRankedMember(): void
+    /**
+     * Die Rollenhierarchie sperrt die Projektzuordnung nicht - Antwort A aus
+     * Review-Lauf 87, derselbe Grund wie bei
+     * testProjectMemberManagerMayOpenTheFormForAHigherRankedMember().
+     */
+    public function testProjectMemberManagerMayEditProjectsOfHigherRankedMember(): void
     {
         $session = [
             'can_edit_users' => false,
@@ -283,7 +322,27 @@ final class UserEditPolicyTest extends TestCase
             'role_level' => 10,
         ];
 
-        $this->assertFalse($this->policy($session)->canEditProjects($this->makeUser(7, [1], 1, [50])));
+        $this->assertTrue($this->policy($session)->canEditProjects($this->makeUser(7, [1], 1, [50])));
+    }
+
+    /**
+     * Ohne das Recht bleibt es gesperrt, auch beim ranghöheren Ziel: Dass die
+     * Hierarchie hier nicht mehr prüft, ersetzt kein Recht.
+     */
+    public function testWithoutProjectMemberRightAHigherRankedMemberStaysClosed(): void
+    {
+        $session = [
+            'can_edit_users' => true,
+            'can_manage_users' => true,
+            'can_manage_project_members' => false,
+            'voice_group_ids' => [],
+            'role_level' => 10,
+        ];
+
+        $target = $this->makeUser(7, [1], 1, [50]);
+
+        $this->assertFalse($this->policy($session)->canEditProjects($target));
+        $this->assertFalse($this->policy($session)->canEdit($target));
     }
 
     /**

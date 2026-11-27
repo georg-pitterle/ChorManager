@@ -161,11 +161,12 @@ final class UserListEditButtonPolicyFeatureTest extends TestCase
     }
 
     /**
-     * Vorstand-sieht-Admin-Fall: Die Hierarchie sperrt das Ziel, editForm()
-     * antwortet mit 403. Die Zeile darf deshalb nicht als bearbeitbar
-     * herauskommen.
+     * Vorstand-sieht-Admin-Fall: Mit dem Projektmitglieder-Recht ist die Zeile
+     * bearbeitbar, denn die Projektzuordnung kennt die Hierarchie nicht mehr
+     * (Antwort A aus Review-Lauf 87). Das Formular zeigt dort dann nur die
+     * Zuordnung - canEditProfile() bleibt für dieses Ziel nein.
      */
-    public function testRowOfAnOutrankingMemberIsNotEditable(): void
+    public function testRowOfAnOutrankingMemberIsEditableForItsProjectAssignment(): void
     {
         $_SESSION['user_id'] = 4711;
         $_SESSION['can_manage_users'] = true;
@@ -181,9 +182,36 @@ final class UserListEditButtonPolicyFeatureTest extends TestCase
         ]);
 
         $this->assertSame(
+            [500002 => true, 500003 => true],
+            $data['can_edit_member'] ?? null,
+            'Die Projektzuordnung öffnet das Formular auch beim ranghöheren Mitglied.'
+        );
+    }
+
+    /**
+     * Ohne das Projektmitglieder-Recht bleibt die Zeile des ranghöheren
+     * Mitglieds zu: Dann gibt es darin nichts, was diese Sitzung schreiben
+     * dürfte, und der Knopf wäre wieder die 403-Sackgasse von oben.
+     */
+    public function testRowOfAnOutrankingMemberStaysClosedWithoutTheProjectRight(): void
+    {
+        $_SESSION['user_id'] = 4711;
+        $_SESSION['can_manage_users'] = true;
+        $_SESSION['can_edit_users'] = true;
+        $_SESSION['can_manage_project_members'] = false;
+        $_SESSION['can_manage_own_voice_group'] = true;
+        $_SESSION['role_level'] = 80;
+        $_SESSION['voice_group_ids'] = [];
+
+        $data = $this->renderData([
+            $this->makeMember(500002, [100]),
+            $this->makeMember(500003, [0]),
+        ]);
+
+        $this->assertSame(
             [500003 => true],
             $data['can_edit_member'] ?? null,
-            'Ein ranghöheres Mitglied bleibt unantastbar, das gleichrangige nicht.'
+            'Ein ranghöheres Mitglied bleibt ohne das Recht unantastbar, das gleichrangige nicht.'
         );
     }
 
