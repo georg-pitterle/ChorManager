@@ -145,14 +145,21 @@
                             </thead>
                             <tbody>
                                 {% for stat in stats %}
+                                    {% set _archived = not stat.is_active %}
                                     <tr data-sort-name="{{ stat|person_name|lower }}"
                                         data-sort-voice="{{ stat.voice_group_rank }}"
                                         data-sort-present="{{ stat.present_count }}"
                                         data-sort-excused="{{ stat.excused_count }}"
                                         data-sort-unexcused="{{ stat.unexcused_count }}"
                                         data-sort-recorded="{{ stat.total_recorded }}"
-                                        data-sort-percentage="{{ stat.percentage ?? 101 }}">
-                                        <td data-label="Name" data-card-title>{{ stat|person_name }}</td>
+                                        data-sort-percentage="{{ stat.percentage ?? 101 }}"
+                                        class="{{ _archived ? "text-muted" : "" }}">
+                                        <td data-label="Name" data-card-title>
+                                            {{ stat|person_name }}
+                                            {% if _archived %}
+                                                <span class="badge text-bg-light border">Archiviert</span>
+                                            {% endif %}
+                                        </td>
                                         <td data-label="Stimmgruppe" class="quota-table__voice">
                                             {{ stat.voice_group_name|default("-") }}
                                         </td>
@@ -184,7 +191,7 @@
         </p>
     {% elseif selected_project %}
         <p class="text-muted text-center py-5 mb-0">
-            Diesem Projekt sind noch keine aktiven Mitglieder zugeordnet.
+            Diesem Projekt sind noch keine Mitglieder zugeordnet.
             {% if can_manage_members %}
                 <a href="/projects/{{ selected_project.id }}/members">Mitglieder hinzufügen</a>
             {% endif %}

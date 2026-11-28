@@ -25,6 +25,9 @@ class AttendanceScopeService
     /** @var array<int>|null */
     private ?array $manageableUserIdsCache = null;
 
+    /** @var array<int>|null */
+    private ?array $visibleUserIdsCache = null;
+
     /** @var array<int, MemberProfile>|null */
     private ?array $profilesCache = null;
 
@@ -112,6 +115,59 @@ class AttendanceScopeService
         }
 
         return $this->manageableUserIdsCache = User::where('is_active', 1)
+            ->pluck('id')
+            ->map(static fn($id) => (int) $id)
+            ->all();
+    }
+
+    /**
+     * Wessen Zeile die Person in einer Auswertung sehen darf - derselbe Umfang wie
+     * getManageableUserIds(), aber ohne den Filter auf `is_active`.
+     *
+     * Getrennt von getManageableUserIds() und nicht als Lockerung daran: An dieser
+     * Liste hängt auch der Schreibweg (AttendanceController::save() schneidet sie
+     * mit der Zielgruppe des Termins). Wer archiviert ist, soll dort weiterhin
+     * nicht vorkommen - für ihn ist nichts mehr einzutragen. Zu *sehen* ist seine
+     * erfasste Anwesenheit aber, sonst verschwindet mit dem Archivieren die
+     * Geschichte eines ganzen Projekts aus der Tabelle (siehe
+     * ProjectQuery::getMembersWithAttendances()).
+     *
+     * Der Umfang selbst bleibt unangetastet: Wer niemanden verwaltet, sieht auch
+     * hier niemanden, und das stimmgruppen-beschränkte Recht bleibt auf seine
+     * Stimmgruppen beschränkt - archivierte Mitglieder behalten ihre
+     * Stimmgruppen-Zuordnung und fallen deshalb von selbst richtig heraus.
+     *
+     * @return array<int>
+     */
+    public function getVisibleUserIds(): array
+    {
+        if ($this->visibleUserIdsCache !== null) {
+            return $this->visibleUserIdsCache;
+        }
+
+        if (!$this->canManageOthers()) {
+            return $this->visibleUserIdsCache = [];
+        }
+
+        if (!$this->canManageAttendanceAll) {
+            if ($this->voiceGroupIds === []) {
+                return $this->visibleUserIdsCache = [];
+            }
+
+            $userVoiceGroupIds = $this->voiceGroupIds;
+
+            return $this->visibleUserIdsCache = User::whereHas(
+                'voiceGroups',
+                function ($query) use ($userVoiceGroupIds) {
+                    $query->whereIn('voice_group_id', $userVoiceGroupIds);
+                }
+            )
+                ->pluck('id')
+                ->map(static fn($id) => (int) $id)
+                ->all();
+        }
+
+        return $this->visibleUserIdsCache = User::query()
             ->pluck('id')
             ->map(static fn($id) => (int) $id)
             ->all();

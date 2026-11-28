@@ -448,7 +448,10 @@ final class EvaluationAttendanceQuotaFeatureTest extends TestCase
             $this->makeResponse()
         )->getBody();
 
-        $this->assertStringContainsString('noch keine aktiven Mitglieder zugeordnet', $emptyBody);
+        // "aktive" ist aus dem Leerzustand verschwunden, seit die Tabelle auch
+        // archivierte Mitglieder zeigt: Der Satz träfe sonst auch dann zu, wenn
+        // das Projekt nur archivierte Mitglieder hat - und die stehen jetzt drin.
+        $this->assertStringContainsString('noch keine Mitglieder zugeordnet', $emptyBody);
         $this->assertStringNotContainsString('id="evaluationsTable"', $emptyBody);
     }
 

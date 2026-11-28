@@ -89,6 +89,35 @@ class EventAudienceService extends AudienceOwnerService
      */
     public function eligibleUserIdsForEvents(iterable $events): array
     {
+        return $this->userIdsForEvents($events, false);
+    }
+
+    /**
+     * Dieselbe Auflösung, aber mit den archivierten Mitgliedern.
+     *
+     * Allein für die rückblickende Auswertung: Die Anwesenheitstabelle eines
+     * Projekts zeigt archivierte Mitglieder mit und braucht dafür auch deren
+     * Bezugsgröße - die Termine, deren Zielgruppe sie trifft. Die Begründung
+     * steht bei AudienceFilterService::membersQueryForSetsIncludingArchived().
+     *
+     * Eigene Methode statt eines `true` an der Aufrufstelle: Wer eine Zielgruppe
+     * auflöst, um einzuladen oder zu benachrichtigen, soll an diesem Namen
+     * stolpern und nicht an einem Schalter vorbeilesen.
+     *
+     * @param iterable<Event> $events
+     * @return array<int, list<int>> Termin-Kennung => Kennungen der Mitglieder
+     */
+    public function eligibleUserIdsForEventsIncludingArchived(iterable $events): array
+    {
+        return $this->userIdsForEvents($events, true);
+    }
+
+    /**
+     * @param iterable<Event> $events
+     * @return array<int, list<int>>
+     */
+    private function userIdsForEvents(iterable $events, bool $includeArchived): array
+    {
         $idsByEvent = [];
         $idsBySignature = [];
 
@@ -97,7 +126,10 @@ class EventAudienceService extends AudienceOwnerService
             $signature = $this->signature($sets);
 
             if (!array_key_exists($signature, $idsBySignature)) {
-                $idsBySignature[$signature] = $this->filters->membersQueryForSets($sets)
+                $query = $includeArchived
+                    ? $this->filters->membersQueryForSetsIncludingArchived($sets)
+                    : $this->filters->membersQueryForSets($sets);
+                $idsBySignature[$signature] = $query
                     ->pluck('users.id')
                     ->map(static fn ($id): int => (int) $id)
                     ->all();

@@ -204,9 +204,18 @@ class ProjectQuery
     }
 
     /**
-     * Die aktiven Projektmitglieder samt ihren Anwesenheiten zu den
-     * stattgefundenen Pflichtterminen des Projekts - die Grundlage der
-     * Auswertungstabelle.
+     * Die Projektmitglieder samt ihren Anwesenheiten zu den stattgefundenen
+     * Pflichtterminen des Projekts - die Grundlage der Auswertungstabelle.
+     *
+     * Archivierte Mitglieder stehen mit darin, erkennbar über `is_active` je
+     * Zeile - dieselbe Grenze wie bei getProjectMembers() und
+     * getProjectMembersGroupedByVoice(). Vorher filterte diese Abfrage auf
+     * `is_active = 1`, und damit zeigte die Besetzungsansicht eines Projekts
+     * jemanden, den die Anwesenheitstabelle desselben Projekts verschwieg -
+     * einen Klick daneben. Mit dem Archivieren verschwand auch die erfasste
+     * Anwesenheit eines ganzen Projekts aus der Tabelle, rückwirkend. Was
+     * weiterhin nur den heutigen Chor zählt, sind die Kennzahlen daneben
+     * (EvaluationController::onlyActive()).
      *
      * Stand bis zur Antwort auf Lauf 74 als `User::where('is_active', 1)` mitten
      * in EvaluationController::collectStats() und lud damit die ganze Zeile samt
@@ -215,8 +224,8 @@ class ProjectQuery
      * der Abfrageschicht, und eine Zeile mehr in der Vorlagen-Übergabe hätte
      * daraus dasselbe gemacht wie bei der Empfängervorschau des Newsletters.
      *
-     * Gelesen werden nur `id`, Vor- und Nachname, die Stimmgruppen und die
-     * Anwesenheiten; die Listenspalten decken das ab.
+     * Gelesen werden nur `id`, Vor- und Nachname, `is_active`, die Stimmgruppen
+     * und die Anwesenheiten; die Listenspalten decken das ab.
      *
      * Die Anwesenheiten kommen eingegrenzt mit, nicht vollständig: Gezählt wird
      * allein über die Pflichttermine dieses Projekts, die schon stattgefunden
@@ -231,7 +240,6 @@ class ProjectQuery
     public function getMembersWithAttendances(int $projectId, ?int $onlyUserId = null): Collection
     {
         $query = User::select(User::LIST_COLUMNS)
-            ->where('is_active', 1)
             ->whereHas('projects', function ($relation) use ($projectId): void {
                 $relation->where('projects.id', $projectId);
             })

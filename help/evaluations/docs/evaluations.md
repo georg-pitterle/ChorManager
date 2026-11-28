@@ -92,6 +92,13 @@ Die Spalten der Tabelle:
 | **Erfasst** | für wie viele der Termine überhaupt eine Anwesenheit eingetragen wurde |
 | **Quote** | Anwesend geteilt durch alle stattgefundenen Pflichttermine, **die für die Person gelten** |
 
+Archivierte Projektmitglieder stehen grau mit dem Hinweis **Archiviert** in der Tabelle,
+genau wie in der [Besetzung](evaluations-project-members). Ihre erfasste Anwesenheit bleibt
+damit nachvollziehbar, statt mit dem Archivieren rückwirkend aus der Auswertung zu
+verschwinden. In den Block **Nach Stimmgruppe**, in **Stimmen im Vergleich** und in
+**Immer dabei** zählen sie dagegen nicht mit: Diese drei beantworten "Steht die
+Besetzung?", und das ist eine Frage an den heutigen Chor.
+
 Die Zahl unter dem Seitentitel zählt alle Pflichttermine des Projekts, eine Zeile nur die,
 deren Zielgruppe die Person einschließt. Steht oben „17 Pflichttermine“ und in einer
 Zeile „16 / 16“, galt ein Termin – etwa eine Registerprobe – für diese Person nicht. Gilt
@@ -129,7 +136,10 @@ Name und Quote oben und den vier Zählern darunter.
 - **Oben eine andere Terminzahl als in der Zeile.** Kein Fehler: Die Zeile zählt nur die
   Termine, die für die Person gelten (siehe oben).
 - **Jemand fehlt in der Tabelle.** Gezählt werden die Mitglieder des gewählten Projekts.
-  Wer dem Projekt nicht zugeordnet ist, taucht auch nicht auf.
+  Wer dem Projekt nicht zugeordnet ist, taucht auch nicht auf. Archiviert zu sein genügt
+  dagegen nicht: Diese Zeilen bleiben stehen, grau und mit dem Hinweis **Archiviert**.
+- **Durchschnitt und Tabelle passen nicht zusammen.** Kein Fehler: Der Durchschnitt je
+  Stimmgruppe lässt archivierte Mitglieder aus, die Tabelle zeigt sie.
 - **Zahlen wirken zu gut.** Erst in die Spalte **Erfasst** schauen: Ohne geführte Listen
   bleibt die Quote niedrig, weil der Nenner alle Termine umfasst — umgekehrt heißt eine
   hohe Quote bei wenigen erfassten Terminen nichts.

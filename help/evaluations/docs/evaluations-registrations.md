@@ -43,6 +43,12 @@ vergangenen Terminen mit Anwesenheitspflicht und nennt die tatsächlich erfasste
 Anwesenheit. Der Vergleich mit den Zusagen derselben Zeile zeigt, wie verlässlich die
 Anmeldungen im Chor sind. Bei allen übrigen Zeilen steht ein Strich.
 
+Gezählt wird dabei dieselbe Gruppe, aus der auch die Zusagen und der Rücklauf gerechnet
+werden: die eingeladenen Mitglieder des Termins, wie die Zielgruppe sie heute bestimmt.
+Wer inzwischen das Projekt verlassen hat, die Stimmgruppe gewechselt hat oder archiviert
+ist, zählt nicht mehr mit — auch wenn damals ein Haken gesetzt wurde. Nur so lassen sich
+die drei Zahlen einer Zeile miteinander vergleichen.
+
 ## Häufige Stolperfallen
 
 - **"Keine Termine mit freigeschalteter Anmeldung gefunden."** Die Anmeldung wird je

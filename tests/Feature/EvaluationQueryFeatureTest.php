@@ -71,24 +71,81 @@ final class EvaluationQueryFeatureTest extends TestCase
 
         self::assertSame(
             [(int) $event->id => 0],
-            (new EvaluationQuery())->presentCountsByEvent([(int) $event->id])
+            (new EvaluationQuery())->presentCountsByEvent([(int) $event->id], [(int) $event->id => []])
         );
     }
 
     public function testOnlyPresentRowsAreCounted(): void
     {
         $event = $this->event();
+        $userIds = [];
         foreach ([Attendance::STATUS_PRESENT, Attendance::STATUS_PRESENT, Attendance::STATUS_UNKNOWN] as $status) {
+            $user = $this->user();
+            $userIds[] = (int) $user->id;
             Attendance::create([
                 'event_id' => $event->id,
-                'user_id' => $this->user()->id,
+                'user_id' => $user->id,
                 'status' => $status,
             ]);
         }
 
         self::assertSame(
             [(int) $event->id => 2],
-            (new EvaluationQuery())->presentCountsByEvent([(int) $event->id])
+            (new EvaluationQuery())->presentCountsByEvent([(int) $event->id], [(int) $event->id => $userIds])
+        );
+    }
+
+    /**
+     * Anwesend wird nur gezählt, wen die Zielgruppe des Termins heute noch
+     * umfasst - dieselbe Menge, aus der die Zusagen und der Rücklauf daneben
+     * gerechnet werden.
+     *
+     * Beim Eintragen stimmten beide Mengen überein: AttendanceController::save()
+     * lässt nur Einträge für berechtigte Mitglieder durch. Der Eintrag bleibt
+     * aber stehen, wenn die Zielgruppe sich später ändert - jemand verlässt das
+     * Projekt oder wird archiviert. Danach stand in der Spalte "Anwesend (Ist)"
+     * eine Zahl, die größer sein konnte als die Bezugsgröße der Zusagen
+     * daneben, und die drei Zahlen einer Zeile ließen sich nicht vergleichen.
+     */
+    public function testPresentCountsIgnoreWhoIsNoLongerInTheAudience(): void
+    {
+        $event = $this->event();
+        $member = $this->user();
+        $gone = $this->user();
+
+        foreach ([$member, $gone] as $person) {
+            Attendance::create([
+                'event_id' => $event->id,
+                'user_id' => $person->id,
+                'status' => Attendance::STATUS_PRESENT,
+            ]);
+        }
+
+        $counts = (new EvaluationQuery())->presentCountsByEvent(
+            [(int) $event->id],
+            [(int) $event->id => [(int) $member->id]]
+        );
+
+        self::assertSame([(int) $event->id => 1], $counts);
+    }
+
+    /**
+     * Fehlt die Zielgruppe eines Termins in der Zuordnung, bleibt die Zahl 0 und
+     * wird nicht aus Verlegenheit ungefiltert gezählt: Kein Eintrag heißt
+     * "niemand gehört dazu", und das ist die sichere Richtung.
+     */
+    public function testAnEventWithoutAnAudienceEntryCountsZero(): void
+    {
+        $event = $this->event();
+        Attendance::create([
+            'event_id' => $event->id,
+            'user_id' => $this->user()->id,
+            'status' => Attendance::STATUS_PRESENT,
+        ]);
+
+        self::assertSame(
+            [(int) $event->id => 0],
+            (new EvaluationQuery())->presentCountsByEvent([(int) $event->id], [])
         );
     }
 
@@ -96,7 +153,7 @@ final class EvaluationQueryFeatureTest extends TestCase
     {
         $query = new EvaluationQuery();
 
-        self::assertSame([], $query->presentCountsByEvent([]));
+        self::assertSame([], $query->presentCountsByEvent([], []));
         self::assertSame([], $query->registrationStatusByEvent([]));
         self::assertSame([], $query->firstVoiceGroupNameByUser([]));
     }

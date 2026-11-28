@@ -75,29 +75,58 @@ class EvaluationQuery
     /**
      * Zahl der Anwesenden je Termin, in einer Abfrage für alle übergebenen Termine.
      *
+     * Gezählt wird allein, wen die Zielgruppe des Termins umfasst. Die Spalte
+     * "Anwesend (Ist)" steht in der Anmeldeauswertung neben "Zusagen gesamt" und
+     * "Rücklauf", und die beiden rechnen über genau diese Menge - ohne die
+     * Eingrenzung zählte sie eine andere und war mit ihren Nachbarinnen nicht
+     * vergleichbar. Beim Eintragen fallen die Mengen zusammen
+     * (AttendanceController::save() lässt nur Berechtigte durch); auseinander
+     * laufen sie erst, wenn die Zielgruppe sich danach ändert - jemand verlässt
+     * das Projekt, wechselt die Stimmgruppe oder wird archiviert. Der
+     * Anwesenheitseintrag bleibt dabei stehen, und "Anwesend 18" konnte neben
+     * "Zusagen 15 von 16" landen.
+     *
+     * Die Eingrenzung läuft über die Kennungen und nicht in der Bedingung der
+     * Abfrage: Jeder Termin hat seine eigene Zielgruppe, in SQL wäre das je
+     * Termin ein eigenes ODER-Paar aus Termin und Kennungsliste. Geholt werden
+     * deshalb die Paare (Termin, Mitglied) der Anwesenden - eine Abfrage wie
+     * zuvor - und gezählt wird danach gegen die Zuordnung.
+     *
+     * Ein Termin, der in `$eligibleUserIdsByEvent` fehlt, bekommt 0: Keine
+     * Zielgruppe heißt "niemand gehört dazu" und nicht "also alle".
+     *
      * @param list<int> $eventIds
+     * @param array<int, list<int>> $eligibleUserIdsByEvent Termin => berechtigte Mitglieder
      * @return array<int, int> jeder übergebene Termin, auch mit 0
      */
-    public function presentCountsByEvent(array $eventIds): array
+    public function presentCountsByEvent(array $eventIds, array $eligibleUserIdsByEvent): array
     {
         if ($eventIds === []) {
             return [];
         }
 
-        $counts = [];
-        $rows = Attendance::whereIn('event_id', $eventIds)
-            ->where('status', Attendance::STATUS_PRESENT)
-            ->groupBy('event_id')
-            ->get([Capsule::raw('event_id'), Capsule::raw('COUNT(*) as present_count')]);
-
-        foreach ($rows as $row) {
-            $counts[(int) $row->event_id] = (int) $row->present_count;
-        }
-
         // Termine ohne Anwesende bekommen ausdrücklich 0 - ein fehlender Eintrag
         // würde in der Spalte sonst als "keine Liste geführt" erscheinen.
-        foreach ($eventIds as $eventId) {
-            $counts[$eventId] ??= 0;
+        $counts = array_fill_keys(array_map('intval', $eventIds), 0);
+
+        $eligible = [];
+        foreach ($eligibleUserIdsByEvent as $eventId => $userIds) {
+            $eligible[(int) $eventId] = array_fill_keys(array_map('intval', $userIds), true);
+        }
+
+        $rows = Attendance::whereIn('event_id', $eventIds)
+            ->where('status', Attendance::STATUS_PRESENT)
+            ->get(['event_id', 'user_id']);
+
+        foreach ($rows as $row) {
+            $eventId = (int) $row->event_id;
+            if (!isset($counts[$eventId])) {
+                continue;
+            }
+            if (!isset($eligible[$eventId][(int) $row->user_id])) {
+                continue;
+            }
+            $counts[$eventId]++;
         }
 
         return $counts;

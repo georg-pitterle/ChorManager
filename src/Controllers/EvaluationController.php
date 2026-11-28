@@ -179,6 +179,9 @@ class EvaluationController
         $scope = new AttendanceScopeService($_SESSION);
         $canViewDetails = $scope->canManageOthers();
         $detailStats = $canViewDetails ? $this->limitToManageable($stats, $scope) : [];
+        // Die Kennzahlen rechnen über den heutigen Chor, die namentliche Tabelle
+        // darüber zeigt auch die archivierten Zeilen - siehe onlyActive().
+        $activeStats = $this->onlyActive($stats);
         $ownStat = $this->statForUser($stats, $userId);
         $ownVoiceGroup = $ownStat !== null && $ownStat['voice_group_rank'] !== PHP_INT_MAX
             ? (string) $ownStat['primary_voice_group']
@@ -190,18 +193,18 @@ class EvaluationController
             'selected_project' => $selectedProject,
             'stats' => $detailStats,
             'total_events' => $totalEvents,
-            'voice_group_summary' => $this->summarizeByVoiceGroup($detailStats),
+            'voice_group_summary' => $this->summarizeByVoiceGroup($this->onlyActive($detailStats)),
             'can_view_details' => $canViewDetails,
             'details_scope' => $canViewDetails ? ($this->canSeeAllProjects() ? 'all' : 'own_voice_group') : null,
             'own_standing' => $ownStat !== null && $selectedProject !== null
                 ? $this->buildOwnStanding($ownStat, $ownVoiceGroup, $selectedProject, $userId)
                 : null,
             'voice_group_race' => AttendanceStanding::voiceGroupRace(
-                $this->summarizeByVoiceGroup($stats),
+                $this->summarizeByVoiceGroup($activeStats),
                 $ownVoiceGroup,
                 self::NO_VOICE_GROUP
             ),
-            'always_there' => $recognitionReady ? $this->alwaysThere($stats, $userId) : [],
+            'always_there' => $recognitionReady ? $this->alwaysThere($activeStats, $userId) : [],
             'always_there_ready' => $recognitionReady,
             'always_there_threshold' => self::ALWAYS_THERE_THRESHOLD,
             'min_events_for_recognition' => self::MIN_EVENTS_FOR_RECOGNITION,
@@ -214,8 +217,12 @@ class EvaluationController
     }
 
     /**
-     * Zählungen und Quote je aktivem Projektmitglied über die stattgefundenen
+     * Zählungen und Quote je Projektmitglied über die stattgefundenen
      * Pflichttermine, die für die Person gelten.
+     *
+     * Archivierte Mitglieder sind dabei, gekennzeichnet über `is_active` je
+     * Zeile. Die Kennzahlen, die aus diesen Zeilen entstehen, bleiben dagegen
+     * beim heutigen Chor - siehe onlyActive().
      *
      * @return array{total_events: int, stats: list<array<string, mixed>>}
      */
@@ -239,8 +246,12 @@ class EvaluationController
         // Ein Termin "Sopran UND Projekt" gehört zum Projekt, gilt aber nicht für
         // die Alt-Stimmen darin. Nenner und Zählung laufen deshalb je Mitglied
         // über die Termine, deren Zielgruppe es trifft.
+        // Mit den Archivierten: Die Tabelle zeigt ihre Zeile, und dafür braucht
+        // sie auch deren Bezugsgröße. Ohne das stünde dort "0 Termine, keine
+        // Quote", obwohl Anwesenheit erfasst ist.
         $eventIdsByUser = [];
-        foreach ($this->audienceService->eligibleUserIdsForEvents($projectEvents) as $eventId => $memberIds) {
+        $audience = $this->audienceService->eligibleUserIdsForEventsIncludingArchived($projectEvents);
+        foreach ($audience as $eventId => $memberIds) {
             foreach ($memberIds as $memberId) {
                 $eventIdsByUser[$memberId][$eventId] = true;
             }
@@ -291,6 +302,9 @@ class EvaluationController
                 'user_id' => (int) $user->id,
                 'first_name' => $user->first_name,
                 'last_name' => $user->last_name,
+                // Die Vorlage kennzeichnet archivierte Mitglieder damit, wie die
+                // Besetzungsansicht daneben.
+                'is_active' => (bool) $user->is_active,
                 'voice_group_name' => $vgName,
                 'primary_voice_group' => $primaryVoiceGroup?->name ?? self::NO_VOICE_GROUP,
                 'voice_group_rank' => $primaryVoiceGroup !== null ? (int) $primaryVoiceGroup->id : PHP_INT_MAX,
@@ -311,19 +325,46 @@ class EvaluationController
 
     /**
      * Die namentliche Tabelle im Umfang des Verwaltungsrechts: alle Mitglieder
-     * oder nur die der eigenen Stimmgruppen - dieselbe Menge, für die die Person
-     * auch Anwesenheit eintragen darf.
+     * oder nur die der eigenen Stimmgruppen.
+     *
+     * Maßgeblich ist getVisibleUserIds() und nicht getManageableUserIds():
+     * Letzteres filtert auf `is_active` und hätte jede archivierte Zeile wieder
+     * herausgenommen - also genau die Zeilen, um die es hier geht. Der Umfang
+     * ist derselbe, die Grenze zum Eintragen bleibt dort, wo eingetragen wird
+     * (AttendanceController::save()).
      *
      * @param list<array<string, mixed>> $stats
      * @return list<array<string, mixed>>
      */
     private function limitToManageable(array $stats, AttendanceScopeService $scope): array
     {
-        $manageable = array_flip($scope->getManageableUserIds());
+        $visible = array_flip($scope->getVisibleUserIds());
 
         return array_values(array_filter(
             $stats,
-            static fn (array $stat): bool => isset($manageable[(int) $stat['user_id']])
+            static fn (array $stat): bool => isset($visible[(int) $stat['user_id']])
+        ));
+    }
+
+    /**
+     * Nur die Zeilen der aktiven Mitglieder.
+     *
+     * Die Kennzahlen - Durchschnitt je Stimmgruppe, Stimmgruppen-Vergleich,
+     * "immer dabei" - beantworten "Steht die Besetzung?". Das ist eine Frage an
+     * den heutigen Chor; wer nicht mehr mitsingt, hat darauf keine Antwort.
+     * Zählten sie archivierte Mitglieder mit, verschöbe ein Archivieren
+     * rückwirkend den Durchschnitt einer ganzen Stimmgruppe - und dagegen stand
+     * die Zeile gerade nicht zur Debatte. Die namentliche Tabelle zeigt die
+     * Geschichte, die Kennzahlen den Stand.
+     *
+     * @param list<array<string, mixed>> $stats
+     * @return list<array<string, mixed>>
+     */
+    private function onlyActive(array $stats): array
+    {
+        return array_values(array_filter(
+            $stats,
+            static fn (array $stat): bool => (bool) ($stat['is_active'] ?? true)
         ));
     }
 
@@ -591,8 +632,12 @@ class EvaluationController
 
         $voiceGroupByUser = $this->evaluationQuery->firstVoiceGroupNameByUser(array_keys($userIds));
         $registrationsByEvent = $this->evaluationQuery->registrationStatusByEvent($eventIds);
+        // Dieselbe Zielgruppen-Zuordnung, aus der die Zusagen und der Rücklauf
+        // gerechnet werden: Die Spalte "Anwesend (Ist)" steht daneben und soll
+        // sich mit ihnen vergleichen lassen.
         $attendanceByEvent = $this->evaluationQuery->presentCountsByEvent(
-            $this->eventIdsWithAttendanceColumn($events)
+            $this->eventIdsWithAttendanceColumn($events),
+            $eligibleByEvent
         );
 
         $matrix = [];

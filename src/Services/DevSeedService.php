@@ -205,6 +205,7 @@ class DevSeedService
                 'events' => 0,
                 'audience_filters_events' => 0,
                 'attendance' => 0,
+                'attendance_archived' => 0,
                 'event_registrations' => 0,
                 'finance_accounts' => 0,
                 'finance_revisions' => 0,
@@ -317,8 +318,9 @@ class DevSeedService
             $this->seedEventNotes($users['active']);
             $this->seedPolls($voiceData, $users['active']);
 
-            $this->seedAttendance($projectMembers, $projectEvents);
-            $this->seedEventRegistrations($projectMembers, $projectEvents);
+            $this->seedAttendance($projectMembers['active'], $projectEvents);
+            $this->seedArchivedAttendance($projectMembers['archived'], $projectEvents);
+            $this->seedEventRegistrations($projectMembers['active'], $projectEvents);
             $this->seedFinances($projects, 320, 40);
             $this->seedFinanceJournal();
             $this->seedBudget();
@@ -897,20 +899,28 @@ class DevSeedService
     }
 
     /**
+     * Die Besetzung je Projekt, in zwei Hälften getrennt zurückgegeben.
+     *
+     * `active` treibt Anwesenheit und Anmeldungen, `archived` allein die
+     * Anwesenheit der vergangenen Termine - die Begründung steht bei
+     * seedArchivedProjectMembers(). Getrennt und nicht in einem Topf, weil
+     * genau diese Grenze der Unterschied zwischen den beiden ist.
+     *
      * @param array<User> $activeUsers
      * @param array<User> $archivedUsers
+     * @return array{active: array<int, list<int>>, archived: array<int, list<int>>}
      */
     private function seedProjectMembers(array $projects, array $activeUsers, array $archivedUsers = []): array
     {
         $projectMembers = [];
-        $this->seedArchivedProjectMembers($projects, $archivedUsers);
+        $archivedMembers = $this->seedArchivedProjectMembers($projects, $archivedUsers);
 
         $activeIds = array_map(fn(User $user) => (int) $user->id, $activeUsers);
         $activeIds = $this->shuffled($activeIds);
 
         $activeCount = count($activeIds);
         if ($activeCount === 0) {
-            return $projectMembers;
+            return ['active' => $projectMembers, 'archived' => $archivedMembers];
         }
 
         // Ca. 70% sind in ALLEN Projekten
@@ -938,7 +948,7 @@ class DevSeedService
             }
         }
 
-        return $projectMembers;
+        return ['active' => $projectMembers, 'archived' => $archivedMembers];
     }
 
     /**
@@ -1227,17 +1237,24 @@ class DevSeedService
      * diesen Fall lässt sich in Dev nicht prüfen, dass die Mitgliederliste
      * archivierte Zuordnungen anzeigt und entfernen lässt.
      *
-     * Die Zuordnung bleibt bewusst aus der zurückgegebenen Mitgliederliste: die
-     * treibt Anwesenheit und Anmeldungen, und beides gehört Aktiven.
+     * Die Zuordnung bleibt aus der aktiven Mitgliederliste heraus - die treibt
+     * auch die Anmeldungen, und eine Anmeldung zu einem kommenden Termin gehört
+     * Aktiven. Zurück kommt sie trotzdem: Die Anwesenheit der vergangenen
+     * Termine gehört den Archivierten sehr wohl, sonst zeigte die
+     * Anwesenheitstabelle in Dev drei Zeilen mit "0 / 17" und behauptete, diese
+     * Personen seien nie da gewesen (seedArchivedAttendance()).
      *
      * @param array<Project> $projects
      * @param array<User> $archivedUsers
+     * @return array<int, list<int>> Projekt => archivierte Mitglieder
      */
-    private function seedArchivedProjectMembers(array $projects, array $archivedUsers): void
+    private function seedArchivedProjectMembers(array $projects, array $archivedUsers): array
     {
         if ($projects === [] || $archivedUsers === []) {
-            return;
+            return [];
         }
+
+        $byProject = [];
 
         // Die ältesten Projekte: dort ist ein zwischenzeitlicher Austritt plausibel.
         $pastProjects = array_slice($projects, 0, 2);
@@ -1254,7 +1271,14 @@ class DevSeedService
                 $project->users()->attach($userId);
                 $this->report['counts']['project_users_archived']++;
             }
+
+            $byProject[(int) $project->id] = array_map(
+                static fn(User $user): int => (int) $user->id,
+                $leavers
+            );
         }
+
+        return $byProject;
     }
 
     private function seedProjectEvents(array $projects, array $eventTypes): array
@@ -1878,6 +1902,70 @@ class DevSeedService
                         ['status' => $status, 'note' => $note]
                     );
                     $this->report['counts']['attendance']++;
+                }
+            }
+        }
+    }
+
+    /**
+     * Anwesenheit der archivierten Projektmitglieder - nur zu Terminen, die schon
+     * stattgefunden haben.
+     *
+     * Die Anwesenheitstabelle eines Projekts zeigt archivierte Mitglieder mit,
+     * gekennzeichnet. Ohne diese Zeilen stünde in Dev neben jedem Namen "0 / 17"
+     * und eine Quote von 0 %, und die Ansicht behauptete, diese Personen seien
+     * nie da gewesen - genau das Gegenteil dessen, was die Zeile zeigen soll.
+     *
+     * Nur vergangene Termine: Wer ausgetreten ist, hat an den kommenden Proben
+     * nichts mehr verloren, und eine vorab eingetragene Anwesenheit gibt es für
+     * ihn nicht.
+     *
+     * Gewürfelt wird schlechter als bei den Aktiven (zwei Drittel anwesend statt
+     * vier Fünftel) und mit einer Lücke gegen Ende: Ein Austritt kommt selten
+     * aus dem Nichts, und eine Zeile, die zum Projektende hin ausfranst, ist die
+     * plausiblere Geschichte.
+     *
+     * @param array<int, list<int>> $archivedMembers Projekt => archivierte Mitglieder
+     * @param array<int, array<int, Event>> $projectEvents
+     */
+    private function seedArchivedAttendance(array $archivedMembers, array $projectEvents): void
+    {
+        $statuses = Attendance::RECORDED_STATUSES;
+        $now = new DateTimeImmutable();
+
+        foreach ($archivedMembers as $projectId => $memberIds) {
+            $events = $projectEvents[$projectId] ?? [];
+            $past = [];
+            foreach ($events as $event) {
+                if (new DateTimeImmutable((string) $event->starts_at) < $now) {
+                    $past[] = $event;
+                }
+            }
+
+            if ($past === [] || $memberIds === []) {
+                continue;
+            }
+
+            // Die letzten zwei Fünftel der vergangenen Termine bleiben leer: der
+            // Zeitraum, in dem der Austritt bevorstand.
+            $recorded = (int) ceil(count($past) * 0.6);
+
+            foreach ($memberIds as $userId) {
+                foreach (array_slice($past, 0, $recorded) as $event) {
+                    $roll = mt_rand(1, 100);
+                    if ($roll <= 66) {
+                        $status = $statuses[0];
+                    } elseif ($roll <= 88) {
+                        $status = $statuses[1];
+                    } else {
+                        $status = $statuses[2];
+                    }
+
+                    Attendance::updateOrCreate(
+                        ['event_id' => $event->id, 'user_id' => $userId],
+                        ['status' => $status, 'note' => null]
+                    );
+                    $this->report['counts']['attendance_archived']++;
                 }
             }
         }

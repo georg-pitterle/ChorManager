@@ -178,12 +178,53 @@ final class AudienceFilterService
     /**
      * Aktive Mitglieder, die mindestens eine der Bedingungsmengen trifft.
      *
+     * Der Regelfall und die sichere Richtung: Wer eine Zielgruppe auflöst, will
+     * wissen, wen er heute einlädt, benachrichtigt oder eintragen lässt - und das
+     * ist niemand, der archiviert ist.
+     *
      * @param list<array<string, list<int>>> $conditionSets
      * @return Builder<User>
      */
     public function membersQueryForSets(array $conditionSets): Builder
     {
-        $query = User::query()->where('users.is_active', 1);
+        return $this->applyConditionSets(User::query()->where('users.is_active', 1), $conditionSets);
+    }
+
+    /**
+     * Dieselben Bedingungen, aber ohne den Filter auf `is_active`.
+     *
+     * Allein für die rückblickende Auswertung: Die Anwesenheitstabelle eines
+     * Projekts zeigt archivierte Mitglieder mit, gekennzeichnet, wie es die
+     * Besetzungsansicht daneben schon tut. Dafür braucht sie auch deren
+     * Bezugsgröße - also die Termine, deren Zielgruppe sie trifft. Mit dem
+     * Filter kam dort eine leere Liste zurück, und die Zeile hätte "0 Termine,
+     * keine Quote" behauptet, obwohl Anwesenheit erfasst ist.
+     *
+     * Der Name sagt die Grenze, statt sie einem `true` an der Aufrufstelle zu
+     * überlassen - dieselbe Richtung wie bei UserQuery::findIncludingArchived().
+     * Zum Einladen, Benachrichtigen oder Eintragen wird diese Abfrage nie
+     * benutzt; dafür bleibt membersQueryForSets() darüber die einzige Quelle.
+     *
+     * @param list<array<string, list<int>>> $conditionSets
+     * @return Builder<User>
+     */
+    public function membersQueryForSetsIncludingArchived(array $conditionSets): Builder
+    {
+        return $this->applyConditionSets(User::query(), $conditionSets);
+    }
+
+    /**
+     * Die Bedingungsmengen als ODER-Kette an eine vorbereitete Abfrage.
+     *
+     * Eine leere Liste von Mengen heißt "niemand" und nicht "alle": Ohne das
+     * `1 = 0` lieferte eine Zielgruppe ohne eine einzige Zeile den ganzen Chor.
+     *
+     * @param Builder<User> $query
+     * @param list<array<string, list<int>>> $conditionSets
+     * @return Builder<User>
+     */
+    private function applyConditionSets(Builder $query, array $conditionSets): Builder
+    {
         if ($conditionSets === []) {
             return $query->whereRaw('1 = 0');
         }
