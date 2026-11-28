@@ -125,4 +125,62 @@ final class VoiceGroupListQueryFeatureTest extends TestCase
         self::assertNotContains((int) $foreign->id, $withoutIt);
         self::assertContains((int) $foreign->id, $withIt);
     }
+
+    /**
+     * Ohne eigene Stimmgruppe bleibt das bisherige Projekt der Liste wählbar.
+     *
+     * Die Methode verspricht im Kopf, das bisherige Projekt mitzuliefern, "damit eine
+     * Bearbeitung es nicht verliert" - der Kurzschluss auf die leere Stimmgruppenliste
+     * hielt dieses Versprechen nicht und gab auch dann nichts zurück, wenn ein Projekt
+     * benannt war. Keine der drei Aufrufstellen trifft das heute, aber eine Zusicherung,
+     * die nur deshalb hält, weil niemand die Methode direkt aufruft, ist keine -
+     * derselbe Grund wie in ProjectQuery::getAccessibleProjects().
+     */
+    public function testTheCurrentProjectSurvivesAnEmptyVoiceGroupList(): void
+    {
+        $project = $this->makeProject();
+
+        $query = new VoiceGroupListQuery();
+
+        self::assertCount(0, $query->allowedProjects([]));
+        self::assertSame(
+            [(int) $project->id],
+            $query->allowedProjects([], (int) $project->id)
+                ->pluck('id')
+                ->map(static fn($id): int => (int) $id)
+                ->all()
+        );
+    }
+
+    /**
+     * Die beiden Bedingungen - Mitwirkung einer der Stimmgruppen ODER das bisherige
+     * Projekt - stehen in einer Klammer.
+     *
+     * Ungeklammert hing das ODER an der Spitze der UND-Kette. Dass das bisher nichts
+     * kaputt machte, lag allein daran, dass Project::scopeChronological() nur sortiert:
+     * Sobald dort oder an der Aufrufkette eine Bedingung dazukommt, bricht das ODER aus
+     * und jedes Projekt wird wählbar - genau der Fall, den
+     * ProjectQuery::findCurrentProjectId() mit "Die Klammer ist tragend" festhält.
+     * Geprüft wird deshalb die Form der Abfrage selbst: Ein Verhaltenstest zeigt den
+     * Ausbruch erst, wenn die zweite Bedingung schon eingebaut ist.
+     */
+    public function testBothConditionsStayInsideOneGroup(): void
+    {
+        $group = $this->makeVoiceGroup();
+        $project = $this->makeProject();
+
+        $connection = Capsule::connection();
+        $connection->flushQueryLog();
+        $connection->enableQueryLog();
+        (new VoiceGroupListQuery())->allowedProjects([(int) $group->id], (int) $project->id);
+        $connection->disableQueryLog();
+
+        $log = $connection->getQueryLog();
+        $sql = (string) (end($log)['query'] ?? '');
+
+        self::assertMatchesRegularExpression(
+            '/where \\(exists \\(.+\\) or `projects`\\.`id` = \\?\\)/is',
+            $sql
+        );
+    }
 }
